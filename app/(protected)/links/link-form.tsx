@@ -1,12 +1,24 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
+import type { UtmPreset } from "@/modules/utm";
 import { createLinkAction, type CreateLinkFormState } from "./actions";
 
 const initialState: CreateLinkFormState = {};
 
-export function LinkForm() {
+export function LinkForm({ presets }: { presets: UtmPreset[] }) {
   const [state, formAction, pending] = useActionState(createLinkAction, initialState);
+  const sourceRef = useRef<HTMLInputElement>(null);
+  const mediumRef = useRef<HTMLInputElement>(null);
+  const campaignRef = useRef<HTMLInputElement>(null);
+
+  function applyPreset(presetId: string) {
+    const preset = presets.find((p) => p.id === presetId);
+    if (!preset) return;
+    if (sourceRef.current) sourceRef.current.value = preset.utmSource;
+    if (mediumRef.current) mediumRef.current.value = preset.utmMedium;
+    if (campaignRef.current) campaignRef.current.value = preset.utmCampaign;
+  }
 
   return (
     <form
@@ -29,18 +41,44 @@ export function LinkForm() {
         />
       </div>
 
+      {presets.length > 0 && (
+        <div className="space-y-1">
+          <label htmlFor="preset" className="text-sm text-muted-foreground">
+            UTM preset (fills the fields below — still editable)
+          </label>
+          <select
+            id="preset"
+            onChange={(event) => applyPreset(event.target.value)}
+            defaultValue=""
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="" disabled>
+              Choose a preset…
+            </option>
+            {presets.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-2">
         <input
+          ref={sourceRef}
           name="utmSource"
           placeholder="utm_source"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
         <input
+          ref={mediumRef}
           name="utmMedium"
           placeholder="utm_medium"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
         <input
+          ref={campaignRef}
           name="utmCampaign"
           placeholder="utm_campaign"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { createLink, createDomain, createShortLink, updateLinkDestination } from "@/modules/links";
+import { normalizeUtmValue, createUtmPreset } from "@/modules/utm";
 
 const createLinkSchema = z.object({
   destinationUrl: z.string().trim().min(1).max(2048),
@@ -35,16 +36,58 @@ export async function createLinkAction(
   try {
     const link = await createLink({
       organizationId: user.profile.organizationId,
-      ...parsed.data,
+      destinationUrl: parsed.data.destinationUrl,
+      utmSource: parsed.data.utmSource ? normalizeUtmValue(parsed.data.utmSource) : undefined,
+      utmMedium: parsed.data.utmMedium ? normalizeUtmValue(parsed.data.utmMedium) : undefined,
+      utmCampaign: parsed.data.utmCampaign ? normalizeUtmValue(parsed.data.utmCampaign) : undefined,
     });
     revalidatePath("/links");
     redirect(`/links/${link.id}`);
   } catch (error) {
-    if (error instanceof Error && error.message.includes("http")) {
+    if (
+      error instanceof Error &&
+      (error.message.includes("http") || error.message.includes("UTM value"))
+    ) {
       return { error: error.message };
     }
     throw error;
   }
+}
+
+const createUtmPresetSchema = z.object({
+  name: z.string().trim().min(1).max(255),
+  utmSource: z.string().trim().min(1).max(255),
+  utmMedium: z.string().trim().min(1).max(255),
+  utmCampaign: z.string().trim().min(1).max(255),
+});
+
+export type CreateUtmPresetFormState = { error?: string };
+
+export async function createUtmPresetAction(
+  _prevState: CreateUtmPresetFormState,
+  formData: FormData,
+): Promise<CreateUtmPresetFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const parsed = createUtmPresetSchema.safeParse({
+    name: formData.get("name"),
+    utmSource: formData.get("utmSource"),
+    utmMedium: formData.get("utmMedium"),
+    utmCampaign: formData.get("utmCampaign"),
+  });
+  if (!parsed.success) {
+    return { error: "Fill in name, source, medium, and campaign." };
+  }
+
+  try {
+    await createUtmPreset({ organizationId: user.profile.organizationId, ...parsed.data });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not create preset." };
+  }
+
+  revalidatePath("/links");
+  return {};
 }
 
 const createDomainSchema = z.object({ hostname: z.string().trim().min(1).max(255) });
