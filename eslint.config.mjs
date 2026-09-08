@@ -12,10 +12,10 @@ const eslintConfig = defineConfig([
     settings: {
       "boundaries/include": ["app/**/*", "src/**/*"],
       "boundaries/elements": [
-        { type: "app", pattern: "app/*" },
-        { type: "ui", pattern: "src/components/*" },
-        { type: "lib", pattern: "src/lib/*" },
-        { type: "db-barrel", pattern: "src/db/*" },
+        { type: "app", pattern: "app/**" },
+        { type: "ui", pattern: "src/components/**" },
+        { type: "lib", pattern: "src/lib/**" },
+        { type: "db-barrel", pattern: "src/db/**" },
         { type: "module", pattern: "src/modules/*", capture: ["module"] },
       ],
       "boundaries/files": [
