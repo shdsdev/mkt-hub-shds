@@ -107,6 +107,51 @@ export async function listShortLinksForLink(linkId: string): Promise<ShortLink[]
   return db.select().from(shortLinks).where(eq(shortLinks.linkId, linkId));
 }
 
+// Destination + UTM only — never anything request-supplied (open-redirect mitigation,
+// ARCHITECTURE.md threat matrix).
+export function buildDestinationUrl(link: Link): string {
+  const url = new URL(link.destinationUrl);
+  const utmEntries: [string, string | null][] = [
+    ["utm_source", link.utmSource],
+    ["utm_medium", link.utmMedium],
+    ["utm_campaign", link.utmCampaign],
+    ["utm_term", link.utmTerm],
+    ["utm_content", link.utmContent],
+  ];
+  for (const [key, value] of utmEntries) {
+    if (value) url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+export type ResolvedShortLink = { link: Link; shortLink: ShortLink };
+
+// The redirect engine's one lookup (ARCHITECTURE.md §25) — never a default-domain fallback if
+// either half doesn't match.
+export async function resolveShortLinkByHostAndSlug(
+  hostname: string,
+  slug: string,
+): Promise<ResolvedShortLink | undefined> {
+  if (!isValidSlug(slug)) return undefined;
+
+  const domainRows = await db.select().from(domains).where(eq(domains.hostname, hostname)).limit(1);
+  const domain = domainRows[0];
+  if (!domain) return undefined;
+
+  const shortLinkRows = await db
+    .select()
+    .from(shortLinks)
+    .where(and(eq(shortLinks.domainId, domain.id), eq(shortLinks.slug, slug)))
+    .limit(1);
+  const shortLink = shortLinkRows[0];
+  if (!shortLink || shortLink.status !== "active") return undefined;
+
+  const link = await getLink(shortLink.linkId);
+  if (!link) return undefined;
+
+  return { link, shortLink };
+}
+
 export async function listDomains(organizationId: string): Promise<Domain[]> {
   return db.select().from(domains).where(eq(domains.organizationId, organizationId));
 }

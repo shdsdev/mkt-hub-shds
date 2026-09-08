@@ -8,7 +8,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Skip static assets and image optimization files — nothing there needs a fresh session.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Skip static assets, image optimization files, and the redirect hot path — the redirect
+    // engine must stay free of auth/rendering middleware (ARCHITECTURE.md NFR-01, Data Flow).
+    "/((?!_next/static|_next/image|favicon.ico|r/|q/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

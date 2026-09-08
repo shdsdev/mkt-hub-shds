@@ -6,6 +6,8 @@ export {
   listLinks,
   createShortLink,
   listShortLinksForLink,
+  resolveShortLinkByHostAndSlug,
+  buildDestinationUrl,
   listDomains,
   createDomain,
   listFolders,
@@ -20,4 +22,5 @@ export {
   type Tag,
   type CreateLinkInput,
   type CreateShortLinkInput,
+  type ResolvedShortLink,
 } from "./service";
