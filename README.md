@@ -21,6 +21,15 @@ Next.js (App Router) + React + TypeScript + Tailwind CSS + shadcn/ui + Drizzle O
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Running the app itself in Docker against the local Supabase stack
+
+`docker compose up` builds and starts the `app` service correctly, but a `DATABASE_URL` of
+`127.0.0.1:54322` in `.env` won't resolve from *inside* that container — `127.0.0.1` there means
+the container itself, not your machine. For `pnpm dev` (runs on the host) `127.0.0.1` is correct;
+if you specifically need the containerized app to reach the local Supabase stack, override
+`DATABASE_URL` to use `host.docker.internal` instead of `127.0.0.1` for that run. Against a real
+(non-local) Supabase project this doesn't apply — `DATABASE_URL` is already a real hostname.
+
 ### Provisioning a real Supabase project
 
 Not required for Phase 0 (local dev works fully offline). When ready to deploy: create a project
