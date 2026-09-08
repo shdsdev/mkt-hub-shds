@@ -1,2 +1,23 @@
 // Public surface of the `links` module — the ONLY file other modules may import (ARCHITECTURE.md I-4).
-export const linksModule = { name: "links" } as const;
+export {
+  createLink,
+  updateLinkDestination,
+  getLink,
+  listLinks,
+  createShortLink,
+  listShortLinksForLink,
+  listDomains,
+  createDomain,
+  listFolders,
+  createFolder,
+  listTags,
+  getOrCreateTag,
+  tagLink,
+  type Link,
+  type ShortLink,
+  type Domain,
+  type Folder,
+  type Tag,
+  type CreateLinkInput,
+  type CreateShortLinkInput,
+} from "./service";

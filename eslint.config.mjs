@@ -24,6 +24,11 @@ const eslintConfig = defineConfig([
           category: "public",
           capture: ["module"],
         },
+        {
+          pattern: "src/modules/*/db.ts",
+          category: "schema",
+          capture: ["module"],
+        },
       ],
     },
     rules: {
@@ -60,6 +65,18 @@ const eslintConfig = defineConfig([
             // every module's db.ts, so it must reach into module internals.
             {
               from: { element: { type: "db-barrel" } },
+              allow: [
+                { to: { element: { type: "lib" } } },
+                { to: { element: { type: "db-barrel" } } },
+                { to: { element: { type: "module" } } },
+              ],
+            },
+            // Schema files (db.ts) may reference other modules' table definitions directly —
+            // drizzle-kit needs one relational graph, and a cross-module FK is a schema-layer
+            // concern, not the "arbitrary cross-module query" that I-4 actually guards against
+            // (that stays blocked below for service.ts/http.ts/index.ts).
+            {
+              from: { element: { type: "module" }, file: { categories: "schema" } },
               allow: [
                 { to: { element: { type: "lib" } } },
                 { to: { element: { type: "db-barrel" } } },

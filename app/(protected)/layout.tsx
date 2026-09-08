@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, signOut } from "@/modules/auth";
 import { isActive } from "@/modules/users";
@@ -22,7 +23,15 @@ export default async function ProtectedLayout({
   return (
     <div className="min-h-screen">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <span className="font-heading font-semibold">Marketing Hub</span>
+        <nav className="flex items-center gap-6">
+          <span className="font-heading font-semibold">Marketing Hub</span>
+          <Link href="/links" className="text-sm text-muted-foreground hover:text-foreground">
+            Links
+          </Link>
+          <Link href="/campaigns" className="text-sm text-muted-foreground hover:text-foreground">
+            Campaigns
+          </Link>
+        </nav>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>
             {user.email} · {user.profile.role}
