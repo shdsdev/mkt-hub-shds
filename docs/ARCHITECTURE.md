@@ -2,7 +2,9 @@
 
 > Reconstructed from Engram memory (project "hub marketing") after the original repository at
 > `E:/PROYECTOS/MKT/HUB Marketing` was deleted. Source observations:
-> `sdd/marketing-hub-design/design`, `.../explore`, `.../proposal`. Faithful in content and
+> `sdd/marketing-hub-design/design`, `.../explore`, `.../proposal`, plus the Phase 0 implementation
+> observations (`sdd/marketing-hub-phase0-foundation/design`, `.../spec`, `.../tasks`) which locked
+> ADR-005 (Supabase) and the module-boundary enforcement mechanism below. Faithful in content and
 > decisions; wording may differ from the original file.
 
 ## Technical Approach
@@ -15,9 +17,15 @@ events.
 ## Module Boundary Rule
 
 Cross-module access happens **only** through public module interfaces — no direct cross-module
-ORM/database access. This is an explicit architectural rule, not just an aspiration, and should be
-lint-enforced (import boundaries) once code exists. Without enforcement, the "add a module without
-touching others" property erodes over time.
+ORM/database access. This is an explicit architectural rule, enforced from Phase 0 onward via
+`eslint-plugin-boundaries` (`eslint.config.mjs`): each module lives at
+`src/modules/<module>/{index.ts,service.ts,db.ts,http.ts}`, and only `index.ts` may be imported
+from outside the module. The one sanctioned exception is `src/db/schema.ts`, which re-exports every
+module's `db.ts` into a single Drizzle barrel — `drizzle-kit` needs one schema graph, and an
+explicit allow-rule (not a lint disable) keeps that the only crack in the boundary. A deliberate
+cross-module `db.ts` import from another module must fail `pnpm lint`; the same import from
+`src/db/schema.ts` must pass. Without this enforcement, the "add a module without touching others"
+property erodes over time — that's exactly what this rule exists to prevent.
 
 ## Locked Invariants (must match SPEC.md and DATABASE.md)
 
@@ -67,6 +75,30 @@ CDN-cached shortcut, so the redirect path must stay fast and free of auth/render
 Monthly partitioning (required anyway for retention) + composite indexes + daily rollups cover
 internal-tool volume. Scaling triggers are documented, not implemented.
 
+### ADR-005 — Postgres, Auth, and Storage are provided by Supabase (not self-hosted)
+- **Decision**: hosting for Postgres, authentication, and file storage is **Supabase** —
+  cloud-managed in staging/production, and the Supabase CLI's local emulation stack
+  (`supabase start`, Postgres+Auth+Storage in Docker, non-billable) for local development. This
+  supersedes any earlier framing of a self-hosted Postgres container.
+- **Auth ownership**: Supabase Auth owns user identity, session/JWT issuance, and — as a direct
+  consequence — gets Supabase's built-in bot/brute-force protections for free: IP-based rate
+  limiting, CAPTCHA (hCaptcha or Cloudflare Turnstile) on sign-in/sign-up/password-reset, and
+  leaked-password checking. The app's own `users` table (see `DATABASE.md`) is a **profile**
+  table keyed off `auth.users.id`, not an independent credentials store. There is no
+  application-owned `sessions` table.
+- **Alternatives rejected**: self-hosted Postgres via plain Docker Compose + hand-rolled sessions
+  (more code to secure and maintain, reinvents what Supabase Auth already hardens);
+  self-hosted full Supabase stack for local dev (heavier ops than the CLI's local emulation, no
+  benefit until a real deployment target is chosen).
+- **Trade-offs**: introduces a managed-service dependency (mitigated: Supabase is
+  self-hostable if ever needed, and the local CLI stack has no vendor lock-in for day-to-day dev);
+  `DATABASE_URL` in Phase 0 is the Supabase **direct** connection (port 5432/54322 locally), not
+  the transaction pooler (6543) — `drizzle-kit` migrations are unreliable through the pooler;
+  pooled-vs-direct connection splitting is deferred to Phase 1 once real query load exists.
+- **Docker Compose scope**: `docker-compose.yml` packages the `app` service only. No `db` service
+  and no named Postgres volume — local Postgres/Auth/Storage come from `supabase start`, which
+  manages its own containers and volumes independently of the app's compose file.
+
 ## Data Flow
 
 Final destination → `links` (holds destination + UTM) → `short_links` (domain_id + slug + link_id)
@@ -96,11 +128,13 @@ Roll up first, drop second, always.
 
 ## Deployment
 
-Docker-compatible single app image (Hub + Tools + redirect handlers) + PostgreSQL; migrations as a
-one-shot pre-start step. Environments: dev (compose), staging (separate DB and separate redirect
-domain so test QRs never resolve against prod), prod. One web process + one scheduled job runner
-(daily rollup, partition pre-create/drop). All env-specific values as env vars — no hardcoded
-domain, retention period, or organization id.
+Docker-compatible single app image (Hub + Tools + redirect handlers), connecting to a Supabase
+project's Postgres over `DATABASE_URL` (ADR-005) — no self-hosted database container. Migrations
+run as a one-shot pre-start step. Environments: dev (local Supabase CLI stack via `supabase
+start`), staging (separate Supabase project + separate redirect domain so test QRs never resolve
+against prod), prod (separate Supabase project). One web process + one scheduled job runner (daily
+rollup, partition pre-create/drop). All env-specific values as env vars — no hardcoded domain,
+retention period, or organization id.
 
 ## Threat Matrix (redirect routing boundary)
 

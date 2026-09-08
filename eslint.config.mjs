@@ -1,10 +1,98 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import boundaries from "eslint-plugin-boundaries";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    files: ["app/**/*.{ts,tsx}", "src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/include": ["app/**/*", "src/**/*"],
+      "boundaries/elements": [
+        { type: "app", pattern: "app/*" },
+        { type: "ui", pattern: "src/components/*" },
+        { type: "lib", pattern: "src/lib/*" },
+        { type: "db-barrel", pattern: "src/db/*" },
+        { type: "module", pattern: "src/modules/*", capture: ["module"] },
+      ],
+      "boundaries/files": [
+        {
+          pattern: "src/modules/*/index.ts",
+          category: "public",
+          capture: ["module"],
+        },
+      ],
+    },
+    rules: {
+      // Cross-module access goes through src/modules/<module>/index.ts only (ARCHITECTURE.md I-4).
+      // Within a module, internal files may freely import each other and lib/db-barrel.
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "disallow",
+          message:
+            "{{from.element.type}} may not import {{to.element.type}}. Cross-module imports go through src/modules/<module>/index.ts only (ARCHITECTURE.md I-4).",
+          policies: [
+            {
+              from: { element: { type: "lib" } },
+              allow: [{ to: { element: { type: "lib" } } }],
+            },
+            {
+              from: { element: { type: "ui" } },
+              allow: [
+                { to: { element: { type: "ui" } } },
+                { to: { element: { type: "lib" } } },
+              ],
+            },
+            {
+              from: { element: { type: "app" } },
+              allow: [
+                { to: { element: { type: "app" } } },
+                { to: { element: { type: "ui" } } },
+                { to: { element: { type: "lib" } } },
+                { to: { element: { type: "module" }, file: { categories: "public" } } },
+              ],
+            },
+            // The ONE sanctioned exception (ARCHITECTURE.md I-4): the drizzle barrel aggregates
+            // every module's db.ts, so it must reach into module internals.
+            {
+              from: { element: { type: "db-barrel" } },
+              allow: [
+                { to: { element: { type: "lib" } } },
+                { to: { element: { type: "db-barrel" } } },
+                { to: { element: { type: "module" } } },
+              ],
+            },
+            {
+              from: { element: { type: "module" } },
+              allow: [
+                { to: { element: { type: "lib" } } },
+                { to: { element: { type: "db-barrel" } } },
+                {
+                  to: {
+                    element: {
+                      type: "module",
+                      captured: { module: "{{from.element.captured.module}}" },
+                    },
+                  },
+                },
+                {
+                  to: {
+                    element: { type: "module" },
+                    file: { categories: "public" },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      "boundaries/no-unknown-dependencies": "error",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

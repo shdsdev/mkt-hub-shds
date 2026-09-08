@@ -18,20 +18,29 @@ consistent with `SPEC.md` (§45 MVP Scope, §46 Phase 2, §47 Future Modules), `
 
 **Objective**: repo scaffold and toolchain, so every later phase has a working
 build/lint/typecheck/test/compose pipeline.
-**Features**: Next.js + React + TypeScript + Tailwind + shadcn/ui scaffold, Drizzle setup, CI,
-environment structure, Docker base image.
+**Features**: Next.js (App Router, `app/` at repo root) + React + TypeScript + Tailwind + shadcn/ui
+scaffold via `pnpm`, Drizzle setup pointed at Supabase Postgres (ADR-005), ten `src/modules/*`
+stubs with `eslint-plugin-boundaries` enforcing I-4, locked dark palette + fonts, app-only Docker
+image (no db container — Supabase owns Postgres). No CI workflow yet — added once a git remote
+exists.
 **Dependencies**: none (greenfield).
-**Acceptance criteria**: `build`, `lint`, `typecheck`, `test` all run green on a fresh checkout;
-Docker Compose brings up app + Postgres locally.
+**Acceptance criteria**: `pnpm check` (lint + typecheck + test + build) runs green on a fresh
+clone; a deliberate cross-module `db.ts` import fails lint; the placeholder page renders the locked
+palette/fonts; `docker compose up` starts the `app` service and reaches the configured Supabase
+Postgres instance (local via `supabase start`, or a real project).
 
 ## Phase 1 — Auth + Database
 
 **Objective**: identity and tenancy foundation.
-**Features**: `organizations`, `users`, `sessions` tables; Drizzle migrations; coarse 4-role gate
-(ADMIN / MARKETING_MANAGER / MARKETING_USER / VIEWER).
+**Features**: Supabase Auth for identity/sessions (ADR-005 — email+password via Argon2id-backed
+Supabase infra, CAPTCHA and rate-limiting built in); `organizations` and a `public.users` profile
+table (FK to `auth.users.id`, holds `organization_id` + `role` + `status`); coarse 4-role gate
+(ADMIN / MARKETING_MANAGER / MARKETING_USER / VIEWER); seed script creates the first ADMIN
+organization + profile; no public sign-up.
 **Dependencies**: Phase 0.
-**Acceptance criteria**: a user can authenticate, a session persists, and role-gated routes reject
-the wrong role.
+**Acceptance criteria**: a user can authenticate via Supabase Auth, a session persists, and
+role-gated routes reject the wrong role; account-level lockout after repeated failed logins closes
+the distributed-brute-force gap that per-IP rate limiting alone doesn't cover.
 
 ## Phase 2 — Link Management Core
 
@@ -125,8 +134,14 @@ tools, asset manager, generators).
 
 ## Note on Phase 0 Implementation Attempt
 
-A first attempt to execute Phase 0 was made (`sdd/marketing-hub-phase0-foundation`) and got
-**blocked at Task 0 (toolchain verification), 0/17 tasks complete** — the Bash tool was
-non-functional in that execution session (even trivial commands like `echo hello` failed). No
-scaffold code was produced before the repository was lost, which is why only these four
-documentation files needed reconstruction, not application code.
+A first attempt to execute Phase 0 (`sdd/marketing-hub-phase0-foundation`) got **blocked at Task 0
+(toolchain verification), 0/17 tasks complete** — the Bash tool was non-functional in that
+execution session. No scaffold code was produced before the repository was lost. That attempt's
+design phase, however, DID lock nine concrete decisions (DD1–DD9) that this reconstruction honors:
+`app/` at the repo root (not `src/app/`), `pnpm`, Supabase for Postgres/Auth/Storage (ADR-005,
+superseding a self-hosted-Postgres framing considered in the original proposal),
+`eslint-plugin-boundaries` enforcing the I-4 module rule, ten module stubs
+(`src/modules/<m>/{index,service,db,http}.ts`), the exact locked CSS palette, a single Drizzle
+schema barrel, and no CI workflow until a git remote exists. A second Phase 0 scaffold was built
+directly against npm + `src/app/` + a self-hosted Postgres container before these DD1–DD9 decisions
+were located in memory; it was discarded and rebuilt once found.

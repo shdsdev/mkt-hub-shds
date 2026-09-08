@@ -151,8 +151,14 @@ the Hub, not just via the destination page's own tracking.
 
 ## 18. Authentication
 
-Standard session-based authentication (`sessions` table, secure cookies). Exact provider/flow
-(credentials vs SSO) is an apply-phase implementation detail not locked at the design stage.
+**Supabase Auth** (ADR-005 in `ARCHITECTURE.md`), email+password. No public sign-up — internal
+tool, first ADMIN created by a seed script, all other users created by an ADMIN from inside the
+app. Supabase Auth owns credential storage, session/JWT issuance, and — as a direct benefit — its
+built-in bot/brute-force protections: IP-based rate limiting, CAPTCHA (hCaptcha/Turnstile) on
+sign-in, and leaked-password checking. `public.users` (see `DATABASE.md`) is a profile table keyed
+off `auth.users.id`, not a second credentials store. Account-level lockout after repeated failed
+logins is added at the app layer to close the distributed-brute-force gap (many IPs, one account)
+that per-IP rate limiting alone doesn't cover.
 
 ## 19. Authorization / RBAC
 
@@ -298,9 +304,17 @@ process + one scheduled job runner (daily rollup, partition pre-create/drop). En
 
 ## 42. Environment Variables
 
-All env-specific values (redirect domain(s), retention period, default organization id, database
-connection, GA4 credentials once Phase 2 lands) are environment variables — never hardcoded. Full
-inventory is an apply-phase deliverable once the stack is scaffolded (Phase 0).
+All env-specific values are environment variables — never hardcoded. Phase 0's inventory:
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Supabase Postgres **direct** connection (ADR-005) — drizzle-kit needs this, not the pooler. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project API URL, inlined at build time. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable/anon key, inlined at build time. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only privileged key — must never be `NEXT_PUBLIC_`-prefixed or reach a client bundle. |
+| `TRACKING_RETENTION_MONTHS` | *Reserved, unused until Phase 7.* Configurable retention default (§21). |
+| `DEFAULT_ORGANIZATION_ID` | *Reserved, unused until Phase 1.* |
+| `GA4_MEASUREMENT_ID` | *Reserved, unused until Phase 2 (§17).* |
 
 ## 43. Third-Party Dependencies
 

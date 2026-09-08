@@ -1,15 +1,32 @@
 # Database: Marketing Hub
 
 > Reconstructed from Engram memory (project "hub marketing") after the original repository at
-> `E:/PROYECTOS/MKT/HUB Marketing` was deleted. Source observation:
-> `sdd/marketing-hub-design/design`. Faithful in content and decisions; wording may differ from the
-> original file. See `ARCHITECTURE.md` for the invariants this schema must satisfy.
+> `E:/PROYECTOS/MKT/HUB Marketing` was deleted. Source observations:
+> `sdd/marketing-hub-design/design`, `sdd/marketing-hub-phase0-foundation/spec` (ADR-005 update).
+> Faithful in content and decisions; wording may differ from the original file. See
+> `ARCHITECTURE.md` for the invariants this schema must satisfy.
 
 ## Tables
 
-`organizations`, `users`, `sessions`, `domains`, `folders`, `tags`, `link_tags`, `campaigns`,
-`utm_presets`, `links`, `short_links`, `qr_codes`, `print_runs`, `tracking_events`,
-`tracking_rollup_daily`, `audit_logs`.
+**Owned by Supabase Auth** (not application-managed, ADR-005): `auth.users`, plus Supabase's own
+session/JWT/refresh-token tables. The app never creates its own credentials or sessions table.
+
+**Application schema** (`public`): `organizations`, `users` (profile, FK to `auth.users.id`),
+`domains`, `folders`, `tags`, `link_tags`, `campaigns`, `utm_presets`, `links`, `short_links`,
+`qr_codes`, `print_runs`, `tracking_events`, `tracking_rollup_daily`, `audit_logs`.
+
+### `public.users` (profile table, not a credentials store)
+
+```
+id               uuid PK, FK -> auth.users(id) ON DELETE CASCADE
+organization_id  uuid FK -> organizations
+role             user_role NOT NULL default 'MARKETING_USER'
+status           user_status NOT NULL default 'active'
+created_at       timestamptz NOT NULL default now()
+```
+
+`email` and `password_hash` live in `auth.users`, managed by Supabase Auth — this table only holds
+what Supabase's schema doesn't: organization membership and the coarse role/status gate (I-6, I-7).
 
 ## Enums
 
@@ -82,7 +99,8 @@ indefinitely, no visitor/IP hashes) → monthly job verifies rollup coverage bef
 
 ## Migration Order (referenced by ROADMAP.md phase dependencies)
 
-1. `organizations`, `users`, `sessions` (Phase 1 — Auth + Database)
+1. `organizations`, `users` (profile) (Phase 1 — Auth + Database; `auth.users` itself is
+   provisioned by Supabase, not a Drizzle migration)
 2. `domains`, `folders`, `tags`, `link_tags`, `campaigns`, `links`, `short_links`, `qr_codes`
    (Phase 2 — Link Management Core)
 3. `print_runs` (Phase 6 — Campaigns)
