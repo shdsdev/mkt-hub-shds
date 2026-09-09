@@ -55,6 +55,13 @@ export async function listQrCodes(organizationId: string): Promise<QrCodeRow[]> 
   return db.select().from(qrCodes).where(eq(qrCodes.organizationId, organizationId));
 }
 
+// No hard-delete anywhere (I-7). "archived" keeps a dynamic QR resolving — see
+// docs/superpowers/specs/2026-09-09-phase6-campaigns-print-runs-design.md.
+export async function archiveQrCode(id: string): Promise<QrCodeRow> {
+  const [qr] = await db.update(qrCodes).set({ status: "archived" }).where(eq(qrCodes.id, id)).returning();
+  return qr;
+}
+
 const QR_PIXEL_SIZE = 512;
 
 // The resolvable /q/:code payload for a dynamic QR reuses its short link's slug (Phase 3's

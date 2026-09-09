@@ -6,5 +6,10 @@ export {
   endCampaign,
   addLinkToCampaign,
   listLinkIdsForCampaign,
+  recordPrintRun,
+  getScanRateForShortLink,
+  getScanRateForQrCode,
   type Campaign,
+  type PrintRun,
+  type RecordPrintRunInput,
 } from "./service";

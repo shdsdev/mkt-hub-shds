@@ -3,6 +3,7 @@ import { listQrCodes } from "@/modules/qr";
 import { listShortLinksForOrganization } from "@/modules/links";
 import { DynamicQrForm } from "./dynamic-qr-form";
 import { StaticQrForm } from "./static-qr-form";
+import { archiveQrCodeAction } from "./actions";
 
 export default async function QrPage() {
   const user = await getCurrentUser();
@@ -58,6 +59,14 @@ export default async function QrPage() {
                 <a href={`/qr/${qr.id}/download?format=svg`} className="text-accent hover:underline">
                   SVG
                 </a>
+              )}
+              {qr.status === "active" && (
+                <form action={archiveQrCodeAction}>
+                  <input type="hidden" name="id" value={qr.id} />
+                  <button type="submit" className="text-accent hover:underline">
+                    Archive
+                  </button>
+                </form>
               )}
             </div>
           </div>

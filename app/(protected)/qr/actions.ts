@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
-import { createDynamicQrCode, createStaticQrCode } from "@/modules/qr";
+import { createDynamicQrCode, createStaticQrCode, archiveQrCode } from "@/modules/qr";
 import { listShortLinksForOrganization } from "@/modules/links";
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Must be a hex color like #1c130f.");
@@ -96,4 +96,13 @@ export async function createStaticQrCodeAction(
 
   revalidatePath("/qr");
   return {};
+}
+
+export async function archiveQrCodeAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const id = z.string().uuid().parse(formData.get("id"));
+  await archiveQrCode(id);
+  revalidatePath("/qr");
 }

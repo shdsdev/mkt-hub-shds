@@ -1,3 +1,4 @@
+import { count, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { trackingEvents } from "./db";
 import { createTrackingBuffer } from "./buffer";
@@ -49,4 +50,22 @@ export function trackRedirect(input: {
     visitorHash: input.visitorHash,
     sessionStartedAt: now,
   });
+}
+
+// Includes buffered-but-not-yet-flushed events? No — only what's persisted. Acceptable: scan_rate
+// is a reporting figure, not the redirect hot path, and the buffer flushes within ~1s (I-5).
+export async function countEventsForShortLink(shortLinkId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: count() })
+    .from(trackingEvents)
+    .where(eq(trackingEvents.shortLinkId, shortLinkId));
+  return row?.count ?? 0;
+}
+
+export async function countEventsForQrCode(qrCodeId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: count() })
+    .from(trackingEvents)
+    .where(eq(trackingEvents.qrCodeId, qrCodeId));
+  return row?.count ?? 0;
 }

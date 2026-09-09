@@ -4,6 +4,7 @@ export {
   createStaticQrCode,
   getQrCode,
   listQrCodes,
+  archiveQrCode,
   exportQrPng,
   exportQrSvg,
   type QrCodeRow,

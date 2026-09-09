@@ -4,8 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
-import { createLink, createDomain, createShortLink, updateLinkDestination } from "@/modules/links";
+import {
+  createLink,
+  createDomain,
+  createShortLink,
+  updateLinkDestination,
+  archiveLink,
+  archiveShortLink,
+} from "@/modules/links";
 import { normalizeUtmValue, createUtmPreset } from "@/modules/utm";
+import { recordPrintRun } from "@/modules/campaigns";
 
 const createLinkSchema = z.object({
   destinationUrl: z.string().trim().min(1).max(2048),
@@ -178,5 +186,57 @@ export async function updateDestinationAction(
   }
 
   revalidatePath(`/links/${parsed.data.linkId}`);
+  return {};
+}
+
+export async function archiveLinkAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const linkId = z.string().uuid().parse(formData.get("linkId"));
+  await archiveLink(linkId);
+  revalidatePath(`/links/${linkId}`);
+}
+
+export async function archiveShortLinkAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const shortLinkId = z.string().uuid().parse(formData.get("shortLinkId"));
+  const linkId = z.string().uuid().parse(formData.get("linkId"));
+  await archiveShortLink(shortLinkId);
+  revalidatePath(`/links/${linkId}`);
+}
+
+const recordPrintRunSchema = z.object({
+  shortLinkId: z.string().uuid(),
+  quantity: z.coerce.number().int().min(1),
+});
+
+export type RecordPrintRunFormState = { error?: string };
+
+export async function recordPrintRunAction(
+  _prevState: RecordPrintRunFormState,
+  formData: FormData,
+): Promise<RecordPrintRunFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const parsed = recordPrintRunSchema.safeParse({
+    shortLinkId: formData.get("shortLinkId"),
+    quantity: formData.get("quantity"),
+  });
+  if (!parsed.success) {
+    return { error: "Enter a quantity of at least 1." };
+  }
+
+  await recordPrintRun({
+    organizationId: user.profile.organizationId,
+    shortLinkId: parsed.data.shortLinkId,
+    quantity: parsed.data.quantity,
+  });
+
+  const linkId = z.string().uuid().parse(formData.get("linkId"));
+  revalidatePath(`/links/${linkId}`);
   return {};
 }

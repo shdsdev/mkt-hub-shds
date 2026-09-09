@@ -4,6 +4,8 @@ export {
   updateLinkDestination,
   getLink,
   listLinks,
+  archiveLink,
+  archiveShortLink,
   createShortLink,
   listShortLinksForLink,
   listShortLinksForOrganization,

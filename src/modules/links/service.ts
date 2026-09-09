@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { domains, folders, tags, linkTags, links, shortLinks } from "./db";
 import { isValidSlug, generateSlug } from "./slug";
+import { isResolvable } from "./resource-status";
 
 export type Link = typeof links.$inferSelect;
 export type ShortLink = typeof shortLinks.$inferSelect;
@@ -57,6 +58,26 @@ export async function getLink(linkId: string): Promise<Link | undefined> {
 
 export async function listLinks(organizationId: string): Promise<Link[]> {
   return db.select().from(links).where(eq(links.organizationId, organizationId));
+}
+
+// No hard-delete anywhere (I-7) — this is the only lifecycle action a link has. Never touches
+// tracking_events/print_runs history.
+export async function archiveLink(linkId: string): Promise<Link> {
+  const [link] = await db
+    .update(links)
+    .set({ status: "archived" })
+    .where(eq(links.id, linkId))
+    .returning();
+  return link;
+}
+
+export async function archiveShortLink(shortLinkId: string): Promise<ShortLink> {
+  const [shortLink] = await db
+    .update(shortLinks)
+    .set({ status: "archived" })
+    .where(eq(shortLinks.id, shortLinkId))
+    .returning();
+  return shortLink;
 }
 
 export type CreateShortLinkInput = {
@@ -148,7 +169,7 @@ export async function resolveShortLinkByHostAndSlug(
     .where(and(eq(shortLinks.domainId, domain.id), eq(shortLinks.slug, slug)))
     .limit(1);
   const shortLink = shortLinkRows[0];
-  if (!shortLink || shortLink.status !== "active") return undefined;
+  if (!shortLink || !isResolvable(shortLink.status)) return undefined;
 
   const link = await getLink(shortLink.linkId);
   if (!link) return undefined;
