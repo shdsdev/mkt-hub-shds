@@ -4,31 +4,35 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Locked palette (docs/SPEC.md §29, docs/ARCHITECTURE.md). Dark-by-default: identical values in
-   :root and .dark (DD6) so shadcn's .dark-scoped component tokens stay correct, and a future
-   light-mode toggle is a pure additive change. */
+/* Locked palette (docs/SPEC.md §29, docs/superpowers/specs/2026-09-09-glassmorphism-palette-design.md).
+   Dark-by-default: identical values in :root and .dark (DD6) so shadcn's .dark-scoped component
+   tokens stay correct, and a future light-mode toggle is a pure additive change. */
 :root,
 .dark {
   --radius: 0.75rem;
-  --background: #1c130f;
-  --foreground: #f7eeeb;
-  --card: #201915;
-  --card-foreground: #f7eeeb;
-  --popover: #201915;
-  --popover-foreground: #f7eeeb;
-  --primary: #ff6f2c;
-  --primary-foreground: #1c130f;
-  --secondary: #ff8b68;
-  --secondary-foreground: #1c130f;
-  --muted: #3d2f29;
-  --muted-foreground: #c9b8b1;
-  --accent: #30ffe3;
-  --accent-foreground: #1c130f;
+  --background: #1c1213;
+  --foreground: #f7edee;
+  --card: color-mix(in srgb, #291d1e 70%, transparent);
+  --card-foreground: #f7edee;
+  --popover: color-mix(in srgb, #291d1e 70%, transparent);
+  --popover-foreground: #f7edee;
+  --primary: #ff0055;
+  --primary-foreground: #f7edee;
+  --secondary: #9c5a5f;
+  --secondary-foreground: #f7edee;
+  --muted: #3d2e2e;
+  --muted-foreground: #cbb2b4;
+  --accent: #00e2ee;
+  --accent-foreground: #1c1213;
   --destructive: #ef4444;
-  --destructive-foreground: #f7eeeb;
-  --border: #3d2f29;
-  --input: #3d2f29;
-  --ring: #ff6f2c;
+  --destructive-foreground: #f7edee;
+  --border: #3d2e2e;
+  --input: #3d2e2e;
+  --ring: #ff0055;
+  --shadow-sm: 0 1px 2px 0 rgba(247, 237, 238, 0.08);
+  --shadow-md: 0 2px 4px 0 rgba(247, 237, 238, 0.08);
+  --shadow-lg: 0 3px 6px 0 rgba(247, 237, 238, 0.08);
+  --shadow-detail: 0 1px 1px 0 rgba(247, 237, 238, 0.08);
 }
 
 @theme inline {
@@ -71,5 +75,11 @@
   h3,
   h4 {
     @apply font-heading;
+  }
+  /* Glassmorphism (SPEC.md §29) — every panel using the bg-card utility gets translucency + blur
+     for free, since --card is already a semi-transparent color-mix(). */
+  .bg-card {
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-md);
   }
 }
