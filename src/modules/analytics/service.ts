@@ -1,4 +1,4 @@
-import { count, eq, sql, asc } from "drizzle-orm";
+import { count, eq, and, gte, sql, asc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { trackingEvents, trackingRollupDaily } from "./db";
 import { createTrackingBuffer } from "./buffer";
@@ -135,4 +135,23 @@ export async function getRollupTotalsForLink(linkId: string): Promise<RollupTota
 export async function exportRollupCsvForLink(linkId: string): Promise<string> {
   const rows = await getRollupForLink(linkId);
   return formatRollupCsv(rows);
+}
+
+// Org-wide, human-only, last 30 days — the one Overview stat that isn't a simple status count on
+// another module's table (Phase 8 design).
+export async function getOrgTrafficLast30Days(organizationId: string): Promise<number> {
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - 30);
+
+  const [row] = await db
+    .select({ count: count() })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.organizationId, organizationId),
+        eq(trackingEvents.isBot, false),
+        gte(trackingEvents.createdAt, since),
+      ),
+    );
+  return row?.count ?? 0;
 }

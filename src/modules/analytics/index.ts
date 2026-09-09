@@ -7,6 +7,7 @@ export {
   getRollupForLink,
   getRollupTotalsForLink,
   exportRollupCsvForLink,
+  getOrgTrafficLast30Days,
   type RollupTotals,
 } from "./service";
 export { resolveVisitor } from "./visitor";
