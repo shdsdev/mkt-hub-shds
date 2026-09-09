@@ -41,6 +41,9 @@ supabase/.branches
 # vercel
 .vercel
 
+# brainstorming visual companion
+.superpowers/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
