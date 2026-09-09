@@ -230,9 +230,11 @@ edit that would otherwise silently redirect every already-printed piece pointing
 
 ## 29. UI Architecture
 
-Dark theme. Palette: background `#1c130f`, foreground `#f7eeeb`, surface `#201915`, muted
-`#3d2f29`, primary `#ff6f2c`, primary-hover `#ff8b68`, accent `#30ffe3`. Glassmorphism panels.
-Typography: Poppins (headings) / Inter (body). Sidebar uses accordion grouping by module.
+Dark theme. Palette (revised 2026-09-09, see `docs/superpowers/specs/2026-09-09-glassmorphism-palette-design.md`):
+background `#1c1213`, foreground `#f7edee`, surface `#291d1e`, muted `#3d2e2e`, primary `#ff0055`,
+secondary `#9c5a5f`, accent `#00e2ee`. Glassmorphism panels: translucent surface color +
+`backdrop-filter: blur()` on every card/panel. Typography: Poppins (headings) / Inter (body).
+Sidebar uses accordion grouping by module.
 
 ## 30. Main Screens
 
