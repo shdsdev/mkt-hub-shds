@@ -107,6 +107,10 @@ export async function listShortLinksForLink(linkId: string): Promise<ShortLink[]
   return db.select().from(shortLinks).where(eq(shortLinks.linkId, linkId));
 }
 
+export async function listShortLinksForOrganization(organizationId: string): Promise<ShortLink[]> {
+  return db.select().from(shortLinks).where(eq(shortLinks.organizationId, organizationId));
+}
+
 // Destination + UTM only — never anything request-supplied (open-redirect mitigation,
 // ARCHITECTURE.md threat matrix).
 export function buildDestinationUrl(link: Link): string {
@@ -159,6 +163,16 @@ export async function listDomains(organizationId: string): Promise<Domain[]> {
 export async function createDomain(organizationId: string, hostname: string): Promise<Domain> {
   const [domain] = await db.insert(domains).values({ organizationId, hostname }).returning();
   return domain;
+}
+
+export async function getDomain(id: string): Promise<Domain | undefined> {
+  const rows = await db.select().from(domains).where(eq(domains.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function getShortLink(id: string): Promise<ShortLink | undefined> {
+  const rows = await db.select().from(shortLinks).where(eq(shortLinks.id, id)).limit(1);
+  return rows[0];
 }
 
 export async function listFolders(organizationId: string): Promise<Folder[]> {

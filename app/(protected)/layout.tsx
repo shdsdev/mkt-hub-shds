@@ -28,6 +28,9 @@ export default async function ProtectedLayout({
           <Link href="/links" className="text-sm text-muted-foreground hover:text-foreground">
             Links
           </Link>
+          <Link href="/qr" className="text-sm text-muted-foreground hover:text-foreground">
+            QR Codes
+          </Link>
           <Link href="/campaigns" className="text-sm text-muted-foreground hover:text-foreground">
             Campaigns
           </Link>

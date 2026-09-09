@@ -29,6 +29,13 @@
       "when": 1788909568013,
       "tag": "0003_even_agent_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788966171476,
+      "tag": "0004_slippery_morlocks",
+      "breakpoints": true
     }
   ]
 }

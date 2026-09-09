@@ -4,6 +4,12 @@ import { organizations } from "@/modules/users/db";
 import { links, shortLinks, resourceStatus } from "@/modules/links/db";
 
 export const qrMode = pgEnum("qr_mode", ["dynamic", "static"]);
+export const qrErrorCorrectionLevel = pgEnum("qr_error_correction_level", [
+  "L",
+  "M",
+  "Q",
+  "H",
+]);
 
 export const qrCodes = pgTable(
   "qr_codes",
@@ -18,6 +24,11 @@ export const qrCodes = pgTable(
     linkId: uuid("link_id").references(() => links.id),
     shortLinkId: uuid("short_link_id").references(() => shortLinks.id),
     staticPayload: text("static_payload"),
+    // Cosmetic/export-time only — never affect redirect resolution (Phase 3 invariants).
+    backgroundColor: text("background_color").notNull().default("#1c130f"),
+    foregroundColor: text("foreground_color").notNull().default("#f7eeeb"),
+    errorCorrectionLevel: qrErrorCorrectionLevel("error_correction_level").notNull().default("M"),
+    logoUrl: text("logo_url"),
     status: resourceStatus("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -30,4 +41,4 @@ export const qrCodes = pgTable(
   ],
 );
 
-export const qrTables = { qrMode, qrCodes } as const;
+export const qrTables = { qrMode, qrErrorCorrectionLevel, qrCodes } as const;

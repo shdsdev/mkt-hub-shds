@@ -7,4 +7,6 @@ export {
   exportQrPng,
   exportQrSvg,
   type QrCodeRow,
+  type QrCustomization,
 } from "./service";
+export { type ErrorCorrectionLevel } from "./logo";
