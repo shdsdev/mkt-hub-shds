@@ -2,6 +2,7 @@
 export {
   getProfile,
   getAuthUserIdByEmail,
+  getEmailByUserId,
   updateLockoutState,
   createOrganization,
   createProfile,

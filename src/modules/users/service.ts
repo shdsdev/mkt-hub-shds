@@ -25,6 +25,15 @@ export async function getAuthUserIdByEmail(email: string): Promise<string | unde
   return rows[0]?.id;
 }
 
+export async function getEmailByUserId(userId: string): Promise<string | undefined> {
+  const rows = await db
+    .select({ email: authUsers.email })
+    .from(authUsers)
+    .where(eq(authUsers.id, userId))
+    .limit(1);
+  return rows[0]?.email ?? undefined;
+}
+
 export async function updateLockoutState(
   userId: string,
   state: { failedLoginAttempts: number; lockedUntil: Date | null },

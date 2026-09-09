@@ -6,6 +6,9 @@ import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { createDynamicQrCode, createStaticQrCode, archiveQrCode } from "@/modules/qr";
 import { listShortLinksForOrganization } from "@/modules/links";
+import { recordAudit, checkRateLimit } from "@/modules/audit";
+
+const RATE_LIMIT_ERROR = "Too many actions. Try again shortly.";
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Must be a hex color like #1c130f.");
 const ecLevel = z.enum(["L", "M", "Q", "H"]);
@@ -29,6 +32,9 @@ export async function createDynamicQrCodeAction(
 ): Promise<CreateDynamicQrFormState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (!checkRateLimit(user.id)) {
+    return { error: RATE_LIMIT_ERROR };
+  }
 
   const parsed = createDynamicSchema.safeParse({
     shortLinkId: formData.get("shortLinkId"),
@@ -47,7 +53,7 @@ export async function createDynamicQrCodeAction(
     return { error: "Short link not found." };
   }
 
-  await createDynamicQrCode({
+  const qrCode = await createDynamicQrCode({
     organizationId: user.profile.organizationId,
     linkId: shortLink.linkId,
     shortLinkId: shortLink.id,
@@ -55,6 +61,14 @@ export async function createDynamicQrCodeAction(
     foregroundColor: parsed.data.foregroundColor,
     errorCorrectionLevel: parsed.data.errorCorrectionLevel,
     logoUrl: parsed.data.logoUrl || undefined,
+  });
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "create",
+    resourceType: "qr_code",
+    resourceId: qrCode.id,
+    after: qrCode,
   });
 
   revalidatePath("/qr");
@@ -73,6 +87,9 @@ export async function createStaticQrCodeAction(
 ): Promise<CreateStaticQrFormState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (!checkRateLimit(user.id)) {
+    return { error: RATE_LIMIT_ERROR };
+  }
 
   const parsed = createStaticSchema.safeParse({
     payload: formData.get("payload"),
@@ -85,13 +102,21 @@ export async function createStaticQrCodeAction(
     return { error: "Enter a payload and valid colors." };
   }
 
-  await createStaticQrCode({
+  const qrCode = await createStaticQrCode({
     organizationId: user.profile.organizationId,
     payload: parsed.data.payload,
     backgroundColor: parsed.data.backgroundColor,
     foregroundColor: parsed.data.foregroundColor,
     errorCorrectionLevel: parsed.data.errorCorrectionLevel,
     logoUrl: parsed.data.logoUrl || undefined,
+  });
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "create",
+    resourceType: "qr_code",
+    resourceId: qrCode.id,
+    after: qrCode,
   });
 
   revalidatePath("/qr");
@@ -101,8 +126,16 @@ export async function createStaticQrCodeAction(
 export async function archiveQrCodeAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (!checkRateLimit(user.id)) return;
 
   const id = z.string().uuid().parse(formData.get("id"));
   await archiveQrCode(id);
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "archive",
+    resourceType: "qr_code",
+    resourceId: id,
+  });
   revalidatePath("/qr");
 }

@@ -11,9 +11,13 @@ import {
   updateLinkDestination,
   archiveLink,
   archiveShortLink,
+  getLink,
 } from "@/modules/links";
 import { normalizeUtmValue, createUtmPreset } from "@/modules/utm";
 import { recordPrintRun } from "@/modules/campaigns";
+import { recordAudit, checkRateLimit } from "@/modules/audit";
+
+const RATE_LIMIT_ERROR = "Too many actions. Try again shortly.";
 
 const createLinkSchema = z.object({
   destinationUrl: z.string().trim().min(1).max(2048),
@@ -30,6 +34,10 @@ export async function createLinkAction(
 ): Promise<CreateLinkFormState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  if (!checkRateLimit(user.id)) {
+    return { error: RATE_LIMIT_ERROR };
+  }
 
   const parsed = createLinkSchema.safeParse({
     destinationUrl: formData.get("destinationUrl"),
@@ -48,6 +56,14 @@ export async function createLinkAction(
       utmSource: parsed.data.utmSource ? normalizeUtmValue(parsed.data.utmSource) : undefined,
       utmMedium: parsed.data.utmMedium ? normalizeUtmValue(parsed.data.utmMedium) : undefined,
       utmCampaign: parsed.data.utmCampaign ? normalizeUtmValue(parsed.data.utmCampaign) : undefined,
+    });
+    await recordAudit({
+      organizationId: user.profile.organizationId,
+      userId: user.id,
+      action: "create",
+      resourceType: "link",
+      resourceId: link.id,
+      after: link,
     });
     revalidatePath("/links");
     redirect(`/links/${link.id}`);
@@ -171,6 +187,10 @@ export async function updateDestinationAction(
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  if (!checkRateLimit(user.id)) {
+    return { error: RATE_LIMIT_ERROR };
+  }
+
   const parsed = updateDestinationSchema.safeParse({
     linkId: formData.get("linkId"),
     destinationUrl: formData.get("destinationUrl"),
@@ -179,8 +199,19 @@ export async function updateDestinationAction(
     return { error: "Enter a valid destination URL." };
   }
 
+  const before = await getLink(parsed.data.linkId);
+
   try {
-    await updateLinkDestination(parsed.data.linkId, parsed.data.destinationUrl);
+    const after = await updateLinkDestination(parsed.data.linkId, parsed.data.destinationUrl);
+    await recordAudit({
+      organizationId: user.profile.organizationId,
+      userId: user.id,
+      action: "destination_change",
+      resourceType: "link",
+      resourceId: parsed.data.linkId,
+      before: before ? { destinationUrl: before.destinationUrl } : undefined,
+      after: { destinationUrl: after.destinationUrl },
+    });
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Could not update destination." };
   }
@@ -192,19 +223,35 @@ export async function updateDestinationAction(
 export async function archiveLinkAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (!checkRateLimit(user.id)) return;
 
   const linkId = z.string().uuid().parse(formData.get("linkId"));
   await archiveLink(linkId);
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "archive",
+    resourceType: "link",
+    resourceId: linkId,
+  });
   revalidatePath(`/links/${linkId}`);
 }
 
 export async function archiveShortLinkAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (!checkRateLimit(user.id)) return;
 
   const shortLinkId = z.string().uuid().parse(formData.get("shortLinkId"));
   const linkId = z.string().uuid().parse(formData.get("linkId"));
   await archiveShortLink(shortLinkId);
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "archive",
+    resourceType: "short_link",
+    resourceId: shortLinkId,
+  });
   revalidatePath(`/links/${linkId}`);
 }
 
@@ -222,6 +269,10 @@ export async function recordPrintRunAction(
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  if (!checkRateLimit(user.id)) {
+    return { error: RATE_LIMIT_ERROR };
+  }
+
   const parsed = recordPrintRunSchema.safeParse({
     shortLinkId: formData.get("shortLinkId"),
     quantity: formData.get("quantity"),
@@ -230,10 +281,18 @@ export async function recordPrintRunAction(
     return { error: "Enter a quantity of at least 1." };
   }
 
-  await recordPrintRun({
+  const printRun = await recordPrintRun({
     organizationId: user.profile.organizationId,
     shortLinkId: parsed.data.shortLinkId,
     quantity: parsed.data.quantity,
+  });
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "record_print_run",
+    resourceType: "print_run",
+    resourceId: printRun.id,
+    after: printRun,
   });
 
   const linkId = z.string().uuid().parse(formData.get("linkId"));
