@@ -4,8 +4,11 @@ import {
   uuid,
   text,
   boolean,
+  integer,
+  date,
   timestamp,
   primaryKey,
+  unique,
 } from "drizzle-orm/pg-core";
 import { organizations } from "@/modules/users/db";
 import { links, shortLinks } from "@/modules/links/db";
@@ -42,4 +45,26 @@ export const trackingEvents = pgTable(
   (table) => [primaryKey({ columns: [table.id, table.createdAt] })],
 );
 
-export const analyticsTables = { trackingSourceType, trackingEvents } as const;
+// Kept indefinitely after raw tracking_events are dropped (DATABASE.md) — no visitor_hash/IP
+// columns here, by design.
+export const trackingRollupDaily = pgTable(
+  "tracking_rollup_daily",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    linkId: uuid("link_id")
+      .notNull()
+      .references(() => links.id),
+    date: date("date").notNull(),
+    clicksHuman: integer("clicks_human").notNull().default(0),
+    clicksBot: integer("clicks_bot").notNull().default(0),
+    scansHuman: integer("scans_human").notNull().default(0),
+    scansBot: integer("scans_bot").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.linkId, table.date)],
+);
+
+export const analyticsTables = { trackingSourceType, trackingEvents, trackingRollupDaily } as const;

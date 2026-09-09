@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { getLink, listShortLinksForLink, listDomains } from "@/modules/links";
@@ -39,6 +40,9 @@ export default async function LinkDetailPage({
             Editing the destination here updates every short link and QR code below immediately —
             none of them store a destination of their own (ARCHITECTURE.md I-1).
           </p>
+          <Link href={`/analytics/${link.id}`} className="text-sm text-accent hover:underline">
+            View analytics
+          </Link>
         </div>
         {link.status === "active" && <ArchiveLinkButton linkId={link.id} />}
         {link.status !== "active" && (

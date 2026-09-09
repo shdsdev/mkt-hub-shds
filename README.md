@@ -38,6 +38,19 @@ confirmation — creating a project is a real, billable, account-scoped resource
 done automatically), then point `.env` at its `DATABASE_URL` (direct connection, not the pooler —
 `drizzle-kit` migrations are unreliable through the transaction pooler) and API keys.
 
+### Daily analytics rollup
+
+`POST /api/jobs/rollup` aggregates the previous day's `tracking_events` into
+`tracking_rollup_daily`. It's guarded by a bearer token — set `ROLLUP_JOB_SECRET` in `.env` and
+point a free external cron (e.g. [cron-job.org](https://cron-job.org)) or your host's own cron at
+it once daily:
+
+```bash
+curl -X POST https://your-domain/api/jobs/rollup -H "Authorization: Bearer $ROLLUP_JOB_SECRET"
+```
+
+Idempotent — safe to re-run or to miss a day and catch up on the next run.
+
 ## One-command check
 
 ```bash
@@ -66,5 +79,6 @@ other modules may import), `service.ts`, `db.ts`, and `http.ts`. `eslint-plugin-
 
 ## Status
 
-Phase 0 (Foundation) — toolchain scaffold, module skeleton, and locked palette/fonts. No real
-tables yet; those land in Phase 1 (Auth + Database) per `docs/ROADMAP.md`.
+Phases 0-7 complete per `docs/ROADMAP.md`: Foundation, Auth + Database, Link Management Core,
+Redirect Engine, UTM Builder, QR Generator, Campaigns/Print Runs, Analytics. Remaining: Phase 8
+(Dashboard), Phase 9 (Security + Audit), Phase 10 (Testing + Production).
