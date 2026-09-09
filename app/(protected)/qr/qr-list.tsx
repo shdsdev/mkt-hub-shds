@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { BarChart3, Download, Image as ImageIcon, Archive as ArchiveIcon, Copy, Check, QrCode } from "lucide-react";
 import { CreateQrModal } from "./create-qr-modal";
 import { archiveQrCodeAction } from "./actions";
 
@@ -105,7 +106,7 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
       )}
 
       {viewMode === "list" && filteredRows.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {filteredRows.map((row) => (
             <QrRow key={row.id} row={row} />
           ))}
@@ -113,7 +114,7 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
       )}
 
       {viewMode === "grid" && filteredRows.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredRows.map((row) => (
             <QrCard key={row.id} row={row} />
           ))}
@@ -130,58 +131,96 @@ function QrThumbnail({ id, className }: { id: string; className: string }) {
   );
 }
 
-function QrMeta({ row }: { row: QrListRow }) {
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
   return (
-    <>
-      <p className="font-medium">
+    <button
+      type="button"
+      title="Copy"
+      onClick={async () => {
+        await navigator.clipboard.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="text-muted-foreground hover:text-foreground"
+    >
+      {copied ? <Check size={14} /> : <Copy size={14} />}
+    </button>
+  );
+}
+
+function StatusBadge({ status }: { status: QrListRow["status"] }) {
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-xs ${
+        status === "active" ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
+      }`}
+    >
+      {status === "active" ? "Active" : "Archived"}
+    </span>
+  );
+}
+
+function QrHeading({ row }: { row: QrListRow }) {
+  const heading = row.mode === "dynamic" ? row.destinationUrl : row.payload;
+  return (
+    <div className="min-w-0 space-y-1">
+      <p className="truncate font-heading font-semibold">{heading}</p>
+      <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {row.mode === "dynamic" ? "Website" : "Fixed text"}
-        <span className="ml-2 text-xs text-muted-foreground">
-          {row.createdAt.toLocaleDateString()}
-        </span>
-        <span
-          className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
-            row.status === "active" ? "bg-primary/20" : "bg-muted"
-          }`}
-        >
-          {row.status}
-        </span>
+        <span>{row.createdAt.toLocaleDateString()}</span>
+        <StatusBadge status={row.status} />
       </p>
-      {row.mode === "dynamic" ? (
-        <>
-          {row.shortUrl && <p className="text-sm text-accent">{row.shortUrl}</p>}
-          {row.destinationUrl && (
-            <p className="truncate text-xs text-muted-foreground">→ {row.destinationUrl}</p>
-          )}
-        </>
-      ) : (
-        <p className="truncate text-xs text-muted-foreground">{row.payload}</p>
+      {row.mode === "dynamic" && row.shortUrl && (
+        <p className="flex items-center gap-1.5 text-sm text-accent">
+          {row.shortUrl}
+          <CopyButton value={row.shortUrl} />
+        </p>
       )}
-      <p className="text-xs text-muted-foreground">{row.scanCount} scans</p>
-    </>
+    </div>
+  );
+}
+
+function QrScanCount({ scanCount }: { scanCount: number }) {
+  return (
+    <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+      <QrCode size={16} />
+      <span className="font-heading text-lg font-semibold text-foreground">{scanCount}</span>
+      <span className="text-xs">scans</span>
+    </div>
   );
 }
 
 function QrActions({ row }: { row: QrListRow }) {
   return (
-    <div className="flex flex-wrap gap-3 text-sm">
+    <div className="flex items-center gap-3 text-muted-foreground">
       {row.mode === "dynamic" && row.linkId && (
-        <a href={`/analytics/${row.linkId}`} className="text-accent hover:underline">
-          Analytics
+        <a href={`/analytics/${row.linkId}`} title="Analytics" className="hover:text-foreground">
+          <BarChart3 size={16} />
         </a>
       )}
-      <a href={`/qr/${row.id}/download?format=png`} className="text-accent hover:underline">
-        PNG
+      <a
+        href={`/qr/${row.id}/download?format=png`}
+        title="Download PNG"
+        className="hover:text-foreground"
+      >
+        <Download size={16} />
       </a>
       {!row.logoUrl && (
-        <a href={`/qr/${row.id}/download?format=svg`} className="text-accent hover:underline">
-          SVG
+        <a
+          href={`/qr/${row.id}/download?format=svg`}
+          title="Download SVG"
+          className="hover:text-foreground"
+        >
+          <ImageIcon size={16} />
         </a>
       )}
       {row.status === "active" && (
         <form action={archiveQrCodeAction}>
           <input type="hidden" name="id" value={row.id} />
-          <button type="submit" className="text-accent hover:underline">
-            Archive
+          <button type="submit" title="Archive" className="hover:text-foreground">
+            <ArchiveIcon size={16} />
           </button>
         </form>
       )}
@@ -191,11 +230,12 @@ function QrActions({ row }: { row: QrListRow }) {
 
 function QrRow({ row }: { row: QrListRow }) {
   return (
-    <li className="flex items-center gap-4 rounded-md border border-border bg-card p-4">
-      <QrThumbnail id={row.id} className="h-16 w-16 shrink-0" />
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <QrMeta row={row} />
+    <li className="flex items-center gap-4 rounded-lg border border-border bg-card p-4">
+      <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
+      <div className="min-w-0 flex-1">
+        <QrHeading row={row} />
       </div>
+      <QrScanCount scanCount={row.scanCount} />
       <QrActions row={row} />
     </li>
   );
@@ -203,12 +243,15 @@ function QrRow({ row }: { row: QrListRow }) {
 
 function QrCard({ row }: { row: QrListRow }) {
   return (
-    <div className="space-y-2 rounded-md border border-border bg-card p-4">
-      <QrThumbnail id={row.id} className="mx-auto h-32 w-32" />
-      <div className="space-y-0.5">
-        <QrMeta row={row} />
+    <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+      <div className="flex items-start gap-3">
+        <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
+        <QrHeading row={row} />
       </div>
-      <QrActions row={row} />
+      <div className="flex items-center justify-between border-t border-border pt-3">
+        <QrScanCount scanCount={row.scanCount} />
+        <QrActions row={row} />
+      </div>
     </div>
   );
 }

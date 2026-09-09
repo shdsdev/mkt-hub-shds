@@ -54,7 +54,7 @@ export default async function QrPage() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-5xl space-y-8">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="font-heading text-xl font-semibold">QR Codes</h1>
