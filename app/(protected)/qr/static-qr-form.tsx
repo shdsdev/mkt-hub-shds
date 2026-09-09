@@ -1,17 +1,23 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createStaticQrCodeAction, type CreateStaticQrFormState } from "./actions";
 import { useQrPreview } from "./use-qr-preview";
 import { LogoUpload } from "./logo-upload";
 
 const initialState: CreateStaticQrFormState = {};
 
-export function StaticQrForm({ organizationId }: { organizationId: string }) {
+export function StaticQrForm({
+  organizationId,
+  onCreated,
+}: {
+  organizationId: string;
+  onCreated: (qrCodeId: string) => void;
+}) {
   const [state, formAction, pending] = useActionState(createStaticQrCodeAction, initialState);
   const [payload, setPayload] = useState("");
-  const [backgroundColor, setBackgroundColor] = useState("#1c130f");
-  const [foregroundColor, setForegroundColor] = useState("#f7eeeb");
+  const [backgroundColor, setBackgroundColor] = useState("#1c1213");
+  const [foregroundColor, setForegroundColor] = useState("#f7edee");
   const [errorCorrectionLevel, setErrorCorrectionLevel] = useState<"L" | "M" | "Q" | "H">("M");
   const [logoUrl, setLogoUrl] = useState<string>();
 
@@ -22,6 +28,10 @@ export function StaticQrForm({ organizationId }: { organizationId: string }) {
     errorCorrectionLevel,
     logoUrl,
   });
+
+  useEffect(() => {
+    if (state.qrCodeId) onCreated(state.qrCodeId);
+  }, [state.qrCodeId, onCreated]);
 
   return (
     <form action={formAction} className="grid grid-cols-2 gap-4">

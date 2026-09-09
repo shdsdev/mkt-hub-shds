@@ -1,67 +1,56 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import type { ShortLink } from "@/modules/links";
-import { createDynamicQrCodeAction, type CreateDynamicQrFormState } from "./actions";
+import { useActionState, useEffect, useState } from "react";
+import { createWebsiteQrCodeAction, type CreateWebsiteQrFormState } from "./actions";
 import { useQrPreview } from "./use-qr-preview";
 import { LogoUpload } from "./logo-upload";
 
-const initialState: CreateDynamicQrFormState = {};
+const initialState: CreateWebsiteQrFormState = {};
 
-export function DynamicQrForm({
-  shortLinks,
+export function WebsiteQrForm({
   organizationId,
+  onCreated,
 }: {
-  shortLinks: ShortLink[];
   organizationId: string;
+  onCreated: (qrCodeId: string) => void;
 }) {
-  const [state, formAction, pending] = useActionState(createDynamicQrCodeAction, initialState);
-  const [shortLinkId, setShortLinkId] = useState("");
-  const [backgroundColor, setBackgroundColor] = useState("#1c130f");
-  const [foregroundColor, setForegroundColor] = useState("#f7eeeb");
+  const [state, formAction, pending] = useActionState(createWebsiteQrCodeAction, initialState);
+  const [destinationUrl, setDestinationUrl] = useState("");
+  const [backgroundColor, setBackgroundColor] = useState("#1c1213");
+  const [foregroundColor, setForegroundColor] = useState("#f7edee");
   const [errorCorrectionLevel, setErrorCorrectionLevel] = useState<"L" | "M" | "Q" | "H">("M");
   const [logoUrl, setLogoUrl] = useState<string>();
 
+  // The final QR encodes the short URL, not the raw destination — this preview is a visual
+  // stand-in (colors/logo/shape read identically) since no short link exists until submit.
   const previewUrl = useQrPreview({
-    shortLinkId: shortLinkId || undefined,
+    payload: destinationUrl || undefined,
     backgroundColor,
     foregroundColor,
     errorCorrectionLevel,
     logoUrl,
   });
 
-  if (shortLinks.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Create a short link on the Links page first — a dynamic QR needs one to point at.
-      </p>
-    );
-  }
+  useEffect(() => {
+    if (state.qrCodeId) onCreated(state.qrCodeId);
+  }, [state.qrCodeId, onCreated]);
 
   return (
     <form action={formAction} className="grid grid-cols-2 gap-4">
       <div className="space-y-3">
         <div className="space-y-1">
-          <label htmlFor="shortLinkId" className="text-sm text-muted-foreground">
-            Short link
+          <label htmlFor="destinationUrl" className="text-sm text-muted-foreground">
+            Destination URL
           </label>
-          <select
-            id="shortLinkId"
-            name="shortLinkId"
+          <input
+            id="destinationUrl"
+            name="destinationUrl"
             required
-            value={shortLinkId}
-            onChange={(event) => setShortLinkId(event.target.value)}
+            value={destinationUrl}
+            onChange={(event) => setDestinationUrl(event.target.value)}
+            placeholder="https://your-site.com/page"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="" disabled>
-              Choose a short link…
-            </option>
-            {shortLinks.map((shortLink) => (
-              <option key={shortLink.id} value={shortLink.id}>
-                {shortLink.slug}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <div className="flex gap-4">
@@ -124,7 +113,7 @@ export function DynamicQrForm({
           disabled={pending}
           className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
-          {pending ? "Creating…" : "Create dynamic QR"}
+          {pending ? "Creating…" : "Create QR code"}
         </button>
       </div>
 
@@ -133,7 +122,7 @@ export function DynamicQrForm({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={previewUrl} alt="QR preview" className="h-48 w-48" />
         ) : (
-          <p className="text-sm text-muted-foreground">Pick a short link to preview</p>
+          <p className="text-sm text-muted-foreground">Enter a URL to preview</p>
         )}
       </div>
     </form>

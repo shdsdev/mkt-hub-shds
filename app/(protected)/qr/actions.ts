@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { createDynamicQrCode, createStaticQrCode, archiveQrCode } from "@/modules/qr";
-import { listShortLinksForOrganization } from "@/modules/links";
+import { createLink, createShortLink, listDomains } from "@/modules/links";
 import { recordAudit, checkRateLimit } from "@/modules/audit";
 
 const RATE_LIMIT_ERROR = "Too many actions. Try again shortly.";
@@ -20,48 +20,68 @@ const customizationSchema = z.object({
   logoUrl: z.string().url().optional().or(z.literal("")),
 });
 
-const createDynamicSchema = z
-  .object({ shortLinkId: z.string().uuid() })
+const createWebsiteQrSchema = z
+  .object({ destinationUrl: z.string().trim().min(1).max(2048) })
   .merge(customizationSchema);
 
-export type CreateDynamicQrFormState = { error?: string };
+export type CreateWebsiteQrFormState = { error?: string; qrCodeId?: string };
 
-export async function createDynamicQrCodeAction(
-  _prevState: CreateDynamicQrFormState,
+// One-step "Sitio web" flow (2026-09-09 design): creates the link, short link (auto-slug, on the
+// organization's first domain), and QR code together — no separate "create a short link first"
+// step. Sequential inserts, no db.transaction() wrapping them (the rest of the codebase doesn't
+// use transactions either); a failure between steps can leave an orphaned link/short-link with no
+// QR, an accepted low-probability simplification consistent with existing conventions.
+export async function createWebsiteQrCodeAction(
+  _prevState: CreateWebsiteQrFormState,
   formData: FormData,
-): Promise<CreateDynamicQrFormState> {
+): Promise<CreateWebsiteQrFormState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!checkRateLimit(user.id)) {
     return { error: RATE_LIMIT_ERROR };
   }
 
-  const parsed = createDynamicSchema.safeParse({
-    shortLinkId: formData.get("shortLinkId"),
+  const parsed = createWebsiteQrSchema.safeParse({
+    destinationUrl: formData.get("destinationUrl"),
     backgroundColor: formData.get("backgroundColor"),
     foregroundColor: formData.get("foregroundColor"),
     errorCorrectionLevel: formData.get("errorCorrectionLevel"),
     logoUrl: formData.get("logoUrl") || undefined,
   });
   if (!parsed.success) {
-    return { error: "Pick a short link and valid colors." };
+    return { error: "Enter a valid destination URL and colors." };
   }
 
-  const shortLinks = await listShortLinksForOrganization(user.profile.organizationId);
-  const shortLink = shortLinks.find((s) => s.id === parsed.data.shortLinkId);
-  if (!shortLink) {
-    return { error: "Short link not found." };
+  const domains = await listDomains(user.profile.organizationId);
+  const domain = domains[0];
+  if (!domain) {
+    return { error: "Add a domain on the Links page first." };
   }
 
-  const qrCode = await createDynamicQrCode({
-    organizationId: user.profile.organizationId,
-    linkId: shortLink.linkId,
-    shortLinkId: shortLink.id,
-    backgroundColor: parsed.data.backgroundColor,
-    foregroundColor: parsed.data.foregroundColor,
-    errorCorrectionLevel: parsed.data.errorCorrectionLevel,
-    logoUrl: parsed.data.logoUrl || undefined,
-  });
+  let qrCode;
+  try {
+    const link = await createLink({
+      organizationId: user.profile.organizationId,
+      destinationUrl: parsed.data.destinationUrl,
+    });
+    const shortLink = await createShortLink({
+      organizationId: user.profile.organizationId,
+      linkId: link.id,
+      domainId: domain.id,
+    });
+    qrCode = await createDynamicQrCode({
+      organizationId: user.profile.organizationId,
+      linkId: link.id,
+      shortLinkId: shortLink.id,
+      backgroundColor: parsed.data.backgroundColor,
+      foregroundColor: parsed.data.foregroundColor,
+      errorCorrectionLevel: parsed.data.errorCorrectionLevel,
+      logoUrl: parsed.data.logoUrl || undefined,
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not create QR code." };
+  }
+
   await recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
@@ -72,14 +92,14 @@ export async function createDynamicQrCodeAction(
   });
 
   revalidatePath("/qr");
-  return {};
+  return { qrCodeId: qrCode.id };
 }
 
 const createStaticSchema = z
   .object({ payload: z.string().trim().min(1).max(2048) })
   .merge(customizationSchema);
 
-export type CreateStaticQrFormState = { error?: string };
+export type CreateStaticQrFormState = { error?: string; qrCodeId?: string };
 
 export async function createStaticQrCodeAction(
   _prevState: CreateStaticQrFormState,
@@ -120,7 +140,7 @@ export async function createStaticQrCodeAction(
   });
 
   revalidatePath("/qr");
-  return {};
+  return { qrCodeId: qrCode.id };
 }
 
 export async function archiveQrCodeAction(formData: FormData): Promise<void> {
