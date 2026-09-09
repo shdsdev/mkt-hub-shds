@@ -21,8 +21,8 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 
 export function Sidebar() {
   const pathname = usePathname();
-  const assetsActive = pathname.startsWith("/links") || pathname.startsWith("/qr");
-  const [assetsOpen, setAssetsOpen] = useState(assetsActive);
+  const qrShortLinksActive = pathname.startsWith("/links") || pathname.startsWith("/qr");
+  const [qrShortLinksOpen, setQrShortLinksOpen] = useState(qrShortLinksActive);
 
   return (
     <nav className="w-56 shrink-0 space-y-1 border-r border-border p-4">
@@ -31,13 +31,13 @@ export function Sidebar() {
       <div>
         <button
           type="button"
-          onClick={() => setAssetsOpen((open) => !open)}
+          onClick={() => setQrShortLinksOpen((open) => !open)}
           className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          Assets
-          <span>{assetsOpen ? "▾" : "▸"}</span>
+          QR Short Links
+          <span>{qrShortLinksOpen ? "▾" : "▸"}</span>
         </button>
-        {assetsOpen && (
+        {qrShortLinksOpen && (
           <div className="ml-3 space-y-1 border-l border-border pl-3">
             <NavLink href="/links">Links</NavLink>
             <NavLink href="/qr">QR Codes</NavLink>
