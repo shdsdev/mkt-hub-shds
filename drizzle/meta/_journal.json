@@ -64,6 +64,13 @@
       "when": 1788994501664,
       "tag": "0008_users-theme",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788995532880,
+      "tag": "0009_analytics-geo-city",
+      "breakpoints": true
     }
   ]
 }

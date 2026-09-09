@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BarChart3, Download, Image as ImageIcon, Archive as ArchiveIcon, Copy, Check, QrCode } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Download, Image as ImageIcon, Archive as ArchiveIcon, QrCode } from "lucide-react";
 import { CreateQrModal } from "./create-qr-modal";
 import { archiveQrCodeAction } from "./actions";
+import { CopyButton } from "@/components/copy-button";
 
 export type QrListRow = {
   id: string;
@@ -131,25 +133,6 @@ function QrThumbnail({ id, className }: { id: string; className: string }) {
   );
 }
 
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <button
-      type="button"
-      title="Copy"
-      onClick={async () => {
-        await navigator.clipboard.writeText(value);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-      className="text-muted-foreground hover:text-foreground"
-    >
-      {copied ? <Check size={14} /> : <Copy size={14} />}
-    </button>
-  );
-}
-
 function StatusBadge({ status }: { status: QrListRow["status"] }) {
   return (
     <span
@@ -194,12 +177,10 @@ function QrScanCount({ scanCount }: { scanCount: number }) {
 
 function QrActions({ row }: { row: QrListRow }) {
   return (
-    <div className="flex items-center gap-3 text-muted-foreground">
-      {row.mode === "dynamic" && row.linkId && (
-        <a href={`/analytics/${row.linkId}`} title="Analytics" className="hover:text-foreground">
-          <BarChart3 size={16} />
-        </a>
-      )}
+    <div
+      className="flex items-center gap-3 text-muted-foreground"
+      onClick={(event) => event.stopPropagation()}
+    >
       <a
         href={`/qr/${row.id}/download?format=png`}
         title="Download PNG"
@@ -228,9 +209,26 @@ function QrActions({ row }: { row: QrListRow }) {
   );
 }
 
+// Dynamic QR cards navigate to their analytics page on click; static ones don't (untrackable by
+// design, DATABASE.md) — same condition the old "Analytics" action icon used to gate on.
+function useCardNavigation(row: QrListRow) {
+  const router = useRouter();
+  const clickable = row.mode === "dynamic" && Boolean(row.linkId);
+  return {
+    clickable,
+    onClick: clickable ? () => router.push(`/analytics/${row.linkId}`) : undefined,
+  };
+}
+
 function QrRow({ row }: { row: QrListRow }) {
+  const { clickable, onClick } = useCardNavigation(row);
   return (
-    <li className="flex items-center gap-4 rounded-lg border border-border bg-card p-4">
+    <li
+      onClick={onClick}
+      className={`flex items-center gap-4 rounded-lg border border-border bg-card p-4 ${
+        clickable ? "cursor-pointer hover:border-primary/50" : ""
+      }`}
+    >
       <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
       <div className="min-w-0 flex-1">
         <QrHeading row={row} />
@@ -242,8 +240,14 @@ function QrRow({ row }: { row: QrListRow }) {
 }
 
 function QrCard({ row }: { row: QrListRow }) {
+  const { clickable, onClick } = useCardNavigation(row);
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+    <div
+      onClick={onClick}
+      className={`space-y-3 rounded-lg border border-border bg-card p-4 ${
+        clickable ? "cursor-pointer hover:border-primary/50" : ""
+      }`}
+    >
       <div className="flex items-start gap-3">
         <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
         <QrHeading row={row} />

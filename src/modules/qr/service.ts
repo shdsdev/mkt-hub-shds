@@ -51,6 +51,13 @@ export async function getQrCode(id: string): Promise<QrCodeRow | undefined> {
   return rows[0];
 }
 
+// A link has at most one dynamic QR in practice — nothing in the UI creates a second short
+// link/QR pair for an already-existing link — so the first match is the right one.
+export async function getQrCodeByLinkId(linkId: string): Promise<QrCodeRow | undefined> {
+  const rows = await db.select().from(qrCodes).where(eq(qrCodes.linkId, linkId)).limit(1);
+  return rows[0];
+}
+
 export async function listQrCodes(organizationId: string): Promise<QrCodeRow[]> {
   return db.select().from(qrCodes).where(eq(qrCodes.organizationId, organizationId));
 }

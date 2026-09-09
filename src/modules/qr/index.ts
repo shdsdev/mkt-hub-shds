@@ -3,6 +3,7 @@ export {
   createDynamicQrCode,
   createStaticQrCode,
   getQrCode,
+  getQrCodeByLinkId,
   listQrCodes,
   archiveQrCode,
   exportQrPng,

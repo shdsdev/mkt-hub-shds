@@ -39,6 +39,7 @@ export const trackingEvents = pgTable(
     sessionStartedAt: timestamp("session_started_at", { withTimezone: true }).notNull(),
     deviceType: text("device_type"),
     geoCountry: text("geo_country"),
+    geoCity: text("geo_city"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   // Composite PK required because of partitioning — the partition key must be part of the PK.
