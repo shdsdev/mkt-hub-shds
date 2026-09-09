@@ -41,6 +41,10 @@ export async function updateLockoutState(
   await db.update(users).set(state).where(eq(users.id, userId));
 }
 
+export async function updateTheme(userId: string, themeId: string): Promise<void> {
+  await db.update(users).set({ theme: themeId }).where(eq(users.id, userId));
+}
+
 export async function createOrganization(name: string) {
   const [org] = await db.insert(organizations).values({ name }).returning();
   return org;

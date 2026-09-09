@@ -6,9 +6,12 @@
 
 /* Locked palette (docs/SPEC.md §29, docs/superpowers/specs/2026-09-09-glassmorphism-palette-design.md).
    Dark-by-default: identical values in :root and .dark (DD6) so shadcn's .dark-scoped component
-   tokens stay correct, and a future light-mode toggle is a pure additive change. */
+   tokens stay correct, and a future light-mode toggle is a pure additive change. Also addressable
+   as the "signature" theme (2026-09-09 Settings + Themes design) — :root/.dark stay as the
+   fallback for pages rendered before a user (and their theme) is known, e.g. /login. */
 :root,
-.dark {
+.dark,
+[data-app-theme="signature"] {
   --radius: 0.75rem;
   --background: #1c1213;
   --foreground: #f7edee;

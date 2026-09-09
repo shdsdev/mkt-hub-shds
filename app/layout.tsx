@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Inter } from "next/font/google";
+import { getCurrentUser } from "@/modules/auth";
+import { DEFAULT_THEME_ID } from "@/modules/users";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -18,10 +20,14 @@ export const metadata: Metadata = {
   description: "Internal link/QR/campaign shortener and analytics hub.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await getCurrentUser();
+  const themeId = user?.profile.theme ?? DEFAULT_THEME_ID;
+
   return (
     <html
       lang="es"
+      data-app-theme={themeId}
       className={`dark ${poppins.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

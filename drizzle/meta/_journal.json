@@ -57,6 +57,13 @@
       "when": 1788986631136,
       "tag": "0007_audit-logs",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788994501664,
+      "tag": "0008_users-theme",
+      "breakpoints": true
     }
   ]
 }

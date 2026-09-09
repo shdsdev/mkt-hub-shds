@@ -32,6 +32,9 @@ export const users = pgTable("users", {
   // account. See docs/SPEC.md §18.
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  // Per-user preference — null means "use the default theme" (theme-registry.ts). Never gates
+  // any behavior, purely cosmetic.
+  theme: text("theme"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

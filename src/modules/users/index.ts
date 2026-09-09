@@ -4,6 +4,7 @@ export {
   getAuthUserIdByEmail,
   getEmailByUserId,
   updateLockoutState,
+  updateTheme,
   createOrganization,
   createProfile,
   isAdmin,
@@ -12,3 +13,4 @@ export {
   type UserRole,
   type UserStatus,
 } from "./service";
+export { THEMES, DEFAULT_THEME_ID, isValidThemeId, type Theme } from "./theme-registry";

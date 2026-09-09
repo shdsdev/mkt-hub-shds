@@ -48,9 +48,7 @@ export function Sidebar() {
       <NavLink href="/campaigns">Campaigns</NavLink>
       <NavLink href="/audit">Audit Log</NavLink>
 
-      <span className="block cursor-not-allowed rounded-md px-3 py-1.5 text-sm text-muted-foreground/50">
-        Settings
-      </span>
+      <NavLink href="/settings">Settings</NavLink>
     </nav>
   );
 }
