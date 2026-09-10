@@ -30,7 +30,7 @@ export function ActivityHeatmap({ weeks, total }: { weeks: HeatmapCell[][]; tota
         {total} <span className="text-sm font-normal text-muted-foreground">escaneos</span>
       </p>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex justify-center gap-1.5 overflow-x-auto pb-1">
         {weeks.map((week, weekIndex) => {
           const showLabel =
             weekIndex === 0 || monthLabel(week[0].date) !== monthLabel(weeks[weekIndex - 1][0].date);
