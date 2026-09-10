@@ -121,9 +121,9 @@
   --color-sidebar-badge: var(--sidebar-badge);
   --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-heading: var(--font-jersey);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
   --radius-lg: var(--radius);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
