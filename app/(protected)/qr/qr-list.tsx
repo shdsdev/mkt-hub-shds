@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Image as ImageIcon, Archive as ArchiveIcon, QrCode } from "lucide-react";
+import { QrCode } from "lucide-react";
+import { Download, DownloadCloud, Image, ImageDown, Archive, Check } from "lucide";
 import { CreateQrModal } from "./create-qr-modal";
 import { archiveQrCodeAction } from "./actions";
 import { CopyButton } from "@/components/copy-button";
+import { HoverMorphIcon } from "@/components/hover-morph-icon";
 
 export type QrListRow = {
   id: string;
@@ -188,7 +190,7 @@ function QrActions({ row }: { row: QrListRow }) {
         title="Descargar PNG"
         className="hover:text-foreground"
       >
-        <Download size={16} />
+        <HoverMorphIcon idle={Download} active={DownloadCloud} />
       </a>
       {!row.logoUrl && (
         <a
@@ -196,14 +198,14 @@ function QrActions({ row }: { row: QrListRow }) {
           title="Descargar SVG"
           className="hover:text-foreground"
         >
-          <ImageIcon size={16} />
+          <HoverMorphIcon idle={Image} active={ImageDown} />
         </a>
       )}
       {row.status === "active" && (
         <form action={archiveQrCodeAction}>
           <input type="hidden" name="id" value={row.id} />
           <button type="submit" title="Archivar" className="hover:text-foreground">
-            <ArchiveIcon size={16} />
+            <HoverMorphIcon idle={Archive} active={Check} />
           </button>
         </form>
       )}

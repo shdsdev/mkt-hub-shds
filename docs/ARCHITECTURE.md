@@ -125,6 +125,16 @@ Roll up first, drop second, always.
 - **UI**: Next.js + React + TS + Tailwind + shadcn/ui; dark theme, `#ff6f2c` primary, `#30ffe3`
   accent, glassmorphism, Poppins/Inter — full detail lives in SPEC.md §29 UI Architecture. Exact
   theming mechanism is an apply-phase implementation detail.
+- **Icons**: any icon inside an interactive element (button, link, submit) renders through
+  `HoverMorphIcon` (`src/components/hover-morph-icon.tsx`, wraps `morphicons/react`) instead of a
+  static `lucide-react` icon — `idle`/`active` icon data comes from the `lucide` package (not
+  `lucide-react`, which only exports components). Purely decorative/status icons (e.g. the scan
+  count badge) stay `lucide-react`. Pick an `active` icon that reinforces what the action does
+  (`Download` → `DownloadCloud`, `Archive` → `Check`), never one that reads as a different action.
+  Uncontrolled (no `hovered` prop) when the icon itself is the whole clickable target; pass a
+  `hovered` boolean, owned by the parent's `onMouseEnter`/`onMouseLeave`, when the hoverable area
+  is bigger than the icon (e.g. a labeled pill button) — otherwise only mousing over the 16px icon
+  triggers the morph instead of the whole button.
 
 ## Deployment
 

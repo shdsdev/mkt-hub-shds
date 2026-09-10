@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Download, Check } from "lucide";
+import { HoverMorphIcon } from "@/components/hover-morph-icon";
 import type { ScanGranularity, ScanBucket, BreakdownRow } from "@/modules/analytics";
 
 function isoDate(date: Date): string {
@@ -21,6 +23,21 @@ type DataResponse = {
   countries: BreakdownRow[];
   cities: BreakdownRow[];
 };
+
+function ExportCsvButton({ linkId }: { linkId: string }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <a
+      href={`/analytics/${linkId}/csv`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-transform duration-150 hover:scale-[1.02] active:scale-[0.96]"
+    >
+      <HoverMorphIcon idle={Download} active={Check} hovered={hovered} />
+      Exportar CSV
+    </a>
+  );
+}
 
 export function ScansPanel({ linkId }: { linkId: string }) {
   const initialRange = useMemo(() => defaultRange(), []);
@@ -73,12 +90,7 @@ export function ScansPanel({ linkId }: { linkId: string }) {
             <option value="week">Semana</option>
             <option value="month">Mes</option>
           </select>
-          <a
-            href={`/analytics/${linkId}/csv`}
-            className="rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"
-          >
-            Exportar CSV
-          </a>
+          <ExportCsvButton linkId={linkId} />
         </div>
       </div>
 
