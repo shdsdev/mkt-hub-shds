@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       data-app-theme={themeId}
-      className={`dark ${poppins.variable} ${inter.variable} ${jersey25.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`dark ${poppins.variable} ${inter.variable} ${jersey25.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
