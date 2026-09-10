@@ -8,9 +8,9 @@ import {
 } from "@/modules/users";
 import { isLockedOut, recordFailedAttempt, recordSuccessfulLogin } from "./lockout";
 
-const GENERIC_AUTH_ERROR = "Invalid email or password.";
-const LOCKED_ERROR = "Too many failed attempts. Try again later.";
-const DISABLED_ERROR = "This account has been disabled.";
+const GENERIC_AUTH_ERROR = "Correo electrónico o contraseña inválidos.";
+const LOCKED_ERROR = "Demasiados intentos fallidos. Inténtalo de nuevo más tarde.";
+const DISABLED_ERROR = "Esta cuenta fue deshabilitada.";
 
 export type SignInResult = { success: true } | { success: false; error: string };
 

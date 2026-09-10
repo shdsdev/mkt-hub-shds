@@ -17,7 +17,7 @@ import { normalizeUtmValue, createUtmPreset } from "@/modules/utm";
 import { recordPrintRun } from "@/modules/campaigns";
 import { recordAudit, checkRateLimit } from "@/modules/audit";
 
-const RATE_LIMIT_ERROR = "Too many actions. Try again shortly.";
+const RATE_LIMIT_ERROR = "Demasiadas acciones. Inténtalo de nuevo en breve.";
 
 const createLinkSchema = z.object({
   destinationUrl: z.string().trim().min(1).max(2048),
@@ -46,7 +46,7 @@ export async function createLinkAction(
     utmCampaign: formData.get("utmCampaign") || undefined,
   });
   if (!parsed.success) {
-    return { error: "Please fill in a valid destination URL." };
+    return { error: "Ingresa una URL de destino válida." };
   }
 
   try {
@@ -70,7 +70,7 @@ export async function createLinkAction(
   } catch (error) {
     if (
       error instanceof Error &&
-      (error.message.includes("http") || error.message.includes("UTM value"))
+      (error.message.includes("http") || error.message.includes("valor UTM"))
     ) {
       return { error: error.message };
     }
@@ -101,13 +101,13 @@ export async function createUtmPresetAction(
     utmCampaign: formData.get("utmCampaign"),
   });
   if (!parsed.success) {
-    return { error: "Fill in name, source, medium, and campaign." };
+    return { error: "Completa nombre, source, medium y campaign." };
   }
 
   try {
     await createUtmPreset({ organizationId: user.profile.organizationId, ...parsed.data });
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Could not create preset." };
+    return { error: error instanceof Error ? error.message : "No se pudo crear el preajuste." };
   }
 
   revalidatePath("/links");
@@ -127,7 +127,7 @@ export async function createDomainAction(
 
   const parsed = createDomainSchema.safeParse({ hostname: formData.get("hostname") });
   if (!parsed.success) {
-    return { error: "Enter a valid hostname." };
+    return { error: "Ingresa un hostname válido." };
   }
 
   await createDomain(user.profile.organizationId, parsed.data.hostname);
@@ -157,7 +157,7 @@ export async function createShortLinkAction(
     slug: rawSlug || undefined,
   });
   if (!parsed.success) {
-    return { error: "Pick a domain to create a short link." };
+    return { error: "Elige un dominio para crear el enlace corto." };
   }
 
   try {
@@ -166,7 +166,7 @@ export async function createShortLinkAction(
       ...parsed.data,
     });
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Could not create short link." };
+    return { error: error instanceof Error ? error.message : "No se pudo crear el enlace corto." };
   }
 
   revalidatePath(`/links/${parsed.data.linkId}`);
@@ -196,7 +196,7 @@ export async function updateDestinationAction(
     destinationUrl: formData.get("destinationUrl"),
   });
   if (!parsed.success) {
-    return { error: "Enter a valid destination URL." };
+    return { error: "Ingresa una URL de destino válida." };
   }
 
   const before = await getLink(parsed.data.linkId);
@@ -213,7 +213,7 @@ export async function updateDestinationAction(
       after: { destinationUrl: after.destinationUrl },
     });
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Could not update destination." };
+    return { error: error instanceof Error ? error.message : "No se pudo actualizar el destino." };
   }
 
   revalidatePath(`/links/${parsed.data.linkId}`);
@@ -278,7 +278,7 @@ export async function recordPrintRunAction(
     quantity: formData.get("quantity"),
   });
   if (!parsed.success) {
-    return { error: "Enter a quantity of at least 1." };
+    return { error: "Ingresa una cantidad de al menos 1." };
   }
 
   const printRun = await recordPrintRun({

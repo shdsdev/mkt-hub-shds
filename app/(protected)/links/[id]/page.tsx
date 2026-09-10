@@ -8,6 +8,12 @@ import { ShortLinkForm } from "./short-link-form";
 import { ArchiveLinkButton, ArchiveShortLinkButton } from "./archive-button";
 import { PrintRunForm } from "./print-run-form";
 
+const RESOURCE_STATUS_LABEL: Record<string, string> = {
+  active: "activo",
+  archived: "archivado",
+  disabled: "deshabilitado",
+};
+
 export default async function LinkDetailPage({
   params,
 }: {
@@ -35,31 +41,33 @@ export default async function LinkDetailPage({
     <div className="mx-auto max-w-2xl space-y-8">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-heading text-xl font-semibold">Link</h1>
+          <h1 className="font-heading text-xl font-semibold">Enlace</h1>
           <p className="text-sm text-muted-foreground">
-            Editing the destination here updates every short link and QR code below immediately —
-            none of them store a destination of their own (ARCHITECTURE.md I-1).
+            Editar el destino acá actualiza todos los enlaces cortos y códigos QR de abajo al
+            instante — ninguno guarda un destino propio (ARCHITECTURE.md I-1).
           </p>
           <Link href={`/analytics/${link.id}`} className="text-sm text-accent hover:underline">
-            View analytics
+            Ver analíticas
           </Link>
         </div>
         {link.status === "active" && <ArchiveLinkButton linkId={link.id} />}
         {link.status !== "active" && (
-          <span className="text-xs text-muted-foreground">{link.status}</span>
+          <span className="text-xs text-muted-foreground">
+            {RESOURCE_STATUS_LABEL[link.status]}
+          </span>
         )}
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">Destination</p>
+        <p className="text-sm text-muted-foreground">Destino</p>
         <DestinationForm linkId={link.id} destinationUrl={link.destinationUrl} />
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">Short links</p>
+        <p className="text-sm text-muted-foreground">Enlaces cortos</p>
         <ul className="space-y-3">
           {shortLinks.length === 0 && (
-            <li className="text-sm text-muted-foreground">None yet.</li>
+            <li className="text-sm text-muted-foreground">Aún no hay ninguno.</li>
           )}
           {shortLinks.map((shortLink, index) => {
             const scanRate = scanRates[index];
@@ -69,7 +77,9 @@ export default async function LinkDetailPage({
                   <span>
                     {domainById.get(shortLink.domainId)}/{shortLink.slug}
                     {shortLink.status !== "active" && (
-                      <span className="ml-2 text-xs text-muted-foreground">{shortLink.status}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {RESOURCE_STATUS_LABEL[shortLink.status]}
+                      </span>
                     )}
                   </span>
                   {shortLink.status === "active" && (
@@ -80,8 +90,8 @@ export default async function LinkDetailPage({
                   <PrintRunForm shortLinkId={shortLink.id} linkId={link.id} />
                   <span className="text-xs text-muted-foreground">
                     {scanRate === null
-                      ? "no print run recorded"
-                      : `${(scanRate * 100).toFixed(1)}% scan rate`}
+                      ? "sin tirada registrada"
+                      : `${(scanRate * 100).toFixed(1)}% de escaneo`}
                   </span>
                 </div>
               </li>

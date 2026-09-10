@@ -38,7 +38,7 @@ export function StaticQrForm({
       <div className="space-y-3">
         <div className="space-y-1">
           <label htmlFor="payload" className="text-sm text-muted-foreground">
-            Payload — fixed, untrackable, uneditable after creation
+            Contenido — fijo, no rastreable, no editable después de crearlo
           </label>
           <input
             id="payload"
@@ -46,7 +46,7 @@ export function StaticQrForm({
             required
             value={payload}
             onChange={(event) => setPayload(event.target.value)}
-            placeholder="https://example.com or any text"
+            placeholder="https://ejemplo.com o cualquier texto"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
@@ -54,7 +54,7 @@ export function StaticQrForm({
         <div className="flex gap-4">
           <div className="space-y-1">
             <label htmlFor="staticBackgroundColor" className="text-xs text-muted-foreground">
-              Background
+              Fondo
             </label>
             <input
               id="staticBackgroundColor"
@@ -66,7 +66,7 @@ export function StaticQrForm({
           </div>
           <div className="space-y-1">
             <label htmlFor="staticForegroundColor" className="text-xs text-muted-foreground">
-              Foreground
+              Primer plano
             </label>
             <input
               id="staticForegroundColor"
@@ -80,7 +80,7 @@ export function StaticQrForm({
 
         <div className="space-y-1">
           <label htmlFor="staticErrorCorrectionLevel" className="text-xs text-muted-foreground">
-            Error correction
+            Corrección de errores
           </label>
           <select
             id="staticErrorCorrectionLevel"
@@ -111,16 +111,16 @@ export function StaticQrForm({
           disabled={pending}
           className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
-          {pending ? "Creating…" : "Create static QR"}
+          {pending ? "Creando…" : "Crear QR estático"}
         </button>
       </div>
 
       <div className="flex items-center justify-center rounded-md border border-border bg-background p-4">
         {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt="QR preview" className="h-48 w-48" />
+          <img src={previewUrl} alt="Vista previa del QR" className="h-48 w-48" />
         ) : (
-          <p className="text-sm text-muted-foreground">Enter a payload to preview</p>
+          <p className="text-sm text-muted-foreground">Ingresa un contenido para previsualizar</p>
         )}
       </div>
     </form>

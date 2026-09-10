@@ -53,10 +53,10 @@ export type RecordPrintRunInput = {
 // spirit: print run counts aren't meant to be mutable after the fact).
 export async function recordPrintRun(input: RecordPrintRunInput): Promise<PrintRun> {
   if (Boolean(input.qrCodeId) === Boolean(input.shortLinkId)) {
-    throw new Error("A print run must reference exactly one of qrCodeId or shortLinkId.");
+    throw new Error("Una tirada debe referenciar exactamente uno de qrCodeId o shortLinkId.");
   }
   if (input.quantity < 1) {
-    throw new Error("Quantity must be at least 1.");
+    throw new Error("La cantidad debe ser al menos 1.");
   }
   const [printRun] = await db.insert(printRuns).values(input).returning();
   return printRun;

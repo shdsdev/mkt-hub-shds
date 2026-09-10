@@ -32,7 +32,7 @@ export default async function ProtectedLayout({
             </span>
             <form action={logout}>
               <button type="submit" className="text-accent hover:underline">
-                Sign out
+                Cerrar sesión
               </button>
             </form>
           </div>

@@ -52,14 +52,14 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
             onClick={() => setViewMode("grid")}
             className={`px-3 py-1.5 text-sm ${viewMode === "grid" ? "bg-primary/20" : ""}`}
           >
-            Grid
+            Cuadrícula
           </button>
           <button
             type="button"
             onClick={() => setViewMode("list")}
             className={`px-3 py-1.5 text-sm ${viewMode === "list" ? "bg-primary/20" : ""}`}
           >
-            List
+            Lista
           </button>
         </div>
 
@@ -68,9 +68,9 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="archived">Archived</option>
+          <option value="all">Todos los estados</option>
+          <option value="active">Activo</option>
+          <option value="archived">Archivado</option>
         </select>
 
         <select
@@ -78,15 +78,15 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
           onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}
           className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         >
-          <option value="all">All types</option>
-          <option value="dynamic">Website</option>
-          <option value="static">Fixed text</option>
+          <option value="all">Todos los tipos</option>
+          <option value="dynamic">Sitio web</option>
+          <option value="static">Texto fijo</option>
         </select>
 
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search destination, URL, or payload"
+          placeholder="Buscar por destino, URL o contenido"
           className="min-w-64 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         />
 
@@ -95,16 +95,18 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
 
       {rows.length === 0 && (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-12 text-center">
-          <p className="font-medium">Let&rsquo;s create your first QR code</p>
+          <p className="font-medium">Crea tu primer código QR</p>
           <p className="text-sm text-muted-foreground">
-            Pick a type, add your content, choose a color, then manage it all here.
+            Elige un tipo, agrega tu contenido, elige un color y después gestiona todo desde acá.
           </p>
           <CreateQrModal organizationId={organizationId} />
         </div>
       )}
 
       {rows.length > 0 && filteredRows.length === 0 && (
-        <p className="text-sm text-muted-foreground">No QR codes match these filters.</p>
+        <p className="text-sm text-muted-foreground">
+          Ningún código QR coincide con estos filtros.
+        </p>
       )}
 
       {viewMode === "list" && filteredRows.length > 0 && (
@@ -140,7 +142,7 @@ function StatusBadge({ status }: { status: QrListRow["status"] }) {
         status === "active" ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
       }`}
     >
-      {status === "active" ? "Active" : "Archived"}
+      {status === "active" ? "Activo" : "Archivado"}
     </span>
   );
 }
@@ -151,7 +153,7 @@ function QrHeading({ row }: { row: QrListRow }) {
     <div className="min-w-0 space-y-1">
       <p className="truncate font-heading font-semibold">{heading}</p>
       <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        {row.mode === "dynamic" ? "Website" : "Fixed text"}
+        {row.mode === "dynamic" ? "Sitio web" : "Texto fijo"}
         <span>{row.createdAt.toLocaleDateString()}</span>
         <StatusBadge status={row.status} />
       </p>
@@ -170,7 +172,7 @@ function QrScanCount({ scanCount }: { scanCount: number }) {
     <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
       <QrCode size={16} />
       <span className="font-heading text-lg font-semibold text-foreground">{scanCount}</span>
-      <span className="text-xs">scans</span>
+      <span className="text-xs">escaneos</span>
     </div>
   );
 }
@@ -183,7 +185,7 @@ function QrActions({ row }: { row: QrListRow }) {
     >
       <a
         href={`/qr/${row.id}/download?format=png`}
-        title="Download PNG"
+        title="Descargar PNG"
         className="hover:text-foreground"
       >
         <Download size={16} />
@@ -191,7 +193,7 @@ function QrActions({ row }: { row: QrListRow }) {
       {!row.logoUrl && (
         <a
           href={`/qr/${row.id}/download?format=svg`}
-          title="Download SVG"
+          title="Descargar SVG"
           className="hover:text-foreground"
         >
           <ImageIcon size={16} />
@@ -200,7 +202,7 @@ function QrActions({ row }: { row: QrListRow }) {
       {row.status === "active" && (
         <form action={archiveQrCodeAction}>
           <input type="hidden" name="id" value={row.id} />
-          <button type="submit" title="Archive" className="hover:text-foreground">
+          <button type="submit" title="Archivar" className="hover:text-foreground">
             <ArchiveIcon size={16} />
           </button>
         </form>

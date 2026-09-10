@@ -25,11 +25,11 @@ export function LinkForm({ presets }: { presets: UtmPreset[] }) {
       action={formAction}
       className="space-y-3 rounded-lg border border-border bg-card p-4"
     >
-      <h2 className="font-heading font-medium">New link</h2>
+      <h2 className="font-heading font-medium">Nuevo enlace</h2>
 
       <div className="space-y-1">
         <label htmlFor="destinationUrl" className="text-sm text-muted-foreground">
-          Destination URL
+          URL de destino
         </label>
         <input
           id="destinationUrl"
@@ -44,7 +44,7 @@ export function LinkForm({ presets }: { presets: UtmPreset[] }) {
       {presets.length > 0 && (
         <div className="space-y-1">
           <label htmlFor="preset" className="text-sm text-muted-foreground">
-            UTM preset (fills the fields below — still editable)
+            Preajuste UTM (completa los campos de abajo — igual editable)
           </label>
           <select
             id="preset"
@@ -53,7 +53,7 @@ export function LinkForm({ presets }: { presets: UtmPreset[] }) {
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
             <option value="" disabled>
-              Choose a preset…
+              Elige un preajuste…
             </option>
             {presets.map((preset) => (
               <option key={preset.id} value={preset.id}>
@@ -96,7 +96,7 @@ export function LinkForm({ presets }: { presets: UtmPreset[] }) {
         disabled={pending}
         className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
-        {pending ? "Creating…" : "Create link"}
+        {pending ? "Creando…" : "Crear enlace"}
       </button>
     </form>
   );

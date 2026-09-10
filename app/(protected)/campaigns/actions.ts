@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { createCampaign, endCampaign } from "@/modules/campaigns";
 import { recordAudit, checkRateLimit } from "@/modules/audit";
 
-const RATE_LIMIT_ERROR = "Too many actions. Try again shortly.";
+const RATE_LIMIT_ERROR = "Demasiadas acciones. Inténtalo de nuevo en breve.";
 
 const createCampaignSchema = z.object({ name: z.string().trim().min(1).max(255) });
 
@@ -25,7 +25,7 @@ export async function createCampaignAction(
 
   const parsed = createCampaignSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) {
-    return { error: "Enter a campaign name." };
+    return { error: "Ingresa un nombre para la campaña." };
   }
 
   const campaign = await createCampaign(user.profile.organizationId, parsed.data.name);

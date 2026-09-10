@@ -16,7 +16,7 @@ export function PrintRunForm({ shortLinkId, linkId }: { shortLinkId: string; lin
         name="quantity"
         type="number"
         min={1}
-        placeholder="Qty"
+        placeholder="Cant."
         required
         className="w-20 rounded-md border border-input bg-background px-2 py-1 text-xs"
       />
@@ -25,7 +25,7 @@ export function PrintRunForm({ shortLinkId, linkId }: { shortLinkId: string; lin
         disabled={pending}
         className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground disabled:opacity-50"
       >
-        {pending ? "…" : "Record print run"}
+        {pending ? "…" : "Registrar tirada"}
       </button>
       {state.error && <span className="text-xs text-destructive">{state.error}</span>}
     </form>

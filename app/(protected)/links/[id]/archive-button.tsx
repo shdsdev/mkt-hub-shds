@@ -7,7 +7,7 @@ export function ArchiveLinkButton({ linkId }: { linkId: string }) {
     <form action={archiveLinkAction}>
       <input type="hidden" name="linkId" value={linkId} />
       <button type="submit" className="text-sm text-accent hover:underline">
-        Archive
+        Archivar
       </button>
     </form>
   );
@@ -25,7 +25,7 @@ export function ArchiveShortLinkButton({
       <input type="hidden" name="shortLinkId" value={shortLinkId} />
       <input type="hidden" name="linkId" value={linkId} />
       <button type="submit" className="text-xs text-accent hover:underline">
-        Archive
+        Archivar
       </button>
     </form>
   );

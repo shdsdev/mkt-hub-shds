@@ -9,7 +9,7 @@ export function CopyButton({ value }: { value: string }) {
   return (
     <button
       type="button"
-      title="Copy"
+      title="Copiar"
       onClick={async (event) => {
         event.preventDefault();
         event.stopPropagation();

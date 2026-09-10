@@ -19,10 +19,10 @@ export default async function LinksPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-heading text-xl font-semibold">Links</h1>
+        <h1 className="font-heading text-xl font-semibold">Enlaces</h1>
         <p className="text-sm text-muted-foreground">
-          Every short link and QR code resolves through one of these — editing the destination
-          here updates all of them at once.
+          Todo enlace corto y código QR se resuelve a través de uno de estos — editar el destino
+          acá actualiza todos a la vez.
         </p>
       </div>
 
@@ -34,7 +34,7 @@ export default async function LinksPage() {
 
       <div className="space-y-2">
         {links.length === 0 && (
-          <p className="text-sm text-muted-foreground">No links yet.</p>
+          <p className="text-sm text-muted-foreground">Aún no hay enlaces.</p>
         )}
         {links.map((link) => (
           <Link
@@ -43,7 +43,9 @@ export default async function LinksPage() {
             className="block rounded-md border border-border bg-card p-4 hover:border-primary"
           >
             <p className="truncate font-medium">{link.destinationUrl}</p>
-            <p className="text-xs text-muted-foreground">{link.status}</p>
+            <p className="text-xs text-muted-foreground">
+              {link.status === "active" ? "activo" : "archivado"}
+            </p>
           </Link>
         ))}
       </div>

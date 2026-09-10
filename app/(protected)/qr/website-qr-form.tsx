@@ -40,7 +40,7 @@ export function WebsiteQrForm({
       <div className="space-y-3">
         <div className="space-y-1">
           <label htmlFor="destinationUrl" className="text-sm text-muted-foreground">
-            Destination URL
+            URL de destino
           </label>
           <input
             id="destinationUrl"
@@ -48,7 +48,7 @@ export function WebsiteQrForm({
             required
             value={destinationUrl}
             onChange={(event) => setDestinationUrl(event.target.value)}
-            placeholder="https://your-site.com/page"
+            placeholder="https://tu-sitio.com/pagina"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
@@ -56,7 +56,7 @@ export function WebsiteQrForm({
         <div className="flex gap-4">
           <div className="space-y-1">
             <label htmlFor="backgroundColor" className="text-xs text-muted-foreground">
-              Background
+              Fondo
             </label>
             <input
               id="backgroundColor"
@@ -68,7 +68,7 @@ export function WebsiteQrForm({
           </div>
           <div className="space-y-1">
             <label htmlFor="foregroundColor" className="text-xs text-muted-foreground">
-              Foreground
+              Primer plano
             </label>
             <input
               id="foregroundColor"
@@ -82,7 +82,7 @@ export function WebsiteQrForm({
 
         <div className="space-y-1">
           <label htmlFor="errorCorrectionLevel" className="text-xs text-muted-foreground">
-            Error correction
+            Corrección de errores
           </label>
           <select
             id="errorCorrectionLevel"
@@ -113,16 +113,16 @@ export function WebsiteQrForm({
           disabled={pending}
           className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
-          {pending ? "Creating…" : "Create QR code"}
+          {pending ? "Creando…" : "Crear código QR"}
         </button>
       </div>
 
       <div className="flex items-center justify-center rounded-md border border-border bg-background p-4">
         {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt="QR preview" className="h-48 w-48" />
+          <img src={previewUrl} alt="Vista previa del QR" className="h-48 w-48" />
         ) : (
-          <p className="text-sm text-muted-foreground">Enter a URL to preview</p>
+          <p className="text-sm text-muted-foreground">Ingresa una URL para previsualizar</p>
         )}
       </div>
     </form>

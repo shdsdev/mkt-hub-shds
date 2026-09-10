@@ -13,8 +13,11 @@ export function ShortLinkForm({ linkId, domains }: { linkId: string; domains: Do
   if (domains.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Add a domain on the <Link href="/links" className="text-accent hover:underline">Links</Link> page
-        before creating a short link.
+        Agrega un dominio en la página de{" "}
+        <Link href="/links" className="text-accent hover:underline">
+          Enlaces
+        </Link>{" "}
+        antes de crear un enlace corto.
       </p>
     );
   }
@@ -25,7 +28,7 @@ export function ShortLinkForm({ linkId, domains }: { linkId: string; domains: Do
 
       <div className="space-y-1">
         <label htmlFor="domainId" className="text-xs text-muted-foreground">
-          Domain
+          Dominio
         </label>
         <select
           id="domainId"
@@ -43,12 +46,12 @@ export function ShortLinkForm({ linkId, domains }: { linkId: string; domains: Do
 
       <div className="space-y-1">
         <label htmlFor="slug" className="text-xs text-muted-foreground">
-          Slug (optional — auto-generated if empty)
+          Slug (opcional — se genera automático si está vacío)
         </label>
         <input
           id="slug"
           name="slug"
-          placeholder="auto"
+          placeholder="automático"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
       </div>
@@ -58,7 +61,7 @@ export function ShortLinkForm({ linkId, domains }: { linkId: string; domains: Do
         disabled={pending}
         className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
-        {pending ? "Creating…" : "Create short link"}
+        {pending ? "Creando…" : "Crear enlace corto"}
       </button>
 
       {state.error && (

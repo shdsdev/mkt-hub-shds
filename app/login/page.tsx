@@ -18,7 +18,7 @@ export default function LoginPage() {
 
         <div className="space-y-1">
           <label htmlFor="email" className="text-sm text-muted-foreground">
-            Email
+            Correo electrónico
           </label>
           <input
             id="email"
@@ -32,7 +32,7 @@ export default function LoginPage() {
 
         <div className="space-y-1">
           <label htmlFor="password" className="text-sm text-muted-foreground">
-            Password
+            Contraseña
           </label>
           <input
             id="password"
@@ -55,7 +55,7 @@ export default function LoginPage() {
           disabled={pending}
           className="w-full rounded-md bg-primary px-3 py-2 font-medium text-primary-foreground disabled:opacity-50"
         >
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? "Iniciando sesión…" : "Iniciar sesión"}
         </button>
       </form>
     </main>

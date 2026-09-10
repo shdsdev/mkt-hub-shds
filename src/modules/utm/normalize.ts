@@ -3,7 +3,7 @@
 // "facebook" / "FACEBOOK" into three sources.
 export function normalizeUtmValue(raw: string): string {
   if (raw.length > 255) {
-    throw new Error("UTM value must be 255 characters or fewer.");
+    throw new Error("El valor UTM debe tener 255 caracteres o menos.");
   }
 
   const normalized = raw

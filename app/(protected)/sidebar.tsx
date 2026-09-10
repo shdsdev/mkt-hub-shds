@@ -26,7 +26,7 @@ export function Sidebar() {
 
   return (
     <nav className="w-56 shrink-0 space-y-1 border-r border-border p-4">
-      <NavLink href="/">Overview</NavLink>
+      <NavLink href="/">Resumen</NavLink>
 
       <div>
         <button
@@ -39,16 +39,16 @@ export function Sidebar() {
         </button>
         {qrShortLinksOpen && (
           <div className="ml-3 space-y-1 border-l border-border pl-3">
-            <NavLink href="/links">Links</NavLink>
-            <NavLink href="/qr">QR Codes</NavLink>
+            <NavLink href="/links">Enlaces</NavLink>
+            <NavLink href="/qr">Códigos QR</NavLink>
           </div>
         )}
       </div>
 
-      <NavLink href="/campaigns">Campaigns</NavLink>
-      <NavLink href="/audit">Audit Log</NavLink>
+      <NavLink href="/campaigns">Campañas</NavLink>
+      <NavLink href="/audit">Registro de auditoría</NavLink>
 
-      <NavLink href="/settings">Settings</NavLink>
+      <NavLink href="/settings">Configuración</NavLink>
     </nav>
   );
 }

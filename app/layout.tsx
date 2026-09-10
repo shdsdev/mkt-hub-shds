@@ -17,7 +17,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Marketing Hub",
-  description: "Internal link/QR/campaign shortener and analytics hub.",
+  description: "Hub interno de acortador de enlaces, códigos QR, campañas y analíticas.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

@@ -96,7 +96,7 @@ export async function exportQrPng(encodedValue: string, options: QrCustomization
 
   const logoResponse = await fetch(options.logoUrl);
   if (!logoResponse.ok) {
-    throw new Error(`Could not fetch logo: ${logoResponse.status}`);
+    throw new Error(`No se pudo obtener el logo: ${logoResponse.status}`);
   }
   const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
   const { width, height } = computeLogoDimensions(QR_PIXEL_SIZE);

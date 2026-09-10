@@ -11,10 +11,10 @@ export function UtmPresetForm({ presets }: { presets: UtmPreset[] }) {
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-      <h2 className="font-heading font-medium">UTM Presets</h2>
+      <h2 className="font-heading font-medium">Preajustes UTM</h2>
 
       <ul className="space-y-1 text-sm text-muted-foreground">
-        {presets.length === 0 && <li>No presets yet.</li>}
+        {presets.length === 0 && <li>Aún no hay preajustes.</li>}
         {presets.map((preset) => (
           <li key={preset.id}>
             {preset.name}: {preset.utmSource} / {preset.utmMedium} / {preset.utmCampaign}
@@ -25,7 +25,7 @@ export function UtmPresetForm({ presets }: { presets: UtmPreset[] }) {
       <form action={formAction} className="grid grid-cols-2 gap-2">
         <input
           name="name"
-          placeholder="Preset name"
+          placeholder="Nombre del preajuste"
           className="col-span-2 rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
         <input
@@ -48,7 +48,7 @@ export function UtmPresetForm({ presets }: { presets: UtmPreset[] }) {
           disabled={pending}
           className="col-span-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save preset"}
+          {pending ? "Guardando…" : "Guardar preajuste"}
         </button>
       </form>
 

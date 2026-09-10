@@ -47,7 +47,7 @@ export function ScansPanel({ linkId }: { linkId: string }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-semibold">Scans</h2>
+        <h2 className="font-heading text-lg font-semibold">Escaneos</h2>
         <div className="flex flex-wrap items-center gap-3">
           <input
             type="date"
@@ -56,7 +56,7 @@ export function ScansPanel({ linkId }: { linkId: string }) {
             onChange={(event) => setFrom(event.target.value)}
             className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />
-          <span className="text-sm text-muted-foreground">to</span>
+          <span className="text-sm text-muted-foreground">a</span>
           <input
             type="date"
             value={to}
@@ -69,15 +69,15 @@ export function ScansPanel({ linkId }: { linkId: string }) {
             onChange={(event) => setGranularity(event.target.value as ScanGranularity)}
             className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           >
-            <option value="day">Day</option>
-            <option value="week">Week</option>
-            <option value="month">Month</option>
+            <option value="day">Día</option>
+            <option value="week">Semana</option>
+            <option value="month">Mes</option>
           </select>
           <a
             href={`/analytics/${linkId}/csv`}
             className="rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"
           >
-            Export CSV
+            Exportar CSV
           </a>
         </div>
       </div>
@@ -95,20 +95,20 @@ export function ScansPanel({ linkId }: { linkId: string }) {
                   borderRadius: "var(--radius-sm)",
                 }}
               />
-              <Bar dataKey="scansHuman" name="Scans" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="scansHuman" name="Escaneos" fill="var(--primary)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            No scans in this range yet.
+            Aún no hay escaneos en este rango.
           </div>
         )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <BreakdownList title="Top countries" rows={data?.countries} />
-        <BreakdownList title="Top cities" rows={data?.cities} />
-        <BreakdownList title="By device" rows={data?.devices} />
+        <BreakdownList title="Países principales" rows={data?.countries} />
+        <BreakdownList title="Ciudades principales" rows={data?.cities} />
+        <BreakdownList title="Por dispositivo" rows={data?.devices} />
       </div>
     </div>
   );
@@ -119,7 +119,7 @@ function BreakdownList({ title, rows }: { title: string; rows?: BreakdownRow[] }
     <div className="rounded-lg border border-border bg-card p-4">
       <p className="mb-2 text-sm font-medium">{title}</p>
       {!rows || rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No data in this range.</p>
+        <p className="text-sm text-muted-foreground">Sin datos en este rango.</p>
       ) : (
         <ul className="space-y-1 text-sm">
           {rows.map((row) => (

@@ -28,23 +28,23 @@ export default async function OverviewPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <h1 className="font-heading text-xl font-semibold">Overview</h1>
+        <h1 className="font-heading text-xl font-semibold">Resumen</h1>
         <p className="text-sm text-muted-foreground">
           {user.email} · {user.profile.role}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Active links" value={activeLinks} />
-        <Stat label="Active QR codes" value={activeQrCodes} />
-        <Stat label="Active campaigns" value={activeCampaigns} />
-        <Stat label="Clicks + scans (30d)" value={traffic30d} />
+        <Stat label="Enlaces activos" value={activeLinks} />
+        <Stat label="Códigos QR activos" value={activeQrCodes} />
+        <Stat label="Campañas activas" value={activeCampaigns} />
+        <Stat label="Clics + escaneos (30d)" value={traffic30d} />
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">Recent links</p>
+        <p className="text-sm text-muted-foreground">Enlaces recientes</p>
         {recentLinks.length === 0 && (
-          <p className="text-sm text-muted-foreground">No links yet.</p>
+          <p className="text-sm text-muted-foreground">Aún no hay enlaces.</p>
         )}
         <ul className="space-y-1">
           {recentLinks.map((link) => (

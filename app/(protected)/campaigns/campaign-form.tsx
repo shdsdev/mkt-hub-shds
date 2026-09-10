@@ -13,7 +13,7 @@ export function CampaignForm() {
       <input
         name="name"
         required
-        placeholder="Spring launch"
+        placeholder="Lanzamiento de primavera"
         className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
       <button
@@ -21,7 +21,7 @@ export function CampaignForm() {
         disabled={pending}
         className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
-        {pending ? "Creating…" : "Create campaign"}
+        {pending ? "Creando…" : "Crear campaña"}
       </button>
       {state.error && (
         <p role="alert" className="self-center text-sm text-destructive">

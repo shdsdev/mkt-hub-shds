@@ -12,10 +12,10 @@ export default async function CampaignsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <h1 className="font-heading text-xl font-semibold">Campaigns</h1>
+        <h1 className="font-heading text-xl font-semibold">Campañas</h1>
         <p className="text-sm text-muted-foreground">
-          Ending a campaign never disables the links or QR codes it groups — a printed QR keeps
-          working after the campaign ends.
+          Finalizar una campaña nunca deshabilita los enlaces o códigos QR que agrupa — un QR
+          impreso sigue funcionando después de que la campaña termina.
         </p>
       </div>
 
@@ -23,7 +23,7 @@ export default async function CampaignsPage() {
 
       <ul className="space-y-2">
         {campaigns.length === 0 && (
-          <li className="text-sm text-muted-foreground">No campaigns yet.</li>
+          <li className="text-sm text-muted-foreground">Aún no hay campañas.</li>
         )}
         {campaigns.map((campaign) => (
           <li
@@ -32,13 +32,15 @@ export default async function CampaignsPage() {
           >
             <div>
               <p className="font-medium">{campaign.name}</p>
-              <p className="text-xs text-muted-foreground">{campaign.status}</p>
+              <p className="text-xs text-muted-foreground">
+                {campaign.status === "active" ? "activa" : "finalizada"}
+              </p>
             </div>
             {campaign.status === "active" && (
               <form action={endCampaignAction}>
                 <input type="hidden" name="campaignId" value={campaign.id} />
                 <button type="submit" className="text-sm text-accent hover:underline">
-                  End campaign
+                  Finalizar campaña
                 </button>
               </form>
             )}

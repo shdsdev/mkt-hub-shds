@@ -57,10 +57,11 @@ export default async function QrPage() {
     <div className="mx-auto max-w-5xl space-y-8">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-heading text-xl font-semibold">QR Codes</h1>
+          <h1 className="font-heading text-xl font-semibold">Códigos QR</h1>
           <p className="text-sm text-muted-foreground">
-            Website QR codes are trackable and stay editable after printing. Fixed text QR codes
-            encode a permanent payload and can never be changed.
+            Los códigos QR de sitio web son rastreables y siguen siendo editables después de
+            imprimirlos. Los de texto fijo codifican un contenido permanente que nunca se puede
+            cambiar.
           </p>
         </div>
       </div>

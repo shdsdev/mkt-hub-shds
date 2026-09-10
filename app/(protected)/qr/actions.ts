@@ -8,9 +8,9 @@ import { createDynamicQrCode, createStaticQrCode, archiveQrCode } from "@/module
 import { createLink, createShortLink, listDomains } from "@/modules/links";
 import { recordAudit, checkRateLimit } from "@/modules/audit";
 
-const RATE_LIMIT_ERROR = "Too many actions. Try again shortly.";
+const RATE_LIMIT_ERROR = "Demasiadas acciones. Inténtalo de nuevo en breve.";
 
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Must be a hex color like #1c130f.");
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Debe ser un color hexadecimal como #1c130f.");
 const ecLevel = z.enum(["L", "M", "Q", "H"]);
 
 const customizationSchema = z.object({
@@ -49,13 +49,13 @@ export async function createWebsiteQrCodeAction(
     logoUrl: formData.get("logoUrl") || undefined,
   });
   if (!parsed.success) {
-    return { error: "Enter a valid destination URL and colors." };
+    return { error: "Ingresa una URL de destino y colores válidos." };
   }
 
   const domains = await listDomains(user.profile.organizationId);
   const domain = domains[0];
   if (!domain) {
-    return { error: "Add a domain on the Links page first." };
+    return { error: "Primero agrega un dominio en la página de Enlaces." };
   }
 
   let qrCode;
@@ -79,7 +79,7 @@ export async function createWebsiteQrCodeAction(
       logoUrl: parsed.data.logoUrl || undefined,
     });
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Could not create QR code." };
+    return { error: error instanceof Error ? error.message : "No se pudo crear el código QR." };
   }
 
   await recordAudit({
@@ -119,7 +119,7 @@ export async function createStaticQrCodeAction(
     logoUrl: formData.get("logoUrl") || undefined,
   });
   if (!parsed.success) {
-    return { error: "Enter a payload and valid colors." };
+    return { error: "Ingresa un contenido y colores válidos." };
   }
 
   const qrCode = await createStaticQrCode({

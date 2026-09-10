@@ -16,7 +16,7 @@ const destinationUrlSchema = z
   .trim()
   .max(2048)
   .refine((value) => /^https?:\/\//i.test(value), {
-    message: "Destination must start with http:// or https://.",
+    message: "El destino debe comenzar con http:// o https://.",
   });
 
 export type CreateLinkInput = {
@@ -92,7 +92,7 @@ const MAX_SLUG_RETRIES = 3;
 export async function createShortLink(input: CreateShortLinkInput): Promise<ShortLink> {
   if (input.slug) {
     if (!isValidSlug(input.slug)) {
-      throw new Error("Slug must be 3-64 characters: letters, digits, _ or -.");
+      throw new Error("El slug debe tener 3-64 caracteres: letras, dígitos, _ o -.");
     }
     return insertShortLink({ ...input, slug: input.slug });
   }
@@ -106,7 +106,7 @@ export async function createShortLink(input: CreateShortLinkInput): Promise<Shor
     }
   }
   throw new Error(
-    `Could not generate a unique slug after ${MAX_SLUG_RETRIES} attempts.`,
+    `No se pudo generar un slug único después de ${MAX_SLUG_RETRIES} intentos.`,
     { cause: lastError },
   );
 }

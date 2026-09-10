@@ -11,13 +11,16 @@ export function DomainForm({ domains }: { domains: Domain[] }) {
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-      <h2 className="font-heading font-medium">Domains</h2>
+      <h2 className="font-heading font-medium">Dominios</h2>
 
       <ul className="space-y-1 text-sm text-muted-foreground">
-        {domains.length === 0 && <li>No domains yet — add one to create short links.</li>}
+        {domains.length === 0 && (
+          <li>Aún no hay dominios — agrega uno para crear enlaces cortos.</li>
+        )}
         {domains.map((domain) => (
           <li key={domain.id}>
-            {domain.hostname} · {domain.verificationStatus}
+            {domain.hostname} ·{" "}
+            {domain.verificationStatus === "verified" ? "verificado" : "pendiente"}
           </li>
         ))}
       </ul>
@@ -34,7 +37,7 @@ export function DomainForm({ domains }: { domains: Domain[] }) {
           disabled={pending}
           className="rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground disabled:opacity-50"
         >
-          Add
+          Agregar
         </button>
       </form>
 

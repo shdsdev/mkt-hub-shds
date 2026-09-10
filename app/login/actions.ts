@@ -21,7 +21,7 @@ export async function login(
   });
 
   if (!parsed.success) {
-    return { error: "Invalid email or password." };
+    return { error: "Correo electrónico o contraseña inválidos." };
   }
 
   const result = await signIn(parsed.data.email, parsed.data.password);

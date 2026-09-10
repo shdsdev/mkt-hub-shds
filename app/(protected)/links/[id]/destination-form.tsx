@@ -23,7 +23,7 @@ export function DestinationForm({ linkId, destinationUrl }: { linkId: string; de
         disabled={pending}
         className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
-        {pending ? "Saving…" : "Save"}
+        {pending ? "Guardando…" : "Guardar"}
       </button>
       {state.error && (
         <p role="alert" className="self-center text-sm text-destructive">

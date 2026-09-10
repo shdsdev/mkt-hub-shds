@@ -40,7 +40,7 @@ export function LogoUpload({
   return (
     <div className="space-y-1">
       <label htmlFor="logo" className="text-xs text-muted-foreground">
-        Logo (optional — forces error-correction to H)
+        Logo (opcional — fuerza la corrección de errores a H)
       </label>
       <input
         id="logo"
@@ -50,10 +50,12 @@ export function LogoUpload({
         className="w-full text-sm"
       />
       {status === "uploading" && (
-        <p className="text-xs text-muted-foreground">Uploading…</p>
+        <p className="text-xs text-muted-foreground">Subiendo…</p>
       )}
       {status === "error" && (
-        <p className="text-xs text-destructive">Upload failed — try again.</p>
+        <p className="text-xs text-destructive">
+          Error al subir el archivo — intenta de nuevo.
+        </p>
       )}
     </div>
   );

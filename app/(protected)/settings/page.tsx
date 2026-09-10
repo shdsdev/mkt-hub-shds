@@ -11,12 +11,12 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <h1 className="font-heading text-xl font-semibold">Settings</h1>
-        <p className="text-sm text-muted-foreground">Personal preferences for your account.</p>
+        <h1 className="font-heading text-xl font-semibold">Configuración</h1>
+        <p className="text-sm text-muted-foreground">Preferencias personales de tu cuenta.</p>
       </div>
 
       <section className="space-y-3">
-        <h2 className="font-heading font-medium">Themes</h2>
+        <h2 className="font-heading font-medium">Temas</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {THEMES.map((theme) => {
             const isActive = theme.id === activeThemeId;
@@ -42,7 +42,7 @@ export default async function SettingsPage() {
                   <p className="text-sm font-medium">
                     {theme.label}
                     {isActive && (
-                      <span className="ml-2 text-xs text-primary">Active</span>
+                      <span className="ml-2 text-xs text-primary">Activo</span>
                     )}
                   </p>
                 </button>

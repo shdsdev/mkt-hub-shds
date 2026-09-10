@@ -31,7 +31,7 @@ export function CreateQrModal({ organizationId }: { organizationId: string }) {
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Trigger className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-        Create QR code
+        Crear código QR
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-black/60" />
@@ -39,7 +39,7 @@ export function CreateQrModal({ organizationId }: { organizationId: string }) {
           {screen === "type" && (
             <div className="space-y-4">
               <Dialog.Title className="font-heading text-lg font-semibold">
-                Create your QR code
+                Crea tu código QR
               </Dialog.Title>
               <div className="grid grid-cols-2 gap-4">
                 <button
@@ -47,9 +47,9 @@ export function CreateQrModal({ organizationId }: { organizationId: string }) {
                   onClick={() => setScreen("website")}
                   className="rounded-md border border-border bg-background p-4 text-left hover:border-primary"
                 >
-                  <p className="font-medium">Website</p>
+                  <p className="font-medium">Sitio web</p>
                   <p className="text-xs text-muted-foreground">
-                    Link to a URL — creates a trackable short link and dynamic QR.
+                    Enlaza a una URL — crea un enlace corto rastreable y un QR dinámico.
                   </p>
                 </button>
                 <button
@@ -57,9 +57,9 @@ export function CreateQrModal({ organizationId }: { organizationId: string }) {
                   onClick={() => setScreen("static")}
                   className="rounded-md border border-border bg-background p-4 text-left hover:border-primary"
                 >
-                  <p className="font-medium">Fixed text</p>
+                  <p className="font-medium">Texto fijo</p>
                   <p className="text-xs text-muted-foreground">
-                    Encode any fixed text or URL — permanent, untrackable.
+                    Codifica cualquier texto o URL fijo — permanente, no rastreable.
                   </p>
                 </button>
               </div>
@@ -68,7 +68,9 @@ export function CreateQrModal({ organizationId }: { organizationId: string }) {
 
           {screen === "website" && (
             <div className="space-y-4">
-              <Dialog.Title className="font-heading text-lg font-semibold">Website QR</Dialog.Title>
+              <Dialog.Title className="font-heading text-lg font-semibold">
+                QR de sitio web
+              </Dialog.Title>
               <WebsiteQrForm organizationId={organizationId} onCreated={handleCreated} />
             </div>
           )}
@@ -76,7 +78,7 @@ export function CreateQrModal({ organizationId }: { organizationId: string }) {
           {screen === "static" && (
             <div className="space-y-4">
               <Dialog.Title className="font-heading text-lg font-semibold">
-                Fixed text QR
+                QR de texto fijo
               </Dialog.Title>
               <StaticQrForm organizationId={organizationId} onCreated={handleCreated} />
             </div>
