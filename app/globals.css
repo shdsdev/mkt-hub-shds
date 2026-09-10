@@ -403,10 +403,3 @@
   border: 1px solid rgba(220, 230, 240, 0.14);
 }
 
-/* Sidebar surface only — solid black, unlike the transparent --sidebar-driven gutter around the
-   content frame (which stays translucent so the aura keeps showing there). Targets the shadcn
-   Sidebar primitive's actual painted element specifically, not the shared --sidebar token, so this
-   doesn't also darken the main-wrapper gutter. */
-[data-app-theme="nightfall"] [data-slot="sidebar-inner"] {
-  background-color: #0b0b0a;
-}
