@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   const themeId = user?.profile.theme ?? DEFAULT_THEME_ID;
-  const auraThemeIds: AuraThemeId[] = ["nightfall", "greydlu", "aston"];
+  const auraThemeIds: AuraThemeId[] = ["nightfall", "greydlu", "aston", "signature"];
   const auraTheme = auraThemeIds.find((id) => id === themeId);
 
   return (

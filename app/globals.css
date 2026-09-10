@@ -49,6 +49,16 @@
   --sidebar-muted-foreground: #cbb2b4;
 }
 
+/* Signature + aura ("Nebula Flow", 2026-09-10) — only when actively selected as a per-user theme,
+   not on the :root/.dark fallback used pre-auth (e.g. /login), so those pages keep their original
+   solid background regardless of this override. Same specificity as the shared block above; this
+   one wins for --background/--sidebar because it comes later in the source. Primary/accent
+   (pink/cyan) are untouched — only the background goes translucent so the aura shows through. */
+[data-app-theme="signature"] {
+  --background: color-mix(in srgb, #1c1213 32%, transparent);
+  --sidebar: color-mix(in srgb, #150e0f 12%, transparent);
+}
+
 /* "Midnight" theme (2026-09-10 design) — colors extracted directly from the Agndex Dashboard
    reference's live computed styles (canvas rgb readback), not eyeballed. Flat/solid surfaces, no
    glassmorphism treatment (the reference has none) — --card is fully opaque here. */
@@ -485,6 +495,43 @@
   }
 }
 
+/* "Signature" — "Nebula Flow" aura (vivid pink/teal/purple/magenta glow), layered onto the
+   theme's existing pink/cyan palette rather than replacing it. */
+.aura-signature-layer-1 {
+  background: radial-gradient(ellipse 55% 45% at 35% 45%, rgba(236, 72, 153, 0.75) 0%, transparent 60%);
+  mix-blend-mode: screen;
+  filter: blur(113px);
+}
+.aura-signature-layer-2 {
+  background: radial-gradient(ellipse 45% 50% at 68% 40%, rgba(20, 184, 166, 0.65) 0%, transparent 55%);
+  mix-blend-mode: screen;
+  filter: blur(125px);
+}
+.aura-signature-layer-3 {
+  background: radial-gradient(ellipse 35% 40% at 50% 75%, rgba(139, 92, 246, 0.55) 0%, transparent 50%);
+  mix-blend-mode: screen;
+  filter: blur(113px);
+}
+.aura-signature-layer-4 {
+  background: radial-gradient(ellipse 22% 25% at 80% 75%, rgba(232, 121, 249, 0.4) 0%, transparent 45%);
+  mix-blend-mode: screen;
+  filter: blur(88px);
+}
+@media (min-width: 768px) {
+  .aura-signature-layer-1 {
+    filter: blur(162px);
+  }
+  .aura-signature-layer-2 {
+    filter: blur(180px);
+  }
+  .aura-signature-layer-3 {
+    filter: blur(162px);
+  }
+  .aura-signature-layer-4 {
+    filter: blur(126px);
+  }
+}
+
 /* Themed scrollbar, app-wide — replaces the browser's native scrollbar with one that follows the
    active theme's tokens instead of looking pinned to the OS/browser default. */
 * {
@@ -530,16 +577,18 @@
 }
 
 /* Every aura theme's cards and popovers (dropdowns, calendar, selects) sit over a much busier
-   backdrop (the aura) than Midnight/Signature's flat surfaces — a stronger blur reads as "frosted
-   glass" instead of a faint smudge, and popovers need to read as clearly separate from the page
-   behind them since they float over live content. Higher specificity than the plain rule above
+   backdrop (the aura) than Midnight's flat surfaces — a stronger blur reads as "frosted glass"
+   instead of a faint smudge, and popovers need to read as clearly separate from the page behind
+   them since they float over live content. Higher specificity than the plain rule above
    (attribute + class vs. class alone) wins. */
 [data-app-theme="nightfall"] .bg-card,
 [data-app-theme="nightfall"] .bg-popover,
 [data-app-theme="greydlu"] .bg-card,
 [data-app-theme="greydlu"] .bg-popover,
 [data-app-theme="aston"] .bg-card,
-[data-app-theme="aston"] .bg-popover {
+[data-app-theme="aston"] .bg-popover,
+[data-app-theme="signature"] .bg-card,
+[data-app-theme="signature"] .bg-popover {
   backdrop-filter: blur(20px);
 }
 
@@ -549,7 +598,8 @@
    regardless of where the gradient happens to sit. */
 [data-app-theme="nightfall"] .content-frame,
 [data-app-theme="greydlu"] .content-frame,
-[data-app-theme="aston"] .content-frame {
+[data-app-theme="aston"] .content-frame,
+[data-app-theme="signature"] .content-frame {
   border: 1px solid rgba(220, 230, 240, 0.14);
 }
 

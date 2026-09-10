@@ -1,12 +1,23 @@
 // Atmospheric gradient backdrops for aura-based themes (src/modules/users/theme-registry.ts:
-// "nightfall", "greydlu", "aston"). Fixed behind the whole app (see .aura-bg in app/globals.css)
-// — every layer here is decorative, so it's a static server component with no state.
-export type AuraThemeId = "nightfall" | "greydlu" | "aston";
+// "nightfall", "greydlu", "aston", "signature"). Fixed behind the whole app (see .aura-bg in
+// app/globals.css) — every layer here is decorative, so it's a static server component with no
+// state.
+export type AuraThemeId = "nightfall" | "greydlu" | "aston" | "signature";
 
 const AURA_LAYER_COUNT: Record<AuraThemeId, number> = {
   nightfall: 3,
   greydlu: 2,
   aston: 3,
+  signature: 4,
+};
+
+// "Nebula Flow" (signature) is grain-free per its own design spec — every other aura theme's
+// spec calls for the film-grain overlay.
+const AURA_HAS_GRAIN: Record<AuraThemeId, boolean> = {
+  nightfall: true,
+  greydlu: true,
+  aston: true,
+  signature: false,
 };
 
 function GrainOverlay() {
@@ -37,7 +48,7 @@ export function AuraBackground({ theme }: { theme: AuraThemeId }) {
       {Array.from({ length: layerCount }, (_, i) => (
         <div key={i} className={`aura-layer aura-${theme}-layer-${i + 1}`} />
       ))}
-      <GrainOverlay />
+      {AURA_HAS_GRAIN[theme] && <GrainOverlay />}
     </div>
   );
 }
