@@ -199,9 +199,10 @@
   --sidebar-muted-foreground: #a1a1aa;
 }
 
-/* "Aston" theme — the "Deep Current" aura-gradient (teal/emerald glow). Primary/accent pulled from
-   the reference screenshots: a vivid teal for interactive elements, a soft pale mint for
-   badges/highlights (matching the reference's icon-chip backgrounds). */
+/* "Aston" theme — the "Deep Current" aura-gradient (teal/emerald glow). Primary is the vivid teal
+   pulled from the original reference screenshots; --accent is a punchy neon lime (2026-09-10,
+   matching a second reference — a logo mark + dashboard using lime for toggles/active text
+   against the same dark teal backdrop) instead of the original pale mint, for a sharper pop. */
 [data-app-theme="aston"] {
   --radius: 1rem;
   --background: color-mix(in srgb, #100e0b 32%, transparent);
@@ -217,8 +218,8 @@
   --secondary-foreground: #eefaf7;
   --muted: color-mix(in srgb, #163831 60%, transparent);
   --muted-foreground: #8fc9bd;
-  --accent: #99f6e4;
-  --accent-foreground: #05221d;
+  --accent: #d0f23c;
+  --accent-foreground: #1a2005;
   --destructive: #ef4444;
   --destructive-foreground: #eefaf7;
   --border: rgba(153, 246, 228, 0.12);
