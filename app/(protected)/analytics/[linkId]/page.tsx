@@ -67,7 +67,7 @@ export default async function AnalyticsPage({
               </span>
             )}
           </p>
-          <h1 className="truncate font-heading text-xl font-semibold">{link.destinationUrl}</h1>
+          <h1 className="truncate font-mono text-lg font-semibold">{link.destinationUrl}</h1>
           <p className="text-xs text-muted-foreground">
             Creado el {link.createdAt.toLocaleDateString()}
           </p>
@@ -90,7 +90,7 @@ export default async function AnalyticsPage({
               className="h-32 w-32 rounded-md border border-border"
             />
             {shortUrl && (
-              <p className="flex items-center gap-1.5 text-sm text-accent">
+              <p className="flex items-center gap-1.5 font-mono text-sm text-accent">
                 {shortUrl}
                 <CopyButton value={shortUrl} />
               </p>

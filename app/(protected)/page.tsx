@@ -51,7 +51,7 @@ export default async function OverviewPage() {
             <li key={link.id}>
               <Link
                 href={`/links/${link.id}`}
-                className="block truncate rounded-md border border-border bg-card p-3 text-sm hover:border-primary"
+                className="block truncate rounded-md border border-border bg-card p-3 font-mono text-sm hover:border-primary"
               >
                 {link.destinationUrl}
               </Link>

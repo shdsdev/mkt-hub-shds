@@ -72,7 +72,7 @@ export default async function LinkDetailPage({
             return (
               <li key={shortLink.id} className="space-y-2 rounded-md border border-border bg-card p-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span>
+                  <span className="font-mono">
                     {domainById.get(shortLink.domainId)}/{shortLink.slug}
                     {shortLink.status !== "active" && (
                       <span className="ml-2 text-xs text-muted-foreground">

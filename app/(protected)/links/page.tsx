@@ -42,7 +42,7 @@ export default async function LinksPage() {
             href={`/links/${link.id}`}
             className="block rounded-md border border-border bg-card p-4 hover:border-primary"
           >
-            <p className="truncate font-medium">{link.destinationUrl}</p>
+            <p className="truncate font-mono text-sm font-medium">{link.destinationUrl}</p>
             <p className="text-xs text-muted-foreground">
               {link.status === "active" ? "activo" : "archivado"}
             </p>
