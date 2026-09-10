@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QrCode } from "lucide-react";
 import { Download, DownloadCloud, Image, ImageDown, Archive, Check } from "lucide";
+import { BorderBeam } from "border-beam";
 import { CreateQrModal } from "./create-qr-modal";
 import { archiveQrCodeAction } from "./actions";
 import { CopyButton } from "@/components/copy-button";
@@ -37,6 +38,7 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [search, setSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const filteredRows = useMemo(() => {
     return rows
@@ -85,12 +87,23 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
           <option value="static">Texto fijo</option>
         </select>
 
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Buscar por destino, URL o contenido"
-          className="min-w-64 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-        />
+        <BorderBeam
+          size="sm"
+          colorVariant="mono"
+          theme="dark"
+          strength={0.6}
+          active={searchFocused}
+          className="min-w-64 flex-1"
+        >
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            placeholder="Buscar por destino, URL o contenido"
+            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </BorderBeam>
 
         <CreateQrModal organizationId={organizationId} />
       </div>
@@ -179,34 +192,59 @@ function QrScanCount({ scanCount }: { scanCount: number }) {
   );
 }
 
+// Tooltip markup written directly (not the shared <Tooltip>) so the real <a>/<button> stays the
+// one tab stop and carries .t-tt-trigger itself — see src/components/tooltip.tsx's docstring.
 function QrActions({ row }: { row: QrListRow }) {
+  const pngTooltipId = useId();
+  const svgTooltipId = useId();
+  const archiveTooltipId = useId();
+
   return (
     <div
       className="flex items-center gap-3 text-muted-foreground"
       onClick={(event) => event.stopPropagation()}
     >
-      <a
-        href={`/qr/${row.id}/download?format=png`}
-        title="Descargar PNG"
-        className="hover:text-foreground"
-      >
-        <HoverMorphIcon idle={Download} active={DownloadCloud} />
-      </a>
-      {!row.logoUrl && (
+      <span className="t-tt-wrap">
         <a
-          href={`/qr/${row.id}/download?format=svg`}
-          title="Descargar SVG"
-          className="hover:text-foreground"
+          href={`/qr/${row.id}/download?format=png`}
+          aria-describedby={pngTooltipId}
+          className="t-tt-trigger hover:text-foreground"
         >
-          <HoverMorphIcon idle={Image} active={ImageDown} />
+          <HoverMorphIcon idle={Download} active={DownloadCloud} />
         </a>
+        <span className="t-tt" id={pngTooltipId} role="tooltip">
+          Descargar PNG
+        </span>
+      </span>
+      {!row.logoUrl && (
+        <span className="t-tt-wrap">
+          <a
+            href={`/qr/${row.id}/download?format=svg`}
+            aria-describedby={svgTooltipId}
+            className="t-tt-trigger hover:text-foreground"
+          >
+            <HoverMorphIcon idle={Image} active={ImageDown} />
+          </a>
+          <span className="t-tt" id={svgTooltipId} role="tooltip">
+            Descargar SVG
+          </span>
+        </span>
       )}
       {row.status === "active" && (
         <form action={archiveQrCodeAction}>
           <input type="hidden" name="id" value={row.id} />
-          <button type="submit" title="Archivar" className="hover:text-foreground">
-            <HoverMorphIcon idle={Archive} active={Check} />
-          </button>
+          <span className="t-tt-wrap">
+            <button
+              type="submit"
+              aria-describedby={archiveTooltipId}
+              className="t-tt-trigger hover:text-foreground"
+            >
+              <HoverMorphIcon idle={Archive} active={Check} />
+            </button>
+            <span className="t-tt" id={archiveTooltipId} role="tooltip">
+              Archivar
+            </span>
+          </span>
         </form>
       )}
     </div>
