@@ -173,8 +173,8 @@ function QrHeading({ row }: { row: QrListRow }) {
         <StatusBadge status={row.status} />
       </p>
       {row.mode === "dynamic" && row.shortUrl && (
-        <p className="flex items-center gap-1.5 font-mono text-sm text-accent">
-          {row.shortUrl}
+        <p className="flex min-w-0 items-center gap-1.5 font-mono text-sm text-accent">
+          <span className="truncate">{row.shortUrl}</span>
           <CopyButton value={row.shortUrl} />
         </p>
       )}
