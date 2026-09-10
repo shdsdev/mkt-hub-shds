@@ -123,7 +123,10 @@
   --shadow-detail: 0 1px 1px 0 rgba(0, 0, 0, 0.35);
   /* Sidebar (shadcn's Sidebar primitive) + the outer "frame" the main content card sits in — kept
      nearly transparent (not just translucent like --card) so the aura reads at full vividness in
-     the gutter, instead of getting dimmed under a second stacked dark panel. */
+     the gutter, instead of getting dimmed under a second stacked dark panel. Note this token also
+     drives the main-wrapper gutter (md:bg-sidebar in the protected layout) — the actual sidebar
+     surface's own solid color, when wanted, is overridden separately below via
+     [data-slot="sidebar-inner"] so darkening the sidebar doesn't also blacken the gutter. */
   --sidebar: color-mix(in srgb, #0c0f13 12%, transparent);
   --sidebar-foreground: #f4f6f8;
   --sidebar-accent: color-mix(in srgb, #1a212b 60%, transparent);
@@ -398,4 +401,12 @@
    regardless of where the gradient happens to sit. */
 [data-app-theme="nightfall"] .content-frame {
   border: 1px solid rgba(220, 230, 240, 0.14);
+}
+
+/* Sidebar surface only — solid black, unlike the transparent --sidebar-driven gutter around the
+   content frame (which stays translucent so the aura keeps showing there). Targets the shadcn
+   Sidebar primitive's actual painted element specifically, not the shared --sidebar token, so this
+   doesn't also darken the main-wrapper gutter. */
+[data-app-theme="nightfall"] [data-slot="sidebar-inner"] {
+  background-color: #0b0b0a;
 }
