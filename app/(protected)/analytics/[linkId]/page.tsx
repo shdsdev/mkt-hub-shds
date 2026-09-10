@@ -3,9 +3,17 @@ import { CircleHelp } from "lucide-react";
 import { getCurrentUser } from "@/modules/auth";
 import { getLink, getShortLink, getDomain } from "@/modules/links";
 import { getQrCodeByLinkId } from "@/modules/qr";
-import { countQrScansForLink, countUniqueQrScansForLink } from "@/modules/analytics";
+import {
+  countQrScansForLink,
+  countUniqueQrScansForLink,
+  getScansForLinkGrouped,
+} from "@/modules/analytics";
 import { CopyButton } from "@/components/copy-button";
 import { ScansPanel } from "./scans-panel";
+import { ActivityHeatmap } from "./activity-heatmap";
+import { buildHeatmapWeeks } from "./heatmap";
+
+const HEATMAP_WEEKS = 20;
 
 export default async function AnalyticsPage({
   params,
@@ -29,10 +37,19 @@ export default async function AnalyticsPage({
   const domain = shortLink ? await getDomain(shortLink.domainId) : undefined;
   const shortUrl = shortLink && domain ? `https://${domain.hostname}/q/${shortLink.slug}` : undefined;
 
-  const [totalScans, uniqueScans] = await Promise.all([
+  const today = new Date();
+  const heatmapFrom = new Date(today);
+  heatmapFrom.setUTCDate(heatmapFrom.getUTCDate() - (HEATMAP_WEEKS * 7 - 1));
+
+  const [totalScans, uniqueScans, heatmapRows] = await Promise.all([
     countQrScansForLink(linkId),
     countUniqueQrScansForLink(linkId),
+    getScansForLinkGrouped(linkId, "day", heatmapFrom, today),
   ]);
+
+  const heatmapCounts = new Map(heatmapRows.map((row) => [row.bucket, row.scansHuman]));
+  const heatmapWeeks = buildHeatmapWeeks(heatmapCounts, HEATMAP_WEEKS, today);
+  const heatmapTotal = heatmapRows.reduce((sum, row) => sum + row.scansHuman, 0);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -92,6 +109,8 @@ export default async function AnalyticsPage({
       </div>
 
       <ScansPanel linkId={linkId} />
+
+      <ActivityHeatmap weeks={heatmapWeeks} total={heatmapTotal} />
     </div>
   );
 }
