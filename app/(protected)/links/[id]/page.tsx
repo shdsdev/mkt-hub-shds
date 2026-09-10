@@ -32,7 +32,7 @@ export default async function LinkDetailPage({
   );
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="mx-auto max-w-2xl space-y-8">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="font-heading text-xl font-semibold">Link</h1>

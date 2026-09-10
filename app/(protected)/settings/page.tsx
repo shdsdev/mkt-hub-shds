@@ -9,7 +9,7 @@ export default async function SettingsPage() {
   const activeThemeId = user.profile.theme ?? DEFAULT_THEME_ID;
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-8">
       <div>
         <h1 className="font-heading text-xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground">Personal preferences for your account.</p>

@@ -10,7 +10,7 @@ export default async function CampaignsPage() {
   const campaigns = await listCampaigns(user.profile.organizationId);
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="mx-auto max-w-2xl space-y-8">
       <div>
         <h1 className="font-heading text-xl font-semibold">Campaigns</h1>
         <p className="text-sm text-muted-foreground">

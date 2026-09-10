@@ -34,7 +34,7 @@ export default async function AnalyticsPage({
   ]);
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-8">
       <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
           <p className="flex items-center gap-2 text-xs text-muted-foreground uppercase">

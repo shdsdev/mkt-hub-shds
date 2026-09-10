@@ -26,7 +26,7 @@ export default async function OverviewPage() {
     .slice(0, 5);
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-8">
       <div>
         <h1 className="font-heading text-xl font-semibold">Overview</h1>
         <p className="text-sm text-muted-foreground">
