@@ -22,7 +22,7 @@ export default async function ProtectedLayout({
     <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar email={user.email} role={user.profile.role} />
       <main className="flex-1 overflow-y-auto md:bg-sidebar md:p-2">
-        <div className="flex h-full flex-col overflow-hidden rounded-xl bg-background">
+        <div className="content-frame flex h-full flex-col overflow-hidden rounded-xl bg-background">
           <header className="flex h-14 items-center px-4 md:h-16 md:px-6">
             <Breadcrumb orgName={organization?.name ?? "Marketing Hub"} />
           </header>

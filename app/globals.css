@@ -391,3 +391,11 @@
 [data-app-theme="nightfall"] .bg-popover {
   backdrop-filter: blur(20px);
 }
+
+/* A visible border, not a darker fill, separates the content frame from the sidebar gutter —
+   the aura fades unevenly (bright near the top, black lower down), so a background-color tuned
+   for one region drifts out of sync with the sidebar elsewhere. A border stays a clean seam
+   regardless of where the gradient happens to sit. */
+[data-app-theme="nightfall"] .content-frame {
+  border: 1px solid rgba(220, 230, 240, 0.14);
+}
