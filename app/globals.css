@@ -91,6 +91,49 @@
   --sidebar-muted-foreground: #b0b0b0;
 }
 
+/* "Nightfall" theme (2026-09-10 design) — an atmospheric aura-gradient backdrop (see
+   AuraBackground, rendered only for this theme) with every surface token made translucent so
+   the existing .bg-card backdrop-blur (below) actually has something colorful to blur, instead
+   of the flat color it blurs under Midnight/Signature. */
+[data-app-theme="nightfall"] {
+  --radius: 1rem;
+  --background: color-mix(in srgb, #100e0b 55%, transparent);
+  --foreground: #f4f6f8;
+  --card: color-mix(in srgb, #12161c 55%, transparent);
+  --card-foreground: #f4f6f8;
+  --card-hover: color-mix(in srgb, #1a212b 65%, transparent);
+  --popover: color-mix(in srgb, #12161c 70%, transparent);
+  --popover-foreground: #f4f6f8;
+  --primary: #5da9e0;
+  --primary-foreground: #0b0f14;
+  --secondary: #2e3a46;
+  --secondary-foreground: #f4f6f8;
+  --muted: color-mix(in srgb, #1a212b 60%, transparent);
+  --muted-foreground: #9db0c2;
+  --accent: #7fd9c4;
+  --accent-foreground: #0b0f14;
+  --destructive: #ef4444;
+  --destructive-foreground: #f4f6f8;
+  --border: rgba(220, 230, 240, 0.12);
+  --input: rgba(220, 230, 240, 0.12);
+  --ring: #5da9e0;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 3px 6px 0 rgba(0, 0, 0, 0.35);
+  --shadow-detail: 0 1px 1px 0 rgba(0, 0, 0, 0.35);
+  /* Sidebar (shadcn's Sidebar primitive) + the outer "frame" the main content card sits in —
+     translucent too, so the aura shows through the gutter around the content card. */
+  --sidebar: color-mix(in srgb, #0c0f13 45%, transparent);
+  --sidebar-foreground: #f4f6f8;
+  --sidebar-accent: color-mix(in srgb, #1a212b 60%, transparent);
+  --sidebar-accent-foreground: #f4f6f8;
+  --sidebar-border: rgba(220, 230, 240, 0.1);
+  --sidebar-ring: #5da9e0;
+  --sidebar-badge: color-mix(in srgb, #12161c 60%, transparent);
+  --sidebar-muted: #9db0c2;
+  --sidebar-muted-foreground: #9db0c2;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -128,6 +171,162 @@
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  --floating-popup-radius: var(--radius-sm);
+  --floating-popup-padding: 4px;
+  --floating-popup-item-padding-block: 4px;
+  --floating-popup-item-padding-inline: 6px;
+  --floating-popup-offset: 4px;
+  --floating-popup-shadow: var(--shadow-md);
+  --floating-popup-transition: 100ms;
+}
+
+/* "Binar" loader — flipping bits. Markup: <div class="ld-binary"></div>.
+   Paints with --ink (defaults to currentColor) so callers can override the
+   color by setting `color` or `--ink` on an ancestor. */
+:root {
+  --ink: currentColor;
+}
+.ld-binary {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.15em;
+}
+.ld-binary::after {
+  content: "0 1 0";
+  animation: binar 1.2s steps(1) infinite;
+}
+@keyframes binar {
+  0% {
+    content: "0 1 0";
+  }
+  25% {
+    content: "1 1 0";
+  }
+  50% {
+    content: "1 0 1";
+  }
+  75% {
+    content: "0 0 1";
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ld-binary::after {
+    animation: none;
+    content: "1 0 1";
+  }
+}
+
+/* Tooltip (Transitions.dev "Tooltip open/close") — the project's one tooltip.
+   Markup: .t-tt-wrap > trigger.t-tt-trigger + .t-tt[role=tooltip]. Pure CSS,
+   see src/components/tooltip.tsx for the React wiring. --tt-bg/--tt-fg map to
+   the app's existing floating-surface tokens (same pair the recharts tooltip
+   in scans-panel.tsx uses) instead of hardcoded colors, so it follows the
+   active theme (dark/midnight) rather than looking pinned to one palette. */
+:root {
+  --tt-in-dur: 150ms;
+  --tt-out-dur: 50ms;
+  --tt-scale: 0.98;
+  --tt-delay: 80ms;
+  --tt-in-ease: ease-out;
+  --tt-out-ease: ease-out;
+  --tt-bg: var(--popover);
+  --tt-fg: var(--popover-foreground);
+}
+.t-tt-wrap {
+  position: relative;
+  display: inline-block;
+}
+.t-tt {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, 0) scale(var(--tt-scale));
+  transform-origin: 50% 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--tt-bg);
+  color: var(--tt-fg);
+  white-space: nowrap;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 2px 6px 0 rgba(0, 0, 0, 0.05),
+    0 4px 42px 0 rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  pointer-events: none;
+  /* Default rule controls the LEAVE state. transition-delay stays unset so
+     leaving plays without delay. */
+  transition:
+    opacity var(--tt-out-dur) var(--tt-out-ease),
+    transform var(--tt-out-dur) var(--tt-out-ease);
+}
+/* The 80ms delay belongs ONLY to the hover rule so leaving the trigger snaps
+   the delay back to 0 and the disappear plays immediately. */
+.t-tt-wrap:hover .t-tt,
+.t-tt-trigger:focus-visible + .t-tt {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+  transition-duration: var(--tt-in-dur);
+  transition-timing-function: var(--tt-in-ease);
+  transition-delay: var(--tt-delay);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-tt {
+    transition: none !important;
+  }
+}
+
+/* Aura background — "Nightfall" theme only (src/components/aura-background.tsx). Fixed behind
+   everything (z-index -1); every [data-app-theme="nightfall"] surface token above is translucent
+   so these blend-mode layers read through the sidebar gutter, cards, and popovers alike. */
+.aura-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aura-layer {
+  position: absolute;
+  inset: 0;
+  filter: blur(25px);
+  transform: translateZ(0);
+  will-change: transform;
+  pointer-events: none;
+}
+@media (min-width: 768px) {
+  .aura-layer {
+    filter: blur(36px);
+  }
+}
+.aura-layer-1 {
+  background: radial-gradient(
+    85% 55% at 52% 0%,
+    rgba(35, 70, 105, 0.34) 0%,
+    rgba(24, 49, 74, 0.18) 38%,
+    transparent 76%
+  );
+  mix-blend-mode: screen;
+}
+.aura-layer-2 {
+  background: linear-gradient(180deg, rgba(54, 88, 120, 0.16) 0%, transparent 45%, rgba(0, 0, 0, 0.18) 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+}
+.aura-layer-3 {
+  background: radial-gradient(42% 35% at 78% 16%, rgba(96, 130, 155, 0.16) 0%, transparent 78%);
+  mix-blend-mode: screen;
+}
+.aura-grain {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: overlay;
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 @layer base {

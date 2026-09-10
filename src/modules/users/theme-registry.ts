@@ -9,6 +9,7 @@ export type Theme = {
 export const THEMES: Theme[] = [
   { id: "midnight", label: "Midnight", swatch: ["#e074c9", "#8845f4", "#0b0b0a"] },
   { id: "signature", label: "Signature", swatch: ["#ff0055", "#00e2ee", "#1c1213"] },
+  { id: "nightfall", label: "Nightfall", swatch: ["#5da9e0", "#7fd9c4", "#100e0b"] },
 ];
 
 export const DEFAULT_THEME_ID = "midnight";

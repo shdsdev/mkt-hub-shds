@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins, Inter, Jersey_25, JetBrains_Mono } from "next/font/google";
 import { getCurrentUser } from "@/modules/auth";
 import { DEFAULT_THEME_ID } from "@/modules/users";
+import { AuraBackground } from "@/components/aura-background";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -44,7 +45,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       data-app-theme={themeId}
       className={`dark ${poppins.variable} ${inter.variable} ${jersey25.variable} ${jetbrainsMono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {themeId === "nightfall" && <AuraBackground />}
+        {children}
+      </body>
     </html>
   );
 }
