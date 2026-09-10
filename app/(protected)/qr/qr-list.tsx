@@ -153,14 +153,14 @@ function QrHeading({ row }: { row: QrListRow }) {
   const heading = row.mode === "dynamic" ? row.destinationUrl : row.payload;
   return (
     <div className="min-w-0 space-y-1">
-      <p className="truncate font-heading font-semibold">{heading}</p>
+      <p className="truncate font-mono text-sm font-medium">{heading}</p>
       <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {row.mode === "dynamic" ? "Sitio web" : "Texto fijo"}
         <span>{row.createdAt.toLocaleDateString()}</span>
         <StatusBadge status={row.status} />
       </p>
       {row.mode === "dynamic" && row.shortUrl && (
-        <p className="flex items-center gap-1.5 text-sm text-accent">
+        <p className="flex items-center gap-1.5 font-mono text-sm text-accent">
           {row.shortUrl}
           <CopyButton value={row.shortUrl} />
         </p>
