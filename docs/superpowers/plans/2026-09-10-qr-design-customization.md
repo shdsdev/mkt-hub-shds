@@ -49,7 +49,7 @@
 **Interfaces:**
 - Produces: `qrShapeType`, `qrCornerType` pg enums; `qrCodes.dotsType/cornersSquareType/cornersDotType`; new `qrDesignTemplates` table.
 
-- [ ] **Step 1: Add the two shape enums**
+- [x] **Step 1: Add the two shape enums**
 
 ```ts
 // dotsOptions.type in qr-code-styling excludes 'dot' (singular) — corners include it. Two enums,
@@ -73,7 +73,7 @@ export const qrCornerType = pgEnum("qr_corner_type", [
 ]);
 ```
 
-- [ ] **Step 2: Add the three columns to `qrCodes`**
+- [x] **Step 2: Add the three columns to `qrCodes`**
 
 ```ts
 dotsType: qrShapeType("dots_type").notNull().default("square"),
@@ -84,7 +84,7 @@ cornersDotType: qrCornerType("corners_dot_type").notNull().default("square"),
 Place them near `backgroundColor`/`foregroundColor`/`errorCorrectionLevel` — they're the same
 "cosmetic/export-time only" group.
 
-- [ ] **Step 3: Add the `qrDesignTemplates` table**
+- [x] **Step 3: Add the `qrDesignTemplates` table**
 
 ```ts
 export const qrDesignTemplates = pgTable("qr_design_templates", {
@@ -107,11 +107,11 @@ export const qrDesignTemplates = pgTable("qr_design_templates", {
 Applying a template only ever copies these seven design fields into client state — no FK from
 `qr_codes` back to this table (see design doc).
 
-- [ ] **Step 4: Update `qrTables`**
+- [x] **Step 4: Update `qrTables`**
 
 Add `qrShapeType`, `qrCornerType`, `qrDesignTemplates` to the exported `qrTables` const.
 
-- [ ] **Step 5: Typecheck, then generate the migration**
+- [x] **Step 5: Typecheck, then generate the migration**
 
 Run: `pnpm typecheck` (expect `0`), then `pnpm db:generate`.
 
@@ -121,17 +121,17 @@ safe as a single statement this time, unlike `name` in the prior migration, beca
 row gets the same default value, no data-dependent backfill needed), and a `CREATE TABLE
 "qr_design_templates"` with its FK to `organizations`.
 
-- [ ] **Step 6: Apply it**
+- [x] **Step 6: Apply it**
 
 Run: `pnpm db:migrate`. Expected: exits `0`.
 
-- [ ] **Step 7: Update `docs/DATABASE.md`**
+- [x] **Step 7: Update `docs/DATABASE.md`**
 
 Add `qr_shape_type`/`qr_corner_type` to the Enums list; add a bullet under Key Relational
 Decisions for the three `qr_codes` columns and the new `qr_design_templates` table (mirroring how
 the previous QR-wizard migration's columns are documented there).
 
-- [ ] **Step 8: Do not commit.**
+- [x] **Step 8: Do not commit.**
 
 ### Task 2: Rendering Engine Swap
 
@@ -151,7 +151,7 @@ the previous QR-wizard migration's columns are documented there).
   in Task 5 only to pass the new shape fields through). Widened `QrCustomization` type gains
   `dotsType`/`cornersSquareType`/`cornersDotType`.
 
-- [ ] **Step 1: Widen `QrCustomization`**
+- [x] **Step 1: Widen `QrCustomization`**
 
 ```ts
 export type QrCustomization = {
@@ -165,7 +165,7 @@ export type QrCustomization = {
 };
 ```
 
-- [ ] **Step 2: Rewrite `exportQrPng`/`exportQrSvg` around one shared builder**
+- [x] **Step 2: Rewrite `exportQrPng`/`exportQrSvg` around one shared builder**
 
 ```ts
 import { JSDOM } from "jsdom";
@@ -221,7 +221,7 @@ Remove the old `QRCode.toBuffer`/`QRCode.toString` implementation, the `import Q
 needs the `Omit<QrCustomization, "logoUrl">` restriction — logos now work in SVG mode too (design
 doc's "bonus" callout); it takes the full `QrCustomization`.
 
-- [ ] **Step 3: Trim `logo.ts`**
+- [x] **Step 3: Trim `logo.ts`**
 
 Delete `LOGO_SAFE_ZONE_RATIO` and `computeLogoDimensions` — image sizing is now
 `imageOptions.imageSize` inline in Step 2 (reuse the same `0.22` ratio as a literal there, or keep
@@ -229,22 +229,22 @@ Delete `LOGO_SAFE_ZONE_RATIO` and `computeLogoDimensions` — image sizing is no
 its test import, whichever reads cleaner). Keep `resolveErrorCorrectionLevel` and its export
 unchanged.
 
-- [ ] **Step 4: Trim `logo.test.ts`**
+- [x] **Step 4: Trim `logo.test.ts`**
 
 Remove the `describe("computeLogoDimensions", ...)` block; keep `resolveErrorCorrectionLevel`'s
 tests as-is.
 
-- [ ] **Step 5: Remove the old dependency**
+- [x] **Step 5: Remove the old dependency**
 
 Run: `pnpm remove qrcode`. If `@types/qrcode` is a separate devDependency, remove it too — check
 `package.json` first (`qrcode` ships its own types in recent versions; only remove `@types/qrcode`
 if it's actually listed).
 
-- [ ] **Step 6: Typecheck and run the logo tests**
+- [x] **Step 6: Typecheck and run the logo tests**
 
 Run: `pnpm typecheck && pnpm test -- logo`. Expected: both exit `0`.
 
-- [ ] **Step 7: Do not commit.**
+- [x] **Step 7: Do not commit.**
 
 ### Task 3: Design Templates Service + Public Exports
 
@@ -257,7 +257,7 @@ Run: `pnpm typecheck && pnpm test -- logo`. Expected: both exit `0`.
 - Produces: `createQrDesignTemplate(input): Promise<QrDesignTemplateRow>`,
   `listQrDesignTemplates(organizationId): Promise<QrDesignTemplateRow[]>`.
 
-- [ ] **Step 1: Add the service functions**
+- [x] **Step 1: Add the service functions**
 
 ```ts
 export type QrDesignTemplateRow = typeof qrDesignTemplates.$inferSelect;
@@ -277,16 +277,16 @@ export async function listQrDesignTemplates(organizationId: string): Promise<QrD
 }
 ```
 
-- [ ] **Step 2: Export from `index.ts`**
+- [x] **Step 2: Export from `index.ts`**
 
 Add `createQrDesignTemplate`, `listQrDesignTemplates`, `type QrDesignTemplateRow` to the export
 list.
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0` (new call sites for `createQrDesignTemplate` land in Task 6).
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 4: Preset Logo Assets
 
@@ -294,7 +294,7 @@ Run: `pnpm typecheck`. Expected: `0` (new call sites for `createQrDesignTemplate
 - Create: `public/qr-presets/globe.svg`
 - Create: `public/qr-presets/scan-me.svg`
 
-- [ ] **Step 1: Author two small SVGs**
+- [x] **Step 1: Author two small SVGs**
 
 `globe.svg` — a simple globe/world icon (circle + meridian/parallel arcs), single color
 `currentColor` or a neutral dark fill so it reads against a light QR background. `scan-me.svg` — a
@@ -302,7 +302,7 @@ compact "SCAN ME" wordmark, similar sizing (square-ish viewBox, e.g. `0 0 100 10
 into `imageOptions.imageSize` consistently regardless of which preset is picked. Keep both under
 ~2 KB — they're embedded inline in the generated SVG.
 
-- [ ] **Step 2: Do not commit.**
+- [x] **Step 2: Do not commit.**
 
 ### Task 5: Thread Shape Fields Through Preview/Download Routes
 
@@ -315,27 +315,27 @@ into `imageOptions.imageSize` consistently regardless of which preset is picked.
 **Interfaces:**
 - Consumes: the widened `QrCustomization` from Task 2.
 
-- [ ] **Step 1: `use-qr-preview.ts`**
+- [x] **Step 1: `use-qr-preview.ts`**
 
 Add `dotsType?`, `cornersSquareType?`, `cornersDotType?` to `QrPreviewParams`; add them to the
 `useEffect` dependency array alongside the existing color/logo params.
 
-- [ ] **Step 2: `preview/route.ts`**
+- [x] **Step 2: `preview/route.ts`**
 
 Add the three fields (each `z.enum([...]).optional()`, matching the two enum value lists from
 Task 1) to `previewSchema`; pass them through to `exportQrPng`'s `options`.
 
-- [ ] **Step 3: `[id]/download/route.ts`**
+- [x] **Step 3: `[id]/download/route.ts`**
 
 Add the three fields to the `customization` object built from `qr.dotsType`/`qr.cornersSquareType`/
 `qr.cornersDotType`. Delete the `if (qr.logoUrl) return ... 400 ...` block guarding SVG export —
 SVG-with-logo now works (Task 2's design-doc "bonus").
 
-- [ ] **Step 4: Typecheck**
+- [x] **Step 4: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0`.
 
-- [ ] **Step 5: Do not commit.**
+- [x] **Step 5: Do not commit.**
 
 ### Task 6: Split Shared Fields — Detail Fields vs. Design Fields
 
@@ -352,7 +352,7 @@ Run: `pnpm typecheck`. Expected: `0`.
   cornersSquareType, cornersDotType}} onChange={...} organizationId templates
   onSaveAsTemplateChange={(save: boolean, name: string) => void} />`.
 
-- [ ] **Step 1: `qr-detail-fields.tsx`**
+- [x] **Step 1: `qr-detail-fields.tsx`**
 
 Carries over `qr-shared-fields.tsx`'s Nombre input, `GroupSelect` + its two hidden inputs, and
 `PlacementImageUpload` + its hidden input verbatim (same markup, same hidden-input-carries-value-
@@ -362,7 +362,7 @@ into-FormData pattern). Own local state type:
 export type QrDetailFieldsState = { name: string; grouping: { folderId?: string; campaignId?: string }; placementImageUrl?: string };
 ```
 
-- [ ] **Step 2: `qr-design-fields.tsx`**
+- [x] **Step 2: `qr-design-fields.tsx`**
 
 Carries over the background/foreground color inputs, the error-correction `Select`, and
 `LogoUpload` + its hidden input verbatim. Adds:
@@ -400,13 +400,13 @@ export type QrDesignFieldsState = {
 };
 ```
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm typecheck`. Expected: fails only on `website-qr-form.tsx`/`static-qr-form.tsx`/
 `create-qr-modal.tsx` still importing the now-deleted `qr-shared-fields.tsx` — expected until
 Task 8.
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 7: Actions — Shape Fields + Save-as-Template
 
@@ -419,7 +419,7 @@ Task 8.
 - Produces: widened `createWebsiteQrSchema`/`createStaticSchema`; both actions optionally create a
   template row alongside the QR.
 
-- [ ] **Step 1: Add the shape fields to `customizationSchema`**
+- [x] **Step 1: Add the shape fields to `customizationSchema`**
 
 ```ts
 const shapeSchema = z.object({
@@ -430,7 +430,7 @@ const shapeSchema = z.object({
 const customizationSchema = z.object({ /* existing fields */ }).merge(shapeSchema);
 ```
 
-- [ ] **Step 2: Add save-as-template fields**
+- [x] **Step 2: Add save-as-template fields**
 
 ```ts
 const templateSchema = z.object({
@@ -441,7 +441,7 @@ const templateSchema = z.object({
 
 Merge into both `createWebsiteQrSchema` and `createStaticSchema`.
 
-- [ ] **Step 3: In both actions, after the QR is created, optionally save the template**
+- [x] **Step 3: In both actions, after the QR is created, optionally save the template**
 
 ```ts
 if (parsed.data.saveAsTemplate === "true" && parsed.data.templateName) {
@@ -464,17 +464,17 @@ here shouldn't be surfaced as "the QR wasn't created" (it was); let it throw and
 generic error only if it does, same non-transactional posture the rest of this action already
 has.
 
-- [ ] **Step 4: Pass the three shape fields into `createDynamicQrCode`/`createStaticQrCode`**
+- [x] **Step 4: Pass the three shape fields into `createDynamicQrCode`/`createStaticQrCode`**
 
 Both calls already spread most of `parsed.data` field-by-field (from the prior pass) — add
 `dotsType: parsed.data.dotsType`, `cornersSquareType: parsed.data.cornersSquareType`,
 `cornersDotType: parsed.data.cornersDotType` alongside them.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0`.
 
-- [ ] **Step 6: Do not commit.**
+- [x] **Step 6: Do not commit.**
 
 ### Task 8: Wizard — 5 Screens
 
@@ -488,13 +488,13 @@ Run: `pnpm typecheck`. Expected: `0`.
 - Consumes: `QrDetailFields`/`QrDesignFields` (Task 6), `listQrDesignTemplates` result (threaded
   from `page.tsx` in Task 9).
 
-- [ ] **Step 1: `create-qr-modal.tsx` screen state**
+- [x] **Step 1: `create-qr-modal.tsx` screen state**
 
 `type Screen = "type" | "detail" | "data" | "design" | "success"`. The type-picker screen
 (unchanged) sets `selectedKind` and advances to `"detail"` instead of `"form"`. Add a
 `templates: QrDesignTemplateRow[]` prop, threaded down to whichever form is active.
 
-- [ ] **Step 2: Both forms gain 3 render branches instead of 1**
+- [x] **Step 2: Both forms gain 3 render branches instead of 1**
 
 `WebsiteQrForm`/`StaticQrForm` each keep a single `<form action={formAction}>` (all fields across
 all three steps stay inside it — the multi-step UI is purely which fields are *visible*, not
@@ -534,13 +534,13 @@ correct — prefer local `step` state inside each form component, with `create-q
 tracking `screen: "detail" | "data" | "design"` as one bucket that both forms enter/exit
 identically).
 
-- [ ] **Step 3: `create-qr-modal.tsx`'s "back" wiring**
+- [x] **Step 3: `create-qr-modal.tsx`'s "back" wiring**
 
 From `"detail"`, back returns to `"type"` (existing behavior). From `"data"`/`"design"`, back
 moves to the previous in-form step (handled inside the form component per Step 2, not by the
 modal).
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 9: List Page — Thread Templates
 
@@ -549,21 +549,21 @@ modal).
 - Modify: `app/(protected)/qr/qr-list.tsx`
 - Test: `pnpm typecheck`
 
-- [ ] **Step 1: `page.tsx`**
+- [x] **Step 1: `page.tsx`**
 
 Add `listQrDesignTemplates(orgId)` to the existing `Promise.all`; pass the result to `<QrList>`.
 
-- [ ] **Step 2: `qr-list.tsx`**
+- [x] **Step 2: `qr-list.tsx`**
 
 Add `templates: QrDesignTemplateRow[]` to `QrList`'s props and thread it into both
 `<CreateQrModal>` call sites (empty-state and toolbar), same pattern as `folders`/`campaigns`/
 `utmPresets` already are.
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0` — this should be the point the whole feature compiles clean.
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 10: Themed Scrollbar
 
@@ -571,7 +571,7 @@ Run: `pnpm typecheck`. Expected: `0` — this should be the point the whole feat
 - Modify: `app/globals.css`
 - Test: browser check (Task 11)
 
-- [ ] **Step 1: Add global scrollbar rules**
+- [x] **Step 1: Add global scrollbar rules**
 
 Near the existing `.ld-binary`/`.t-tt` custom-property-driven additions (same file section style),
 add:
@@ -601,44 +601,44 @@ Token-driven (no new literal colors), so it follows the active theme (dark/midni
 — matches the project's existing convention (see `HoverMorphIcon`/`BinaryLoader`/`Tooltip`'s own
 theme-token usage).
 
-- [ ] **Step 2: Do not commit.**
+- [x] **Step 2: Do not commit.**
 
 ### Task 11: Browser Verification
 
 **Files:** none
 
-- [ ] **Step 1: `pnpm dev`, open `/qr`, click "Crear código QR"**
+- [x] **Step 1: `pnpm dev`, open `/qr`, click "Crear código QR"**
 
 Walk one full flow (e.g. "Sitio web"): type → detalles (name+group+placement) → datos (URL+UTM) →
 diseño (colors, error correction, a non-default shape for each of the three selectors, a preset
 logo). Confirm the live preview updates as shapes/logo change, confirm each step's "Continuar"
 doesn't lose data typed in a previous step when going back and forward.
 
-- [ ] **Step 2: Save as template, then apply it**
+- [x] **Step 2: Save as template, then apply it**
 
 On that same design step, check "Guardar como plantilla", name it, submit. Start a second QR
 creation, reach the design step, pick the saved template from the selector, confirm all seven
 fields populate to match what was saved.
 
-- [ ] **Step 3: Confirm the rendered QR reflects the chosen shapes**
+- [x] **Step 3: Confirm the rendered QR reflects the chosen shapes**
 
 Download the created QR (PNG and SVG) from `/qr` and visually confirm the shapes/logo match what
 was picked — this is the actual regression risk of the rendering-engine swap, so don't skip it.
 
-- [ ] **Step 4: Confirm SVG+logo download now works**
+- [x] **Step 4: Confirm SVG+logo download now works**
 
 Create or find a QR with a logo, download SVG format — should succeed (no more 400 error).
 
-- [ ] **Step 5: Confirm the themed scrollbar**
+- [x] **Step 5: Confirm the themed scrollbar**
 
 Shrink the browser window or the wizard's step content until a scrollbar appears; confirm it's
 colored from the theme, not the browser's native default, in both Signature and Midnight themes.
 
-- [ ] **Step 6: `pnpm build`**
+- [x] **Step 6: `pnpm build`**
 
 Expected: exits `0`.
 
-- [ ] **Step 7: Clean up any test QR codes/templates created during verification** (archive QRs,
+- [x] **Step 7: Clean up any test QR codes/templates created during verification** (archive QRs,
       no delete action exists for templates yet — leaving a test template behind is low-stakes,
       but prefer a recognizably-named one, e.g. "Test — borrar", if one must remain).
 
