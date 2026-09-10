@@ -97,7 +97,7 @@
    of the flat color it blurs under Midnight/Signature. */
 [data-app-theme="nightfall"] {
   --radius: 1rem;
-  --background: color-mix(in srgb, #100e0b 55%, transparent);
+  --background: color-mix(in srgb, #100e0b 15%, transparent);
   --foreground: #f4f6f8;
   --card: color-mix(in srgb, #12161c 55%, transparent);
   --card-foreground: #f4f6f8;
@@ -121,9 +121,10 @@
   --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 3px 6px 0 rgba(0, 0, 0, 0.35);
   --shadow-detail: 0 1px 1px 0 rgba(0, 0, 0, 0.35);
-  /* Sidebar (shadcn's Sidebar primitive) + the outer "frame" the main content card sits in —
-     translucent too, so the aura shows through the gutter around the content card. */
-  --sidebar: color-mix(in srgb, #0c0f13 45%, transparent);
+  /* Sidebar (shadcn's Sidebar primitive) + the outer "frame" the main content card sits in — kept
+     nearly transparent (not just translucent like --card) so the aura reads at full vividness in
+     the gutter, instead of getting dimmed under a second stacked dark panel. */
+  --sidebar: color-mix(in srgb, #0c0f13 12%, transparent);
   --sidebar-foreground: #f4f6f8;
   --sidebar-accent: color-mix(in srgb, #1a212b 60%, transparent);
   --sidebar-accent-foreground: #f4f6f8;
@@ -290,6 +291,14 @@
   overflow: hidden;
   pointer-events: none;
 }
+/* Solid backdrop the blend-mode layers below composite against — baked into the component
+   itself (rather than relied on via body-background propagation) so "screen"/"soft-light" always
+   blend against a known color, not whatever happens to paint behind the fixed layer. */
+.aura-base {
+  position: absolute;
+  inset: 0;
+  background-color: #100e0b;
+}
 .aura-layer {
   position: absolute;
   inset: 0;
@@ -305,20 +314,20 @@
 }
 .aura-layer-1 {
   background: radial-gradient(
-    85% 55% at 52% 0%,
-    rgba(35, 70, 105, 0.34) 0%,
-    rgba(24, 49, 74, 0.18) 38%,
-    transparent 76%
+    85% 60% at 50% 0%,
+    rgba(55, 130, 170, 0.85) 0%,
+    rgba(35, 90, 120, 0.5) 42%,
+    transparent 78%
   );
   mix-blend-mode: screen;
 }
 .aura-layer-2 {
-  background: linear-gradient(180deg, rgba(54, 88, 120, 0.16) 0%, transparent 45%, rgba(0, 0, 0, 0.18) 100%);
+  background: linear-gradient(180deg, rgba(80, 150, 180, 0.4) 0%, transparent 45%, rgba(0, 0, 0, 0.3) 100%);
   mix-blend-mode: soft-light;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 .aura-layer-3 {
-  background: radial-gradient(42% 35% at 78% 16%, rgba(96, 130, 155, 0.16) 0%, transparent 78%);
+  background: radial-gradient(45% 40% at 78% 14%, rgba(130, 210, 200, 0.45) 0%, transparent 78%);
   mix-blend-mode: screen;
 }
 .aura-grain {
@@ -327,6 +336,27 @@
   mix-blend-mode: overlay;
   opacity: 0.85;
   pointer-events: none;
+}
+
+/* Themed scrollbar, app-wide — replaces the browser's native scrollbar with one that follows the
+   active theme's tokens instead of looking pinned to the OS/browser default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) var(--muted);
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground);
 }
 
 @layer base {
@@ -349,4 +379,11 @@
     backdrop-filter: blur(12px);
     box-shadow: var(--shadow-md);
   }
+}
+
+/* Nightfall's cards sit over a much busier backdrop (the aura) than Midnight/Signature's flat
+   surfaces — a stronger blur reads as "frosted glass" instead of a faint smudge. Higher
+   specificity than the plain .bg-card rule above (attribute + class vs. class alone) wins. */
+[data-app-theme="nightfall"] .bg-card {
+  backdrop-filter: blur(20px);
 }
