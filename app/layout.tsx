@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins, Inter } from "next/font/google";
+import { Poppins, Inter, Jersey_25, JetBrains_Mono } from "next/font/google";
 import { getCurrentUser } from "@/modules/auth";
 import { DEFAULT_THEME_ID } from "@/modules/users";
 import "./globals.css";
@@ -15,6 +15,20 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+// Digital/LCD-style display font (source: designsurface.dev's own h1/h2 computed styles).
+const jersey25 = Jersey_25({
+  variable: "--font-jersey",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+// Monospace for code-like/data values (short URLs, IDs) — same source as jersey25.
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+});
+
 export const metadata: Metadata = {
   title: "Marketing Hub",
   description: "Hub interno de acortador de enlaces, códigos QR, campañas y analíticas.",
@@ -28,7 +42,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       data-app-theme={themeId}
-      className={`dark ${poppins.variable} ${inter.variable} h-full antialiased`}
+      className={`dark ${poppins.variable} ${inter.variable} ${jersey25.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
