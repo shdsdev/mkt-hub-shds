@@ -36,6 +36,38 @@
   --shadow-md: 0 2px 4px 0 rgba(247, 237, 238, 0.08);
   --shadow-lg: 0 3px 6px 0 rgba(247, 237, 238, 0.08);
   --shadow-detail: 0 1px 1px 0 rgba(247, 237, 238, 0.08);
+  --sidebar-active: #3d2e2e;
+}
+
+/* "Midnight" theme (2026-09-10 design) — colors extracted directly from the Agndex Dashboard
+   reference's live computed styles (canvas rgb readback), not eyeballed. Flat/solid surfaces, no
+   glassmorphism treatment (the reference has none) — --card is fully opaque here. */
+[data-app-theme="midnight"] {
+  --radius: 0.625rem;
+  --background: #0b0b0a;
+  --foreground: #fbfbfa;
+  --card: #202121;
+  --card-foreground: #fbfbfa;
+  --popover: #272627;
+  --popover-foreground: #fbfbfa;
+  --primary: #e074c9;
+  --primary-foreground: #171717;
+  --secondary: #353435;
+  --secondary-foreground: #fbfbfa;
+  --muted: #202121;
+  --muted-foreground: #6c6c6d;
+  --accent: #8845f4;
+  --accent-foreground: #fbfbfa;
+  --destructive: #e10d04;
+  --destructive-foreground: #fbfbfa;
+  --border: rgba(245, 254, 254, 0.1);
+  --input: rgba(245, 254, 254, 0.1);
+  --ring: #e074c9;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 3px 6px 0 rgba(0, 0, 0, 0.3);
+  --shadow-detail: 0 1px 1px 0 rgba(0, 0, 0, 0.3);
+  --sidebar-active: #353435;
 }
 
 @theme inline {
@@ -58,6 +90,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-sidebar-active: var(--sidebar-active);
   --font-sans: var(--font-inter);
   --font-heading: var(--font-poppins);
   --radius-lg: var(--radius);

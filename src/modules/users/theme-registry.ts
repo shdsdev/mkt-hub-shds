@@ -7,10 +7,11 @@ export type Theme = {
 };
 
 export const THEMES: Theme[] = [
+  { id: "midnight", label: "Midnight", swatch: ["#e074c9", "#8845f4", "#0b0b0a"] },
   { id: "signature", label: "Signature", swatch: ["#ff0055", "#00e2ee", "#1c1213"] },
 ];
 
-export const DEFAULT_THEME_ID = "signature";
+export const DEFAULT_THEME_ID = "midnight";
 
 export function isValidThemeId(id: string): boolean {
   return THEMES.some((theme) => theme.id === id);

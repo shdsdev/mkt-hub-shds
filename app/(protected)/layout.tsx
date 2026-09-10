@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, signOut } from "@/modules/auth";
 import { isActive } from "@/modules/users";
 import { Sidebar } from "./sidebar";
+import { Breadcrumb } from "./breadcrumb";
 
 export default async function ProtectedLayout({
   children,
@@ -25,7 +26,7 @@ export default async function ProtectedLayout({
       <Sidebar />
       <div className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <span className="font-heading font-semibold">Marketing Hub</span>
+          <Breadcrumb />
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span>
               {user.email} · {user.profile.role}
