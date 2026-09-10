@@ -69,7 +69,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
   const [qrShortLinksOpen, setQrShortLinksOpen] = useState(qrShortLinksActive);
 
   return (
-    <Sidebar className="border-r-0">
+    <Sidebar className="group-data-[side=left]:border-r-0">
       <SidebarHeader className="px-4 pt-6 pb-0">
         <span className="font-heading text-lg font-semibold">Marketing Hub</span>
       </SidebarHeader>
