@@ -10,8 +10,8 @@ export const THEMES: Theme[] = [
   { id: "midnight", label: "Midnight", swatch: ["#e074c9", "#8845f4", "#0b0b0a"] },
   { id: "signature", label: "Signature", swatch: ["#ff0055", "#00e2ee", "#1c1213"] },
   { id: "nightfall", label: "Nightfall", swatch: ["#5da9e0", "#7fd9c4", "#100e0b"] },
-  { id: "greydlu", label: "Greydlu", swatch: ["#d4d4d8", "#cbd5e1", "#100e0b"] },
-  { id: "aston", label: "Aston", swatch: ["#2dd4bf", "#99f6e4", "#100e0b"] },
+  { id: "greydlu", label: "Greydlu", swatch: ["#d4d4d8", "#d0f23c", "#100e0b"] },
+  { id: "aston", label: "Aston", swatch: ["#2dd4bf", "#d0f23c", "#100e0b"] },
 ];
 
 export const DEFAULT_THEME_ID = "midnight";

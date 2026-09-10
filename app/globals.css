@@ -159,9 +159,10 @@
 }
 
 /* "Greydlu" theme — the "Lunar Surface" aura-gradient (grain category, monochrome zinc gradient
-   from #090a0c to #71717a). Same translucent-surface pattern as Nightfall, but kept intentionally
-   colorless: primary/accent are light zinc tones instead of a hue, matching the grayscale gradient
-   itself rather than introducing a color the reference didn't have. */
+   from #090a0c to #71717a). Same translucent-surface pattern as Nightfall. --primary stays a
+   light zinc tone (matching the grayscale gradient), but --accent is a neon lime (2026-09-10, per
+   a reference pill button) — the one deliberate color pop against an otherwise colorless theme,
+   same lime family as Aston's accent. */
 [data-app-theme="greydlu"] {
   --radius: 1rem;
   --background: color-mix(in srgb, #100e0b 32%, transparent);
@@ -177,8 +178,8 @@
   --secondary-foreground: #f4f4f5;
   --muted: color-mix(in srgb, #27272a 60%, transparent);
   --muted-foreground: #a1a1aa;
-  --accent: #cbd5e1;
-  --accent-foreground: #18181b;
+  --accent: #d0f23c;
+  --accent-foreground: #1a2005;
   --destructive: #ef4444;
   --destructive-foreground: #f4f4f5;
   --border: rgba(228, 228, 231, 0.12);
