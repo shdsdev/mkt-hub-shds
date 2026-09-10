@@ -97,7 +97,7 @@
    of the flat color it blurs under Midnight/Signature. */
 [data-app-theme="nightfall"] {
   --radius: 1rem;
-  --background: color-mix(in srgb, #100e0b 15%, transparent);
+  --background: color-mix(in srgb, #100e0b 32%, transparent);
   --foreground: #f4f6f8;
   --card: color-mix(in srgb, #12161c 55%, transparent);
   --card-foreground: #f4f6f8;
