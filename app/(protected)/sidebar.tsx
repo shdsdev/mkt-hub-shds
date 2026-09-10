@@ -4,18 +4,26 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  QrCode,
-  Link2,
-  ScanLine,
-  Megaphone,
-  ScrollText,
-  Settings as SettingsIcon,
-  LogOut,
   ChevronsUpDown,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import {
+  LayoutDashboard,
+  Gauge,
+  QrCode,
+  ScanLine,
+  Link2,
+  ExternalLink,
+  Megaphone,
+  Volume2,
+  ScrollText,
+  History,
+  Settings,
+  Settings2,
+  LogOut,
+  DoorOpen,
+} from "lucide";
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +44,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { HoverMorphIcon } from "@/components/hover-morph-icon";
 import { signOutAction } from "./actions";
 
 function initials(email: string): string {
@@ -44,19 +53,25 @@ function initials(email: string): string {
 
 function NavItem({
   href,
-  icon: Icon,
+  idle,
+  active: activeIcon,
   children,
 }: {
   href: string;
-  icon: React.ComponentType<{ size?: number }>;
+  idle: typeof LayoutDashboard;
+  active: typeof LayoutDashboard;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const active = pathname === href || pathname.startsWith(href + "/");
+  const [hovered, setHovered] = useState(false);
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton isActive={active} render={<Link href={href} />}>
-        <Icon size={16} />
+      <SidebarMenuButton
+        isActive={active}
+        render={<Link href={href} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} />}
+      >
+        <HoverMorphIcon idle={idle} active={activeIcon} size={16} hovered={hovered} />
         <span>{children}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -67,6 +82,8 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
   const pathname = usePathname();
   const qrShortLinksActive = pathname.startsWith("/links") || pathname.startsWith("/qr");
   const [qrShortLinksOpen, setQrShortLinksOpen] = useState(qrShortLinksActive);
+  const [qrGroupHovered, setQrGroupHovered] = useState(false);
+  const [signOutHovered, setSignOutHovered] = useState(false);
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -81,7 +98,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
-              <NavItem href="/" icon={LayoutDashboard}>
+              <NavItem href="/" idle={LayoutDashboard} active={Gauge}>
                 Resumen
               </NavItem>
             </SidebarMenu>
@@ -98,23 +115,25 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
                 <SidebarMenuButton
                   isActive={qrShortLinksActive}
                   onClick={() => setQrShortLinksOpen((open) => !open)}
+                  onMouseEnter={() => setQrGroupHovered(true)}
+                  onMouseLeave={() => setQrGroupHovered(false)}
                 >
-                  <QrCode size={16} />
+                  <HoverMorphIcon idle={QrCode} active={ScanLine} size={16} hovered={qrGroupHovered} />
                   <span className="flex-1">QR Short Links</span>
                   {qrShortLinksOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {qrShortLinksOpen && (
                 <div className="ml-3 space-y-1.5 border-l border-sidebar-border pl-3">
-                  <NavItem href="/links" icon={Link2}>
+                  <NavItem href="/links" idle={Link2} active={ExternalLink}>
                     Enlaces
                   </NavItem>
-                  <NavItem href="/qr" icon={ScanLine}>
+                  <NavItem href="/qr" idle={ScanLine} active={QrCode}>
                     Códigos QR
                   </NavItem>
                 </div>
               )}
-              <NavItem href="/campaigns" icon={Megaphone}>
+              <NavItem href="/campaigns" idle={Megaphone} active={Volume2}>
                 Campañas
               </NavItem>
             </SidebarMenu>
@@ -127,7 +146,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
-              <NavItem href="/audit" icon={ScrollText}>
+              <NavItem href="/audit" idle={ScrollText} active={History}>
                 Registro de auditoría
               </NavItem>
             </SidebarMenu>
@@ -137,16 +156,18 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
 
       <SidebarFooter className="px-4 pb-6">
         <SidebarMenu className="gap-1.5">
-          <NavItem href="/settings" icon={SettingsIcon}>
+          <NavItem href="/settings" idle={Settings} active={Settings2}>
             Configuración
           </NavItem>
           <SidebarMenuItem>
             <form action={signOutAction}>
               <SidebarMenuButton
                 type="submit"
+                onMouseEnter={() => setSignOutHovered(true)}
+                onMouseLeave={() => setSignOutHovered(false)}
                 className="w-full text-sidebar-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               >
-                <LogOut size={16} />
+                <HoverMorphIcon idle={LogOut} active={DoorOpen} size={16} hovered={signOutHovered} />
                 <span>Cerrar sesión</span>
               </SidebarMenuButton>
             </form>
