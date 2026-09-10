@@ -138,6 +138,87 @@
   --sidebar-muted-foreground: #9db0c2;
 }
 
+/* "Greydlu" theme — the "Lunar Surface" aura-gradient (grain category, monochrome zinc gradient
+   from #090a0c to #71717a). Same translucent-surface pattern as Nightfall, but kept intentionally
+   colorless: primary/accent are light zinc tones instead of a hue, matching the grayscale gradient
+   itself rather than introducing a color the reference didn't have. */
+[data-app-theme="greydlu"] {
+  --radius: 1rem;
+  --background: color-mix(in srgb, #100e0b 32%, transparent);
+  --foreground: #f4f4f5;
+  --card: color-mix(in srgb, #18181b 55%, transparent);
+  --card-foreground: #f4f4f5;
+  --card-hover: color-mix(in srgb, #27272a 65%, transparent);
+  --popover: color-mix(in srgb, #18181b 92%, transparent);
+  --popover-foreground: #f4f4f5;
+  --primary: #d4d4d8;
+  --primary-foreground: #18181b;
+  --secondary: #3f3f46;
+  --secondary-foreground: #f4f4f5;
+  --muted: color-mix(in srgb, #27272a 60%, transparent);
+  --muted-foreground: #a1a1aa;
+  --accent: #cbd5e1;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
+  --destructive-foreground: #f4f4f5;
+  --border: rgba(228, 228, 231, 0.12);
+  --input: rgba(228, 228, 231, 0.12);
+  --ring: #d4d4d8;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 3px 6px 0 rgba(0, 0, 0, 0.35);
+  --shadow-detail: 0 1px 1px 0 rgba(0, 0, 0, 0.35);
+  --sidebar: color-mix(in srgb, #0c0c0d 12%, transparent);
+  --sidebar-foreground: #f4f4f5;
+  --sidebar-accent: color-mix(in srgb, #27272a 60%, transparent);
+  --sidebar-accent-foreground: #f4f4f5;
+  --sidebar-border: rgba(228, 228, 231, 0.1);
+  --sidebar-ring: #d4d4d8;
+  --sidebar-badge: color-mix(in srgb, #18181b 60%, transparent);
+  --sidebar-muted: #a1a1aa;
+  --sidebar-muted-foreground: #a1a1aa;
+}
+
+/* "Aston" theme — the "Deep Current" aura-gradient (teal/emerald glow). Primary/accent pulled from
+   the reference screenshots: a vivid teal for interactive elements, a soft pale mint for
+   badges/highlights (matching the reference's icon-chip backgrounds). */
+[data-app-theme="aston"] {
+  --radius: 1rem;
+  --background: color-mix(in srgb, #100e0b 32%, transparent);
+  --foreground: #eefaf7;
+  --card: color-mix(in srgb, #0e1f1c 55%, transparent);
+  --card-foreground: #eefaf7;
+  --card-hover: color-mix(in srgb, #163831 65%, transparent);
+  --popover: color-mix(in srgb, #0e1f1c 92%, transparent);
+  --popover-foreground: #eefaf7;
+  --primary: #2dd4bf;
+  --primary-foreground: #05221d;
+  --secondary: #1f3d38;
+  --secondary-foreground: #eefaf7;
+  --muted: color-mix(in srgb, #163831 60%, transparent);
+  --muted-foreground: #8fc9bd;
+  --accent: #99f6e4;
+  --accent-foreground: #05221d;
+  --destructive: #ef4444;
+  --destructive-foreground: #eefaf7;
+  --border: rgba(153, 246, 228, 0.12);
+  --input: rgba(153, 246, 228, 0.12);
+  --ring: #2dd4bf;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 3px 6px 0 rgba(0, 0, 0, 0.35);
+  --shadow-detail: 0 1px 1px 0 rgba(0, 0, 0, 0.35);
+  --sidebar: color-mix(in srgb, #08120f 12%, transparent);
+  --sidebar-foreground: #eefaf7;
+  --sidebar-accent: color-mix(in srgb, #163831 60%, transparent);
+  --sidebar-accent-foreground: #eefaf7;
+  --sidebar-border: rgba(153, 246, 228, 0.1);
+  --sidebar-ring: #2dd4bf;
+  --sidebar-badge: color-mix(in srgb, #0e1f1c 60%, transparent);
+  --sidebar-muted: #8fc9bd;
+  --sidebar-muted-foreground: #8fc9bd;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -284,9 +365,11 @@
   }
 }
 
-/* Aura background — "Nightfall" theme only (src/components/aura-background.tsx). Fixed behind
-   everything (z-index -1); every [data-app-theme="nightfall"] surface token above is translucent
-   so these blend-mode layers read through the sidebar gutter, cards, and popovers alike. */
+/* Aura backgrounds — aura-based themes only (src/components/aura-background.tsx: "nightfall",
+   "greydlu", "aston"). Fixed behind everything (z-index -1); every aura theme's surface tokens
+   above are translucent so these blend-mode layers read through the sidebar gutter, cards, and
+   popovers alike. Each theme owns its own aura-<theme>-layer-N classes since layer count, blend
+   mode, and blur radius all differ per design (see each block's design source below). */
 .aura-bg {
   position: fixed;
   inset: 0;
@@ -305,33 +388,9 @@
 .aura-layer {
   position: absolute;
   inset: 0;
-  filter: blur(25px);
   transform: translateZ(0);
   will-change: transform;
   pointer-events: none;
-}
-@media (min-width: 768px) {
-  .aura-layer {
-    filter: blur(36px);
-  }
-}
-.aura-layer-1 {
-  background: radial-gradient(
-    85% 60% at 50% 0%,
-    rgba(55, 130, 170, 0.85) 0%,
-    rgba(35, 90, 120, 0.5) 42%,
-    transparent 78%
-  );
-  mix-blend-mode: screen;
-}
-.aura-layer-2 {
-  background: linear-gradient(180deg, rgba(80, 150, 180, 0.4) 0%, transparent 45%, rgba(0, 0, 0, 0.3) 100%);
-  mix-blend-mode: soft-light;
-  opacity: 0.95;
-}
-.aura-layer-3 {
-  background: radial-gradient(45% 40% at 78% 14%, rgba(130, 210, 200, 0.45) 0%, transparent 78%);
-  mix-blend-mode: screen;
 }
 .aura-grain {
   position: absolute;
@@ -339,6 +398,91 @@
   mix-blend-mode: overlay;
   opacity: 0.85;
   pointer-events: none;
+}
+
+/* "Nightfall" — Nightfall's own design (2026-09-10), tuned up from its original brief for
+   visibility under this app's stacked translucent chrome (see the 2026-09-10 aura-visibility fix
+   commits). */
+.aura-nightfall-layer-1 {
+  background: radial-gradient(
+    85% 60% at 50% 0%,
+    rgba(55, 130, 170, 0.85) 0%,
+    rgba(35, 90, 120, 0.5) 42%,
+    transparent 78%
+  );
+  mix-blend-mode: screen;
+  filter: blur(25px);
+}
+.aura-nightfall-layer-2 {
+  background: linear-gradient(180deg, rgba(80, 150, 180, 0.4) 0%, transparent 45%, rgba(0, 0, 0, 0.3) 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.95;
+  filter: blur(25px);
+}
+.aura-nightfall-layer-3 {
+  background: radial-gradient(45% 40% at 78% 14%, rgba(130, 210, 200, 0.45) 0%, transparent 78%);
+  mix-blend-mode: screen;
+  filter: blur(25px);
+}
+@media (min-width: 768px) {
+  .aura-nightfall-layer-1,
+  .aura-nightfall-layer-2,
+  .aura-nightfall-layer-3 {
+    filter: blur(36px);
+  }
+}
+
+/* "Greydlu" — "Lunar Surface" aura (grain category, monochrome zinc gradient). */
+.aura-greydlu-layer-1 {
+  background: linear-gradient(150deg, #090a0c 0%, #27272a 40%, #52525b 68%, #71717a 100%);
+  mix-blend-mode: normal;
+}
+.aura-greydlu-layer-2 {
+  background: radial-gradient(ellipse 45% 50% at 60% 38%, rgba(212, 212, 216, 0.18) 0%, transparent 68%);
+  mix-blend-mode: screen;
+  filter: blur(113px);
+}
+@media (min-width: 768px) {
+  .aura-greydlu-layer-2 {
+    filter: blur(162px);
+  }
+}
+
+/* "Aston" — "Deep Current" aura (teal/emerald glow). */
+.aura-aston-layer-1 {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(16, 58, 58, 0.12) 24%,
+    rgba(24, 105, 103, 0.34) 52%,
+    rgba(18, 74, 73, 0.18) 72%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  filter: blur(163px);
+}
+.aura-aston-layer-2 {
+  background: radial-gradient(70% 28% at 54% 62%, rgba(34, 124, 120, 0.28) 0%, rgba(20, 68, 67, 0.13) 48%, transparent 82%);
+  mix-blend-mode: screen;
+  opacity: 0.9;
+  filter: blur(120px);
+}
+.aura-aston-layer-3 {
+  background: linear-gradient(90deg, transparent 30%, rgba(75, 158, 153, 0.08) 52%, transparent 72%);
+  mix-blend-mode: overlay;
+  opacity: 0.7;
+  filter: blur(60px);
+}
+@media (min-width: 768px) {
+  .aura-aston-layer-1 {
+    filter: blur(234px);
+  }
+  .aura-aston-layer-2 {
+    filter: blur(173px);
+  }
+  .aura-aston-layer-3 {
+    filter: blur(86px);
+  }
 }
 
 /* Themed scrollbar, app-wide — replaces the browser's native scrollbar with one that follows the
@@ -385,13 +529,17 @@
   }
 }
 
-/* Nightfall's cards and popovers (dropdowns, calendar, selects) sit over a much busier backdrop
-   (the aura) than Midnight/Signature's flat surfaces — a stronger blur reads as "frosted glass"
-   instead of a faint smudge, and popovers need to read as clearly separate from the page behind
-   them since they float over live content. Higher specificity than the plain rule above
+/* Every aura theme's cards and popovers (dropdowns, calendar, selects) sit over a much busier
+   backdrop (the aura) than Midnight/Signature's flat surfaces — a stronger blur reads as "frosted
+   glass" instead of a faint smudge, and popovers need to read as clearly separate from the page
+   behind them since they float over live content. Higher specificity than the plain rule above
    (attribute + class vs. class alone) wins. */
 [data-app-theme="nightfall"] .bg-card,
-[data-app-theme="nightfall"] .bg-popover {
+[data-app-theme="nightfall"] .bg-popover,
+[data-app-theme="greydlu"] .bg-card,
+[data-app-theme="greydlu"] .bg-popover,
+[data-app-theme="aston"] .bg-card,
+[data-app-theme="aston"] .bg-popover {
   backdrop-filter: blur(20px);
 }
 
@@ -399,7 +547,9 @@
    the aura fades unevenly (bright near the top, black lower down), so a background-color tuned
    for one region drifts out of sync with the sidebar elsewhere. A border stays a clean seam
    regardless of where the gradient happens to sit. */
-[data-app-theme="nightfall"] .content-frame {
+[data-app-theme="nightfall"] .content-frame,
+[data-app-theme="greydlu"] .content-frame,
+[data-app-theme="aston"] .content-frame {
   border: 1px solid rgba(220, 230, 240, 0.14);
 }
 
