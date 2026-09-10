@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { getLink, listShortLinksForLink, listDomains } from "@/modules/links";
@@ -7,6 +6,7 @@ import { DestinationForm } from "./destination-form";
 import { ShortLinkForm } from "./short-link-form";
 import { ArchiveLinkButton, ArchiveShortLinkButton } from "./archive-button";
 import { PrintRunForm } from "./print-run-form";
+import { AnalyticsLink } from "./analytics-link";
 
 const RESOURCE_STATUS_LABEL: Record<string, string> = {
   active: "activo",
@@ -46,9 +46,7 @@ export default async function LinkDetailPage({
             Editar el destino acá actualiza todos los enlaces cortos y códigos QR de abajo al
             instante — ninguno guarda un destino propio (ARCHITECTURE.md I-1).
           </p>
-          <Link href={`/analytics/${link.id}`} className="text-sm text-accent hover:underline">
-            Ver analíticas
-          </Link>
+          <AnalyticsLink linkId={link.id} />
         </div>
         {link.status === "active" && <ArchiveLinkButton linkId={link.id} />}
         {link.status !== "active" && (
