@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
       "boundaries/elements": [
         { type: "app", pattern: "app/**" },
         { type: "ui", pattern: "src/components/**" },
+        { type: "hooks", pattern: "src/hooks/**" },
         { type: "lib", pattern: "src/lib/**" },
         { type: "db-barrel", pattern: "src/db/**" },
         { type: "module", pattern: "src/modules/*", capture: ["module"] },
@@ -49,6 +50,7 @@ const eslintConfig = defineConfig([
               from: { element: { type: "ui" } },
               allow: [
                 { to: { element: { type: "ui" } } },
+                { to: { element: { type: "hooks" } } },
                 { to: { element: { type: "lib" } } },
               ],
             },
@@ -108,6 +110,14 @@ const eslintConfig = defineConfig([
         },
       ],
       "boundaries/no-unknown-dependencies": "error",
+    },
+  },
+  {
+    // shadcn-vendored source (installed via `pnpm dlx shadcn add`, not hand-authored) — don't
+    // hand-edit these against our house lint rules, or `shadcn diff`/`update` stops being useful.
+    files: ["src/components/ui/**", "src/hooks/**"],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
     },
   },
   // Override default ignores of eslint-config-next.

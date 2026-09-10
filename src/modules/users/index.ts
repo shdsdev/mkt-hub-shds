@@ -6,6 +6,7 @@ export {
   updateLockoutState,
   updateTheme,
   createOrganization,
+  getOrganization,
   createProfile,
   isAdmin,
   isActive,

@@ -17,6 +17,7 @@
   --foreground: #f7edee;
   --card: color-mix(in srgb, #291d1e 70%, transparent);
   --card-foreground: #f7edee;
+  --card-hover: #342726;
   --popover: color-mix(in srgb, #291d1e 70%, transparent);
   --popover-foreground: #f7edee;
   --primary: #ff0055;
@@ -36,7 +37,16 @@
   --shadow-md: 0 2px 4px 0 rgba(247, 237, 238, 0.08);
   --shadow-lg: 0 3px 6px 0 rgba(247, 237, 238, 0.08);
   --shadow-detail: 0 1px 1px 0 rgba(247, 237, 238, 0.08);
-  --sidebar-active: #3d2e2e;
+  /* Sidebar (shadcn's Sidebar primitive) + the outer "frame" the main content card sits in. */
+  --sidebar: #150e0f;
+  --sidebar-foreground: #f7edee;
+  --sidebar-accent: #3d2e2e;
+  --sidebar-accent-foreground: #f7edee;
+  --sidebar-border: #3d2e2e;
+  --sidebar-ring: #ff0055;
+  --sidebar-badge: #201915;
+  --sidebar-muted: #cbb2b4;
+  --sidebar-muted-foreground: #cbb2b4;
 }
 
 /* "Midnight" theme (2026-09-10 design) — colors extracted directly from the Agndex Dashboard
@@ -44,10 +54,11 @@
    glassmorphism treatment (the reference has none) — --card is fully opaque here. */
 [data-app-theme="midnight"] {
   --radius: 0.625rem;
-  --background: #0b0b0a;
+  --background: #101010;
   --foreground: #fbfbfa;
   --card: #202121;
   --card-foreground: #fbfbfa;
+  --card-hover: #272627;
   --popover: #272627;
   --popover-foreground: #fbfbfa;
   --primary: #e074c9;
@@ -67,7 +78,17 @@
   --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 3px 6px 0 rgba(0, 0, 0, 0.3);
   --shadow-detail: 0 1px 1px 0 rgba(0, 0, 0, 0.3);
-  --sidebar-active: #353435;
+  /* Sidebar (shadcn's Sidebar primitive) + the outer "frame" the main content card sits in —
+     darkest tier of the reference's 3-tier depth (sidebar/frame < content card < nested cards). */
+  --sidebar: #0b0b0a;
+  --sidebar-foreground: #fbfbfa;
+  --sidebar-accent: #353435;
+  --sidebar-accent-foreground: #fbfbfa;
+  --sidebar-border: rgba(245, 254, 254, 0.1);
+  --sidebar-ring: #e074c9;
+  --sidebar-badge: #202121;
+  --sidebar-muted: #6c6c6d;
+  --sidebar-muted-foreground: #b0b0b0;
 }
 
 @theme inline {
@@ -75,6 +96,7 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-card-hover: var(--card-hover);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -90,7 +112,15 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-badge: var(--sidebar-badge);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
   --font-sans: var(--font-inter);
   --font-heading: var(--font-poppins);
   --radius-lg: var(--radius);
@@ -104,7 +134,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-sidebar text-foreground font-sans;
   }
   h1,
   h2,
@@ -113,7 +143,8 @@
     @apply font-heading;
   }
   /* Glassmorphism (SPEC.md §29) — every panel using the bg-card utility gets translucency + blur
-     for free, since --card is already a semi-transparent color-mix(). */
+     for free, since --card is already a semi-transparent color-mix(). Harmless no-op under
+     Midnight, where --card is opaque. */
   .bg-card {
     backdrop-filter: blur(12px);
     box-shadow: var(--shadow-md);

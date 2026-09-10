@@ -50,6 +50,11 @@ export async function createOrganization(name: string) {
   return org;
 }
 
+export async function getOrganization(id: string) {
+  const rows = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+  return rows[0];
+}
+
 export async function createProfile(input: {
   id: string;
   organizationId: string;
