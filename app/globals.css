@@ -60,8 +60,10 @@
 }
 
 /* "Midnight" theme (2026-09-10 design) — colors extracted directly from the Agndex Dashboard
-   reference's live computed styles (canvas rgb readback), not eyeballed. Flat/solid surfaces, no
-   glassmorphism treatment (the reference has none) — --card is fully opaque here. */
+   reference's live computed styles (canvas rgb readback), not eyeballed. Flat/solid surfaces by
+   default — --card is fully opaque here. The "Smoke Signal" aura (2026-09-10) below makes
+   --background/--sidebar translucent when this theme is active; DEFAULT_THEME_ID is "midnight",
+   so this also renders on pre-auth pages like /login, same as it does everywhere else. */
 [data-app-theme="midnight"] {
   --radius: 0.625rem;
   --background: #101010;
@@ -99,6 +101,14 @@
   --sidebar-badge: #202121;
   --sidebar-muted: #6c6c6d;
   --sidebar-muted-foreground: #b0b0b0;
+}
+
+/* Midnight + aura ("Smoke Signal", 2026-09-10) — same pattern as Signature's Nebula Flow:
+   primary/accent (pink/violet) untouched, only the background/sidebar go translucent so the aura
+   shows through. Placed after Midnight's own block so it wins on the shared property names. */
+[data-app-theme="midnight"] {
+  --background: color-mix(in srgb, #101010 32%, transparent);
+  --sidebar: color-mix(in srgb, #0b0b0a 12%, transparent);
 }
 
 /* "Nightfall" theme (2026-09-10 design) — an atmospheric aura-gradient backdrop (see
@@ -532,6 +542,43 @@
   }
 }
 
+/* "Midnight" — "Smoke Signal" aura (dark smoky gray glow), layered onto the theme's existing
+   pink/violet palette rather than replacing it. */
+.aura-midnight-layer-1 {
+  background: radial-gradient(ellipse 45% 50% at 35% 40%, rgba(75, 85, 99, 0.6) 0%, transparent 65%);
+  mix-blend-mode: screen;
+  filter: blur(100px);
+}
+.aura-midnight-layer-2 {
+  background: radial-gradient(ellipse 38% 42% at 70% 50%, rgba(55, 65, 81, 0.5) 0%, transparent 60%);
+  mix-blend-mode: screen;
+  filter: blur(75px);
+}
+.aura-midnight-layer-3 {
+  background: radial-gradient(ellipse 28% 32% at 55% 75%, rgba(107, 114, 128, 0.35) 0%, transparent 55%);
+  mix-blend-mode: screen;
+  filter: blur(63px);
+}
+.aura-midnight-layer-4 {
+  background: radial-gradient(ellipse 20% 22% at 20% 25%, rgba(156, 163, 175, 0.25) 0%, transparent 50%);
+  mix-blend-mode: screen;
+  filter: blur(38px);
+}
+@media (min-width: 768px) {
+  .aura-midnight-layer-1 {
+    filter: blur(144px);
+  }
+  .aura-midnight-layer-2 {
+    filter: blur(108px);
+  }
+  .aura-midnight-layer-3 {
+    filter: blur(90px);
+  }
+  .aura-midnight-layer-4 {
+    filter: blur(54px);
+  }
+}
+
 /* Themed scrollbar, app-wide — replaces the browser's native scrollbar with one that follows the
    active theme's tokens instead of looking pinned to the OS/browser default. */
 * {
@@ -599,7 +646,8 @@
 [data-app-theme="nightfall"] .content-frame,
 [data-app-theme="greydlu"] .content-frame,
 [data-app-theme="aston"] .content-frame,
-[data-app-theme="signature"] .content-frame {
+[data-app-theme="signature"] .content-frame,
+[data-app-theme="midnight"] .content-frame {
   border: 1px solid rgba(220, 230, 240, 0.14);
 }
 
