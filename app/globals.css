@@ -102,7 +102,7 @@
   --card: color-mix(in srgb, #12161c 55%, transparent);
   --card-foreground: #f4f6f8;
   --card-hover: color-mix(in srgb, #1a212b 65%, transparent);
-  --popover: color-mix(in srgb, #12161c 70%, transparent);
+  --popover: color-mix(in srgb, #12161c 92%, transparent);
   --popover-foreground: #f4f6f8;
   --primary: #5da9e0;
   --primary-foreground: #0b0f14;
@@ -375,15 +375,19 @@
   /* Glassmorphism (SPEC.md §29) — every panel using the bg-card utility gets translucency + blur
      for free, since --card is already a semi-transparent color-mix(). Harmless no-op under
      Midnight, where --card is opaque. */
-  .bg-card {
+  .bg-card,
+  .bg-popover {
     backdrop-filter: blur(12px);
     box-shadow: var(--shadow-md);
   }
 }
 
-/* Nightfall's cards sit over a much busier backdrop (the aura) than Midnight/Signature's flat
-   surfaces — a stronger blur reads as "frosted glass" instead of a faint smudge. Higher
-   specificity than the plain .bg-card rule above (attribute + class vs. class alone) wins. */
-[data-app-theme="nightfall"] .bg-card {
+/* Nightfall's cards and popovers (dropdowns, calendar, selects) sit over a much busier backdrop
+   (the aura) than Midnight/Signature's flat surfaces — a stronger blur reads as "frosted glass"
+   instead of a faint smudge, and popovers need to read as clearly separate from the page behind
+   them since they float over live content. Higher specificity than the plain rule above
+   (attribute + class vs. class alone) wins. */
+[data-app-theme="nightfall"] .bg-card,
+[data-app-theme="nightfall"] .bg-popover {
   backdrop-filter: blur(20px);
 }
