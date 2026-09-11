@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Download, DownloadCloud, ArrowRight, QrCode } from "lucide";
+import { FileText } from "lucide-react";
+import { Download, DownloadCloud, ArrowRight, QrCode, UploadCloud, Upload } from "lucide";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BinaryLoader } from "@/components/binary-loader";
@@ -52,19 +53,36 @@ function PreviewRow({
   );
 }
 
+// Step header matching the reference's numbered-step layout — a small circular index badge
+// instead of a literal "1." so it reads as UI chrome, not copy the translator would touch.
+function StepHeader({ step, title }: { step: number; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 font-mono text-xs font-semibold text-primary">
+        {step}
+      </span>
+      <h2 className="font-medium">{title}</h2>
+    </div>
+  );
+}
+
 export function BulkQrImport() {
   const [preview, setPreview] = useState<BulkQrCsvPreview | null>(null);
   const [summary, setSummary] = useState<BulkQrImportSummary | null>(null);
+  const [fileName, setFileName] = useState<string>();
+  const [dragActive, setDragActive] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  async function handleFile(file: File | undefined) {
     setSummary(null);
     if (!file) {
       setPreview(null);
+      setFileName(undefined);
       return;
     }
 
+    setFileName(file.name);
     try {
       setPreview(parseBulkQrCsv(await file.text()));
     } catch {
@@ -75,6 +93,13 @@ export function BulkQrImport() {
         fileError: "No se pudo leer el archivo CSV.",
       });
     }
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragActive(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) handleFile(file);
   }
 
   function handleSubmit() {
@@ -91,33 +116,62 @@ export function BulkQrImport() {
   return (
     <div className="flex flex-col gap-6">
       <section className="space-y-4 rounded-lg border border-border bg-card p-6">
-        <div className="space-y-1">
-          <h2 className="font-medium">Archivo CSV</h2>
-          <p className="text-sm text-muted-foreground">
-            La primera fila es el encabezado. Usa las columnas URL y Título del código QR
-            (referencia), con un máximo de 200 filas.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <StepHeader step={1} title="Descarga la plantilla en CSV" />
+          <a
+            href="/qr/bulk/template"
+            download
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-accent/40 px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent/10"
+          >
+            <HoverMorphIcon idle={Download} active={DownloadCloud} />
+            Descargar CSV
+          </a>
         </div>
+        <p className="text-sm text-muted-foreground">
+          La primera fila es el encabezado. Usa las columnas URL y Título del código QR (referencia),
+          con un máximo de 200 filas.
+        </p>
+      </section>
 
-        <a
-          href="/qr/bulk/template"
-          download
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+      <section className="space-y-4 rounded-lg border border-border bg-card p-6">
+        <StepHeader step={2} title="Sube el archivo actualizado" />
+
+        <div
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") fileInputRef.current?.click();
+          }}
+          className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
+            dragActive ? "border-accent bg-accent/10" : "border-border hover:border-accent/50"
+          }`}
         >
-          <HoverMorphIcon idle={Download} active={DownloadCloud} />
-          Descargar plantilla CSV
-        </a>
-
-        <div className="space-y-1.5 border-t border-border pt-4">
-          <label htmlFor="bulk-qr-csv" className="text-sm text-muted-foreground">
-            Seleccionar archivo CSV
-          </label>
+          <HoverMorphIcon idle={UploadCloud} active={Upload} size={22} hovered={dragActive} />
+          <p className="text-sm">
+            <span className="font-medium text-accent">Subir un archivo CSV</span>
+            <span className="text-muted-foreground"> o soltarlo aquí</span>
+          </p>
+          {fileName && (
+            <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+              <FileText size={14} />
+              {fileName}
+            </p>
+          )}
           <input
+            ref={fileInputRef}
             id="bulk-qr-csv"
             type="file"
             accept=".csv,text/csv"
-            onChange={handleFileChange}
-            className="w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
+            onChange={(event) => handleFile(event.target.files?.[0])}
+            onClick={(event) => event.stopPropagation()}
+            className="hidden"
           />
         </div>
       </section>
