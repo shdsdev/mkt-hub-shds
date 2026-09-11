@@ -50,7 +50,7 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex rounded-md border border-input">
+        <div className="flex overflow-hidden rounded-md border border-input">
           <button
             type="button"
             onClick={() => setViewMode("grid")}
