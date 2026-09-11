@@ -67,7 +67,10 @@ export default async function AnalyticsPage({
               </span>
             )}
           </p>
-          <h1 className="truncate font-mono text-lg font-semibold">{link.destinationUrl}</h1>
+          <h1 className="truncate text-lg font-semibold">{qr?.name || link.destinationUrl}</h1>
+          {qr?.name && (
+            <p className="truncate font-mono text-sm text-muted-foreground">{link.destinationUrl}</p>
+          )}
           <p className="text-xs text-muted-foreground">
             Creado el {link.createdAt.toLocaleDateString()}
           </p>
