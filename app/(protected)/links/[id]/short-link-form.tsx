@@ -4,6 +4,15 @@ import { useActionState } from "react";
 import Link from "next/link";
 import type { Domain } from "@/modules/links";
 import { createShortLinkAction, type CreateShortLinkFormState } from "../actions";
+import { BinaryLoader } from "@/components/binary-loader";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const initialState: CreateShortLinkFormState = {};
 
@@ -30,18 +39,20 @@ export function ShortLinkForm({ linkId, domains }: { linkId: string; domains: Do
         <label htmlFor="domainId" className="text-xs text-muted-foreground">
           Dominio
         </label>
-        <select
-          id="domainId"
-          name="domainId"
-          required
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          {domains.map((domain) => (
-            <option key={domain.id} value={domain.id}>
-              {domain.hostname}
-            </option>
-          ))}
-        </select>
+        <Select name="domainId" defaultValue={domains[0].id} required>
+          <SelectTrigger id="domainId" className="min-w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {domains.map((domain) => (
+                <SelectItem key={domain.id} value={domain.id}>
+                  {domain.hostname}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1">
@@ -61,7 +72,7 @@ export function ShortLinkForm({ linkId, domains }: { linkId: string; domains: Do
         disabled={pending}
         className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
-        {pending ? "Creando…" : "Crear enlace corto"}
+        {pending ? <BinaryLoader /> : "Crear enlace corto"}
       </button>
 
       {state.error && (

@@ -3,6 +3,15 @@
 import { useActionState, useRef } from "react";
 import type { UtmPreset } from "@/modules/utm";
 import { createLinkAction, type CreateLinkFormState } from "./actions";
+import { BinaryLoader } from "@/components/binary-loader";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const initialState: CreateLinkFormState = {};
 
@@ -46,21 +55,20 @@ export function LinkForm({ presets }: { presets: UtmPreset[] }) {
           <label htmlFor="preset" className="text-sm text-muted-foreground">
             Preajuste UTM (completa los campos de abajo — igual editable)
           </label>
-          <select
-            id="preset"
-            onChange={(event) => applyPreset(event.target.value)}
-            defaultValue=""
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="" disabled>
-              Elige un preajuste…
-            </option>
-            {presets.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.name}
-              </option>
-            ))}
-          </select>
+          <Select defaultValue={null} onValueChange={(value) => value && applyPreset(value)}>
+            <SelectTrigger id="preset" className="w-full">
+              <SelectValue placeholder="Elige un preajuste…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {presets.map((preset) => (
+                  <SelectItem key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -96,7 +104,7 @@ export function LinkForm({ presets }: { presets: UtmPreset[] }) {
         disabled={pending}
         className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
-        {pending ? "Creando…" : "Crear enlace"}
+        {pending ? <BinaryLoader /> : "Crear enlace"}
       </button>
     </form>
   );
