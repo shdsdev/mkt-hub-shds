@@ -3,10 +3,10 @@ import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { getLink } from "@/modules/links";
 import {
-  getScansForLinkGrouped,
-  getDeviceBreakdownForLink,
-  getCountryBreakdownForLink,
-  getCityBreakdownForLink,
+  getAnalyticsBreakdownsForLink,
+  getAnalyticsForLinkGrouped,
+  getAnalyticsTotalsForLink,
+  utcDayBounds,
 } from "@/modules/analytics";
 
 const querySchema = z.object({
@@ -37,18 +37,14 @@ export async function GET(
     return new NextResponse(null, { status: 400 });
   }
 
-  const from = new Date(parsed.data.from);
-  // A date-only "to" parses as that day's midnight — push it to the end of the day so events
-  // from later that same day (the common case: "to" defaults to today) aren't excluded.
-  const to = new Date(parsed.data.to);
-  to.setUTCHours(23, 59, 59, 999);
+  const range = { from: parsed.data.from, to: parsed.data.to };
+  const { from, to } = utcDayBounds(range);
 
-  const [buckets, devices, countries, cities] = await Promise.all([
-    getScansForLinkGrouped(linkId, parsed.data.granularity, from, to),
-    getDeviceBreakdownForLink(linkId, from, to),
-    getCountryBreakdownForLink(linkId, from, to),
-    getCityBreakdownForLink(linkId, from, to),
+  const [buckets, breakdowns, totals] = await Promise.all([
+    getAnalyticsForLinkGrouped(linkId, "qr_scan", parsed.data.granularity, from, to),
+    getAnalyticsBreakdownsForLink(linkId, "qr_scan", from, to),
+    getAnalyticsTotalsForLink(linkId, "qr_scan", from, to),
   ]);
 
-  return NextResponse.json({ buckets, devices, countries, cities });
+  return NextResponse.json({ buckets, ...breakdowns, totals });
 }

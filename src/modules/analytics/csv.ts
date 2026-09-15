@@ -1,16 +1,8 @@
-export type RollupRow = {
-  date: string;
-  clicksHuman: number;
-  clicksBot: number;
-  scansHuman: number;
-  scansBot: number;
-};
+export type AnalyticsCsvRow = { bucket: string; count: number };
 
-const HEADER = "date,clicks_human,clicks_bot,scans_human,scans_bot";
-
-export function formatRollupCsv(rows: RollupRow[]): string {
-  const lines = rows.map(
-    (row) => `${row.date},${row.clicksHuman},${row.clicksBot},${row.scansHuman},${row.scansBot}`,
-  );
-  return [HEADER, ...lines].join("\n") + "\n";
+export function formatAnalyticsCsv(
+  column: "scans_human" | "clicks_human",
+  rows: AnalyticsCsvRow[],
+): string {
+  return [`date,${column}`, ...rows.map((row) => `${row.bucket},${row.count}`)].join("\n") + "\n";
 }

@@ -1,147 +1,15 @@
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Download, Check } from "lucide";
-import { HoverMorphIcon } from "@/components/hover-morph-icon";
-import type { ScanGranularity, ScanBucket, BreakdownRow } from "@/modules/analytics";
-
-function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-function defaultRange(): { from: string; to: string } {
-  const to = new Date();
-  const from = new Date();
-  from.setUTCDate(from.getUTCDate() - 29);
-  return { from: isoDate(from), to: isoDate(to) };
-}
-
-type DataResponse = {
-  buckets: ScanBucket[];
-  devices: BreakdownRow[];
-  countries: BreakdownRow[];
-  cities: BreakdownRow[];
-};
-
-function ExportCsvButton({ linkId }: { linkId: string }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <a
-      href={`/analytics/${linkId}/csv`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-transform duration-150 hover:scale-[1.02] active:scale-[0.96]"
-    >
-      <HoverMorphIcon idle={Download} active={Check} hovered={hovered} />
-      Exportar CSV
-    </a>
-  );
-}
+import { EventAnalyticsPanel } from "@/components/analytics/event-analytics-panel";
 
 export function ScansPanel({ linkId }: { linkId: string }) {
-  const initialRange = useMemo(() => defaultRange(), []);
-  const [from, setFrom] = useState(initialRange.from);
-  const [to, setTo] = useState(initialRange.to);
-  const [granularity, setGranularity] = useState<ScanGranularity>("day");
-  const [data, setData] = useState<DataResponse>();
-
-  useEffect(() => {
-    let cancelled = false;
-    const params = new URLSearchParams({ granularity, from, to });
-
-    fetch(`/analytics/${linkId}/data?${params}`)
-      .then((response) => (response.ok ? response.json() : undefined))
-      .then((json) => {
-        if (!cancelled && json) setData(json);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [linkId, granularity, from, to]);
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-semibold">Escaneos</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="date"
-            value={from}
-            max={to}
-            onChange={(event) => setFrom(event.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-          />
-          <span className="text-sm text-muted-foreground">a</span>
-          <input
-            type="date"
-            value={to}
-            min={from}
-            onChange={(event) => setTo(event.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-          />
-          <select
-            value={granularity}
-            onChange={(event) => setGranularity(event.target.value as ScanGranularity)}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-          >
-            <option value="day">Día</option>
-            <option value="week">Semana</option>
-            <option value="month">Mes</option>
-          </select>
-          <ExportCsvButton linkId={linkId} />
-        </div>
-      </div>
-
-      <div className="h-64 rounded-lg border border-border bg-card p-4">
-        {data && data.buckets.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.buckets}>
-              <XAxis dataKey="bucket" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--popover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                }}
-              />
-              <Bar dataKey="scansHuman" name="Escaneos" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Aún no hay escaneos en este rango.
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <BreakdownList title="Países principales" rows={data?.countries} />
-        <BreakdownList title="Ciudades principales" rows={data?.cities} />
-        <BreakdownList title="Por dispositivo" rows={data?.devices} />
-      </div>
-    </div>
-  );
-}
-
-function BreakdownList({ title, rows }: { title: string; rows?: BreakdownRow[] }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <p className="mb-2 text-sm font-medium">{title}</p>
-      {!rows || rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin datos en este rango.</p>
-      ) : (
-        <ul className="space-y-1 text-sm">
-          {rows.map((row) => (
-            <li key={row.label} className="flex items-center justify-between">
-              <span className="text-muted-foreground">{row.label}</span>
-              <span className="font-medium">{row.count}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <EventAnalyticsPanel
+      linkId={linkId}
+      heading="Escaneos"
+      surface="qr"
+      dataUrl={`/analytics/${linkId}/data`}
+      csvUrl={`/analytics/${linkId}/csv`}
+      emptyMessage="Aún no hay escaneos en este rango."
+      showBreakdowns
+    />
   );
 }

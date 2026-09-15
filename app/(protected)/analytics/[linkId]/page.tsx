@@ -1,17 +1,13 @@
 import { notFound } from "next/navigation";
-import { CircleHelp } from "lucide-react";
 import { getCurrentUser } from "@/modules/auth";
 import { getLink, getShortLink, getDomain } from "@/modules/links";
 import { getQrCodeByLinkId } from "@/modules/qr";
-import {
-  countQrScansForLink,
-  countUniqueQrScansForLink,
-  getScansForLinkGrouped,
-} from "@/modules/analytics";
+import { getAnalyticsForLinkGrouped } from "@/modules/analytics";
 import { CopyButton } from "@/components/copy-button";
 import { ScansPanel } from "./scans-panel";
 import { ActivityHeatmap } from "./activity-heatmap";
 import { buildHeatmapWeeks } from "./heatmap";
+import { EditDestinationButton } from "./edit-destination-button";
 
 const HEATMAP_WEEKS = 20;
 
@@ -41,15 +37,17 @@ export default async function AnalyticsPage({
   const heatmapFrom = new Date(today);
   heatmapFrom.setUTCDate(heatmapFrom.getUTCDate() - (HEATMAP_WEEKS * 7 - 1));
 
-  const [totalScans, uniqueScans, heatmapRows] = await Promise.all([
-    countQrScansForLink(linkId),
-    countUniqueQrScansForLink(linkId),
-    getScansForLinkGrouped(linkId, "day", heatmapFrom, today),
-  ]);
+  const heatmapRows = await getAnalyticsForLinkGrouped(
+    linkId,
+    "qr_scan",
+    "day",
+    heatmapFrom,
+    today,
+  );
 
-  const heatmapCounts = new Map(heatmapRows.map((row) => [row.bucket, row.scansHuman]));
+  const heatmapCounts = new Map(heatmapRows.map((row) => [row.bucket, row.count]));
   const heatmapWeeks = buildHeatmapWeeks(heatmapCounts, HEATMAP_WEEKS, today);
-  const heatmapTotal = heatmapRows.reduce((sum, row) => sum + row.scansHuman, 0);
+  const heatmapTotal = heatmapRows.reduce((sum, row) => sum + row.count, 0);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -75,12 +73,20 @@ export default async function AnalyticsPage({
             Creado el {link.createdAt.toLocaleDateString()}
           </p>
           {qr && (
-            <a
-              href={`/qr/${qr.id}/download?format=png`}
-              className="inline-block rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"
-            >
-              Descargar
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/qr/${qr.id}/download?format=png`}
+                className="inline-block rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"
+              >
+                Descargar
+              </a>
+              <EditDestinationButton
+                qrId={qr.id}
+                linkId={linkId}
+                name={qr.name}
+                destinationUrl={link.destinationUrl}
+              />
+            </div>
           )}
         </div>
 
@@ -102,34 +108,9 @@ export default async function AnalyticsPage({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Stat label="Escaneos totales" value={totalScans} />
-        <Stat
-          label="Escaneos únicos"
-          value={uniqueScans}
-          tooltip="¿Cuántos dispositivos diferentes escanearon tu código QR?"
-        />
-      </div>
-
       <ScansPanel linkId={linkId} />
 
       <ActivityHeatmap weeks={heatmapWeeks} total={heatmapTotal} />
-    </div>
-  );
-}
-
-function Stat({ label, value, tooltip }: { label: string; value: number; tooltip?: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground uppercase">
-        {label}
-        {tooltip && (
-          <span title={tooltip} className="normal-case">
-            <CircleHelp size={14} />
-          </span>
-        )}
-      </p>
-      <p className="font-heading text-2xl font-semibold">{value}</p>
     </div>
   );
 }

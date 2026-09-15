@@ -9,31 +9,24 @@ const querySchema = z.object({
   to: z.string().date(),
 });
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ linkId: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  if (!user) {
-    return new NextResponse(null, { status: 401 });
-  }
+  if (!user) return new NextResponse(null, { status: 401 });
 
-  const { linkId } = await params;
-  const link = await getLink(linkId);
+  const { id } = await params;
+  const link = await getLink(id);
   if (!link || link.organizationId !== user.profile.organizationId) {
     return new NextResponse(null, { status: 404 });
   }
 
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
-  if (!parsed.success) {
-    return new NextResponse(null, { status: 400 });
-  }
+  if (!parsed.success) return new NextResponse(null, { status: 400 });
 
-  const csv = await exportAnalyticsCsvForLink(linkId, "qr_scan", parsed.data);
+  const csv = await exportAnalyticsCsvForLink(id, "link_click", parsed.data);
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv",
-      "Content-Disposition": `attachment; filename="qr-analytics-${linkId}.csv"`,
+      "Content-Disposition": `attachment; filename="link-analytics-${id}.csv"`,
     },
   });
 }
