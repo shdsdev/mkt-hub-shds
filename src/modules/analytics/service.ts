@@ -1,9 +1,12 @@
-import { count, countDistinct, eq, and, gte, lte, sql, asc, desc } from "drizzle-orm";
+import { count, countDistinct, eq, and, gte, lte, sql, asc, desc, sum } from "drizzle-orm";
 import { db } from "@/db/client";
 import { trackingEvents, trackingRollupDaily } from "./db";
 import { createTrackingBuffer } from "./buffer";
 import { isKnownBot } from "./bot";
-import { formatRollupCsv, type RollupRow } from "./csv";
+import { formatAnalyticsCsv } from "./csv";
+import { utcDayBounds, previousPeriod, daysBetween, type AnalyticsDateRange } from "./date-range";
+import { percentChange } from "./percent-change";
+import { getAnalyticsSource, type AnalyticsEventType } from "./source";
 import { getQrCode } from "@/modules/qr";
 
 export type TrackEventInput = typeof trackingEvents.$inferInsert;
@@ -42,6 +45,8 @@ export function trackRedirect(input: {
   deviceType?: string;
   geoCountry?: string;
   geoCity?: string;
+  geoRegion?: string;
+  referrer?: string;
 }): void {
   const now = new Date();
   buffer.enqueue({
@@ -57,6 +62,8 @@ export function trackRedirect(input: {
     deviceType: input.deviceType,
     geoCountry: input.geoCountry,
     geoCity: input.geoCity,
+    region: input.geoRegion,
+    referrer: input.referrer,
   });
 }
 
@@ -114,6 +121,47 @@ export async function countUniqueQrScansForLink(linkId: string): Promise<number>
   return row?.count ?? 0;
 }
 
+export async function countUniqueEventsForLink(
+  linkId: string,
+  eventType: AnalyticsEventType,
+  from: Date,
+  to: Date,
+): Promise<number> {
+  const [row] = await db
+    .select({ count: countDistinct(trackingEvents.visitorHash) })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.linkId, linkId),
+        eq(trackingEvents.sourceType, eventType),
+        gte(trackingEvents.createdAt, from),
+        lte(trackingEvents.createdAt, to),
+      ),
+    );
+  return row?.count ?? 0;
+}
+
+export async function getAnalyticsTotalsForLink(
+  linkId: string,
+  eventType: AnalyticsEventType,
+  from: Date,
+  to: Date,
+): Promise<{ total: number; unique: number }> {
+  const humanColumn = humanRollupColumn(eventType);
+  const [totalRow] = await db
+    .select({ total: sum(humanColumn) })
+    .from(trackingRollupDaily)
+    .where(
+      and(
+        eq(trackingRollupDaily.linkId, linkId),
+        gte(trackingRollupDaily.date, from.toISOString().slice(0, 10)),
+        lte(trackingRollupDaily.date, to.toISOString().slice(0, 10)),
+      ),
+    );
+  const unique = await countUniqueEventsForLink(linkId, eventType, from, to);
+  return { total: Number(totalRow?.total ?? 0), unique };
+}
+
 // One atomic upsert-from-aggregate — idempotent (safe to re-run), covers any past day not yet
 // rolled up (not just "yesterday"), never touches today (still accumulating). The retention/
 // partition-drop half of DATABASE.md's design is deliberately not built yet (Phase 7 design doc).
@@ -139,61 +187,26 @@ export async function runDailyRollup(): Promise<void> {
   `);
 }
 
-export type RollupTotals = {
-  clicksHuman: number;
-  clicksBot: number;
-  scansHuman: number;
-  scansBot: number;
-};
+export type AnalyticsGranularity = "day" | "week" | "month";
+export type AnalyticsBucket = { bucket: string; count: number };
 
-export async function getRollupForLink(linkId: string): Promise<RollupRow[]> {
-  const rows = await db
-    .select()
-    .from(trackingRollupDaily)
-    .where(eq(trackingRollupDaily.linkId, linkId))
-    .orderBy(asc(trackingRollupDaily.date));
-
-  return rows.map((row) => ({
-    date: row.date,
-    clicksHuman: row.clicksHuman,
-    clicksBot: row.clicksBot,
-    scansHuman: row.scansHuman,
-    scansBot: row.scansBot,
-  }));
+function humanRollupColumn(eventType: AnalyticsEventType) {
+  return eventType === "qr_scan" ? trackingRollupDaily.scansHuman : trackingRollupDaily.clicksHuman;
 }
-
-export async function getRollupTotalsForLink(linkId: string): Promise<RollupTotals> {
-  const rows = await getRollupForLink(linkId);
-  return rows.reduce(
-    (totals, row) => ({
-      clicksHuman: totals.clicksHuman + row.clicksHuman,
-      clicksBot: totals.clicksBot + row.clicksBot,
-      scansHuman: totals.scansHuman + row.scansHuman,
-      scansBot: totals.scansBot + row.scansBot,
-    }),
-    { clicksHuman: 0, clicksBot: 0, scansHuman: 0, scansBot: 0 },
-  );
-}
-
-export async function exportRollupCsvForLink(linkId: string): Promise<string> {
-  const rows = await getRollupForLink(linkId);
-  return formatRollupCsv(rows);
-}
-
-export type ScanGranularity = "day" | "week" | "month";
-export type ScanBucket = { bucket: string; scansHuman: number };
 
 // "day" reads tracking_rollup_daily rows directly; "week"/"month" sum them into coarser buckets
 // via date_trunc — both stay within the already-rolled-up table, no raw tracking_events touched.
-export async function getScansForLinkGrouped(
+export async function getAnalyticsForLinkGrouped(
   linkId: string,
-  granularity: ScanGranularity,
+  eventType: AnalyticsEventType,
+  granularity: AnalyticsGranularity,
   from: Date,
   to: Date,
-): Promise<ScanBucket[]> {
+): Promise<AnalyticsBucket[]> {
+  const humanColumn = humanRollupColumn(eventType);
   if (granularity === "day") {
     const rows = await db
-      .select({ bucket: trackingRollupDaily.date, scansHuman: trackingRollupDaily.scansHuman })
+      .select({ bucket: trackingRollupDaily.date, count: humanColumn })
       .from(trackingRollupDaily)
       .where(
         and(
@@ -207,9 +220,9 @@ export async function getScansForLinkGrouped(
   }
 
   const truncUnit = granularity === "week" ? "week" : "month";
-  const rows = await db.execute<{ bucket: string; scans_human: number }>(sql`
+  const rows = await db.execute<{ bucket: string; count: number }>(sql`
     SELECT date_trunc(${truncUnit}, ${trackingRollupDaily.date}::date)::date::text AS bucket,
-           sum(${trackingRollupDaily.scansHuman})::int AS scans_human
+           sum(${humanColumn})::int AS count
     FROM ${trackingRollupDaily}
     WHERE ${trackingRollupDaily.linkId} = ${linkId}
       AND ${trackingRollupDaily.date} >= ${from.toISOString().slice(0, 10)}
@@ -217,7 +230,7 @@ export async function getScansForLinkGrouped(
     GROUP BY bucket
     ORDER BY bucket ASC
   `);
-  return rows.map((row) => ({ bucket: row.bucket, scansHuman: row.scans_human }));
+  return rows;
 }
 
 export type BreakdownRow = { label: string; count: number };
@@ -229,6 +242,7 @@ export type BreakdownRow = { label: string; count: number };
 // too, for links that only ever got a plain short link.
 async function breakdownForLink(
   linkId: string,
+  eventType: AnalyticsEventType,
   column: typeof trackingEvents.deviceType | typeof trackingEvents.geoCountry | typeof trackingEvents.geoCity,
   from: Date,
   to: Date,
@@ -239,7 +253,7 @@ async function breakdownForLink(
     .where(
       and(
         eq(trackingEvents.linkId, linkId),
-        eq(trackingEvents.sourceType, "qr_scan"),
+        eq(trackingEvents.sourceType, eventType),
         gte(trackingEvents.createdAt, from),
         lte(trackingEvents.createdAt, to),
       ),
@@ -253,28 +267,29 @@ async function breakdownForLink(
     .map((row) => ({ label: row.label as string, count: row.count }));
 }
 
-export async function getDeviceBreakdownForLink(
+export async function getAnalyticsBreakdownsForLink(
   linkId: string,
+  eventType: AnalyticsEventType,
   from: Date,
   to: Date,
-): Promise<BreakdownRow[]> {
-  return breakdownForLink(linkId, trackingEvents.deviceType, from, to);
+): Promise<{ devices: BreakdownRow[]; countries: BreakdownRow[]; cities: BreakdownRow[] }> {
+  const [devices, countries, cities] = await Promise.all([
+    breakdownForLink(linkId, eventType, trackingEvents.deviceType, from, to),
+    breakdownForLink(linkId, eventType, trackingEvents.geoCountry, from, to),
+    breakdownForLink(linkId, eventType, trackingEvents.geoCity, from, to),
+  ]);
+  return { devices, countries, cities };
 }
 
-export async function getCountryBreakdownForLink(
+export async function exportAnalyticsCsvForLink(
   linkId: string,
-  from: Date,
-  to: Date,
-): Promise<BreakdownRow[]> {
-  return breakdownForLink(linkId, trackingEvents.geoCountry, from, to);
-}
-
-export async function getCityBreakdownForLink(
-  linkId: string,
-  from: Date,
-  to: Date,
-): Promise<BreakdownRow[]> {
-  return breakdownForLink(linkId, trackingEvents.geoCity, from, to);
+  eventType: AnalyticsEventType,
+  range: AnalyticsDateRange,
+): Promise<string> {
+  const { from, to } = utcDayBounds(range);
+  const rows = await getAnalyticsForLinkGrouped(linkId, eventType, "day", from, to);
+  const source = getAnalyticsSource(eventType === "qr_scan" ? "qr" : "links");
+  return formatAnalyticsCsv(source.csvColumn, rows);
 }
 
 // Org-wide, human-only, last 30 days — the one Overview stat that isn't a simple status count on
@@ -294,4 +309,258 @@ export async function getOrgTrafficLast30Days(organizationId: string): Promise<n
       ),
     );
   return row?.count ?? 0;
+}
+
+// Org-wide daily series, generalizing getAnalyticsForLinkGrouped from one link to every link in
+// the organization — grouped by date (unlike the per-link version, which needs no grouping
+// because tracking_rollup_daily already has one row per (linkId, date)).
+export async function getOrgTrendGrouped(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  granularity: AnalyticsGranularity,
+  from: Date,
+  to: Date,
+): Promise<AnalyticsBucket[]> {
+  const humanColumn = humanRollupColumn(eventType);
+  if (granularity === "day") {
+    const rows = await db
+      .select({ bucket: trackingRollupDaily.date, count: sum(humanColumn) })
+      .from(trackingRollupDaily)
+      .where(
+        and(
+          eq(trackingRollupDaily.organizationId, organizationId),
+          gte(trackingRollupDaily.date, from.toISOString().slice(0, 10)),
+          lte(trackingRollupDaily.date, to.toISOString().slice(0, 10)),
+        ),
+      )
+      .groupBy(trackingRollupDaily.date)
+      .orderBy(asc(trackingRollupDaily.date));
+    return rows.map((row) => ({ bucket: row.bucket, count: Number(row.count ?? 0) }));
+  }
+
+  const truncUnit = granularity === "week" ? "week" : "month";
+  const rows = await db.execute<{ bucket: string; count: number }>(sql`
+    SELECT date_trunc(${truncUnit}, ${trackingRollupDaily.date}::date)::date::text AS bucket,
+           sum(${humanColumn})::int AS count
+    FROM ${trackingRollupDaily}
+    WHERE ${trackingRollupDaily.organizationId} = ${organizationId}
+      AND ${trackingRollupDaily.date} >= ${from.toISOString().slice(0, 10)}
+      AND ${trackingRollupDaily.date} <= ${to.toISOString().slice(0, 10)}
+    GROUP BY bucket
+    ORDER BY bucket ASC
+  `);
+  return rows;
+}
+
+async function sumRollupInRange(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  range: AnalyticsDateRange,
+): Promise<number> {
+  const humanColumn = humanRollupColumn(eventType);
+  const [row] = await db
+    .select({ total: sum(humanColumn) })
+    .from(trackingRollupDaily)
+    .where(
+      and(
+        eq(trackingRollupDaily.organizationId, organizationId),
+        gte(trackingRollupDaily.date, range.from),
+        lte(trackingRollupDaily.date, range.to),
+      ),
+    );
+  return Number(row?.total ?? 0);
+}
+
+export async function getOrgTotals(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  range: AnalyticsDateRange,
+): Promise<{ current: number; previous: number; percentChange: number | null }> {
+  const [current, previous] = await Promise.all([
+    sumRollupInRange(organizationId, eventType, range),
+    sumRollupInRange(organizationId, eventType, previousPeriod(range)),
+  ]);
+  return { current, previous, percentChange: percentChange(current, previous) };
+}
+
+// The single day with the most interactions in range; its percentChange compares that day's
+// count against the average daily count of the previous period (not the previous period's own
+// best day, and not a same-offset day — both would add fragile edge cases at range boundaries
+// for no clearer meaning).
+export async function getOrgBestDay(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  range: AnalyticsDateRange,
+): Promise<{ date: string; count: number; percentChange: number | null; previous: number } | null> {
+  const humanColumn = humanRollupColumn(eventType);
+  const [best] = await db
+    .select({ date: trackingRollupDaily.date, count: sum(humanColumn) })
+    .from(trackingRollupDaily)
+    .where(
+      and(
+        eq(trackingRollupDaily.organizationId, organizationId),
+        gte(trackingRollupDaily.date, range.from),
+        lte(trackingRollupDaily.date, range.to),
+      ),
+    )
+    .groupBy(trackingRollupDaily.date)
+    .orderBy(desc(sum(humanColumn)))
+    .limit(1);
+  if (!best) return null;
+
+  const prev = previousPeriod(range);
+  const prevTotal = await sumRollupInRange(organizationId, eventType, prev);
+  const prevDays = daysBetween(prev.from, prev.to);
+  const prevAverage = prevDays > 0 ? prevTotal / prevDays : 0;
+  const dayCount = Number(best.count ?? 0);
+  return {
+    date: best.date,
+    count: dayCount,
+    percentChange: percentChange(dayCount, prevAverage),
+    previous: Math.round(prevAverage),
+  };
+}
+
+// The country with the most interactions in range; its percentChange compares that same
+// country's count against its own count in the previous period (a country not seen in the
+// previous period reads as null, not +∞% or +100%).
+export async function getOrgBestLocation(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  range: AnalyticsDateRange,
+): Promise<{ country: string; count: number; percentChange: number | null; previous: number } | null> {
+  const { from, to } = utcDayBounds(range);
+  const [best] = await db
+    .select({ country: trackingEvents.geoCountry, count: count() })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.organizationId, organizationId),
+        eq(trackingEvents.sourceType, eventType),
+        gte(trackingEvents.createdAt, from),
+        lte(trackingEvents.createdAt, to),
+      ),
+    )
+    .groupBy(trackingEvents.geoCountry)
+    .orderBy(desc(count()))
+    .limit(1);
+  if (!best || !best.country) return null;
+
+  const { from: prevFrom, to: prevTo } = utcDayBounds(previousPeriod(range));
+  const [prevRow] = await db
+    .select({ count: count() })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.organizationId, organizationId),
+        eq(trackingEvents.sourceType, eventType),
+        eq(trackingEvents.geoCountry, best.country),
+        gte(trackingEvents.createdAt, prevFrom),
+        lte(trackingEvents.createdAt, prevTo),
+      ),
+    );
+  const previousCount = prevRow?.count ?? 0;
+  return {
+    country: best.country,
+    count: best.count,
+    percentChange: percentChange(best.count, previousCount),
+    previous: previousCount,
+  };
+}
+
+// Generalizes breakdownForLink from one link to the whole organization. Country and device
+// return every row (no limit(5) like the per-link version) — the location table paginates
+// client-side. Referrer keeps its null rows instead of discarding them (mapped to "Directo") —
+// unlike device/country, "no referrer" is itself a meaningful, expected bucket here, not missing
+// data.
+async function orgBreakdown(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  column: typeof trackingEvents.deviceType | typeof trackingEvents.geoCountry,
+  from: Date,
+  to: Date,
+): Promise<BreakdownRow[]> {
+  const rows = await db
+    .select({ label: column, count: count() })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.organizationId, organizationId),
+        eq(trackingEvents.sourceType, eventType),
+        gte(trackingEvents.createdAt, from),
+        lte(trackingEvents.createdAt, to),
+      ),
+    )
+    .groupBy(column)
+    .orderBy(desc(count()));
+  return rows
+    .filter((row) => row.label !== null)
+    .map((row) => ({ label: row.label as string, count: row.count }));
+}
+
+async function orgReferrerBreakdown(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  from: Date,
+  to: Date,
+): Promise<BreakdownRow[]> {
+  const rows = await db
+    .select({ label: trackingEvents.referrer, count: count() })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.organizationId, organizationId),
+        eq(trackingEvents.sourceType, eventType),
+        gte(trackingEvents.createdAt, from),
+        lte(trackingEvents.createdAt, to),
+      ),
+    )
+    .groupBy(trackingEvents.referrer)
+    .orderBy(desc(count()));
+  return rows.map((row) => ({ label: row.label ?? "Directo", count: row.count }));
+}
+
+export type OrgBreakdowns = { devices: BreakdownRow[]; countries: BreakdownRow[]; referrers: BreakdownRow[] };
+
+export async function getOrgBreakdowns(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  from: Date,
+  to: Date,
+): Promise<OrgBreakdowns> {
+  const [devices, countries, referrers] = await Promise.all([
+    orgBreakdown(organizationId, eventType, trackingEvents.deviceType, from, to),
+    orgBreakdown(organizationId, eventType, trackingEvents.geoCountry, from, to),
+    orgReferrerBreakdown(organizationId, eventType, from, to),
+  ]);
+  return { devices, countries, referrers };
+}
+
+// Per-country region breakdown, fetched lazily (one call per expanded row in the location table)
+// rather than bundled into getOrgBreakdowns — most countries in a given range are never expanded,
+// so computing this eagerly for all of them would be wasted work on every dashboard load.
+export async function getOrgRegionBreakdown(
+  organizationId: string,
+  eventType: AnalyticsEventType,
+  country: string,
+  from: Date,
+  to: Date,
+): Promise<BreakdownRow[]> {
+  const rows = await db
+    .select({ label: trackingEvents.region, count: count() })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.organizationId, organizationId),
+        eq(trackingEvents.sourceType, eventType),
+        eq(trackingEvents.geoCountry, country),
+        gte(trackingEvents.createdAt, from),
+        lte(trackingEvents.createdAt, to),
+      ),
+    )
+    .groupBy(trackingEvents.region)
+    .orderBy(desc(count()));
+  return rows
+    .filter((row) => row.label !== null)
+    .map((row) => ({ label: row.label as string, count: row.count }));
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "tracking_events" ADD COLUMN "region" text;

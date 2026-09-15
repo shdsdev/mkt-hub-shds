@@ -23,6 +23,8 @@ import {
   Settings2,
   LogOut,
   DoorOpen,
+  ChartColumn,
+  ChartColumnIncreasing,
 } from "lucide";
 import {
   Sidebar,
@@ -80,7 +82,8 @@ function NavItem({
 
 export function AppSidebar({ email, role }: { email: string; role: string }) {
   const pathname = usePathname();
-  const qrShortLinksActive = pathname.startsWith("/links") || pathname.startsWith("/qr");
+  const qrShortLinksActive =
+    pathname.startsWith("/links") || pathname.startsWith("/qr") || pathname.startsWith("/analytics");
   const [qrShortLinksOpen, setQrShortLinksOpen] = useState(qrShortLinksActive);
   const [qrGroupHovered, setQrGroupHovered] = useState(false);
   const [signOutHovered, setSignOutHovered] = useState(false);
@@ -130,6 +133,9 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
                   </NavItem>
                   <NavItem href="/qr" idle={ScanLine} active={QrCode}>
                     Códigos QR
+                  </NavItem>
+                  <NavItem href="/analytics" idle={ChartColumn} active={ChartColumnIncreasing}>
+                    Analytics
                   </NavItem>
                 </div>
               )}

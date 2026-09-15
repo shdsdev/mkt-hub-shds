@@ -37,6 +37,11 @@ what Supabase's schema doesn't: organization membership and the coarse role/stat
 - `domain_verification_status`
 - `short_link_kind`: link / qr
 - `qr_mode`: dynamic / static
+- `qr_static_kind`: text / vcard / email / sms / wifi (descriptive only — see below)
+- `qr_shape_type`: square / rounded / dots / classy / classy-rounded / extra-rounded (QR body dots)
+- `qr_corner_type`: `qr_shape_type`'s six values plus `dot` (eye frame/eye ball — the rendering
+  library's corner styles allow one more option than its body-dot styles, so these are two
+  distinct enums, not one shared between all three shape pickers)
 - `tracking_source_type`
 - `device_type`
 - `audit_action`
@@ -53,6 +58,28 @@ what Supabase's schema doesn't: organization membership and the coarse role/stat
 - **`print_runs`** references exactly one of `qr_code_id` / `short_link_id` (CHECK); `scan_rate =
   scans / SUM(quantity)`; no print run recorded → UI shows "no print run recorded", never 0% or
   100%.
+- **`qr_codes.name`** is required (`NOT NULL`) and purely organizational — never encoded into the
+  QR image itself, unrelated to `static_payload`/`link_id`. **`static_kind`** is likewise
+  descriptive only (drives the list page's icon/label); every one of the five static content
+  types still stores its final encoded string in `static_payload` — it does not relax the CHECK
+  above. **`folder_id`**/**`campaign_id`** live on `qr_codes` itself (not only reachable via
+  `links.folder_id`/`campaign_links`) so a static QR — which has no `link_id` — can still be
+  grouped; the two are an either/or organizational tag, not a constraint-enforced invariant.
+  **`placement_image_url`** is the photo of where a QR is deployed (a flyer, a magazine page), a
+  separate concept from `logo_url` (embedded inside the QR image).
+- **`qr-placement-images`** is a second public Storage bucket alongside `qr-logos` (same
+  public/policy shape, 5 MB limit instead of 2 MB — real photographs, not small embedded logos).
+  **`organizations.default_logo_url`** is an org-wide (not per-user) default pre-filled into new
+  QR codes, set from Settings.
+- **`qr_codes.dots_type`/`corners_square_type`/`corners_dot_type`** default to `'square'` (every
+  pre-existing row gets this via the column default, no backfill needed — visually identical to
+  the plain-square output the old renderer always produced). Purely cosmetic, same "never affect
+  redirect resolution" group as `background_color`/`foreground_color`/`error_correction_level`.
+- **`qr_design_templates`** is a saved-designs table (org-scoped: name + the seven design fields —
+  the three shape columns, both colors, error-correction level, logo URL). Applying a template
+  copies its fields into the creation wizard's in-memory state; there is no FK from `qr_codes` back
+  to the template it was copied from — a template is a starting point, not a live binding, so
+  editing a template later never retroactively changes any QR already created from it.
 - **Soft-delete** is enforced in three layers: application check (authoritative for MVP), `ON
   DELETE RESTRICT` FKs from `tracking_events` / `print_runs`, and an optional `BEFORE DELETE`
   trigger as defense in depth (noted because partition drops eventually lapse the FK protection).
@@ -68,6 +95,12 @@ what Supabase's schema doesn't: organization membership and the coarse role/stat
 ingest for historical attribution) + `source_type` enum (`qr_scan` / `link_click` /
 `campaign_click`). A CHECK ties `source_type` to the populated FK. This table is monthly-range
 **partitioned** by `created_at`; primary key is `(id, created_at)` because of partitioning.
+
+Nullable `device_type`, `geo_country`, `geo_city`, `referrer` (normalized hostname of the HTTP
+`Referer` header, `NULL` when absent, e.g. most QR scans opened directly from a camera app), and
+`region` (ISO 3166-2 subdivision code from geoip-lite, e.g. `"SLP"`/`"TX"`, shown raw/untranslated
+— same convention as `geo_country`) round out the best-effort, captured-at-insert-time metadata
+columns.
 
 ### Indexes on `tracking_events` (all on the partitioned parent)
 

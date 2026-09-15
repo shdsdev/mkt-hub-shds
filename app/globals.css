@@ -602,6 +602,102 @@
   background: var(--foreground);
 }
 
+/* "Spin" checkbox. Markup: <label class="check ck-10"><input type="checkbox" tabindex="-1"
+   checked><span class="box"></span><span class="lbl">Label</span></label>. The project's one
+   checkbox style — see src/components/checkbox.tsx for the React wiring.
+   --primary/--secondary/--surface default to this app's own tokens instead of the spec's literal
+   hex (same swap as the loader/tooltip additions above) — flipped from the spec's light-page
+   assumption (dark ink on a light surface) to this app's dark theme: --secondary is the light
+   foreground (label text, and the checked-box fill), --surface is a dark surface (drawn as the
+   checkmark against that light fill, and blended into the unchecked border). --primary stays the
+   focus-ring accent, same role as this app's --ring everywhere else.
+   --surface uses --popover, not --background: several themes here (the "aura" variants) make
+   --background quite translucent (as low as ~32% alpha) for a backdrop-blur effect, which left the
+   checkmark barely visible against the light fill; --popover stays meaningfully more opaque in
+   every theme, so the check reads crisply regardless of which theme is active. */
+.check {
+  /* --primary is intentionally not redeclared here — it inherits the app's own --primary token
+     straight from :root (redeclaring it as var(--primary)) would self-reference and go invalid. */
+  --secondary: var(--foreground);
+  --surface: var(--popover);
+  --on: var(--secondary);
+  --mark: var(--surface);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--secondary);
+  -webkit-tap-highlight-color: transparent;
+}
+.check input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.check .box {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 2px solid color-mix(in srgb, var(--secondary) 45%, var(--surface));
+  border-radius: 6px;
+  background: transparent;
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+.check .box::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 6px;
+  height: 11px;
+  border: solid var(--mark);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transform-origin: center;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.check input:checked + .box {
+  background: var(--on);
+  border-color: var(--on);
+}
+.check input:checked + .box::after {
+  transform: rotate(45deg) scale(1);
+}
+.check input:focus-visible + .box {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Box spins a full turn as the checkmark lands. */
+.ck-10 input:checked + .box {
+  animation: ck10-spin 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ck10-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .check .box,
+  .check .box::after {
+    transition-duration: 0.01ms !important;
+  }
+  .ck-10 input:checked + .box {
+    animation: none !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -622,6 +718,24 @@
   .bg-popover {
     backdrop-filter: blur(12px);
     box-shadow: var(--shadow-md);
+  }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+  .maplibregl-ctrl-attrib {
+    @apply bg-background! text-muted-foreground! border-border! rounded-md! border! shadow-sm!;
+  }
+  .maplibregl-ctrl-attrib a {
+    @apply text-muted-foreground!;
+  }
+  .maplibregl-ctrl-attrib a:hover {
+    @apply text-foreground!;
+  }
+  .maplibregl-ctrl-attrib-button {
+    @apply bg-transparent! dark:invert;
   }
 }
 
@@ -652,4 +766,3 @@
 [data-app-theme="midnight"] .content-frame {
   border: 1px solid rgba(220, 230, 240, 0.14);
 }
-

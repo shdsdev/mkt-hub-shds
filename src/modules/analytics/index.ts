@@ -6,19 +6,31 @@ export {
   countUniqueScansForQrCode,
   countQrScansForLink,
   countUniqueQrScansForLink,
+  countUniqueEventsForLink,
+  getAnalyticsTotalsForLink,
   runDailyRollup,
-  getRollupForLink,
-  getRollupTotalsForLink,
-  getScansForLinkGrouped,
-  getDeviceBreakdownForLink,
-  getCountryBreakdownForLink,
-  getCityBreakdownForLink,
-  exportRollupCsvForLink,
+  getAnalyticsForLinkGrouped,
+  getAnalyticsBreakdownsForLink,
+  exportAnalyticsCsvForLink,
   getOrgTrafficLast30Days,
-  type RollupTotals,
-  type ScanGranularity,
-  type ScanBucket,
+  getOrgTrendGrouped,
+  getOrgTotals,
+  getOrgBestDay,
+  getOrgBestLocation,
+  getOrgBreakdowns,
+  getOrgRegionBreakdown,
+  type AnalyticsGranularity,
+  type AnalyticsBucket,
   type BreakdownRow,
+  type OrgBreakdowns,
 } from "./service";
 export { resolveVisitor } from "./visitor";
-export { type RollupRow } from "./csv";
+export { normalizeReferrer } from "./referrer";
+export { percentChange } from "./percent-change";
+export {
+  getAnalyticsSource,
+  type AnalyticsEventType,
+  type AnalyticsMetric,
+  type AnalyticsSurface,
+} from "./source";
+export { utcDayBounds, previousPeriod, daysBetween, type AnalyticsDateRange } from "./date-range";

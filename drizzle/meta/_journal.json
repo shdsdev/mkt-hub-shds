@@ -71,6 +71,34 @@
       "when": 1788995532880,
       "tag": "0009_analytics-geo-city",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789069184861,
+      "tag": "0010_flashy_groot",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789072140076,
+      "tag": "0011_striped_blue_blade",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789498489870,
+      "tag": "0012_crazy_exiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789503377337,
+      "tag": "0013_talented_shockwave",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 # Org-Wide Analytics Dashboard Implementation Plan
 
-> **For agentic workers:** Steps use checkbox (`- [ ]`) syntax for tracking. Work task-by-task, in order — later tasks depend on earlier schema/service changes compiling first.
+> **For agentic workers:** Steps use checkbox (`- [x]`) syntax for tracking. Work task-by-task, in order — later tasks depend on earlier schema/service changes compiling first.
 
 **Goal:** Add a third nav tab, "Analytics", showing an aggregate dashboard across every link or every QR code in the organization (source picked by a selector, never blended), with a shared date-range + "período anterior" comparison, a trend chart, "mejor día"/"mejor ubicación" stat cards, a device breakdown, a location table, a referrer breakdown (new tracked data), and a world map (`@mapcn/map`).
 
@@ -48,7 +48,7 @@
 - Modify: `src/modules/analytics/db.ts`
 - Test: `pnpm typecheck`, `pnpm db:generate`
 
-- [ ] **Step 1: Add the column**
+- [x] **Step 1: Add the column**
 
 ```ts
 // Normalized hostname of the HTTP Referer header (e.g. "instagram.com"), null when absent —
@@ -60,22 +60,22 @@ referrer: text("referrer"),
 Place it next to `geoCity` in `trackingEvents` — same "captured at insert time, nullable,
 best-effort" group.
 
-- [ ] **Step 2: Typecheck, then generate the migration**
+- [x] **Step 2: Typecheck, then generate the migration**
 
 Run: `pnpm typecheck` (expect `0`), then `pnpm db:generate`. Expected: one new file under
 `drizzle/` with a single `ALTER TABLE "tracking_events" ADD COLUMN "referrer" text` — nullable, no
 default, no backfill needed (every prior row simply has `referrer = NULL`).
 
-- [ ] **Step 3: Apply it**
+- [x] **Step 3: Apply it**
 
 Run: `pnpm db:migrate`. Expected: exits `0`.
 
-- [ ] **Step 4: Update `docs/DATABASE.md`**
+- [x] **Step 4: Update `docs/DATABASE.md`**
 
 Add `referrer` to the `tracking_events` column list, one line, same style as the existing
 `geo_country`/`geo_city` bullets.
 
-- [ ] **Step 5: Do not commit.**
+- [x] **Step 5: Do not commit.**
 
 ### Task 2: Referrer Normalization + Capture
 
@@ -91,7 +91,7 @@ Add `referrer` to the `tracking_events` column list, one line, same style as the
 - Produces: `normalizeReferrer(rawHeader: string | null): string | undefined`.
 - Consumes (in `redirects/http.ts`): `request.headers.get("referer")`.
 
-- [ ] **Step 1: `referrer.ts`**
+- [x] **Step 1: `referrer.ts`**
 
 ```ts
 // A raw Referer header is a full URL ("https://l.instagram.com/?u=..."); only the hostname is
@@ -108,22 +108,22 @@ export function normalizeReferrer(rawHeader: string | null): string | undefined 
 }
 ```
 
-- [ ] **Step 2: `referrer.test.ts`**
+- [x] **Step 2: `referrer.test.ts`**
 
 Cases: a normal URL → hostname only (no path/query); `null` → `undefined`; empty string →
 `undefined`; a malformed value (e.g. `"not-a-url"`) → `undefined`, no throw.
 
-- [ ] **Step 3: Thread it through `trackRedirect`**
+- [x] **Step 3: Thread it through `trackRedirect`**
 
 In `service.ts`, add `referrer?: string` to `trackRedirect`'s input type and to the
 `buffer.enqueue(...)` call (same pattern as `deviceType`/`geoCountry`/`geoCity` — passed straight
 through, no transformation here, normalization already happened at the call site).
 
-- [ ] **Step 4: Export from `index.ts`**
+- [x] **Step 4: Export from `index.ts`**
 
 Add `normalizeReferrer` to the barrel.
 
-- [ ] **Step 5: Call it in `redirects/http.ts`**
+- [x] **Step 5: Call it in `redirects/http.ts`**
 
 ```ts
 const referrer = normalizeReferrer(request.headers.get("referer"));
@@ -132,11 +132,11 @@ const referrer = normalizeReferrer(request.headers.get("referer"));
 Add alongside the existing `deviceType`/`ip`/`geo` computation, and add `referrer` to the
 `trackRedirect({...})` call.
 
-- [ ] **Step 6: Typecheck and run the referrer tests**
+- [x] **Step 6: Typecheck and run the referrer tests**
 
 Run: `pnpm typecheck && pnpm test -- referrer`. Expected: both exit `0`.
 
-- [ ] **Step 7: Do not commit.**
+- [x] **Step 7: Do not commit.**
 
 ### Task 3: `previousPeriod` Helper
 
@@ -147,7 +147,7 @@ Run: `pnpm typecheck && pnpm test -- referrer`. Expected: both exit `0`.
 **Interfaces:**
 - Produces: `previousPeriod(range: AnalyticsDateRange): AnalyticsDateRange`.
 
-- [ ] **Step 1: Add the function**
+- [x] **Step 1: Add the function**
 
 ```ts
 // The immediately preceding period of equal length in days — the one, unambiguous definition of
@@ -163,7 +163,7 @@ export function previousPeriod({ from, to }: AnalyticsDateRange): AnalyticsDateR
 }
 ```
 
-- [ ] **Step 2: Add `daysBetween`**
+- [x] **Step 2: Add `daysBetween`**
 
 Used by `getOrgBestDay` (Task 4 Step 3) to turn the previous period's total into a daily average —
 lives here, next to `previousPeriod`, since both are pure date-range math with no DB dependency:
@@ -175,11 +175,11 @@ export function daysBetween(from: string, to: string): number {
 }
 ```
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0`.
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 4: Org-Level Service Functions
 
@@ -194,7 +194,7 @@ Run: `pnpm typecheck`. Expected: `0`.
 - Produces: `getOrgTrendGrouped`, `getOrgTotals`, `getOrgBestDay`, `getOrgBestLocation`,
   `getOrgBreakdowns`, `type OrgBreakdowns`.
 
-- [ ] **Step 1: `getOrgTrendGrouped` — org-wide daily series**
+- [x] **Step 1: `getOrgTrendGrouped` — org-wide daily series**
 
 Same shape as `getAnalyticsForLinkGrouped`, filtered by `organizationId` instead of `linkId`, and
 **grouped by date** (unlike the per-link version, which needs no grouping because one row per date
@@ -240,7 +240,7 @@ export async function getOrgTrendGrouped(
 }
 ```
 
-- [ ] **Step 2: `getOrgTotals` — current vs previous period**
+- [x] **Step 2: `getOrgTotals` — current vs previous period**
 
 ```ts
 async function sumRollupInRange(
@@ -276,7 +276,7 @@ export async function getOrgTotals(
 }
 ```
 
-- [ ] **Step 3: `getOrgBestDay`**
+- [x] **Step 3: `getOrgBestDay`**
 
 Definition (explicit, to remove any ambiguity): the single day with the most interactions in
 range; its `percentChange` compares that day's count against the **average daily count of the
@@ -317,7 +317,7 @@ export async function getOrgBestDay(
 
 Import `daysBetween` alongside `previousPeriod` from `./date-range`.
 
-- [ ] **Step 4: `getOrgBestLocation`**
+- [x] **Step 4: `getOrgBestLocation`**
 
 Definition: the country with the most interactions in range; its `percentChange` compares that
 same country's count against its own count in the previous period (a country you haven't seen
@@ -365,7 +365,7 @@ export async function getOrgBestLocation(
 }
 ```
 
-- [ ] **Step 5: `getOrgBreakdowns` — device, country, referrer**
+- [x] **Step 5: `getOrgBreakdowns` — device, country, referrer**
 
 Generalizes `breakdownForLink`: filter by `organizationId` instead of `linkId`, and (unlike the
 per-link version's `limit(5)`) return every row for country (the location table paginates
@@ -436,12 +436,12 @@ export async function getOrgBreakdowns(
 }
 ```
 
-- [ ] **Step 6: Export everything from `index.ts`**
+- [x] **Step 6: Export everything from `index.ts`**
 
 `getOrgTrendGrouped`, `getOrgTotals`, `getOrgBestDay`, `getOrgBestLocation`, `getOrgBreakdowns`,
 `type OrgBreakdowns`.
 
-- [ ] **Step 7: `org-service.test.ts`**
+- [x] **Step 7: `org-service.test.ts`**
 
 Focus on the pure logic, not full DB round-trips (no test DB harness exists in this repo today —
 match the project's existing testing posture of unit-testing pure functions, not integration
@@ -452,11 +452,11 @@ number | null`) used by all three, and unit-test *that*: positive change, negati
 `previous === 0` → `null`, `current === previous` → `0`. Also test `daysBetween` (Task 3 Step 2)
 directly: same-day range → `1`, a 7-day range → `7`.
 
-- [ ] **Step 8: Typecheck and run the new tests**
+- [x] **Step 8: Typecheck and run the new tests**
 
 Run: `pnpm typecheck && pnpm test -- org-service date-range`. Expected: both exit `0`.
 
-- [ ] **Step 9: Do not commit.**
+- [x] **Step 9: Do not commit.**
 
 ### Task 5: Data Route
 
@@ -469,7 +469,7 @@ Run: `pnpm typecheck && pnpm test -- org-service date-range`. Expected: both exi
 - Produces: `GET /analytics/data?surface=qr|links&from=...&to=...&granularity=day|week|month` →
   `{ trend, totals, bestDay, bestLocation, breakdowns }`.
 
-- [ ] **Step 1: Write the route**
+- [x] **Step 1: Write the route**
 
 Mirror `app/(protected)/analytics/[linkId]/data/route.ts`'s shape (auth check, zod-parsed query,
 `utcDayBounds`), but scoped to `user.profile.organizationId` instead of a `linkId` path param, and
@@ -513,11 +513,11 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0`.
 
-- [ ] **Step 3: Do not commit.**
+- [x] **Step 3: Do not commit.**
 
 ### Task 6: Install `@mapcn/map`
 
@@ -525,12 +525,12 @@ Run: `pnpm typecheck`. Expected: `0`.
 - Modify: `package.json`, `pnpm-lock.yaml`, `components.json` (if the shadcn CLI touches it)
 - Test: `pnpm typecheck`
 
-- [ ] **Step 1: Run the installer**
+- [x] **Step 1: Run the installer**
 
 `pnpm dlx shadcn@latest add @mapcn/map`. Follow its prompts using this project's existing shadcn
 config (same `components.json` every other shadcn component in this repo was added through).
 
-- [ ] **Step 2: Read what it generated**
+- [x] **Step 2: Read what it generated**
 
 Before writing `org-map.tsx` in Task 8, open whatever file(s) the CLI dropped in (likely under
 `src/components/ui/`) and note its actual prop shape — the design doc deliberately left this
@@ -538,11 +538,11 @@ unconfirmed until install. If it renders client-side only (likely, for an intera
 it's already a `"use client"` component so `org-map.tsx` doesn't need to do anything special beyond
 wrapping it.
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0` (nothing consumes it yet).
 
-- [ ] **Step 4: Do not commit** (or commit alone if the user asks to snapshot the dependency add
+- [x] **Step 4: Do not commit** (or commit alone if the user asks to snapshot the dependency add
       separately — installer commits are a judgment call, default to holding it with everything
       else per the Global Constraints).
 
@@ -552,7 +552,7 @@ Run: `pnpm typecheck`. Expected: `0` (nothing consumes it yet).
 - Modify: `app/(protected)/sidebar.tsx`
 - Test: browser check (Task 9)
 
-- [ ] **Step 1: Add the nav item**
+- [x] **Step 1: Add the nav item**
 
 Inside the existing `qrShortLinksOpen && (...)` block, after the "Códigos QR" `NavItem`, add a
 third one pointing at `/analytics`:
@@ -569,7 +569,7 @@ file today and match it exactly, don't introduce a second import source for icon
 file). Any reasonably distinct idle/active icon pair is fine — this is not a design decision worth
 blocking on.
 
-- [ ] **Step 2: Do not commit.**
+- [x] **Step 2: Do not commit.**
 
 ### Task 8: Dashboard Page + Components
 
@@ -587,14 +587,14 @@ blocking on.
 **Interfaces:**
 - Consumes: `GET /analytics/data` (Task 5) from the client, `@mapcn/map`'s component (Task 6).
 
-- [ ] **Step 1: `page.tsx` — thin server shell**
+- [x] **Step 1: `page.tsx` — thin server shell**
 
 Auth check (`getCurrentUser`, redirect if absent — same pattern as every other page in
 `app/(protected)`), then render `<OrgDashboard />` (no server-fetched props needed — the client
 component owns its own date range / surface state and fetches from `/analytics/data` itself, same
 posture as `EventAnalyticsPanel`).
 
-- [ ] **Step 2: `org-dashboard.tsx` — client shell**
+- [x] **Step 2: `org-dashboard.tsx` — client shell**
 
 `"use client"`. Owns `surface: AnalyticsSurface` (`useState<"qr" | "links">("links")`, default to
 Enlaces per no strong reason to default to the other), `range: DateRange`
@@ -633,7 +633,7 @@ Enlaces per no strong reason to default to the other), `range: DateRange`
 Source `Select` options use the app's shared `Select`/`SelectContent`/`SelectItem` primitives,
 same as every other selector in this codebase.
 
-- [ ] **Step 3: `stat-card.tsx`**
+- [x] **Step 3: `stat-card.tsx`**
 
 One reusable card taking `{ label: string; value: string; percentChange: number | null;
 comparisonLabel: string }`, styled exactly like the existing `+1.9% vs mitad anterior` stat in
@@ -642,7 +642,7 @@ comparisonLabel: string }`, styled exactly like the existing `+1.9% vs mitad ant
 datos en este rango." (existing empty-state copy) when the underlying best-day/best-location value
 is `null`.
 
-- [ ] **Step 4: `org-trend-chart.tsx`**
+- [x] **Step 4: `org-trend-chart.tsx`**
 
 Same visual language as `event-analytics-panel.tsx`'s `LineChart` (import that file's `defs`
 gradient/glow block, `CartesianGrid`, custom single-row `Tooltip` `content` function, dashed accent
@@ -657,14 +657,14 @@ client-side (`trend.map((row, i) => ({ ...row, previousCount: previousTrend[i]?.
 both `<Line dataKey="count">`/`<Line dataKey="previousCount">` read from one dataset, standard
 Recharts multi-series pattern.
 
-- [ ] **Step 5: `device-donut.tsx`**
+- [x] **Step 5: `device-donut.tsx`**
 
 Recharts `PieChart` + `Pie` + `Cell`, theme color tokens (`var(--accent)`, `var(--primary)`, and a
 handful of additional token-driven colors cycling through the existing app palette — no new literal
 hex values), legend as a simple list beside it (label + count), same card shell
 (`rounded-lg border border-border bg-card p-4`). Empty state: "Sin datos en este rango."
 
-- [ ] **Step 6: `location-table.tsx`**
+- [x] **Step 6: `location-table.tsx`**
 
 Country + count + percent-of-total (computed client-side from the row list: `count / total * 100`)
 + flag (emoji derived from the stored ISO country code —
@@ -676,62 +676,62 @@ already-present "Mejor ubicación" trend stat; cut here, revisit only if asked).
 no server-side pagination (expected row count is small — every distinct country seen in range, not
 every event).
 
-- [ ] **Step 7: `referrer-list.tsx`**
+- [x] **Step 7: `referrer-list.tsx`**
 
 Same list styling as the existing `BreakdownList` in `event-analytics-panel.tsx` (domain + count),
 with `"Directo"` rendered as a muted/italic label to visually distinguish "no referrer" from a real
 domain.
 
-- [ ] **Step 8: `org-map.tsx`**
+- [x] **Step 8: `org-map.tsx`**
 
 Wraps whatever `@mapcn/map` generated in Task 6, fed `data.countries.map(row => ({ countryCode:
 row.label, count: row.count }))`. Exact prop wiring depends on Task 6 Step 2's findings — implement
 against the real API once installed, not against this plan's guess.
 
-- [ ] **Step 9: Typecheck**
+- [x] **Step 9: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0`.
 
-- [ ] **Step 10: Do not commit.**
+- [x] **Step 10: Do not commit.**
 
 ### Task 9: Browser Verification
 
 **Files:** none
 
-- [ ] **Step 1: `pnpm dev`, open `/analytics`**
+- [x] **Step 1: `pnpm dev`, open `/analytics`**
 
 Confirm the page loads, the source selector defaults to "Enlaces", and every widget renders (not
 stuck in a loading state) for an org that has real tracking data (reuse the same test link/QR data
 already present in the dev DB from prior sessions' verification work).
 
-- [ ] **Step 2: Switch the source selector to "Códigos QR"**
+- [x] **Step 2: Switch the source selector to "Códigos QR"**
 
 Confirm every widget re-fetches and changes (not just the trend chart) — the "Mejor
 día"/"Mejor ubicación" cards, donut, table, referrer list, and map should all reflect QR-scan data,
 not a stale mix of both.
 
-- [ ] **Step 3: Change the date range**
+- [x] **Step 3: Change the date range**
 
 Confirm "período anterior" in the trend chart and the two stat cards' percentChange all update
 consistently with the new range (spot-check the math on one card against the raw numbers shown).
 
-- [ ] **Step 4: Confirm referrer capture end-to-end**
+- [x] **Step 4: Confirm referrer capture end-to-end**
 
 Trigger a redirect through `/r/<slug>` (or `/q/<code>`) using a request that carries a `Referer`
 header — e.g. via `curl -e "https://example.com/test-referrer" http://localhost:3000/r/<slug>` —
 then reload `/analytics` and confirm `example.com` appears in the referrer list. Also trigger one
 with no `Referer` header and confirm it shows up under "Directo", not as a missing/blank row.
 
-- [ ] **Step 5: Confirm the map renders**
+- [x] **Step 5: Confirm the map renders**
 
 Country circles/markers should appear scaled by count, matching the location table's numbers.
 
-- [ ] **Step 6: Confirm empty states**
+- [x] **Step 6: Confirm empty states**
 
 Pick a date range with no data (e.g. far in the future) and confirm every widget shows "Sin datos
 en este rango." rather than an error, a blank area, or an infinite loading spinner.
 
-- [ ] **Step 7: `pnpm build`**
+- [x] **Step 7: `pnpm build`**
 
 Expected: exits `0`.
 

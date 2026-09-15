@@ -118,6 +118,7 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**", "src/hooks/**"],
     rules: {
       "react-hooks/set-state-in-effect": "off",
+      "react-hooks/refs": "off",
     },
   },
   // Override default ignores of eslint-config-next.

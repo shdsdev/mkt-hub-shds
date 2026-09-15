@@ -1,6 +1,6 @@
 # Analytics Geo Drill-Down + Richer Stat Cards Implementation Plan
 
-> **For agentic workers:** Steps use checkbox (`- [ ]`) syntax for tracking. Work task-by-task, in order.
+> **For agentic workers:** Steps use checkbox (`- [x]`) syntax for tracking. Work task-by-task, in order.
 
 **Goal:** Capture region/state-level geo data (already available from `geoip-lite`, just not persisted today), surface it as a lazy, per-country expand on the "Por ubicación" table, and enrich the "Mejor día"/"Mejor ubicación" stat cards with the best day's date, each card's previous-period absolute value, and a flag on the location card.
 
@@ -38,7 +38,7 @@
 - Modify: `src/modules/analytics/db.ts`
 - Test: `pnpm typecheck`, `pnpm db:generate`
 
-- [ ] **Step 1: Add the column**
+- [x] **Step 1: Add the column**
 
 ```ts
 // ISO 3166-2 subdivision code from geoip-lite (e.g. "SLP", "TX"), shown raw/untranslated — same
@@ -48,17 +48,17 @@ region: text("region"),
 
 Place it next to `referrer` in `trackingEvents`.
 
-- [ ] **Step 2: Typecheck, then generate + apply the migration**
+- [x] **Step 2: Typecheck, then generate + apply the migration**
 
 Run: `pnpm typecheck`, then `pnpm db:generate` (expect one `ALTER TABLE "tracking_events" ADD
 COLUMN "region" text`), then `pnpm db:migrate`.
 
-- [ ] **Step 3: Update `docs/DATABASE.md`**
+- [x] **Step 3: Update `docs/DATABASE.md`**
 
 Add `region` to the `tracking_events` column list, same line/style as the existing `referrer`
 addition.
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 2: Capture `region`
 
@@ -70,12 +70,12 @@ addition.
 **Interfaces:**
 - Consumes: `geo?.region` from the existing `geoip.lookup(ip)` call already in `handleRedirect`.
 
-- [ ] **Step 1: `trackRedirect` gains `region?: string`**
+- [x] **Step 1: `trackRedirect` gains `region?: string`**
 
 In `service.ts`, add `region?: string` to `trackRedirect`'s input type and to the
 `buffer.enqueue(...)` call, same pattern as `geoCountry`/`geoCity`.
 
-- [ ] **Step 2: Pass it from `redirects/http.ts`**
+- [x] **Step 2: Pass it from `redirects/http.ts`**
 
 ```ts
 geoRegion: geo?.region,
@@ -84,11 +84,11 @@ geoRegion: geo?.region,
 Add alongside the existing `geoCountry: geo?.country, geoCity: geo?.city,` in the
 `trackRedirect({...})` call — reuses the same already-resolved `geo` object, no new lookup.
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0`.
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 3: Service — Region Breakdown + Richer Best-Day/Best-Location
 
@@ -101,7 +101,7 @@ Run: `pnpm typecheck`. Expected: `0`.
 - Produces: `getOrgRegionBreakdown(organizationId, eventType, country, from, to): Promise<BreakdownRow[]>`.
 - Changes: `getOrgBestDay`/`getOrgBestLocation` return types gain `previous: number`.
 
-- [ ] **Step 1: `getOrgRegionBreakdown`**
+- [x] **Step 1: `getOrgRegionBreakdown`**
 
 Same query shape as the existing `orgBreakdown` helper, additionally filtered by `geoCountry` and
 grouped by `region` instead of the country column:
@@ -134,27 +134,27 @@ export async function getOrgRegionBreakdown(
 }
 ```
 
-- [ ] **Step 2: Widen `getOrgBestDay`**
+- [x] **Step 2: Widen `getOrgBestDay`**
 
 Change the return type to `{ date: string; count: number; percentChange: number | null; previous:
 number }` and return `previous: Math.round(prevAverage)` (the average it already computes,
 rounded — matches the reference's whole-number display, e.g. "33").
 
-- [ ] **Step 3: Widen `getOrgBestLocation`**
+- [x] **Step 3: Widen `getOrgBestLocation`**
 
 Change the return type to `{ country: string; count: number; percentChange: number | null;
 previous: number }` and return `previous: previousCount` (already computed, just also returned).
 
-- [ ] **Step 4: Export from `index.ts`**
+- [x] **Step 4: Export from `index.ts`**
 
 Add `getOrgRegionBreakdown` to the barrel.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0` (call sites in `org-dashboard.tsx`/`stat-card.tsx` update in
 Task 5).
 
-- [ ] **Step 6: Do not commit.**
+- [x] **Step 6: Do not commit.**
 
 ### Task 4: Region Data Route
 
@@ -166,7 +166,7 @@ Task 5).
 - Produces: `GET /analytics/data/region?surface=qr|links&country=<code>&from=...&to=...` →
   `{ regions: BreakdownRow[] }`.
 
-- [ ] **Step 1: Write the route**
+- [x] **Step 1: Write the route**
 
 Same auth/parsing posture as `app/(protected)/analytics/data/route.ts`, scoped to one country:
 
@@ -199,11 +199,11 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0`.
 
-- [ ] **Step 3: Do not commit.**
+- [x] **Step 3: Do not commit.**
 
 ### Task 5: UI — Interactive Location Table + Richer Stat Cards
 
@@ -216,7 +216,7 @@ Run: `pnpm typecheck`. Expected: `0`.
 **Interfaces:**
 - Consumes: `GET /analytics/data/region` (Task 4).
 
-- [ ] **Step 1: `LocationTable` — interactive rows**
+- [x] **Step 1: `LocationTable` — interactive rows**
 
 Add `surface: AnalyticsSurface` (type-only import) and `from`/`to: string` props (the caller
 already holds these as formatted strings for the main fetch — pass the same ones down instead of
@@ -248,7 +248,7 @@ de región." if the fetch resolves to an empty array, otherwise each region row 
 country's total + count) with the same row styling as the top-level list, indented
 (`className="ml-4 ..."`).
 
-- [ ] **Step 2: `StatCard` — `dateLabel`/`flag` props, richer trend line**
+- [x] **Step 2: `StatCard` — `dateLabel`/`flag` props, richer trend line**
 
 ```tsx
 export function StatCard({
@@ -288,7 +288,7 @@ Keep the existing `value === null` empty-state branch unchanged. `previous` is o
 component doesn't hard-require it (defensive, matches the rest of this dashboard's null-tolerant
 props).
 
-- [ ] **Step 3: `org-dashboard.tsx` — thread the new fields through**
+- [x] **Step 3: `org-dashboard.tsx` — thread the new fields through**
 
 - Update the local `DashboardData` type: `bestDay`/`bestLocation` gain `previous: number`.
 - Best-day `StatCard`: add `dateLabel={data?.bestDay ? formatBestDayDate(data.bestDay.date) : undefined}`
@@ -302,24 +302,24 @@ props).
   `URLSearchParams` into `<LocationTable>` (hoist that date formatting out of the `useEffect` so
   both the fetch and the props can use it, rather than computing it twice).
 
-- [ ] **Step 4: Typecheck**
+- [x] **Step 4: Typecheck**
 
 Run: `pnpm typecheck`. Expected: `0`.
 
-- [ ] **Step 5: Do not commit.**
+- [x] **Step 5: Do not commit.**
 
 ### Task 6: Browser Verification
 
 **Files:** none
 
-- [ ] **Step 1: `pnpm dev`, open `/analytics`**
+- [x] **Step 1: `pnpm dev`, open `/analytics`**
 
 Confirm "Mejor día" now shows a formatted date above the count, and "Mejor ubicación" shows a flag
 before the country code — both cards' trend line now includes the previous absolute value (e.g.
 "+21.2% vs 33 vs promedio del período anterior" — double-check the comparison label doesn't read
 awkwardly once `previous` is prefixed in; adjust the label text if it does).
 
-- [ ] **Step 2: Expand a country row in "Por ubicación"**
+- [x] **Step 2: Expand a country row in "Por ubicación"**
 
 Click a country with real data (seed more if needed — the existing demo-data seed script pattern
 from the prior task can be reused/adapted, or run a one-off insert setting `region` on a few
@@ -327,13 +327,13 @@ existing rows). Confirm a loading state appears briefly, then region rows render
 Click again to collapse. Click a different country and confirm it fetches independently (its own
 cache entry) without affecting the first one's cached data.
 
-- [ ] **Step 3: Confirm no double-fetch on re-expand**
+- [x] **Step 3: Confirm no double-fetch on re-expand**
 
 Expand a country, collapse it, expand it again — confirm (via Network tab or
 `read_network_requests`) the region endpoint is called once, not twice, for that country in one
 session.
 
-- [ ] **Step 4: `pnpm build`**
+- [x] **Step 4: `pnpm build`**
 
 Expected: exits `0`.
 

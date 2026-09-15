@@ -40,6 +40,13 @@ export const trackingEvents = pgTable(
     deviceType: text("device_type"),
     geoCountry: text("geo_country"),
     geoCity: text("geo_city"),
+    // Normalized hostname of the HTTP Referer header (e.g. "instagram.com"), null when absent —
+    // most QR scans have no Referer at all (opened from a camera app, not a browser). Displayed
+    // as "Directo" when null, never as an empty string.
+    referrer: text("referrer"),
+    // ISO 3166-2 subdivision code from geoip-lite (e.g. "SLP", "TX"), shown raw/untranslated —
+    // same convention as geo_country today. Null whenever geoip-lite can't resolve one.
+    region: text("region"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   // Composite PK required because of partitioning — the partition key must be part of the PK.
