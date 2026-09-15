@@ -1,12 +1,14 @@
 import { getCurrentUser } from "@/modules/auth";
-import { THEMES, DEFAULT_THEME_ID } from "@/modules/users";
+import { THEMES, DEFAULT_THEME_ID, getOrganization } from "@/modules/users";
 import { updateUserThemeAction } from "./actions";
+import { DefaultLogoUpload } from "./default-logo-upload";
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
   const activeThemeId = user.profile.theme ?? DEFAULT_THEME_ID;
+  const organization = await getOrganization(user.profile.organizationId);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -50,6 +52,14 @@ export default async function SettingsPage() {
             );
           })}
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-heading font-medium">Logotipo</h2>
+        <DefaultLogoUpload
+          organizationId={user.profile.organizationId}
+          currentLogoUrl={organization?.defaultLogoUrl ?? undefined}
+        />
       </section>
     </div>
   );

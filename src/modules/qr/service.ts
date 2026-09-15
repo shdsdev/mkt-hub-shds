@@ -1,17 +1,36 @@
 import { eq } from "drizzle-orm";
-import QRCode from "qrcode";
+import { JSDOM } from "jsdom";
+import QRCodeStyling from "qr-code-styling";
 import sharp from "sharp";
+import { readFile } from "fs/promises";
+import path from "path";
 import { db } from "@/db/client";
-import { qrCodes } from "./db";
-import { computeLogoDimensions, resolveErrorCorrectionLevel, type ErrorCorrectionLevel } from "./logo";
+import { qrCodes, qrDesignTemplates } from "./db";
+import { LOGO_SAFE_ZONE_RATIO, resolveErrorCorrectionLevel, type ErrorCorrectionLevel } from "./logo";
 
 export type QrCodeRow = typeof qrCodes.$inferSelect;
+export type QrDesignTemplateRow = typeof qrDesignTemplates.$inferSelect;
+
+export type QrShapeType = "square" | "rounded" | "dots" | "classy" | "classy-rounded" | "extra-rounded";
+export type QrCornerType = QrShapeType | "dot";
 
 export type QrCustomization = {
   backgroundColor?: string;
   foregroundColor?: string;
   errorCorrectionLevel?: ErrorCorrectionLevel;
   logoUrl?: string;
+  dotsType?: QrShapeType;
+  cornersSquareType?: QrCornerType;
+  cornersDotType?: QrCornerType;
+};
+
+// Organizational metadata shared by every creation path — never affects redirect resolution or
+// the encoded QR content (name, placement photo), or is itself encoded (folder/campaign).
+export type QrGrouping = {
+  name: string;
+  folderId?: string;
+  campaignId?: string;
+  placementImageUrl?: string;
 };
 
 export async function createDynamicQrCode(
@@ -19,7 +38,8 @@ export async function createDynamicQrCode(
     organizationId: string;
     linkId: string;
     shortLinkId: string;
-  } & QrCustomization,
+  } & QrCustomization &
+    QrGrouping,
 ): Promise<QrCodeRow> {
   const [qr] = await db
     .insert(qrCodes)
@@ -32,15 +52,18 @@ export async function createStaticQrCode(
   input: {
     organizationId: string;
     payload: string;
-  } & QrCustomization,
+    staticKind: "text" | "vcard" | "email" | "sms" | "wifi";
+  } & QrCustomization &
+    QrGrouping,
 ): Promise<QrCodeRow> {
-  const { payload, ...rest } = input;
+  const { payload, staticKind, ...rest } = input;
   const [qr] = await db
     .insert(qrCodes)
     .values({
       ...rest,
       mode: "static",
       staticPayload: payload,
+      staticKind,
     })
     .returning();
   return qr;
@@ -69,57 +92,100 @@ export async function archiveQrCode(id: string): Promise<QrCodeRow> {
   return qr;
 }
 
+export async function updateQrCodeName(id: string, name: string): Promise<QrCodeRow> {
+  const [qr] = await db.update(qrCodes).set({ name }).where(eq(qrCodes.id, id)).returning();
+  return qr;
+}
+
+export async function createQrDesignTemplate(
+  input: {
+    organizationId: string;
+    name: string;
+  } & Required<
+    Pick<QrCustomization, "dotsType" | "cornersSquareType" | "cornersDotType" | "backgroundColor" | "foregroundColor" | "errorCorrectionLevel">
+  > &
+    Pick<QrCustomization, "logoUrl">,
+): Promise<QrDesignTemplateRow> {
+  const [template] = await db.insert(qrDesignTemplates).values(input).returning();
+  return template;
+}
+
+export async function listQrDesignTemplates(organizationId: string): Promise<QrDesignTemplateRow[]> {
+  return db.select().from(qrDesignTemplates).where(eq(qrDesignTemplates.organizationId, organizationId));
+}
+
 const QR_PIXEL_SIZE = 512;
 
 // The resolvable /q/:code payload for a dynamic QR reuses its short link's slug (Phase 3's
 // redirect engine tells qr_scan vs link_click apart by route prefix, not by a separate code) —
 // static QR just encodes its own fixed payload.
-export async function exportQrPng(encodedValue: string, options: QrCustomization): Promise<Buffer> {
+async function buildBaseSvg(encodedValue: string, options: QrCustomization): Promise<string> {
   const hasLogo = Boolean(options.logoUrl);
-  const errorCorrectionLevel = resolveErrorCorrectionLevel(
-    options.errorCorrectionLevel ?? "M",
-    hasLogo,
-  );
+  const errorCorrectionLevel = resolveErrorCorrectionLevel(options.errorCorrectionLevel ?? "M", hasLogo);
+  const color = options.foregroundColor ?? "#f7eeeb";
 
-  const qrBuffer = await QRCode.toBuffer(encodedValue, {
-    errorCorrectionLevel,
+  // No `image`/`imageOptions` here on purpose: qr-code-styling's own image embedding hangs
+  // indefinitely in Node's jsdom SVG mode (verified directly — getRawData never resolves when an
+  // `image` option is set). The logo is composited afterward by embedLogo() instead, which also
+  // means SVG exports can carry a logo (the old renderer couldn't).
+  const qr = new QRCodeStyling({
     width: QR_PIXEL_SIZE,
-    color: {
-      dark: options.foregroundColor ?? "#f7eeeb",
-      light: options.backgroundColor ?? "#1c130f",
-    },
-  });
+    height: QR_PIXEL_SIZE,
+    type: "svg",
+    data: encodedValue,
+    jsdom: JSDOM,
+    qrOptions: { errorCorrectionLevel },
+    dotsOptions: { type: options.dotsType ?? "square", color },
+    cornersSquareOptions: { type: options.cornersSquareType ?? "square", color },
+    cornersDotOptions: { type: options.cornersDotType ?? "square", color },
+    backgroundOptions: { color: options.backgroundColor ?? "#1c130f" },
+  } as ConstructorParameters<typeof QRCodeStyling>[0]);
 
-  if (!options.logoUrl) {
-    return qrBuffer;
-  }
-
-  const logoResponse = await fetch(options.logoUrl);
-  if (!logoResponse.ok) {
-    throw new Error(`No se pudo obtener el logo: ${logoResponse.status}`);
-  }
-  const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
-  const { width, height } = computeLogoDimensions(QR_PIXEL_SIZE);
-  const resizedLogo = await sharp(logoBuffer).resize(width, height, { fit: "contain" }).toBuffer();
-
-  return sharp(qrBuffer)
-    .composite([{ input: resizedLogo, gravity: "center" }])
-    .png()
-    .toBuffer();
+  const buffer = await qr.getRawData("svg");
+  if (!buffer) throw new Error("No se pudo generar el QR.");
+  return (buffer as Buffer).toString("utf-8");
 }
 
-// No logo support — an SVG with a raster logo embedded loses portability. UI disables SVG
-// download once a logo is attached (design decision, not enforced here).
-export async function exportQrSvg(
-  encodedValue: string,
-  options: Omit<QrCustomization, "logoUrl">,
-): Promise<string> {
-  return QRCode.toString(encodedValue, {
-    type: "svg",
-    errorCorrectionLevel: options.errorCorrectionLevel ?? "M",
-    color: {
-      dark: options.foregroundColor ?? "#f7eeeb",
-      light: options.backgroundColor ?? "#1c130f",
-    },
-  });
+// Resolves a logoUrl to bytes + content-type: an absolute URL (a Supabase Storage public URL, the
+// common case) is fetched; a path starting with "/" is one of this app's own bundled presets
+// (public/qr-presets/*) and is read straight off disk — a server-side `fetch` can't resolve a
+// relative URL (no origin), so it can't be treated the same as an uploaded logo's URL.
+async function readLogoBytes(logoUrl: string): Promise<{ bytes: Buffer; contentType: string }> {
+  if (logoUrl.startsWith("/")) {
+    const filePath = path.join(process.cwd(), "public", logoUrl);
+    const bytes = await readFile(filePath);
+    const contentType = logoUrl.endsWith(".svg") ? "image/svg+xml" : "image/png";
+    return { bytes, contentType };
+  }
+
+  const response = await fetch(logoUrl);
+  if (!response.ok) {
+    throw new Error(`No se pudo obtener el logo: ${response.status}`);
+  }
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const contentType = response.headers.get("content-type") ?? "image/png";
+  return { bytes, contentType };
+}
+
+// Splices a centered <image> into the generated SVG — same visual placement/size the old sharp
+// composite used (LOGO_SAFE_ZONE_RATIO), just as an SVG element instead of a raster composite.
+async function embedLogo(svg: string, logoUrl: string): Promise<string> {
+  const { bytes, contentType } = await readLogoBytes(logoUrl);
+  const dataUri = `data:${contentType};base64,${bytes.toString("base64")}`;
+  const logoSize = QR_PIXEL_SIZE * LOGO_SAFE_ZONE_RATIO;
+  const offset = (QR_PIXEL_SIZE - logoSize) / 2;
+  const imageTag = `<image x="${offset}" y="${offset}" width="${logoSize}" height="${logoSize}" href="${dataUri}" />`;
+  return svg.replace("</svg>", `${imageTag}</svg>`);
+}
+
+export async function exportQrPng(encodedValue: string, options: QrCustomization): Promise<Buffer> {
+  let svg = await buildBaseSvg(encodedValue, options);
+  if (options.logoUrl) svg = await embedLogo(svg, options.logoUrl);
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+export async function exportQrSvg(encodedValue: string, options: QrCustomization): Promise<string> {
+  let svg = await buildBaseSvg(encodedValue, options);
+  if (options.logoUrl) svg = await embedLogo(svg, options.logoUrl);
+  return svg;
 }

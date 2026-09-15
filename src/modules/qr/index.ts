@@ -6,9 +6,17 @@ export {
   getQrCodeByLinkId,
   listQrCodes,
   archiveQrCode,
+  updateQrCodeName,
   exportQrPng,
   exportQrSvg,
+  createQrDesignTemplate,
+  listQrDesignTemplates,
   type QrCodeRow,
   type QrCustomization,
+  type QrGrouping,
+  type QrShapeType,
+  type QrCornerType,
+  type QrDesignTemplateRow,
 } from "./service";
 export { type ErrorCorrectionLevel } from "./logo";
+export { buildStaticPayload, type StaticPayloadInput } from "./static-payload";

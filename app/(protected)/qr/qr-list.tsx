@@ -1,14 +1,29 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { QrCode } from "lucide-react";
-import { Download, DownloadCloud, Image, ImageDown, Archive, Check } from "lucide";
+import { QrCode, IdCard, Mail, MessageSquare, Wifi, FileText, X } from "lucide-react";
+import { Download, DownloadCloud, Image, ImageDown, Archive, Check, Pencil } from "lucide";
 import { BorderBeam } from "border-beam";
 import { CreateQrModal } from "./create-qr-modal";
-import { archiveQrCodeAction } from "./actions";
+import { archiveQrCodeAction, updateQrNameAction } from "./actions";
+import { updateDestinationAction } from "../links/actions";
+import { BinaryLoader } from "@/components/binary-loader";
 import { CopyButton } from "@/components/copy-button";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { Folder } from "@/modules/links";
+import type { Campaign } from "@/modules/campaigns";
+import type { UtmPreset } from "@/modules/utm";
+import type { QrDesignTemplateRow } from "@/modules/qr";
 
 export type QrListRow = {
   id: string;
@@ -21,6 +36,17 @@ export type QrListRow = {
   shortUrl?: string;
   linkId?: string;
   payload?: string;
+  name: string;
+  staticKind?: "text" | "vcard" | "email" | "sms" | "wifi";
+  groupName?: string;
+};
+
+const STATIC_KIND_ICON: Record<NonNullable<QrListRow["staticKind"]>, typeof FileText> = {
+  text: FileText,
+  vcard: IdCard,
+  email: Mail,
+  sms: MessageSquare,
+  wifi: Wifi,
 };
 
 type ViewMode = "grid" | "list";
@@ -29,16 +55,34 @@ type TypeFilter = "all" | "dynamic" | "static";
 
 function matchesSearch(row: QrListRow, query: string): boolean {
   if (!query) return true;
-  const haystack = [row.destinationUrl, row.shortUrl, row.payload].filter(Boolean).join(" ");
+  const haystack = [row.name, row.destinationUrl, row.shortUrl, row.payload].filter(Boolean).join(" ");
   return haystack.toLowerCase().includes(query.toLowerCase());
 }
 
-export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizationId: string }) {
+export function QrList({
+  rows,
+  organizationId,
+  folders,
+  campaigns,
+  utmPresets,
+  templates,
+  defaultLogoUrl,
+}: {
+  rows: QrListRow[];
+  organizationId: string;
+  folders: Folder[];
+  campaigns: Campaign[];
+  utmPresets: UtmPreset[];
+  templates: QrDesignTemplateRow[];
+  defaultLogoUrl?: string;
+}) {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
+  const [editingQrId, setEditingQrId] = useState<string | null>(null);
+  const editingRow = rows.find((r) => r.id === editingQrId);
 
   const filteredRows = useMemo(() => {
     return rows
@@ -67,25 +111,41 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
           </button>
         </div>
 
-        <select
+        <Select
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          onValueChange={(value) => {
+            if (value) setStatusFilter(value as StatusFilter);
+          }}
         >
-          <option value="all">Todos los estados</option>
-          <option value="active">Activo</option>
-          <option value="archived">Archivado</option>
-        </select>
+          <SelectTrigger aria-label="Filtrar por estado">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="active">Activo</SelectItem>
+              <SelectItem value="archived">Archivado</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
 
-        <select
+        <Select
           value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          onValueChange={(value) => {
+            if (value) setTypeFilter(value as TypeFilter);
+          }}
         >
-          <option value="all">Todos los tipos</option>
-          <option value="dynamic">Sitio web</option>
-          <option value="static">Texto fijo</option>
-        </select>
+          <SelectTrigger aria-label="Filtrar por tipo">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">Todos los tipos</SelectItem>
+              <SelectItem value="dynamic">Sitio web</SelectItem>
+              <SelectItem value="static">Texto fijo</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
 
         <BorderBeam
           size="sm"
@@ -105,7 +165,14 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
           />
         </BorderBeam>
 
-        <CreateQrModal organizationId={organizationId} />
+        <CreateQrModal
+          organizationId={organizationId}
+          folders={folders}
+          campaigns={campaigns}
+          utmPresets={utmPresets}
+          templates={templates}
+          defaultLogoUrl={defaultLogoUrl}
+        />
       </div>
 
       {rows.length === 0 && (
@@ -114,7 +181,14 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
           <p className="text-sm text-muted-foreground">
             Elige un tipo, agrega tu contenido, elige un color y después gestiona todo desde acá.
           </p>
-          <CreateQrModal organizationId={organizationId} />
+          <CreateQrModal
+          organizationId={organizationId}
+          folders={folders}
+          campaigns={campaigns}
+          utmPresets={utmPresets}
+          templates={templates}
+          defaultLogoUrl={defaultLogoUrl}
+        />
         </div>
       )}
 
@@ -127,7 +201,7 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
       {viewMode === "list" && filteredRows.length > 0 && (
         <ul className="space-y-3">
           {filteredRows.map((row) => (
-            <QrRow key={row.id} row={row} />
+            <QrRow key={row.id} row={row} onEdit={setEditingQrId} />
           ))}
         </ul>
       )}
@@ -135,9 +209,19 @@ export function QrList({ rows, organizationId }: { rows: QrListRow[]; organizati
       {viewMode === "grid" && filteredRows.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredRows.map((row) => (
-            <QrCard key={row.id} row={row} />
+            <QrCard key={row.id} row={row} onEdit={setEditingQrId} />
           ))}
         </div>
+      )}
+
+      {editingRow && (
+        <EditQrModal
+          qrId={editingRow.id}
+          linkId={editingRow.linkId!}
+          name={editingRow.name}
+          destinationUrl={editingRow.destinationUrl!}
+          onClose={() => setEditingQrId(null)}
+        />
       )}
     </div>
   );
@@ -162,15 +246,30 @@ function StatusBadge({ status }: { status: QrListRow["status"] }) {
   );
 }
 
+const STATIC_KIND_LABEL: Record<NonNullable<QrListRow["staticKind"]>, string> = {
+  text: "Texto fijo",
+  vcard: "vCard",
+  email: "Correo electrónico",
+  sms: "SMS",
+  wifi: "WiFi",
+};
+
 function QrHeading({ row }: { row: QrListRow }) {
-  const heading = row.mode === "dynamic" ? row.destinationUrl : row.payload;
+  const detail = row.mode === "dynamic" ? row.destinationUrl : row.payload;
+  const typeLabel = row.mode === "dynamic" ? "Sitio web" : STATIC_KIND_LABEL[row.staticKind ?? "text"];
+  const TypeIcon = row.mode === "static" ? STATIC_KIND_ICON[row.staticKind ?? "text"] : undefined;
   return (
     <div className="min-w-0 space-y-1">
-      <p className="truncate font-mono text-sm font-medium">{heading}</p>
+      <p className="truncate text-sm font-medium">{row.name}</p>
+      {detail && <p className="truncate font-mono text-xs text-muted-foreground">{detail}</p>}
       <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        {row.mode === "dynamic" ? "Sitio web" : "Texto fijo"}
+        <span className="flex items-center gap-1">
+          {TypeIcon && <TypeIcon size={12} />}
+          {typeLabel}
+        </span>
         <span>{row.createdAt.toLocaleDateString()}</span>
         <StatusBadge status={row.status} />
+        {row.groupName && <span className="text-accent">{row.groupName}</span>}
       </p>
       {row.mode === "dynamic" && row.shortUrl && (
         <p className="flex min-w-0 items-center gap-1.5 font-mono text-sm text-accent">
@@ -194,16 +293,32 @@ function QrScanCount({ scanCount }: { scanCount: number }) {
 
 // Tooltip markup written directly (not the shared <Tooltip>) so the real <a>/<button> stays the
 // one tab stop and carries .t-tt-trigger itself — see src/components/tooltip.tsx's docstring.
-function QrActions({ row }: { row: QrListRow }) {
+function QrActions({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => void }) {
   const pngTooltipId = useId();
   const svgTooltipId = useId();
   const archiveTooltipId = useId();
+  const editTooltipId = useId();
 
   return (
     <div
       className="flex items-center gap-3 text-muted-foreground"
       onClick={(event) => event.stopPropagation()}
     >
+      {row.mode === "dynamic" && row.linkId && onEdit && (
+        <span className="t-tt-wrap">
+          <button
+            type="button"
+            onClick={() => onEdit(row.id)}
+            aria-describedby={editTooltipId}
+            className="t-tt-trigger hover:text-foreground"
+          >
+            <HoverMorphIcon idle={Pencil} active={Pencil} />
+          </button>
+          <span className="t-tt" id={editTooltipId} role="tooltip">
+            Editar
+          </span>
+        </span>
+      )}
       <span className="t-tt-wrap">
         <a
           href={`/qr/${row.id}/download?format=png`}
@@ -216,20 +331,18 @@ function QrActions({ row }: { row: QrListRow }) {
           Descargar PNG
         </span>
       </span>
-      {!row.logoUrl && (
-        <span className="t-tt-wrap">
-          <a
-            href={`/qr/${row.id}/download?format=svg`}
-            aria-describedby={svgTooltipId}
-            className="t-tt-trigger hover:text-foreground"
-          >
-            <HoverMorphIcon idle={Image} active={ImageDown} />
-          </a>
-          <span className="t-tt" id={svgTooltipId} role="tooltip">
-            Descargar SVG
-          </span>
+      <span className="t-tt-wrap">
+        <a
+          href={`/qr/${row.id}/download?format=svg`}
+          aria-describedby={svgTooltipId}
+          className="t-tt-trigger hover:text-foreground"
+        >
+          <HoverMorphIcon idle={Image} active={ImageDown} />
+        </a>
+        <span className="t-tt" id={svgTooltipId} role="tooltip">
+          Descargar SVG
         </span>
-      )}
+      </span>
       {row.status === "active" && (
         <form action={archiveQrCodeAction}>
           <input type="hidden" name="id" value={row.id} />
@@ -262,7 +375,7 @@ function useCardNavigation(row: QrListRow) {
   };
 }
 
-function QrRow({ row }: { row: QrListRow }) {
+function QrRow({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => void }) {
   const { clickable, onClick } = useCardNavigation(row);
   return (
     <li
@@ -276,12 +389,12 @@ function QrRow({ row }: { row: QrListRow }) {
         <QrHeading row={row} />
       </div>
       <QrScanCount scanCount={row.scanCount} />
-      <QrActions row={row} />
+      <QrActions row={row} onEdit={onEdit} />
     </li>
   );
 }
 
-function QrCard({ row }: { row: QrListRow }) {
+function QrCard({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => void }) {
   const { clickable, onClick } = useCardNavigation(row);
   return (
     <div
@@ -296,8 +409,121 @@ function QrCard({ row }: { row: QrListRow }) {
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3">
         <QrScanCount scanCount={row.scanCount} />
-        <QrActions row={row} />
+        <QrActions row={row} onEdit={onEdit} />
       </div>
     </div>
+  );
+}
+
+function EditQrModal({
+  qrId,
+  linkId,
+  name,
+  destinationUrl,
+  onClose,
+}: {
+  qrId: string;
+  linkId: string;
+  name: string;
+  destinationUrl: string;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(formData: FormData) {
+    setPending(true);
+    setError(null);
+
+    try {
+      // Update name
+      const nameResult = await updateQrNameAction({}, formData);
+      if (nameResult?.error) {
+        setError(nameResult.error);
+        setPending(false);
+        return;
+      }
+
+      // Update destination
+      const destResult = await updateDestinationAction({}, formData);
+      if (destResult?.error) {
+        setError(destResult.error);
+        setPending(false);
+        return;
+      }
+
+      router.refresh();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al actualizar");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Editar QR</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X size={20} />
+          </button>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Cambiá el nombre y/o la URL de destino. La URL corta y el código QR permanecen iguales.
+        </p>
+        <form action={handleSubmit} className="space-y-3">
+          <input type="hidden" name="qrId" value={qrId} />
+          <input type="hidden" name="linkId" value={linkId} />
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground uppercase">Nombre</label>
+            <input
+              name="name"
+              type="text"
+              defaultValue={name}
+              required
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground uppercase">URL de destino</label>
+            <input
+              name="destinationUrl"
+              type="url"
+              defaultValue={destinationUrl}
+              required
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {pending ? <BinaryLoader /> : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body,
   );
 }

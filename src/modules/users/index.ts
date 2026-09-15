@@ -7,6 +7,7 @@ export {
   updateTheme,
   createOrganization,
   getOrganization,
+  updateDefaultLogo,
   createProfile,
   isAdmin,
   isActive,

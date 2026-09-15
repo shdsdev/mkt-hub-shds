@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+type QrShapeType = "square" | "rounded" | "dots" | "classy" | "classy-rounded" | "extra-rounded";
+type QrCornerType = QrShapeType | "dot";
+
 export type QrPreviewParams = {
   shortLinkId?: string;
   payload?: string;
@@ -9,6 +12,9 @@ export type QrPreviewParams = {
   foregroundColor: string;
   errorCorrectionLevel: "L" | "M" | "Q" | "H";
   logoUrl?: string;
+  dotsType?: QrShapeType;
+  cornersSquareType?: QrCornerType;
+  cornersDotType?: QrCornerType;
 };
 
 // Debounced live preview against /qr/preview — revokes the previous object URL on each update so
@@ -56,6 +62,9 @@ export function useQrPreview(params: QrPreviewParams): string | undefined {
     params.foregroundColor,
     params.errorCorrectionLevel,
     params.logoUrl,
+    params.dotsType,
+    params.cornersSquareType,
+    params.cornersDotType,
   ]);
 
   return previewUrl;

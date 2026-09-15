@@ -55,6 +55,10 @@ export async function getOrganization(id: string) {
   return rows[0];
 }
 
+export async function updateDefaultLogo(organizationId: string, url: string | null): Promise<void> {
+  await db.update(organizations).set({ defaultLogoUrl: url }).where(eq(organizations.id, organizationId));
+}
+
 export async function createProfile(input: {
   id: string;
   organizationId: string;

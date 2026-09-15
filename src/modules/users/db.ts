@@ -13,6 +13,9 @@ export const userStatus = pgEnum("user_status", ["active", "disabled"]);
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  // Org-wide default logo pre-filled into new QR codes (Settings) — unlike `users.theme`, this is
+  // a brand asset, not a per-user preference.
+  defaultLogoUrl: text("default_logo_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

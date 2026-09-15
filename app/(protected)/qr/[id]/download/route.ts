@@ -38,14 +38,12 @@ export async function GET(
     foregroundColor: qr.foregroundColor,
     errorCorrectionLevel: qr.errorCorrectionLevel,
     logoUrl: qr.logoUrl ?? undefined,
+    dotsType: qr.dotsType,
+    cornersSquareType: qr.cornersSquareType,
+    cornersDotType: qr.cornersDotType,
   };
 
   if (format === "svg") {
-    if (qr.logoUrl) {
-      return new NextResponse("SVG export is not available for a QR code with a logo.", {
-        status: 400,
-      });
-    }
     const svg = await exportQrSvg(encodedValue, customization);
     return new NextResponse(svg, {
       headers: {

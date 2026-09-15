@@ -4,13 +4,19 @@ import { getCurrentUser } from "@/modules/auth";
 import { exportQrPng } from "@/modules/qr";
 import { getShortLink, getDomain } from "@/modules/links";
 
+const shapeType = z.enum(["square", "rounded", "dots", "classy", "classy-rounded", "extra-rounded"]);
+const cornerType = z.enum(["square", "dot", "rounded", "dots", "classy", "classy-rounded", "extra-rounded"]);
+
 const previewSchema = z.object({
   shortLinkId: z.string().uuid().optional(),
   payload: z.string().min(1).max(2048).optional(),
   backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   foregroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   errorCorrectionLevel: z.enum(["L", "M", "Q", "H"]),
-  logoUrl: z.string().url().optional(),
+  logoUrl: z.string().optional(),
+  dotsType: shapeType.optional(),
+  cornersSquareType: cornerType.optional(),
+  cornersDotType: cornerType.optional(),
 });
 
 // Live preview while creating a QR code — no row exists yet, so this resolves the same
@@ -45,6 +51,9 @@ export async function POST(request: NextRequest) {
     foregroundColor: parsed.data.foregroundColor,
     errorCorrectionLevel: parsed.data.errorCorrectionLevel,
     logoUrl: parsed.data.logoUrl,
+    dotsType: parsed.data.dotsType,
+    cornersSquareType: parsed.data.cornersSquareType,
+    cornersDotType: parsed.data.cornersDotType,
   });
 
   return new NextResponse(new Uint8Array(png), {

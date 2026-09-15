@@ -34,7 +34,7 @@
 - Modify: `src/modules/users/index.ts` — export `updateDefaultLogo`, `getOrganization` (already exported).
 - Modify: `app/(protected)/qr/actions.ts` — extend the website schema/action (name, folder/campaign, placement image, UTM); replace the static schema/action with a `kind`-discriminated union covering all five static kinds.
 - Create: `app/(protected)/qr/placement-image-upload.tsx` — adapted from `logo-upload.tsx`.
-- Run (installs, not authored): `pnpm dlx shadcn@latest add https://registry.watermelon.sh/r/onboarding-screen.json` → `src/components/watermelon/onboarding-screen.tsx`.
+- Run (installs, not authored): `pnpm dlx shadcn@latest add https://registry.watermelon.sh/r/onboarding-screen.json` → `src/components/onboarding-screen.tsx`.
 - Create: `app/(protected)/qr/qr-wizard-shell.tsx` — rewritten from the installed file; not a general-purpose primitive, stays QR-local.
 - Create: `app/(protected)/qr/group-select.tsx` — the shared folder-or-campaign `Select`.
 - Modify: `app/(protected)/qr/create-qr-modal.tsx` — six-card type step + wizard shell wiring.
@@ -49,32 +49,32 @@
 ### Task 1: Install the Wizard Shell Source Component
 
 **Files:**
-- Create (by the CLI): `src/components/watermelon/onboarding-screen.tsx`
+- Create (by the CLI): `src/components/onboarding-screen.tsx`
 - Modify (by the CLI): `package.json`, `pnpm-lock.yaml` (adds `motion`, `react-icons`)
 - Test: none — inspected, not yet wired into the app
 
 **Interfaces:**
-- Produces: the raw reference source at `src/components/watermelon/onboarding-screen.tsx`, read (not imported) by Task 8.
+- Produces: the raw reference source at `src/components/onboarding-screen.tsx`, read (not imported) by Task 8.
 
-- [ ] **Step 1: Confirm the target path is absent**
+- [x] **Step 1: Confirm the target path is absent**
 
-Run: `Test-Path "src/components/watermelon/onboarding-screen.tsx"`
+Run: `Test-Path "src/components/onboarding-screen.tsx"`
 
 Expected: `False`.
 
-- [ ] **Step 2: Install**
+- [x] **Step 2: Install**
 
 Run: `pnpm dlx shadcn@latest add https://registry.watermelon.sh/r/onboarding-screen.json`
 
-Expected: creates `src/components/watermelon/onboarding-screen.tsx`; adds `motion` and `react-icons` to `package.json` dependencies.
+Expected: creates `src/components/onboarding-screen.tsx`; adds `motion` and `react-icons` to `package.json` dependencies.
 
-- [ ] **Step 3: Confirm the install didn't touch anything else**
+- [x] **Step 3: Confirm the install didn't touch anything else**
 
 Run: `git status --short`
 
-Expected: only `package.json`, `pnpm-lock.yaml`, and the new `src/components/watermelon/onboarding-screen.tsx` are new/modified by this step (on top of whatever was already dirty in the tree before this task).
+Expected: only `package.json`, `pnpm-lock.yaml`, and the new `src/components/onboarding-screen.tsx` are new/modified by this step (on top of whatever was already dirty in the tree before this task).
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 2: Schema — `qr_codes` and `organizations`
 
@@ -87,7 +87,7 @@ Expected: only `package.json`, `pnpm-lock.yaml`, and the new `src/components/wat
 - Consumes: `folders` from `@/modules/links/db` (already imported in `qr/db.ts` is not — add it), `campaigns` from `@/modules/campaigns/db` (new import — see Global Constraints circularity note).
 - Produces: `qrCodes.name/staticKind/placementImageUrl/folderId/campaignId`, `organizations.defaultLogoUrl`, new `qrStaticKind` pg enum.
 
-- [ ] **Step 1: Add the new enum and columns to `qr_codes`**
+- [x] **Step 1: Add the new enum and columns to `qr_codes`**
 
 In `src/modules/qr/db.ts`, add the import and enum:
 
@@ -110,7 +110,7 @@ campaignId: uuid("campaign_id").references(() => campaigns.id),
 
 Update `qrTables` to include `qrStaticKind`.
 
-- [ ] **Step 2: Add the default-logo column to `organizations`**
+- [x] **Step 2: Add the default-logo column to `organizations`**
 
 In `src/modules/users/db.ts`, add to the `organizations` table:
 
@@ -118,19 +118,19 @@ In `src/modules/users/db.ts`, add to the `organizations` table:
 defaultLogoUrl: text("default_logo_url"),
 ```
 
-- [ ] **Step 3: Typecheck before generating — this is where the circular import either resolves or fails**
+- [x] **Step 3: Typecheck before generating — this is where the circular import either resolves or fails**
 
 Run: `pnpm typecheck`
 
 Expected: exits `0`. If it fails on the `campaigns`/`qrCodes` circular import, fall back to declaring `campaignId` as a plain `uuid("campaign_id")` column with no `.references()` (drop the FK constraint, keep the column) and note this deviation in the migration's SQL comment — don't spend more than one troubleshooting pass on it.
 
-- [ ] **Step 4: Generate the migration and inspect it**
+- [x] **Step 4: Generate the migration and inspect it**
 
 Run: `pnpm db:generate`
 
 Expected: one new file under `drizzle/`, containing `CREATE TYPE "public"."qr_static_kind"`, five `ALTER TABLE "qr_codes" ADD COLUMN` statements (`name` initially nullable — drizzle-kit can't know about the backfill, that's added by hand next), one `ALTER TABLE "organizations" ADD COLUMN "default_logo_url"`, and the two new FK constraints (or one, if Step 3 fell back).
 
-- [ ] **Step 5: Hand-edit the generated migration to add the `name` backfill and `NOT NULL`, plus the storage bucket**
+- [x] **Step 5: Hand-edit the generated migration to add the `name` backfill and `NOT NULL`, plus the storage bucket**
 
 Following the exact precedent in `drizzle/0004_slippery_morlocks.sql` (the `qr-logos` bucket), append to the generated file, after the `name` column is added but before anything else references it:
 
@@ -163,17 +163,17 @@ CREATE POLICY "qr_placement_images_delete_owner" ON storage.objects
 
 (5 MB limit instead of the logo bucket's 2 MB — placement photos are real photographs, not small embedded logos.)
 
-- [ ] **Step 6: Apply the migration**
+- [x] **Step 6: Apply the migration**
 
 Run: `pnpm db:migrate`
 
 Expected: exits `0`; no error about existing rows violating the new `NOT NULL` (the backfill runs first).
 
-- [ ] **Step 7: Update `docs/DATABASE.md`**
+- [x] **Step 7: Update `docs/DATABASE.md`**
 
 Add the five `qr_codes` columns, the `organizations.default_logo_url` column, the `qr_static_kind` enum, and the `qr-placement-images` bucket to the relevant sections, matching how the existing `qr-logos` bucket and `qr_error_correction_level` enum are documented there.
 
-- [ ] **Step 8: Do not commit.**
+- [x] **Step 8: Do not commit.**
 
 ### Task 3: Static Payload Builders
 
@@ -186,7 +186,7 @@ Add the five `qr_codes` columns, the `organizations.default_logo_url` column, th
 **Interfaces:**
 - Produces: `buildStaticPayload(input: StaticPayloadInput): string`, a discriminated union on `kind`.
 
-- [ ] **Step 1: Write the builder**
+- [x] **Step 1: Write the builder**
 
 ```ts
 export type StaticPayloadInput =
@@ -240,7 +240,7 @@ export function buildStaticPayload(input: StaticPayloadInput): string {
 }
 ```
 
-- [ ] **Step 2: Write the test file**
+- [x] **Step 2: Write the test file**
 
 Cover, matching the existing `logo.test.ts` style (`describe`/`it`, no mocking needed — pure functions):
 - `text` returns the content verbatim.
@@ -250,17 +250,17 @@ Cover, matching the existing `logo.test.ts` style (`describe`/`it`, no mocking n
 - `sms` with and without `message`.
 - `wifi` for each `security` value, `hidden: true` and `false`, and escaping a `;`/`,`/`"` in `ssid`/`password`.
 
-- [ ] **Step 3: Export from the module's public surface**
+- [x] **Step 3: Export from the module's public surface**
 
 In `src/modules/qr/index.ts`, add `buildStaticPayload` and `type StaticPayloadInput` to the export list.
 
-- [ ] **Step 4: Run the new tests**
+- [x] **Step 4: Run the new tests**
 
 Run: `pnpm test -- static-payload`
 
 Expected: all pass.
 
-- [ ] **Step 5: Do not commit.**
+- [x] **Step 5: Do not commit.**
 
 ### Task 4: Service Layer — `createStaticQrCode`, `createDynamicQrCode`, Default Logo
 
@@ -275,7 +275,7 @@ Expected: all pass.
 - Consumes: the new `qr_codes`/`organizations` columns from Task 2.
 - Produces: `createDynamicQrCode`/`createStaticQrCode` accepting `name`, `folderId?`, `campaignId?`, `placementImageUrl?` (both), and `staticKind` (static only); new `updateDefaultLogo(organizationId, url): Promise<void>`.
 
-- [ ] **Step 1: Extend `QrCustomization`-adjacent input types in `service.ts`**
+- [x] **Step 1: Extend `QrCustomization`-adjacent input types in `service.ts`**
 
 ```ts
 export type QrGrouping = {
@@ -290,11 +290,11 @@ Update `createDynamicQrCode`'s input to `{ organizationId: string; linkId: strin
 
 Update `createStaticQrCode`'s input to `{ organizationId: string; payload: string; staticKind: "text" | "vcard" | "email" | "sms" | "wifi" } & QrCustomization & QrGrouping`, and pass `staticKind` through in the `.values()` call (it currently spreads `rest` — confirm `staticKind` lands in the insert since it's part of the same object, not a column with a different name needing a rename).
 
-- [ ] **Step 2: Export the new type**
+- [x] **Step 2: Export the new type**
 
 Add `type QrGrouping` to `src/modules/qr/index.ts`'s export list.
 
-- [ ] **Step 3: Add `updateDefaultLogo` to `src/modules/users/service.ts`**
+- [x] **Step 3: Add `updateDefaultLogo` to `src/modules/users/service.ts`**
 
 ```ts
 export async function updateDefaultLogo(organizationId: string, url: string | null): Promise<void> {
@@ -302,17 +302,17 @@ export async function updateDefaultLogo(organizationId: string, url: string | nu
 }
 ```
 
-- [ ] **Step 4: Export it**
+- [x] **Step 4: Export it**
 
 Add `updateDefaultLogo` to `src/modules/users/index.ts`.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm typecheck`
 
 Expected: exits `0`. Fix any call sites broken by the widened `createStaticQrCode`/`createDynamicQrCode` signatures now (there are two call sites today, both in `app/(protected)/qr/actions.ts`, rewritten in Task 6 anyway — a transient type error here is expected and resolved by that task, not a bug to chase now).
 
-- [ ] **Step 6: Do not commit.**
+- [x] **Step 6: Do not commit.**
 
 ### Task 5: Placement Image Upload Component
 
@@ -324,17 +324,17 @@ Expected: exits `0`. Fix any call sites broken by the widened `createStaticQrCod
 - Consumes: `createClient` from `@/lib/supabase/client` (same as `logo-upload.tsx`).
 - Produces: `<PlacementImageUpload organizationId={string} onUploaded={(url: string | undefined) => void} />`.
 
-- [ ] **Step 1: Copy `logo-upload.tsx`'s structure, retargeted**
+- [x] **Step 1: Copy `logo-upload.tsx`'s structure, retargeted**
 
 Same shape as `app/(protected)/qr/logo-upload.tsx`: `useState<"idle" | "uploading" | "error">`, direct-to-Storage upload, `BinaryLoader` while uploading (this project's established loading-state convention — see `docs/ARCHITECTURE.md` "Loading states"). Differences: bucket `"qr-placement-images"` instead of `"qr-logos"`; label "Foto de ubicación (opcional) — dónde se usará este QR: flyer, revista, catálogo…"; accepts the same image MIME types.
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `pnpm typecheck`
 
 Expected: exits `0`.
 
-- [ ] **Step 3: Do not commit.**
+- [x] **Step 3: Do not commit.**
 
 ### Task 6: Rewrite `actions.ts` — Website (UTM + shared fields) and Unified Static Action
 
@@ -346,7 +346,7 @@ Expected: exits `0`.
 - Consumes: `buildStaticPayload`, `type StaticPayloadInput` from `@/modules/qr`; `createLink` (already accepts `utmSource`/`utmMedium`/`utmCampaign`, per `app/(protected)/links/actions.ts`'s existing usage); `normalizeUtmValue` (same helper `links/actions.ts` uses — confirm its import path and reuse it, don't duplicate).
 - Produces: extended `createWebsiteQrCodeAction`; a single `createStaticQrCodeAction` replacing the old one, handling all five static kinds.
 
-- [ ] **Step 1: Add the shared fields schema**
+- [x] **Step 1: Add the shared fields schema**
 
 ```ts
 const groupingSchema = z.object({
@@ -357,7 +357,7 @@ const groupingSchema = z.object({
 });
 ```
 
-- [ ] **Step 2: Extend the website schema and action with grouping + UTM**
+- [x] **Step 2: Extend the website schema and action with grouping + UTM**
 
 ```ts
 const createWebsiteQrSchema = z
@@ -373,7 +373,7 @@ const createWebsiteQrSchema = z
 
 In `createWebsiteQrCodeAction`, read the three new UTM fields and `name`/`folderId`/`campaignId`/`placementImageUrl` from `formData` the same way the existing fields are read; pass the (optionally `normalizeUtmValue`-normalized) UTM values into the existing `createLink()` call exactly as `app/(protected)/links/actions.ts`'s `createLinkAction` does; pass `name`, `folderId || undefined`, `campaignId || undefined`, `placementImageUrl || undefined` into `createDynamicQrCode`.
 
-- [ ] **Step 3: Replace the static schema/action with a kind-discriminated union**
+- [x] **Step 3: Replace the static schema/action with a kind-discriminated union**
 
 ```ts
 const staticKindFieldsSchema = z.discriminatedUnion("kind", [
@@ -455,13 +455,13 @@ export async function createStaticQrCodeAction(
 
 (Exact destructure/field-collection code above is a starting point — adjust for whatever TypeScript actually infers from the `.and()`-combined schema; the `raw` object hand-assembly step exists because `formData.get()` returns `null` for absent fields and the discriminated union needs `undefined`, not `null`, for optional fields to validate correctly.)
 
-- [ ] **Step 4: Typecheck**
+- [x] **Step 4: Typecheck**
 
 Run: `pnpm typecheck`
 
 Expected: exits `0`.
 
-- [ ] **Step 5: Do not commit.**
+- [x] **Step 5: Do not commit.**
 
 ### Task 7: Group Select (Folder or Campaign)
 
@@ -473,17 +473,17 @@ Expected: exits `0`.
 - Consumes: `Select`/`SelectTrigger`/`SelectContent`/`SelectGroup`/`SelectItem`/`SelectValue` from `@/components/ui/select`; `type Folder` from `@/modules/links`; `type Campaign` from `@/modules/campaigns`.
 - Produces: `<GroupSelect folders={Folder[]} campaigns={Campaign[]} onChange={(value: { folderId?: string; campaignId?: string }) => void} />`.
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 A single `Select` with two `SelectGroup`s ("Carpetas", "Campañas") plus a leading ungrouped `SelectItem value="none"` ("Sin agrupar"). Item values are prefixed (`folder:<id>` / `campaign:<id>`) to disambiguate in one flat value space; `onValueChange` parses the prefix and calls `onChange({ folderId: id })`, `onChange({ campaignId: id })`, or `onChange({})` for `"none"`.
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `pnpm typecheck`
 
 Expected: exits `0`.
 
-- [ ] **Step 3: Do not commit.**
+- [x] **Step 3: Do not commit.**
 
 ### Task 8: `QrWizardShell`
 
@@ -492,22 +492,22 @@ Expected: exits `0`.
 - Test: `pnpm typecheck`
 
 **Interfaces:**
-- Consumes: `motion` from `motion/react`, structure/visual patterns read from `src/components/watermelon/onboarding-screen.tsx` (Task 1) — not imported, rewritten.
+- Consumes: `motion` from `motion/react`, structure/visual patterns read from `src/components/onboarding-screen.tsx` (Task 1) — not imported, rewritten.
 - Produces: `<QrWizardShell step={1 | 2} totalSteps={2} title={string} subtitle={string} onBack={() => void} preview={ReactNode}>{children}</QrWizardShell>`.
 
-- [ ] **Step 1: Rewrite the installed component into a generic 2-step shell**
+- [x] **Step 1: Rewrite the installed component into a generic 2-step shell**
 
 Keep: the rounded-card container, the spring-animated progress bar (`motion.div` width transition, same spring config as the source), the back-chevron button, the split left-content/right-panel layout. Drop: all "Business/Workspace" copy, the hardcoded `businessName`/`legalName` fields, the 3-step assumption, `react-icons`' `HiBadgeCheck` (not used here — QR wizard's right panel is the live QR preview, passed in via the `preview` prop, not a static illustration).
 
 Use this project's existing color tokens (`bg-card`, `border-border`, `text-foreground`, etc.) instead of the source's hardcoded `bg-white`/`dark:bg-[#0A0A0A]` — the source component assumes a light/dark toggle this app's `data-app-theme` system doesn't use.
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `pnpm typecheck`
 
 Expected: exits `0`.
 
-- [ ] **Step 3: Do not commit.**
+- [x] **Step 3: Do not commit.**
 
 ### Task 9: Rewrite the Type Step and Both Forms
 
@@ -521,15 +521,15 @@ Expected: exits `0`.
 - Consumes: `QrWizardShell` (Task 8), `GroupSelect` (Task 7), `PlacementImageUpload` (Task 5), `createStaticQrCodeAction`/`createWebsiteQrCodeAction` (Task 6), `listFolders`/`listCampaigns` (passed down from `page.tsx`, Task 11).
 - Produces: the full 2-step wizard UI.
 
-- [ ] **Step 1: Six-card type step in `create-qr-modal.tsx`**
+- [x] **Step 1: Six-card type step in `create-qr-modal.tsx`**
 
 Replace the 2-card grid with six cards: Sitio web, Texto fijo, vCard ("Compartir datos de contacto"), Correo electrónico ("Recibir mensajes por correo"), SMS ("Recibir mensajes de texto"), WiFi ("Conexión a una red WiFi") — copy matches the reference screenshot the user provided. Each card sets `selectedKind` and advances `screen` to `"form"`. `screen` state narrows to `"type" | "form" | "success"`.
 
-- [ ] **Step 2: `website-qr-form.tsx` — shared fields + UTM**
+- [x] **Step 2: `website-qr-form.tsx` — shared fields + UTM**
 
 Add, ahead of the existing `destinationUrl` field: Nombre (required input), `GroupSelect`, `PlacementImageUpload`. Add a "Agregar etiquetas UTM" checkbox that reveals a section matching `app/(protected)/links/link-form.tsx`'s UTM block (preset `Select` calling the same kind of `applyPreset` pattern, then source/medium/campaign inputs) — read `utmPresets` from a new prop threaded down from `create-qr-modal.tsx` → `page.tsx` (`listUtmPresets`, already exported from `modules/utm`). Add the inline note: "Tu QR usará un enlace corto automáticamente."
 
-- [ ] **Step 3: Rewrite `static-qr-form.tsx` to take a `kind` prop**
+- [x] **Step 3: Rewrite `static-qr-form.tsx` to take a `kind` prop**
 
 `StaticQrForm({ kind, organizationId, onCreated })`. Shared fields (Nombre, `GroupSelect`, `PlacementImageUpload`, color/logo/ecLevel) render once; a `switch (kind)` block renders the kind-specific inputs:
 - `text`: unchanged `contenido` field.
@@ -540,37 +540,37 @@ Add, ahead of the existing `destinationUrl` field: Nombre (required input), `Gro
 
 A hidden `<input type="hidden" name="kind" value={kind} />` carries the discriminant to `createStaticQrCodeAction`. The live preview (`useQrPreview`) needs a payload string to show something before submit — compute a local preview string with the same logic as `buildStaticPayload` (client-side approximation is fine for the preview only; the canonical payload is still built server-side in the action, per the design doc) or, simpler, skip the live-preview payload for non-text kinds and show a static "la vista previa aparece después de crear el QR" note — decide based on how much the preview is actually used today (check `use-qr-preview.ts`'s cost/latency before duplicating the builder logic client-side).
 
-- [ ] **Step 4: Wire `QrWizardShell` into both forms' rendering**
+- [x] **Step 4: Wire `QrWizardShell` into both forms' rendering**
 
 Both forms render inside `<QrWizardShell step={2} totalSteps={2} title={...} subtitle={...} onBack={() => setScreen("type")} preview={<the existing preview <img> block>}>` — the two-column `grid grid-cols-2` layout each form used standalone moves into the shell (form fields as `children`, preview as the `preview` prop).
 
-- [ ] **Step 5: Do not commit.**
+- [x] **Step 5: Do not commit.**
 
 ### Task 10: Browser Verification of the Wizard
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: `pnpm dev`, open `/qr`, click "Crear código QR"**
+- [x] **Step 1: `pnpm dev`, open `/qr`, click "Crear código QR"**
 
 Confirm all six type cards render with the right copy/icons.
 
-- [ ] **Step 2: Walk each of the six flows to completion**
+- [x] **Step 2: Walk each of the six flows to completion**
 
 For Sitio web, Texto fijo, vCard, Correo electrónico, SMS, WiFi: fill the shared fields (name required — try submitting without it, confirm a validation error, not a silent failure), fill kind-specific fields, submit, confirm the success panel and a real row appears in `/qr` afterward with the right name/type icon.
 
-- [ ] **Step 3: UTM on Sitio web**
+- [x] **Step 3: UTM on Sitio web**
 
 Toggle "Agregar etiquetas UTM", pick a preset, confirm it populates source/medium/campaign; submit; confirm (via `/links/[id]` on the created link, or a DB check) the UTM values landed on the link.
 
-- [ ] **Step 4: Grouping**
+- [x] **Step 4: Grouping**
 
 Create one QR into an existing folder and one into an existing campaign; confirm the `/qr` list shows the group name in the subtitle for both.
 
-- [ ] **Step 5: Placement image**
+- [x] **Step 5: Placement image**
 
 Upload a placement photo on one QR; confirm it's stored and (wherever it's surfaced — at minimum, confirm no upload error) retrievable.
 
-- [ ] **Step 6: `pnpm build`**
+- [x] **Step 6: `pnpm build`**
 
 Expected: exits `0` — this feature touches enough surface area (schema, six form paths, a new shared component) that a production build catch is worth it before calling this done.
 
@@ -585,19 +585,19 @@ Expected: exits `0` — this feature touches enough surface area (schema, six fo
 - Consumes: `listFolders`, `listCampaigns` (fetched once in `page.tsx`, passed to `QrList` for the group-name lookup and, via `create-qr-modal.tsx`, into the wizard's `GroupSelect`).
 - Produces: `QrListRow` gains `name: string`, `staticKind?: "text" | "vcard" | "email" | "sms" | "wifi"`, `groupName?: string`.
 
-- [ ] **Step 1: `page.tsx` — fetch folders/campaigns, build `groupName`**
+- [x] **Step 1: `page.tsx` — fetch folders/campaigns, build `groupName`**
 
 Fetch `listFolders(orgId)` and `listCampaigns(orgId)` alongside the existing `Promise.all`; build lookup maps; for each row, set `groupName` from `folderId`/`campaignId` if either is set.
 
-- [ ] **Step 2: `qr-list.tsx` — `QrHeading` shows `name`**
+- [x] **Step 2: `qr-list.tsx` — `QrHeading` shows `name`**
 
 `QrHeading` renders `row.name` as the title; the existing destination-URL/payload line moves to a secondary line (already secondary-styled — just swap which value is the `font-mono font-medium` title-line content). Add `row.groupName` to the existing metadata row (next to type/date/status) when present. Add a `STATIC_KIND_ICON` map (lucide `IdCard`/`Mail`/`MessageSquare`/`Wifi`/`FileText`) for the static-type badge, replacing the generic static icon for the four new kinds.
 
-- [ ] **Step 3: Browser re-check**
+- [x] **Step 3: Browser re-check**
 
 Reload `/qr`; confirm names show as titles, group names show when set, and kind icons are correct for each of the six types.
 
-- [ ] **Step 4: Do not commit.**
+- [x] **Step 4: Do not commit.**
 
 ### Task 12: Settings — Default Logo
 
@@ -610,11 +610,11 @@ Reload `/qr`; confirm names show as titles, group names show when set, and kind 
 - Consumes: `getOrganization`, `updateDefaultLogo` from `@/modules/users`.
 - Produces: a "Logotipo" section on `/configuracion`, an `updateDefaultLogoAction`.
 
-- [ ] **Step 1: `settings/page.tsx`**
+- [x] **Step 1: `settings/page.tsx`**
 
 Fetch `getOrganization(user.profile.organizationId)`. Add a "Logotipo" section (after "Temas") using the same upload pattern as `PlacementImageUpload`/`LogoUpload` — a client sub-component that uploads to the existing `qr-logos` bucket (this is a logo, same bucket makes sense — not the new placement-image bucket) and calls `updateDefaultLogoAction` with the resulting URL. Show the current `defaultLogoUrl` as a thumbnail when set.
 
-- [ ] **Step 2: `settings/actions.ts`**
+- [x] **Step 2: `settings/actions.ts`**
 
 ```ts
 export async function updateDefaultLogoAction(formData: FormData): Promise<void> {
@@ -628,15 +628,15 @@ export async function updateDefaultLogoAction(formData: FormData): Promise<void>
 }
 ```
 
-- [ ] **Step 3: Thread the default logo into the wizard**
+- [x] **Step 3: Thread the default logo into the wizard**
 
 `create-qr-modal.tsx` receives `defaultLogoUrl` as a prop from `page.tsx` (`getOrganization`), passes it into both `WebsiteQrForm`/`StaticQrForm` as the initial `logoUrl` state value (still replaceable per QR via the existing `LogoUpload`).
 
-- [ ] **Step 4: Browser check**
+- [x] **Step 4: Browser check**
 
 Set a default logo in Settings; open the QR wizard; confirm the logo step is pre-filled; confirm it's still replaceable.
 
-- [ ] **Step 5: Do not commit.**
+- [x] **Step 5: Do not commit.**
 
 ---
 
