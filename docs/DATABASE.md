@@ -119,9 +119,34 @@ columns.
 
 ## Multi-Tenancy
 
-`organization_id` on every core table from day one (I-6). No Row-Level Security and no
-tenant-switching UI/logic in MVP — this locks in the expensive schema decision cheaply now while
-deferring actual multi-tenant enforcement until/unless a second tenant is needed.
+`organization_id` on every core table from day one (I-6). No tenant-switching UI/logic in MVP —
+this locks in the expensive schema decision cheaply now while deferring actual multi-tenant
+enforcement until/unless a second tenant is needed. Access control itself stays app-layer
+(organization_id filtering + `getCurrentUser()`), reached over a direct Postgres connection that
+bypasses RLS — see `0014_enable_rls.sql` and "Environments" below for why RLS is enabled anyway.
+
+## Environments (2026-09-15)
+
+Two Supabase projects, never crossed:
+
+- **Local dev** — `supabase start` (Docker), the only thing a developer's own `.env` ever points
+  at. Fast, disposable, safe to break.
+- **Production** — a real hosted Supabase project (`dgxqayjapnqzlmkinimi`). Its `DATABASE_URL` and
+  Supabase keys live only in the hosting platform's environment config (e.g. Vercel), never in a
+  local `.env` file, and no developer machine connects to it directly for day-to-day work.
+
+**Migration flow**: `pnpm db:generate` writes a new file under `drizzle/`, tested locally via
+`pnpm db:migrate` (targets whatever `DATABASE_URL` your `.env` has — local, always). The same
+migration file is committed to `drizzle/` and reaches production only as a deploy step, running
+`pnpm db:migrate` with `DATABASE_URL` supplied by the hosting platform — never run by hand against
+prod from a local machine. `drizzle/` is the single source of truth for both environments; they
+only differ in *when* each migration is applied.
+
+Production also has Row Level Security enabled on every `public` table (`0014_enable_rls.sql`),
+closing off Supabase's auto-generated PostgREST data API (reachable with the anon/authenticated
+key any Supabase client library uses) — the app doesn't use that API for table access, so this is
+a pure lockdown, not a functional change. If that ever changes, real policies need to exist before
+anything starts querying tables with the anon/authenticated key.
 
 ## Retention / Partitioning
 
