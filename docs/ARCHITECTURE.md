@@ -135,6 +135,18 @@ Roll up first, drop second, always.
   `hovered` boolean, owned by the parent's `onMouseEnter`/`onMouseLeave`, when the hoverable area
   is bigger than the icon (e.g. a labeled pill button) — otherwise only mousing over the 16px icon
   triggers the morph instead of the whole button.
+- **Loading states**: `BinaryLoader` (`src/components/binary-loader.tsx`, wraps the pure-CSS
+  `.ld-binary` loader in `app/globals.css`) wherever a pending/loading UI is needed — form submit
+  buttons (`{pending ? <BinaryLoader /> : "Label"}`), async upload status text, a data panel with
+  no content yet. No JS animation, no dependency; respects `prefers-reduced-motion`.
+- **Tooltips**: the one tooltip is `Tooltip` (`src/components/tooltip.tsx`, wraps the pure-CSS
+  `.t-tt`/`.t-tt-wrap` hover/focus effect in `app/globals.css`). It never `cloneElement`s its
+  children — doing that broke hydration when the wrapped JSX came from a Server Component (SSR and
+  client hydration produced different output). Default usage `<Tooltip label="...">{content}</Tooltip>`
+  has Tooltip own the focusable trigger span, for inert content (an icon, a colored cell). For an
+  already-interactive trigger (a real `<a>`/`<button>`), don't wrap it — apply
+  `.t-tt-wrap`/`.t-tt-trigger`/`.t-tt` directly with a locally-generated `useId()` (see
+  `qr-list.tsx`'s `QrActions`), so the real element stays the one tab stop.
 
 ## Deployment
 

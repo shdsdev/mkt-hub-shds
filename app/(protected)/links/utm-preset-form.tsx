@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { UtmPreset } from "@/modules/utm";
 import { createUtmPresetAction, type CreateUtmPresetFormState } from "./actions";
+import { BinaryLoader } from "@/components/binary-loader";
 
 const initialState: CreateUtmPresetFormState = {};
 
@@ -48,7 +49,7 @@ export function UtmPresetForm({ presets }: { presets: UtmPreset[] }) {
           disabled={pending}
           className="col-span-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground disabled:opacity-50"
         >
-          {pending ? "Guardando…" : "Guardar preajuste"}
+          {pending ? <BinaryLoader /> : "Guardar preajuste"}
         </button>
       </form>
 

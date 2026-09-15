@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { Domain } from "@/modules/links";
 import { createDomainAction, type CreateDomainFormState } from "./actions";
+import { BinaryLoader } from "@/components/binary-loader";
 
 const initialState: CreateDomainFormState = {};
 
@@ -37,7 +38,7 @@ export function DomainForm({ domains }: { domains: Domain[] }) {
           disabled={pending}
           className="rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground disabled:opacity-50"
         >
-          Agregar
+          {pending ? <BinaryLoader /> : "Agregar"}
         </button>
       </form>
 

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { recordPrintRunAction, type RecordPrintRunFormState } from "../actions";
+import { BinaryLoader } from "@/components/binary-loader";
 
 const initialState: RecordPrintRunFormState = {};
 
@@ -25,7 +26,7 @@ export function PrintRunForm({ shortLinkId, linkId }: { shortLinkId: string; lin
         disabled={pending}
         className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground disabled:opacity-50"
       >
-        {pending ? "…" : "Registrar tirada"}
+        {pending ? <BinaryLoader /> : "Registrar tirada"}
       </button>
       {state.error && <span className="text-xs text-destructive">{state.error}</span>}
     </form>

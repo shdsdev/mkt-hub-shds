@@ -1,3 +1,4 @@
+import { Tooltip } from "@/components/tooltip";
 import type { HeatmapCell } from "./heatmap";
 
 const LEVEL_CLASS: Record<HeatmapCell["level"], string> = {
@@ -40,11 +41,12 @@ export function ActivityHeatmap({ weeks, total }: { weeks: HeatmapCell[][]; tota
                 {showLabel ? monthLabel(week[0].date) : ""}
               </p>
               {week.map((cell) => (
-                <div
+                <Tooltip
                   key={cell.date}
-                  title={`${cell.date}: ${cell.count} escaneo${cell.count === 1 ? "" : "s"}`}
-                  className={`h-4 w-4 rounded-[4px] ${LEVEL_CLASS[cell.level]}`}
-                />
+                  label={`${cell.date}: ${cell.count} escaneo${cell.count === 1 ? "" : "s"}`}
+                >
+                  <div className={`h-4 w-4 rounded-[4px] ${LEVEL_CLASS[cell.level]}`} />
+                </Tooltip>
               ))}
             </div>
           );

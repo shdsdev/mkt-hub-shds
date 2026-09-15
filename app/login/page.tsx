@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { login, type LoginFormState } from "./actions";
+import { BinaryLoader } from "@/components/binary-loader";
 
 const initialState: LoginFormState = {};
 
@@ -53,9 +54,9 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-md bg-primary px-3 py-2 font-medium text-primary-foreground disabled:opacity-50"
+          className="flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 font-medium text-primary-foreground disabled:opacity-50"
         >
-          {pending ? "Iniciando sesión…" : "Iniciar sesión"}
+          {pending ? <BinaryLoader /> : "Iniciar sesión"}
         </button>
       </form>
     </main>
