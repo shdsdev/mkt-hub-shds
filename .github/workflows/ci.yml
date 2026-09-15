@@ -30,4 +30,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # A fresh checkout has no .next/types yet — next build normally generates those as a side
+      # effect, but `pnpm typecheck` (plain `tsc --noEmit`) runs before `pnpm build` inside
+      # `pnpm check` and fails on Next's generated globals (e.g. LayoutProps) that only exist
+      # locally because a dev/build has already run at some point. `next typegen` produces just
+      # those types without a full build.
+      - run: pnpm exec next typegen
+
       - run: pnpm check
