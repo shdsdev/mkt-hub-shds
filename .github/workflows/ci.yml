@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # Placeholder values only — pnpm check (lint/typecheck/test/build) never connects to a real
+    # database or Supabase project, it just needs env.ts's required() checks to pass so module
+    # load doesn't throw during `next build`'s page-data collection.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # A fresh checkout has no .next/types yet — next build normally generates those as a side
+      # effect, but `pnpm typecheck` (plain `tsc --noEmit`) runs before `pnpm build` inside
+      # `pnpm check` and fails on Next's generated globals (e.g. LayoutProps) that only exist
+      # locally because a dev/build has already run at some point. `next typegen` produces just
+      # those types without a full build.
+      - run: pnpm exec next typegen
+
+      - run: pnpm check
