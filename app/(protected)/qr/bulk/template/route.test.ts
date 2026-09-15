@@ -4,7 +4,8 @@ const { getCurrentUser } = vi.hoisted(() => ({ getCurrentUser: vi.fn() }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser }));
 
-import { BULK_QR_TEMPLATE_CSV, BULK_QR_TEMPLATE_FILENAME, GET } from "./route";
+import { BULK_QR_TEMPLATE_CSV, BULK_QR_TEMPLATE_FILENAME } from "./constants";
+import { GET } from "./route";
 
 describe("GET /qr/bulk/template", () => {
   beforeEach(() => {
