@@ -1,9 +1,9 @@
 # Design: Organization-Scoped User Management
 
 This design adds an ADMIN-only **Settings > Users** module. An administrator can invite,
-resend an invitation to, disable, reactivate, and assign the V1 role of users in their own
-organization. Supabase owns credentials and invitation email; `public.users` remains the
-application profile and organization-membership record.
+disable, reactivate, and assign the V1 role of users in their own organization. Supabase owns
+credentials and invitation email; `public.users` remains the application profile and
+organization-membership record.
 
 ## Quick Path
 
@@ -22,7 +22,7 @@ unimplemented granular roles.
 
 - An ADMIN-only Settings > Users page for listing organization users and performing V1 user
   management actions.
-- Invite, resend invitation, role assignment, disable, and reactivate operations.
+- Invite, role assignment, disable, and reactivate operations.
 - An auth callback and password-setup route for the Supabase invitation flow.
 - Server-only service-role provisioning, audit events, rate limiting, Zod validation,
   revalidation, and focused Vitest server-action tests.
@@ -37,6 +37,9 @@ unimplemented granular roles.
 - Roles other than `ADMIN` and `User` (`MARKETING_USER`). Existing enum values such as
   `MARKETING_MANAGER` and `VIEWER` are not selectable or displayed as new choices.
 - Granular permissions, invitation-expiry policy, invitation analytics, and bulk user management.
+- Invitation resend. The pinned Supabase SDK has no verified safe operation for resending an
+  invitation to an existing Auth identity; see
+  `docs/superpowers/evidence/2026-09-17-supabase-invitation-resend.md`.
 
 ## Design Summary
 
@@ -83,7 +86,7 @@ public.users
 ```
 
 The implementation adds only the user-management audit-action values required to distinguish
-invite, resend, role change, disable, and reactivate events. Audit records use the existing
+invite, role change, disable, and reactivate events. Audit records use the existing
 `audit_logs` shape: actor ID, actor organization ID, target user as the resource, and relevant
 before/after values. Passwords, invitation URLs, tokens, service-role credentials, and raw Auth
 provider responses are never stored in audit data.
@@ -115,7 +118,7 @@ The last-active-ADMIN check must execute in the same protected mutation path as 
 write, using database-safe concurrency control so simultaneous ADMIN actions cannot both pass the
 check and leave the organization without an active ADMIN.
 
-## Invite and Resend Flow
+## Invite Flow
 
 ### Invite
 
@@ -139,34 +142,11 @@ check and leave the organization without an active ADMIN.
 The provisioning service must return a failure if it cannot establish both the Auth identity and
 the profile. It must never report a partial invitation as successful.
 
-### Resend
-
-1. The ADMIN selects a user already listed in their organization; resend is target-ID based, not
-   an arbitrary email form.
-2. The server authorizes, rate-limits, validates the target ID, and loads the target within the
-   actor's organization.
-3. The service requests a new Supabase invitation for that existing Auth identity and the same
-   configured callback redirect URL. It must not create a second Auth identity or a second
-   `public.users` profile.
-4. On provider success, the action appends a resend audit event and revalidates the Users page.
-
-The exact pinned-SDK method for step 3 must be verified during implementation against the deployed
-Supabase Auth behavior. The documented `inviteUserByEmail` creates and emails an invitation, while
-the documented generic resend API covers signup and email-change emails rather than invitations.
-Regardless of transport API, the required contract is explicit: resend operates on the existing
-identity only and fails safely rather than falling back to account creation.
-
-V1 does not persist a pending-invitation status. The Users UI therefore does not infer invitation
-eligibility from `public.users`; the server reports resend success only after Supabase accepts a
-new invitation for the exact existing identity. A provider rejection leaves the profile, role, and
-status unchanged.
-
 ## Role and Status Lifecycle
 
 | Operation | Valid outcome |
 | --- | --- |
 | Invite | Creates an `active` profile with role `ADMIN` or `MARKETING_USER`; invitation acceptance remains Auth state. |
-| Resend invitation | Leaves profile role and status unchanged; sends another invitation for the same Auth identity. |
 | Change role | Switches only between `ADMIN` and `MARKETING_USER`; demoting the final active ADMIN is rejected. |
 | Disable | Changes an eligible target from `active` to `disabled`; self-disable and disabling the final active ADMIN are rejected. |
 | Reactivate | Changes a target from `disabled` to `active`; it does not create an identity or profile. |
@@ -184,7 +164,7 @@ without changing their Auth identity or password.
 | Invalid form data | Return a structured validation failure without a mutation. |
 | Rate limit exceeded | Return a safe, retryable failure without calling Supabase Auth. |
 | Target absent from actor organization | Return the same safe failure used for a missing target. |
-| Duplicate or incompatible invite request | Do not create an additional Auth identity or profile; direct the ADMIN to the existing organization user and use resend when applicable. |
+| Duplicate or incompatible invite request | Do not create an additional Auth identity or profile; return a safe failure. |
 | Auth invite failure | Do not create the profile; return a safe failure. |
 | Profile creation failure after Auth creation | Attempt Auth identity deletion as compensation; report failure. If compensation itself fails, log enough server-side operational detail for remediation without exposing credentials or tokens to the caller. |
 | Last active ADMIN or self-disable | Reject before mutation and state the actionable constraint in the UI. |
@@ -192,7 +172,7 @@ without changing their Auth identity or password.
 
 ## Audit and Testing
 
-Audit events cover successful invite, invitation resend, role change, disable, and reactivate
+Audit events cover successful invite, role change, disable, and reactivate
 operations. Each records the actor, organization, target resource, and non-sensitive before/after
 role or status values where applicable. Failed attempts are not represented as successful audit
 events.
@@ -204,7 +184,6 @@ Focused Vitest tests cover the server-action boundary with mocked Auth/service d
 - Zod rejects invalid email, role, and target inputs; `User` maps to `MARKETING_USER`.
 - Invite creates profile membership only after Auth identity provisioning; profile failure invokes
   compensation cleanup.
-- Resend uses an existing same-organization target and never enters the create-account path.
 - Self-disable and the final-active-ADMIN disable/demotion are rejected, including the
   concurrency-safe service contract.
 - Disable/reactivate and role changes write the expected audit payload and revalidate the Users
@@ -229,7 +208,6 @@ Client Component.
 - [x] All reads and writes are scoped to the actor's organization.
 - [x] Invitations create Auth identity plus profile membership, with compensation on profile
   failure.
-- [x] Resend cannot create duplicate user accounts.
 - [x] The final active ADMIN and self-disable invariants are enforced.
 - [x] Only `ADMIN` and `User` are exposed in V1.
 - [x] Password setup follows the Supabase invitation callback and uses no temporary password.

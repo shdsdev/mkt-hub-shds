@@ -8,6 +8,10 @@ export const auditAction = pgEnum("audit_action", [
   "archive",
   "end_campaign",
   "record_print_run",
+  "invite_user",
+  "change_user_role",
+  "disable_user",
+  "reactivate_user",
 ]);
 
 // Append-only (no update/delete function anywhere in this module) — matches the print_runs
