@@ -766,3 +766,55 @@
 [data-app-theme="midnight"] .content-frame {
   border: 1px solid rgba(220, 230, 240, 0.14);
 }
+
+/* Rotating accent-colored border for the content frame. A conic-gradient driven by an animated
+   angle (not a radial-gradient sized in % of the box) is what makes this work at full-page scale
+   — percentage-based sizing (the classic "hover border gradient" trick) produces a huge blob on
+   an element this large instead of a thin border; angle-based conic-gradient stays a fixed pixel
+   ring regardless of container size. mask-composite carves out everything but that ring. */
+@property --gradient-border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.gradient-border-frame {
+  position: relative;
+}
+
+.gradient-border-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--gradient-border-angle),
+    transparent 0%,
+    var(--accent) 10%,
+    var(--accent) 15%,
+    transparent 35%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 70%, transparent));
+  animation: gradient-border-rotate 8s linear infinite;
+}
+
+@keyframes gradient-border-rotate {
+  to {
+    --gradient-border-angle: 360deg;
+  }
+}
+
+/* Set by GradientBorderToggle (app/(protected)/gradient-border-toggle.tsx). "content: none"
+   un-generates the pseudo-element entirely, not just hides it — cheaper than fighting the
+   animation/opacity, and leaves .content-frame's plain border (above) as the fallback look. */
+[data-gradient-border="off"] .gradient-border-frame::before {
+  content: none;
+}
