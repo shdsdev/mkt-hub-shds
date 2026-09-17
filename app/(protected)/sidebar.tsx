@@ -44,8 +44,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
@@ -172,35 +172,33 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
           <NavItem href="/settings" idle={Settings} active={Settings2}>
             Configuración
           </NavItem>
-          <SidebarMenuItem>
-            <form action={signOutAction}>
-              <SidebarMenuButton
-                type="submit"
-                onMouseEnter={() => setSignOutHovered(true)}
-                onMouseLeave={() => setSignOutHovered(false)}
-                className="w-full text-sidebar-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              >
-                <HoverMorphIcon idle={LogOut} active={DoorOpen} size={16} hovered={signOutHovered} />
-                <span>Cerrar sesión</span>
-              </SidebarMenuButton>
-            </form>
-          </SidebarMenuItem>
+          {/* Unified profile card — avatar + email/role trigger a menu with just sign-out inside,
+              replacing the previously-separate standalone sign-out button and dropdown. */}
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-lg p-2 text-sm text-sidebar-foreground outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[popup-open]:bg-sidebar-accent">
                 <Avatar size="sm">
                   <AvatarFallback>{initials(email)}</AvatarFallback>
                 </Avatar>
-                <span className="flex-1 truncate text-left text-sm font-medium">{email}</span>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="block truncate text-sm font-medium">{email}</span>
+                  <span className="block truncate text-xs text-sidebar-muted-foreground">{role}</span>
+                </span>
                 <ChevronsUpDown size={14} className="shrink-0 text-sidebar-foreground/50" />
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" className="w-64">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="font-normal">
-                    <p className="text-sm font-medium text-foreground">{email}</p>
-                    <p className="text-xs text-muted-foreground">{role}</p>
-                  </DropdownMenuLabel>
-                </DropdownMenuGroup>
+                <form action={signOutAction}>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    nativeButton
+                    render={<button type="submit" className="w-full" />}
+                    onMouseEnter={() => setSignOutHovered(true)}
+                    onMouseLeave={() => setSignOutHovered(false)}
+                  >
+                    <HoverMorphIcon idle={LogOut} active={DoorOpen} size={16} hovered={signOutHovered} />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </form>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
