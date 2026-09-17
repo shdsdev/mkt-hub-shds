@@ -5,7 +5,13 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { updateTheme, isValidThemeId, updateDefaultLogo } from "@/modules/users";
-import { createDomain, updateDomain, deleteDomain } from "@/modules/links";
+import {
+  createDomain,
+  updateDomain,
+  deleteDomain,
+  getDomain,
+  reassignShortLinksToDomain,
+} from "@/modules/links";
 import { checkRateLimit } from "@/modules/audit";
 
 export async function updateUserThemeAction(formData: FormData): Promise<void> {
@@ -68,6 +74,46 @@ export async function updateDomainAction(
   }
 
   await updateDomain(id.data, hostname.data);
+  revalidatePath("/settings");
+  return {};
+}
+
+export type ReassignDomainFormState = { error?: string };
+
+// The only way to free a domain of its short_links FK references without hard-deleting them
+// (I-7 forbids hard delete — archived QRs must keep resolving). Moves every short link off
+// `fromId` onto `toId`; the caller retries deleteDomainAction once this succeeds.
+export async function reassignDomainShortLinksAction(
+  _prevState: ReassignDomainFormState,
+  formData: FormData,
+): Promise<ReassignDomainFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const fromId = z.string().uuid().safeParse(formData.get("fromId"));
+  const toId = z.string().uuid().safeParse(formData.get("toId"));
+  if (!fromId.success || !toId.success) {
+    return { error: "Elige un dominio de destino." };
+  }
+  if (fromId.data === toId.data) {
+    return { error: "Elige un dominio distinto al actual." };
+  }
+
+  const [fromDomain, toDomain] = await Promise.all([getDomain(fromId.data), getDomain(toId.data)]);
+  if (
+    fromDomain?.organizationId !== user.profile.organizationId ||
+    toDomain?.organizationId !== user.profile.organizationId
+  ) {
+    return { error: "Dominio inválido." };
+  }
+
+  try {
+    await reassignShortLinksToDomain(fromId.data, toId.data);
+  } catch {
+    return {
+      error: "Alguno de esos enlaces ya existe con ese slug en el dominio destino — cámbialo antes de mover.",
+    };
+  }
   revalidatePath("/settings");
   return {};
 }

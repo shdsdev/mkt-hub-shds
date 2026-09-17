@@ -7,9 +7,11 @@ import {
   createDomainAction,
   updateDomainAction,
   deleteDomainAction,
+  reassignDomainShortLinksAction,
   type CreateDomainFormState,
   type UpdateDomainFormState,
   type DeleteDomainFormState,
+  type ReassignDomainFormState,
 } from "./actions";
 import { BinaryLoader } from "@/components/binary-loader";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
@@ -17,6 +19,7 @@ import { HoverMorphIcon } from "@/components/hover-morph-icon";
 const createInitialState: CreateDomainFormState = {};
 const updateInitialState: UpdateDomainFormState = {};
 const deleteInitialState: DeleteDomainFormState = {};
+const reassignInitialState: ReassignDomainFormState = {};
 
 // Every short link/QR resolves through one of these hostnames — moved here from the Enlaces page
 // because it's org-wide configuration, not a per-link action. Each row owns its own edit toggle
@@ -40,7 +43,7 @@ export function DomainForm({ domains }: { domains: Domain[] }) {
           <li>Aún no hay dominios — agrega uno para crear enlaces cortos.</li>
         )}
         {domains.map((domain) => (
-          <DomainRow key={domain.id} domain={domain} />
+          <DomainRow key={domain.id} domain={domain} allDomains={domains} />
         ))}
       </ul>
 
@@ -69,7 +72,7 @@ export function DomainForm({ domains }: { domains: Domain[] }) {
   );
 }
 
-function DomainRow({ domain }: { domain: Domain }) {
+function DomainRow({ domain, allDomains }: { domain: Domain; allDomains: Domain[] }) {
   const [editing, setEditing] = useState(false);
   const [updateState, updateFormAction, updatePending] = useActionState(
     updateDomainAction,
@@ -79,6 +82,12 @@ function DomainRow({ domain }: { domain: Domain }) {
     deleteDomainAction,
     deleteInitialState,
   );
+  const [reassignState, reassignFormAction, reassignPending] = useActionState(
+    reassignDomainShortLinksAction,
+    reassignInitialState,
+  );
+  const otherDomains = allDomains.filter((d) => d.id !== domain.id);
+  const reassignSucceeded = !reassignPending && !reassignState.error && reassignState !== reassignInitialState;
 
   // Close the edit row only once the save actually succeeds — not right after submit — so a
   // validation error (e.g. an empty hostname) stays visible with the field still open instead of
@@ -159,9 +168,50 @@ function DomainRow({ domain }: { domain: Domain }) {
         </span>
       </div>
       {deleteState.error && (
-        <p role="alert" className="text-xs text-destructive">
-          {deleteState.error}
-        </p>
+        <div className="space-y-1.5 rounded-md border border-destructive/30 bg-destructive/5 p-2">
+          <p role="alert" className="text-xs text-destructive">
+            {deleteState.error}
+          </p>
+          {otherDomains.length > 0 ? (
+            reassignSucceeded ? (
+              <p className="text-xs text-muted-foreground">
+                Enlaces movidos — volvé a apretar eliminar para borrar el dominio.
+              </p>
+            ) : (
+              <form action={reassignFormAction} className="flex items-center gap-2">
+                <input type="hidden" name="fromId" value={domain.id} />
+                <span className="text-xs text-muted-foreground">Mover sus enlaces a</span>
+                <select
+                  name="toId"
+                  required
+                  className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                >
+                  {otherDomains.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.hostname}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={reassignPending}
+                  className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground disabled:opacity-50"
+                >
+                  {reassignPending ? <BinaryLoader /> : "Mover"}
+                </button>
+              </form>
+            )
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Agrega otro dominio primero para poder mover estos enlaces.
+            </p>
+          )}
+          {reassignState.error && (
+            <p role="alert" className="text-xs text-destructive">
+              {reassignState.error}
+            </p>
+          )}
+        </div>
       )}
     </li>
   );

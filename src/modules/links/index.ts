@@ -16,6 +16,8 @@ export {
   updateDomain,
   deleteDomain,
   getDomain,
+  listShortLinksForDomain,
+  reassignShortLinksToDomain,
   getShortLink,
   listFolders,
   createFolder,

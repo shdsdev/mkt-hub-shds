@@ -216,6 +216,18 @@ export async function deleteDomain(id: string): Promise<void> {
   await db.delete(domains).where(eq(domains.id, id));
 }
 
+export async function listShortLinksForDomain(domainId: string): Promise<ShortLink[]> {
+  return db.select().from(shortLinks).where(eq(shortLinks.domainId, domainId));
+}
+
+// Moves every short link off `fromDomainId` onto `toDomainId` — the only way to free a domain of
+// its short_links FK references without hard-deleting them (I-7 forbids hard delete: archived QRs
+// must keep resolving). A single UPDATE is atomic, so a (domainId, slug) unique-constraint
+// collision (both domains already have the same slug) aborts the whole move — never a partial one.
+export async function reassignShortLinksToDomain(fromDomainId: string, toDomainId: string): Promise<void> {
+  await db.update(shortLinks).set({ domainId: toDomainId }).where(eq(shortLinks.domainId, fromDomainId));
+}
+
 export async function getDomain(id: string): Promise<Domain | undefined> {
   const rows = await db.select().from(domains).where(eq(domains.id, id)).limit(1);
   return rows[0];
