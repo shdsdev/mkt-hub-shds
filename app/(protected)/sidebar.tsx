@@ -3,11 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  ChevronsUpDown,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import {
   LayoutDashboard,
   Gauge,
@@ -89,6 +85,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
   const [qrShortLinksOpen, setQrShortLinksOpen] = useState(qrShortLinksActive);
   const [qrGroupHovered, setQrGroupHovered] = useState(false);
   const [signOutHovered, setSignOutHovered] = useState(false);
+  const [settingsHovered, setSettingsHovered] = useState(false);
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -169,24 +166,44 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
 
       <SidebarFooter className="px-4 pb-6">
         <SidebarMenu className="gap-1.5">
-          <NavItem href="/settings" idle={Settings} active={Settings2}>
-            Configuración
-          </NavItem>
-          {/* Unified profile card — avatar + email/role trigger a menu with just sign-out inside,
-              replacing the previously-separate standalone sign-out button and dropdown. */}
+          {/* Unified profile card — a bordered card (name/role + avatar in a gradient ring, like
+              the reference) triggers a menu that now holds Configuración and Cerrar sesión both,
+              replacing the separate standalone nav item + sign-out button + bare dropdown. */}
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-lg p-2 text-sm text-sidebar-foreground outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[popup-open]:bg-sidebar-accent">
-                <Avatar size="sm">
-                  <AvatarFallback>{initials(email)}</AvatarFallback>
-                </Avatar>
-                <span className="min-w-0 flex-1 text-left">
-                  <span className="block truncate text-sm font-medium">{email}</span>
+              <DropdownMenuTrigger className="group flex w-full items-center gap-3 rounded-2xl border border-sidebar-border/70 bg-sidebar-accent/30 p-3 text-left outline-hidden hover:border-sidebar-border hover:bg-sidebar-accent/60 data-[popup-open]:border-sidebar-border data-[popup-open]:bg-sidebar-accent/60">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-sidebar-foreground">{email}</span>
                   <span className="block truncate text-xs text-sidebar-muted-foreground">{role}</span>
                 </span>
-                <ChevronsUpDown size={14} className="shrink-0 text-sidebar-foreground/50" />
+                <span className="shrink-0 rounded-full bg-gradient-to-br from-primary via-accent to-secondary p-0.5">
+                  <Avatar size="lg" className="bg-sidebar">
+                    <AvatarFallback className="bg-transparent">{initials(email)}</AvatarFallback>
+                  </Avatar>
+                </span>
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" className="w-64">
+              <DropdownMenuContent side="top" align="start" className="w-64">
+                <div className="flex items-center gap-3 p-2">
+                  <span className="shrink-0 rounded-full bg-gradient-to-br from-primary via-accent to-secondary p-0.5">
+                    <Avatar className="bg-popover">
+                      <AvatarFallback className="bg-transparent">{initials(email)}</AvatarFallback>
+                    </Avatar>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">{email}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{role}</span>
+                  </span>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  render={<Link href="/settings" />}
+                  onMouseEnter={() => setSettingsHovered(true)}
+                  onMouseLeave={() => setSettingsHovered(false)}
+                >
+                  <HoverMorphIcon idle={Settings} active={Settings2} size={16} hovered={settingsHovered} />
+                  Configuración
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <form action={signOutAction}>
                   <DropdownMenuItem
                     variant="destructive"
