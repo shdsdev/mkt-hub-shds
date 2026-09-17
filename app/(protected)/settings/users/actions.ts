@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { checkRateLimit, recordAudit } from "@/modules/audit";
 import { getCurrentUser } from "@/modules/auth";
@@ -54,6 +55,24 @@ function revalidateUserManagement() {
   revalidatePath("/settings");
 }
 
+// The invitation link must point at the origin the ADMIN is actually using — in local development
+// that is localhost:3000, in Vercel it is the deployed host. Deriving it from the request headers
+// keeps it correct in every environment without depending on an env var that may be missing.
+async function invitationCallbackUrl(): Promise<string> {
+  const headerStore = await headers();
+  const host = headerStore.get("host");
+  if (host) {
+    // Vercel terminates TLS and forwards the original scheme; trust it so production invite
+    // links are https.
+    const proto = headerStore.get("x-forwarded-proto") ?? "http";
+    return new URL(`/auth/callback`, `${proto}://${host}`).toString();
+  }
+  return new URL(
+    "/auth/callback",
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  ).toString();
+}
+
 export async function inviteUserAction(
   _state: UserManagementFormState,
   formData: FormData,
@@ -70,10 +89,7 @@ export async function inviteUserAction(
     organizationId: user.profile.organizationId,
     email: parsed.data.email,
     role,
-    emailRedirectTo: new URL(
-      "/auth/callback",
-      process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-    ).toString(),
+    emailRedirectTo: await invitationCallbackUrl(),
   });
   if (!result.ok) return { error: "No se pudo enviar la invitación." };
 

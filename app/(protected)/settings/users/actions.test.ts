@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   setManagedUserStatus: vi.fn(),
   revalidatePath: vi.fn(),
   redirect: vi.fn(),
+  headers: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -27,6 +28,7 @@ vi.mock("@/modules/audit", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
+vi.mock("next/headers", () => ({ headers: mocks.headers }));
 
 import {
   changeUserRoleAction,
@@ -94,6 +96,7 @@ describe("user-management server actions", () => {
       user: target,
       before: { role: "MARKETING_USER", status: "disabled" },
     });
+    mocks.headers.mockResolvedValue(new Headers({ host: "localhost:3000" }));
   });
 
   it("does not call services, audit, or revalidation for a disabled ADMIN", async () => {
@@ -156,6 +159,18 @@ describe("user-management server actions", () => {
     });
     expect(mocks.revalidatePath).toHaveBeenNthCalledWith(1, "/settings/users");
     expect(mocks.revalidatePath).toHaveBeenNthCalledWith(2, "/settings");
+  });
+
+  it("builds the invitation callback from the production host header", async () => {
+    mocks.headers.mockResolvedValue(
+      new Headers({ host: "shmx.men", "x-forwarded-proto": "https" }),
+    );
+
+    await inviteUserAction({}, inviteFormData());
+
+    expect(mocks.inviteManagedUser).toHaveBeenCalledWith(
+      expect.objectContaining({ emailRedirectTo: "https://shmx.men/auth/callback" }),
+    );
   });
 
   it("revalidates both Settings paths only after a successful role update", async () => {
