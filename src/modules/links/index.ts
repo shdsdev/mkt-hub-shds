@@ -13,6 +13,8 @@ export {
   buildDestinationUrl,
   listDomains,
   createDomain,
+  updateDomain,
+  deleteDomain,
   getDomain,
   getShortLink,
   listFolders,

@@ -6,7 +6,6 @@ import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import {
   createLink,
-  createDomain,
   createShortLink,
   updateLinkDestination,
   archiveLink,
@@ -110,27 +109,6 @@ export async function createUtmPresetAction(
     return { error: error instanceof Error ? error.message : "No se pudo crear el preajuste." };
   }
 
-  revalidatePath("/links");
-  return {};
-}
-
-const createDomainSchema = z.object({ hostname: z.string().trim().min(1).max(255) });
-
-export type CreateDomainFormState = { error?: string };
-
-export async function createDomainAction(
-  _prevState: CreateDomainFormState,
-  formData: FormData,
-): Promise<CreateDomainFormState> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const parsed = createDomainSchema.safeParse({ hostname: formData.get("hostname") });
-  if (!parsed.success) {
-    return { error: "Ingresa un hostname válido." };
-  }
-
-  await createDomain(user.profile.organizationId, parsed.data.hostname);
   revalidatePath("/links");
   return {};
 }

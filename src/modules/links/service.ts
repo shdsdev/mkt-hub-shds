@@ -177,13 +177,43 @@ export async function resolveShortLinkByHostAndSlug(
   return { link, shortLink };
 }
 
+// Strips a pasted scheme/path/trailing slash and lowercases — a domain row is a bare hostname
+// (matched against the raw Host header on every redirect, which never carries "https://"), so
+// "https://go.example.com/" and "go.example.com" must collapse to the same stored value instead
+// of silently creating two different, both-"verified" rows for what the user meant as one domain.
+export function normalizeHostname(raw: string): string {
+  const trimmed = raw.trim();
+  const withoutScheme = trimmed.replace(/^https?:\/\//i, "");
+  const withoutPath = withoutScheme.split("/")[0];
+  return withoutPath.toLowerCase();
+}
+
 export async function listDomains(organizationId: string): Promise<Domain[]> {
   return db.select().from(domains).where(eq(domains.organizationId, organizationId));
 }
 
 export async function createDomain(organizationId: string, hostname: string): Promise<Domain> {
-  const [domain] = await db.insert(domains).values({ organizationId, hostname }).returning();
+  const [domain] = await db
+    .insert(domains)
+    .values({ organizationId, hostname: normalizeHostname(hostname) })
+    .returning();
   return domain;
+}
+
+export async function updateDomain(id: string, hostname: string): Promise<Domain> {
+  const [domain] = await db
+    .update(domains)
+    .set({ hostname: normalizeHostname(hostname) })
+    .where(eq(domains.id, id))
+    .returning();
+  return domain;
+}
+
+// No onDelete clause on short_links.domain_id (db.ts) — Postgres' default NO ACTION means this
+// throws a foreign-key violation if any short link still resolves through this domain, instead of
+// silently orphaning/cascading. The caller (deleteDomainAction) turns that into a clear message.
+export async function deleteDomain(id: string): Promise<void> {
+  await db.delete(domains).where(eq(domains.id, id));
 }
 
 export async function getDomain(id: string): Promise<Domain | undefined> {
