@@ -1,9 +1,14 @@
 import { and, asc, count, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "../../db/client";
 import { authUsers } from "../../db/auth-schema-ref";
 import { invitationGateway } from "../../lib/supabase/admin";
 import { users } from "./db";
 import { createProfile, type Profile, type UserStatus } from "./service";
+
+// Distinct runtime name for `public.users`, because joining it to `auth.users` produces two SQL
+// tables both named `users` and every unqualified reference becomes ambiguous.
+const profileUsers = alias(users, "profile_users");
 
 export type ManagedUser = Pick<Profile, "id" | "organizationId" | "role" | "status" | "createdAt"> & {
   email: string;
@@ -27,20 +32,20 @@ export type InviteManagedUserResult =
   | { ok: false; reason: "duplicate" | "provider_failure" | "profile_failure" };
 
 const managedUserFields = {
-  id: users.id,
-  organizationId: users.organizationId,
-  role: users.role,
-  status: users.status,
-  createdAt: users.createdAt,
+  id: profileUsers.id,
+  organizationId: profileUsers.organizationId,
+  role: profileUsers.role,
+  status: profileUsers.status,
+  createdAt: profileUsers.createdAt,
   email: sql<string>`coalesce(${authUsers.email}, '')`,
 };
 
 export async function listManagedUsers(organizationId: string): Promise<ManagedUser[]> {
   return db
     .select(managedUserFields)
-    .from(users)
-    .innerJoin(authUsers, eq(users.id, authUsers.id))
-    .where(eq(users.organizationId, organizationId))
+    .from(profileUsers)
+    .innerJoin(authUsers, eq(profileUsers.id, authUsers.id))
+    .where(eq(profileUsers.organizationId, organizationId))
     .orderBy(asc(authUsers.email));
 }
 
@@ -113,9 +118,9 @@ async function mutateManagedUser(
 
     const [target] = await tx
       .select(managedUserFields)
-      .from(users)
-      .innerJoin(authUsers, eq(users.id, authUsers.id))
-      .where(and(eq(users.id, input.targetUserId), eq(users.organizationId, input.organizationId)))
+      .from(profileUsers)
+      .innerJoin(authUsers, eq(profileUsers.id, authUsers.id))
+      .where(and(eq(profileUsers.id, input.targetUserId), eq(profileUsers.organizationId, input.organizationId)))
       .limit(1);
 
     if (!target) return { ok: false, reason: "target_not_found" };
