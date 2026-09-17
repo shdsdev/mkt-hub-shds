@@ -41,6 +41,14 @@ export type QrListRow = {
   groupName?: string;
 };
 
+// Explicit locale + timeZone (not the runtime default) — this is a Client Component, so this
+// text renders once during SSR (server locale/timezone) and again on hydration (the visitor's
+// browser). Left to toLocaleDateString()'s defaults those two can disagree and React throws
+// error #418 ("text content does not match server-rendered HTML").
+function formatCreatedAt(date: Date): string {
+  return date.toLocaleDateString("es-MX", { timeZone: "America/Mexico_City" });
+}
+
 const STATIC_KIND_ICON: Record<NonNullable<QrListRow["staticKind"]>, typeof FileText> = {
   text: FileText,
   vcard: IdCard,
@@ -267,7 +275,7 @@ function QrHeading({ row }: { row: QrListRow }) {
           {TypeIcon && <TypeIcon size={12} />}
           {typeLabel}
         </span>
-        <span>{row.createdAt.toLocaleDateString()}</span>
+        <span>{formatCreatedAt(row.createdAt)}</span>
         <StatusBadge status={row.status} />
         {row.groupName && <span className="text-accent">{row.groupName}</span>}
       </p>
