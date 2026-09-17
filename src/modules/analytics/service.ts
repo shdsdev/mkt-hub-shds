@@ -141,6 +141,35 @@ export async function countUniqueEventsForLink(
   return row?.count ?? 0;
 }
 
+// "Today" per runDailyRollup, which explicitly skips `created_at::date = current_date` (still
+// accumulating) — so anything from today is invisible in tracking_rollup_daily until tomorrow's
+// run. The functions below fold in a live count straight from tracking_events for the current day
+// so totals/the chart stop lagging a full day behind the breakdowns/unique count, which already
+// read tracking_events directly and never had this gap.
+function todayDateKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function rangeIncludesToday(from: Date, to: Date): boolean {
+  const todayKey = todayDateKey();
+  return from.toISOString().slice(0, 10) <= todayKey && todayKey <= to.toISOString().slice(0, 10);
+}
+
+async function getLiveTodayCount(linkId: string, eventType: AnalyticsEventType): Promise<number> {
+  const [row] = await db
+    .select({ count: count() })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.linkId, linkId),
+        eq(trackingEvents.sourceType, eventType),
+        eq(trackingEvents.isBot, false),
+        gte(trackingEvents.createdAt, new Date(`${todayDateKey()}T00:00:00.000Z`)),
+      ),
+    );
+  return row?.count ?? 0;
+}
+
 export async function getAnalyticsTotalsForLink(
   linkId: string,
   eventType: AnalyticsEventType,
@@ -159,7 +188,8 @@ export async function getAnalyticsTotalsForLink(
       ),
     );
   const unique = await countUniqueEventsForLink(linkId, eventType, from, to);
-  return { total: Number(totalRow?.total ?? 0), unique };
+  const liveToday = rangeIncludesToday(from, to) ? await getLiveTodayCount(linkId, eventType) : 0;
+  return { total: Number(totalRow?.total ?? 0) + liveToday, unique };
 }
 
 // One atomic upsert-from-aggregate — idempotent (safe to re-run), covers any past day not yet
@@ -196,6 +226,36 @@ function humanRollupColumn(eventType: AnalyticsEventType) {
 
 // "day" reads tracking_rollup_daily rows directly; "week"/"month" sum them into coarser buckets
 // via date_trunc — both stay within the already-rolled-up table, no raw tracking_events touched.
+// Merges today's live count into whatever bucket it belongs to — into an existing bucket (e.g.
+// the current week/month, which already has earlier-in-period rolled-up days) when one matches,
+// or appended as a new trailing bucket (plain "day" granularity, or the very first bucket of a
+// fresh week/month) otherwise. Today is always the most recent point, so appending never breaks
+// the ascending order the callers rely on.
+function mergeLiveTodayIntoBuckets(
+  rows: AnalyticsBucket[],
+  bucketKey: string,
+  liveToday: number,
+): AnalyticsBucket[] {
+  if (liveToday <= 0) return rows;
+  const index = rows.findIndex((row) => row.bucket === bucketKey);
+  if (index === -1) return [...rows, { bucket: bucketKey, count: liveToday }];
+  const merged = [...rows];
+  merged[index] = { ...merged[index], count: merged[index].count + liveToday };
+  return merged;
+}
+
+async function todayBucketKey(granularity: AnalyticsGranularity): Promise<string> {
+  if (granularity === "day") return todayDateKey();
+  const truncUnit = granularity === "week" ? "week" : "month";
+  const [row] = await db.execute<{ bucket: string }>(sql`
+    SELECT date_trunc(${truncUnit}, current_date)::date::text AS bucket
+  `);
+  return row.bucket;
+}
+
+// "day" reads tracking_rollup_daily rows directly; "week"/"month" sum them into coarser buckets
+// via date_trunc — both stay within the already-rolled-up table, no raw tracking_events touched,
+// except for today's live count merged in below (see getLiveTodayCount).
 export async function getAnalyticsForLinkGrouped(
   linkId: string,
   eventType: AnalyticsEventType,
@@ -204,6 +264,9 @@ export async function getAnalyticsForLinkGrouped(
   to: Date,
 ): Promise<AnalyticsBucket[]> {
   const humanColumn = humanRollupColumn(eventType);
+  const includesToday = rangeIncludesToday(from, to);
+  const liveToday = includesToday ? await getLiveTodayCount(linkId, eventType) : 0;
+
   if (granularity === "day") {
     const rows = await db
       .select({ bucket: trackingRollupDaily.date, count: humanColumn })
@@ -216,7 +279,7 @@ export async function getAnalyticsForLinkGrouped(
         ),
       )
       .orderBy(asc(trackingRollupDaily.date));
-    return rows;
+    return includesToday ? mergeLiveTodayIntoBuckets(rows, todayDateKey(), liveToday) : rows;
   }
 
   const truncUnit = granularity === "week" ? "week" : "month";
@@ -230,7 +293,8 @@ export async function getAnalyticsForLinkGrouped(
     GROUP BY bucket
     ORDER BY bucket ASC
   `);
-  return rows;
+  if (!includesToday) return rows;
+  return mergeLiveTodayIntoBuckets(rows, await todayBucketKey(granularity), liveToday);
 }
 
 export type BreakdownRow = { label: string; count: number };
