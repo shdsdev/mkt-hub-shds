@@ -25,6 +25,8 @@ import {
   DoorOpen,
   ChartColumn,
   ChartColumnIncreasing,
+  Users,
+  UserRoundCheck,
 } from "lucide";
 import {
   Sidebar,
@@ -155,6 +157,11 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
               <NavItem href="/audit" idle={ScrollText} active={History}>
                 Registro de auditoría
               </NavItem>
+              {role === "ADMIN" && (
+                <NavItem href="/settings/users" idle={Users} active={UserRoundCheck}>
+                  Usuarios
+                </NavItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

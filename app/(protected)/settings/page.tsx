@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { getCurrentUser } from "@/modules/auth";
-import { THEMES, DEFAULT_THEME_ID, getOrganization } from "@/modules/users";
+import { THEMES, DEFAULT_THEME_ID, getOrganization, isActive, isAdmin } from "@/modules/users";
 import { listDomains } from "@/modules/links";
 import { updateUserThemeAction } from "./actions";
 import { DefaultLogoUpload } from "./default-logo-upload";
@@ -66,6 +67,18 @@ export default async function SettingsPage() {
           currentLogoUrl={organization?.defaultLogoUrl ?? undefined}
         />
       </section>
+
+      {isActive(user.profile) && isAdmin(user.profile) && (
+        <section className="space-y-3">
+          <h2 className="font-heading font-medium">Usuarios</h2>
+          <p className="text-sm text-muted-foreground">
+            Administra las invitaciones, roles y el acceso de tu organización.
+          </p>
+          <Link href="/settings/users" className="text-sm font-medium text-primary hover:underline">
+            Administrar usuarios
+          </Link>
+        </section>
+      )}
 
       <section className="space-y-3">
         <DomainForm domains={domains} />

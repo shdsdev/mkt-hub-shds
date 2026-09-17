@@ -16,3 +16,14 @@ export {
   type UserStatus,
 } from "./service";
 export { THEMES, DEFAULT_THEME_ID, isValidThemeId, type Theme } from "./theme-registry";
+export {
+  listManagedUsers,
+  changeManagedUserRole,
+  setManagedUserStatus,
+  inviteManagedUser,
+  type ManagedUser,
+  type ManagedRole,
+  type ManagementMutationResult,
+  type InviteManagedUserInput,
+  type InviteManagedUserResult,
+} from "./management";

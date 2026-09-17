@@ -23,6 +23,9 @@ function crumbsFor(pathname: string): Crumb[] {
   if (pathname.startsWith("/qr")) return [{ label: "Códigos QR" }];
   if (pathname.startsWith("/campaigns")) return [{ label: "Campañas" }];
   if (pathname.startsWith("/audit")) return [{ label: "Registro de auditoría" }];
+  if (pathname.startsWith("/settings/users")) {
+    return [{ label: "Configuración", href: "/settings" }, { label: "Usuarios" }];
+  }
   if (pathname.startsWith("/settings")) return [{ label: "Configuración" }];
   return [{ label: "Resumen" }];
 }
