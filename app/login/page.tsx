@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import { AtSign, Lock, QrCode } from "lucide-react";
 import { login, type LoginFormState } from "./actions";
 import { BinaryLoader } from "@/components/binary-loader";
-import { Tooltip } from "@/components/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { GoogleIcon } from "@/components/icons/google-icon";
 import { FlutedGlassBackground } from "./fluted-glass-background";
 
@@ -18,8 +18,13 @@ const initialState: LoginFormState = {};
 const authButtonClassName =
   "h-11 w-full justify-center rounded-md bg-zinc-100 px-8 text-sm font-medium text-zinc-900 hover:bg-zinc-100/90";
 
+// White focus ring instead of the active theme's --ring (pink in "midnight"/"signature") — scoped
+// to just these two inputs, matching the neutral treatment requested for the auth buttons.
+const authInputClassName = "peer ps-9 focus-visible:border-white focus-visible:ring-white/50";
+
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, initialState);
+  const googleTooltipId = useId();
 
   return (
     <main className="relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
@@ -60,14 +65,24 @@ export default function LoginPage() {
           </div>
 
           {/* Disabled until the Google OAuth provider is configured — kept visible as a preview of
-              what's coming rather than removed outright. Wrapped in the shared Tooltip since the
-              button is inert (pointer-events-none via its own disabled styles). */}
-          <Tooltip label="Próximamente">
-            <Button type="button" size="lg" className={authButtonClassName} disabled>
+              what's coming rather than removed outright. Tooltip markup written directly (not the
+              shared <Tooltip>, whose inline wrapper span doesn't stretch to w-full) so the button
+              matches the other fields' width — see src/components/tooltip.tsx's docstring. */}
+          <span className="t-tt-wrap block w-full">
+            <Button
+              type="button"
+              size="lg"
+              className={cn(authButtonClassName, "t-tt-trigger")}
+              aria-describedby={googleTooltipId}
+              disabled
+            >
               <GoogleIcon className="size-4" />
               Continuar con Google
             </Button>
-          </Tooltip>
+            <span className="t-tt" id={googleTooltipId} role="tooltip">
+              Próximamente
+            </span>
+          </span>
 
           <AuthSeparator />
 
@@ -80,7 +95,7 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 placeholder="tu.correo@shadesdemexico.com"
-                className="peer ps-9"
+                className={authInputClassName}
               />
               <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-2.5 text-muted-foreground peer-disabled:opacity-50">
                 <AtSign className="size-4" aria-hidden="true" />
@@ -95,7 +110,7 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 placeholder="Contraseña"
-                className="peer ps-9"
+                className={authInputClassName}
               />
               <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-2.5 text-muted-foreground peer-disabled:opacity-50">
                 <Lock className="size-4" aria-hidden="true" />
