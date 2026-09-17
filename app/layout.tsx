@@ -46,8 +46,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       data-app-theme={themeId}
       className={`dark ${poppins.variable} ${inter.variable} ${jersey25.variable} ${jetbrainsMono.variable} h-full`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      {/* Browser extensions (ClickUp, LanguageTool, Grammarly...) inject classes/attributes into
+          html/body before React hydrates — a benign mismatch, but without this Next.js's dev
+          overlay covers the whole page with a false-alarm error on every load. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {auraTheme && <AuraBackground theme={auraTheme} />}
         {children}
       </body>
