@@ -1,18 +1,16 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/modules/auth";
-import { listLinks, listDomains } from "@/modules/links";
+import { listLinks } from "@/modules/links";
 import { listUtmPresets } from "@/modules/utm";
 import { LinkForm } from "./link-form";
-import { DomainForm } from "./domain-form";
 import { UtmPresetForm } from "./utm-preset-form";
 
 export default async function LinksPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [links, domains, presets] = await Promise.all([
+  const [links, presets] = await Promise.all([
     listLinks(user.profile.organizationId),
-    listDomains(user.profile.organizationId),
     listUtmPresets(user.profile.organizationId),
   ]);
 
@@ -26,9 +24,8 @@ export default async function LinksPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <LinkForm presets={presets} />
-        <DomainForm domains={domains} />
         <UtmPresetForm presets={presets} />
       </div>
 
