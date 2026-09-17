@@ -182,7 +182,10 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
                   </Avatar>
                 </span>
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="w-64">
+              {/* No fixed width — the shared component's default (w-(--anchor-width)) matches
+                  the trigger's own width, keeping the popup inside the sidebar instead of
+                  overflowing past its right border like a fixed w-64 did. */}
+              <DropdownMenuContent side="top" align="start">
                 <div className="flex items-center gap-3 p-2">
                   <span className="shrink-0 rounded-full bg-gradient-to-br from-primary via-accent to-secondary p-0.5">
                     <Avatar className="bg-popover">
