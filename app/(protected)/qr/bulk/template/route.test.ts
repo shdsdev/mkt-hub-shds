@@ -28,10 +28,8 @@ describe("GET /qr/bulk/template", () => {
 
     expect(BULK_QR_TEMPLATE_FILENAME).toBe("plantilla_codigos_qr.csv");
     expect(BULK_QR_TEMPLATE_CSV).toBe(
-      "URL,Titulo del codigo QR (referencia)\r\n" +
-        "http://www.tu-sitio.com,Mi codigo QR 1\r\n" +
-        "http://www.tu-sitio.com,Mi codigo QR 2\r\n" +
-        "http://www.tu-sitio.com,Mi codigo QR 3\r\n",
+      "url,title,utm_source,utm_medium,utm_campaign,utm_term,utm_content\r\n" +
+        "https://www.example.com,QR example,google,email,fall_launch,,hero\r\n",
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/csv; charset=utf-8");

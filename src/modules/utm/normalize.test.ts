@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeUtmValue } from "./normalize";
+import { normalizeUtmValue } from "@/lib/utm";
 
 describe("normalizeUtmValue", () => {
   it("lowercases the value", () => {

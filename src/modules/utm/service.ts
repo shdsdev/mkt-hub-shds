@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
+import { normalizeUtmValue } from "@/lib/utm";
 import { utmPresets } from "./db";
-import { normalizeUtmValue } from "./normalize";
 
 export type UtmPreset = typeof utmPresets.$inferSelect;
 

@@ -32,11 +32,13 @@ export function GroupSelect({
   campaigns,
   value,
   onChange,
+  required = false,
 }: {
   folders: Folder[];
   campaigns: Campaign[];
   value: { folderId?: string; campaignId?: string };
   onChange: (next: { folderId?: string; campaignId?: string }) => void;
+  required?: boolean;
 }) {
   const [localFolders, setLocalFolders] = useState(folders);
   const [localCampaigns, setLocalCampaigns] = useState(campaigns);
@@ -160,7 +162,7 @@ export function GroupSelect({
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          <SelectItem value="none">Sin agrupar</SelectItem>
+          {!required && <SelectItem value="none">Sin agrupar</SelectItem>}
         </SelectGroup>
         {localFolders.length > 0 && (
           <SelectGroup>

@@ -30,6 +30,20 @@ export type CreateLinkInput = {
   folderId?: string;
 };
 
+export type PersistedUtmValues = {
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+};
+
+export type UpdateLinkUtmValuesInput = {
+  organizationId: string;
+  linkId: string;
+  values: PersistedUtmValues;
+};
+
 export async function createLink(input: CreateLinkInput): Promise<Link> {
   const destinationUrl = destinationUrlSchema.parse(input.destinationUrl);
   const [link] = await db
@@ -47,6 +61,19 @@ export async function updateLinkDestination(linkId: string, destinationUrl: stri
     .update(links)
     .set({ destinationUrl: validated })
     .where(eq(links.id, linkId))
+    .returning();
+  return link;
+}
+
+export async function updateLinkUtmValues({
+  organizationId,
+  linkId,
+  values,
+}: UpdateLinkUtmValuesInput): Promise<Link | undefined> {
+  const [link] = await db
+    .update(links)
+    .set(values)
+    .where(and(eq(links.id, linkId), eq(links.organizationId, organizationId)))
     .returning();
   return link;
 }
