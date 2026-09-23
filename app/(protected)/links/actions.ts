@@ -12,7 +12,8 @@ import {
   archiveShortLink,
   getLink,
 } from "@/modules/links";
-import { normalizeUtmValue, createUtmPreset } from "@/modules/utm";
+import { normalizeUtmValue } from "@/lib/utm";
+import { createUtmPreset } from "@/modules/utm";
 import { recordPrintRun } from "@/modules/campaigns";
 import { recordAudit, checkRateLimit } from "@/modules/audit";
 

@@ -46,6 +46,8 @@ export function QrDesignFields({
   state,
   onChange,
   active,
+  templateState,
+  onTemplateChange,
 }: {
   organizationId: string;
   templates: QrDesignTemplateRow[];
@@ -55,9 +57,22 @@ export function QrDesignFields({
   // for FormData reasons, but the shape pickers fetch real preview thumbnails from the server and
   // shouldn't do that before the user has actually reached this step.
   active: boolean;
+  templateState?: { saveAsTemplate: boolean; templateName: string };
+  onTemplateChange?: (next: { saveAsTemplate: boolean; templateName: string }) => void;
 }) {
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState("");
+  const [localSaveAsTemplate, setLocalSaveAsTemplate] = useState(false);
+  const [localTemplateName, setLocalTemplateName] = useState("");
+  const saveAsTemplate = templateState?.saveAsTemplate ?? localSaveAsTemplate;
+  const templateName = templateState?.templateName ?? localTemplateName;
+
+  function setTemplate(next: Partial<{ saveAsTemplate: boolean; templateName: string }>) {
+    const value = { saveAsTemplate, templateName, ...next };
+    if (onTemplateChange) onTemplateChange(value);
+    else {
+      setLocalSaveAsTemplate(value.saveAsTemplate);
+      setLocalTemplateName(value.templateName);
+    }
+  }
 
   function applyTemplate(templateId: string) {
     const template = templates.find((t) => t.id === templateId);
@@ -215,13 +230,13 @@ export function QrDesignFields({
       </div>
 
       <div className="space-y-2 border-t border-border pt-3">
-        <Checkbox checked={saveAsTemplate} onChange={setSaveAsTemplate} label="Guardar como plantilla" />
+        <Checkbox checked={saveAsTemplate} onChange={(checked) => setTemplate({ saveAsTemplate: checked })} label="Guardar como plantilla" />
         {saveAsTemplate && (
           <input
             name="templateName"
             required
             value={templateName}
-            onChange={(event) => setTemplateName(event.target.value)}
+            onChange={(event) => setTemplate({ templateName: event.target.value })}
             placeholder="Nombre de la plantilla"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />

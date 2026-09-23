@@ -1,83 +1,103 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/utm", () => ({
+  normalizeUtmValue(raw: string): string {
+    if (raw.length > 255) throw new Error("UTM value is too long.");
+
+    const normalized = raw
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    if (!normalized) throw new Error("UTM value is empty.");
+    return normalized;
+  },
+}));
+
 import { parseBulkQrCsv } from "./bulk-csv";
 
-describe("parseBulkQrCsv", () => {
-  it("parses quoted fields, CRLF records, and skips blank lines", () => {
-    const result = parseBulkQrCsv(
-      "URL,Titulo del codigo QR (referencia)\r\n" +
-        'https://a.example,"Lanzamiento, otoño"\r\n' +
-        "\r\n" +
-        "http://b.example,Segundo QR\r\n",
-    );
+const header = "url,title,utm_source,utm_medium,utm_campaign,utm_term,utm_content";
 
-    expect(result).toEqual({
-      readyRows: [
-        { rowNumber: 1, url: "https://a.example", title: "Lanzamiento, otoño" },
-        { rowNumber: 2, url: "http://b.example", title: "Segundo QR" },
+describe("parseBulkQrCsv", () => {
+  it("accepts the exact seven-column header, quoted values, CRLF, and blank lines", () => {
+    expect(
+      parseBulkQrCsv(
+        `${header}\r\n` +
+          'https://a.example,"Launch, fall", Google , Email , Autumn , "blue, room" , CTA\r\n\r\n',
+      ),
+    ).toMatchObject({
+      rows: [
+        {
+          rowNumber: 1,
+          url: "https://a.example",
+          title: "Launch, fall",
+          utmSource: "google",
+          utmMedium: "email",
+          utmCampaign: "autumn",
+          utmTerm: "blue-room",
+          utmContent: "cta",
+        },
       ],
       invalidRows: [],
-      excludedRows: [],
     });
   });
 
-  it("reports a whitespace-only title", () => {
-    expect(parseBulkQrCsv("URL,Titulo\nhttps://a.example,   \n").invalidRows).toEqual([
-      {
-        rowNumber: 1,
-        url: "https://a.example",
-        title: "",
-        error: "La fila 1 no tiene un título válido.",
-      },
+  it("accepts escaped quotes and LF records", () => {
+    expect(parseBulkQrCsv(`${header}\nhttps://a.example,"A ""quoted"" title",,,,,\n`).rows).toEqual([
+      { rowNumber: 1, url: "https://a.example", title: 'A "quoted" title' },
     ]);
   });
 
-  it("reports a URL without an HTTP scheme", () => {
-    expect(parseBulkQrCsv("URL,Titulo\nftp://a.example,Uno\n").invalidRows).toEqual([
-      {
-        rowNumber: 1,
-        url: "ftp://a.example",
-        title: "Uno",
-        error: "La fila 1 tiene una URL inválida. Usa http:// o https://.",
-      },
-    ]);
+  it("requires the exact lower-case header and keeps data rows out of the preview", () => {
+    expect(parseBulkQrCsv(`URL,title,utm_source,utm_medium,utm_campaign,utm_term,utm_content\nhttps://a.example,QR,,,,,\n`)).toMatchObject({
+      rows: [],
+      invalidRows: [],
+      fileError: expect.any(String),
+    });
   });
 
-  it("reports a record without exactly two fields", () => {
-    expect(parseBulkQrCsv("URL,Titulo\nhttps://a.example\n").invalidRows).toEqual([
-      {
-        rowNumber: 1,
-        url: "https://a.example",
-        title: "",
-        error: "La fila 1 debe contener exactamente URL y título.",
-      },
-    ]);
+  it("reports malformed unterminated quoting", () => {
+    expect(parseBulkQrCsv(`${header}\nhttps://a.example,"Unfinished,,,,,\n`)).toMatchObject({
+      rows: [],
+      fileError: expect.any(String),
+    });
   });
 
-  it("reports an empty file", () => {
-    expect(parseBulkQrCsv("").fileError).toBe("El archivo está vacío.");
-  });
-
-  it("reports a header-only file", () => {
-    expect(parseBulkQrCsv("URL,Titulo\n\n").fileError).toBe("El archivo no contiene filas para importar.");
-  });
-
-  it("reports extra fields before validating their values", () => {
-    expect(parseBulkQrCsv("URL,Titulo\nhttps://a.example,Uno,Extra\n").invalidRows[0]?.error).toBe(
-      "La fila 1 debe contener exactamente URL y título.",
+  it("reports every non-seven-field and invalid data row without returning valid rows", () => {
+    const result = parseBulkQrCsv(
+      `${header}\nhttps://valid.example,Valid,,,,,\nhttps://a.example,Missing,,,,\nftp://a.example,Invalid URL,,,,,\n`,
     );
+
+    expect(result.rows).toEqual([]);
+    expect(result.invalidRows).toHaveLength(2);
+    expect(result.invalidRows.map((row) => row.rowNumber)).toEqual([2, 3]);
   });
 
-  it("excludes data after the 200-row limit", () => {
-    const rows = Array.from(
-      { length: 201 },
-      (_, index) => `https://example.com/${index + 1},QR ${index + 1}`,
-    );
-    const result = parseBulkQrCsv(`URL,Titulo\n${rows.join("\n")}\n`);
-
-    expect(result.readyRows).toHaveLength(200);
-    expect(result.invalidRows).toEqual([]);
-    expect(result.excludedRows).toEqual([
-      { rowNumber: 201, url: "https://example.com/201", title: "QR 201" },
+  it("preserves one-based data row numbers through intervening blank lines", () => {
+    expect(parseBulkQrCsv(`${header}\n\nhttps://a.example,QR,,,,,\n\nhttps://b.example,Second,,,,,\n`).rows).toEqual([
+      { rowNumber: 2, url: "https://a.example", title: "QR" },
+      { rowNumber: 4, url: "https://b.example", title: "Second" },
     ]);
+  });
+
+  it("rejects more than 200 data rows without returning a partial import", () => {
+    const dataRows = Array.from({ length: 201 }, (_, index) => `https://example.com/${index},QR ${index},,,,,`);
+
+    expect(parseBulkQrCsv(`${header}\n${dataRows.join("\n")}\n`)).toMatchObject({
+      rows: [],
+      invalidRows: [],
+      fileError: expect.any(String),
+    });
+  });
+
+  it("rejects invalid title, URL, UTM limits, and destination UTM parameters case-insensitively", () => {
+    const longValue = "a".repeat(256);
+    const result = parseBulkQrCsv(
+      `${header}\nhttps://a.example,${"T".repeat(256)},,,,,\nhttps://a.example?UTM_Source=x,QR,,,,,\nhttps://a.example,QR,${longValue},,,,\n`,
+    );
+
+    expect(result.rows).toEqual([]);
+    expect(result.invalidRows).toHaveLength(3);
   });
 });

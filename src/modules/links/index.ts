@@ -2,6 +2,7 @@
 export {
   createLink,
   updateLinkDestination,
+  updateLinkUtmValues,
   getLink,
   listLinks,
   archiveLink,
@@ -30,6 +31,8 @@ export {
   type Folder,
   type Tag,
   type CreateLinkInput,
+  type PersistedUtmValues,
+  type UpdateLinkUtmValuesInput,
   type CreateShortLinkInput,
   type ResolvedShortLink,
 } from "./service";

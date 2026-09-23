@@ -7,7 +7,7 @@ import { QrCode, IdCard, Mail, MessageSquare, Wifi, FileText, X } from "lucide-r
 import { Download, DownloadCloud, Image, ImageDown, Archive, Check, Pencil } from "lucide";
 import { BorderBeam } from "border-beam";
 import { CreateQrModal } from "./create-qr-modal";
-import { archiveQrCodeAction, updateQrNameAction } from "./actions";
+import { archiveQrCodeAction, updateDynamicQrUtmAction, updateQrNameAction } from "./actions";
 import { updateDestinationAction } from "../links/actions";
 import { BinaryLoader } from "@/components/binary-loader";
 import { CopyButton } from "@/components/copy-button";
@@ -35,6 +35,11 @@ export type QrListRow = {
   destinationUrl?: string;
   shortUrl?: string;
   linkId?: string;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmTerm?: string | null;
+  utmContent?: string | null;
   payload?: string;
   name: string;
   staticKind?: "text" | "vcard" | "email" | "sms" | "wifi";
@@ -228,6 +233,11 @@ export function QrList({
           linkId={editingRow.linkId!}
           name={editingRow.name}
           destinationUrl={editingRow.destinationUrl!}
+          utmSource={editingRow.utmSource}
+          utmMedium={editingRow.utmMedium}
+          utmCampaign={editingRow.utmCampaign}
+          utmTerm={editingRow.utmTerm}
+          utmContent={editingRow.utmContent}
           onClose={() => setEditingQrId(null)}
         />
       )}
@@ -428,12 +438,22 @@ function EditQrModal({
   linkId,
   name,
   destinationUrl,
+  utmSource,
+  utmMedium,
+  utmCampaign,
+  utmTerm,
+  utmContent,
   onClose,
 }: {
   qrId: string;
   linkId: string;
   name: string;
   destinationUrl: string;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmTerm?: string | null;
+  utmContent?: string | null;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -461,6 +481,22 @@ function EditQrModal({
         return;
       }
 
+      const utmValuesChanged = (
+        formData.get("utmSource") !== (utmSource ?? "") ||
+        formData.get("utmMedium") !== (utmMedium ?? "") ||
+        formData.get("utmCampaign") !== (utmCampaign ?? "") ||
+        formData.get("utmTerm") !== (utmTerm ?? "") ||
+        formData.get("utmContent") !== (utmContent ?? "")
+      );
+      if (utmValuesChanged) {
+        const utmResult = await updateDynamicQrUtmAction({}, formData);
+        if (utmResult?.error) {
+          setError(utmResult.error);
+          setPending(false);
+          return;
+        }
+      }
+
       router.refresh();
       onClose();
     } catch (err) {
@@ -483,7 +519,8 @@ function EditQrModal({
           </button>
         </div>
         <p className="mb-4 text-sm text-muted-foreground">
-          Cambiá el nombre y/o la URL de destino. La URL corta y el código QR permanecen iguales.
+          Cambiá el nombre, la URL de destino o la atribución UTM para futuros redireccionamientos.
+          El código QR impreso y la URL corta permanecen iguales.
         </p>
         <form action={handleSubmit} className="space-y-3">
           <input type="hidden" name="qrId" value={qrId} />
@@ -507,6 +544,48 @@ function EditQrModal({
               required
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground uppercase">UTM source</label>
+              <input
+                name="utmSource"
+                defaultValue={utmSource ?? ""}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground uppercase">UTM medium</label>
+              <input
+                name="utmMedium"
+                defaultValue={utmMedium ?? ""}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground uppercase">UTM campaign</label>
+              <input
+                name="utmCampaign"
+                defaultValue={utmCampaign ?? ""}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground uppercase">UTM term</label>
+              <input
+                name="utmTerm"
+                defaultValue={utmTerm ?? ""}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground uppercase">UTM content</label>
+              <input
+                name="utmContent"
+                defaultValue={utmContent ?? ""}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
           </div>
           {error && (
             <p role="alert" className="text-sm text-destructive">

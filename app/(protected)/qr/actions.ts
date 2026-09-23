@@ -9,16 +9,30 @@ import {
   createStaticQrCode,
   createQrDesignTemplate,
   archiveQrCode,
+  getQrCode,
   updateQrCodeName,
   buildStaticPayload,
 } from "@/modules/qr";
-import { createLink, createShortLink, createFolder, listDomains, type Folder } from "@/modules/links";
-import { createCampaign, type Campaign } from "@/modules/campaigns";
-import { normalizeUtmValue, createUtmPreset } from "@/modules/utm";
+import {
+  createLink,
+  createShortLink,
+  createFolder,
+  getLink,
+  listDomains,
+  listFolders,
+  updateLinkUtmValues,
+  type Domain,
+  type Folder,
+} from "@/modules/links";
+import { createCampaign, listCampaigns, type Campaign } from "@/modules/campaigns";
+import { normalizeUtmValue } from "@/lib/utm";
+import { createUtmPreset } from "@/modules/utm";
 import { recordAudit, checkRateLimit } from "@/modules/audit";
+import type { QrCustomization } from "@/modules/qr";
 import {
   BULK_QR_MAX_ROWS,
   normalizeBulkQrRow,
+  destinationContainsReservedUtm,
   validateBulkQrRow,
   type BulkQrImportRow,
 } from "./bulk/bulk-csv";
@@ -455,12 +469,125 @@ export async function updateQrNameAction(
   return {};
 }
 
+const updateDynamicQrUtmSchema = z.object({
+  qrId: z.string().uuid(),
+  utmSource: z.string().trim().max(255).optional(),
+  utmMedium: z.string().trim().max(255).optional(),
+  utmCampaign: z.string().trim().max(255).optional(),
+  utmTerm: z.string().trim().max(255).optional(),
+  utmContent: z.string().trim().max(255).optional(),
+});
+
+export type UpdateDynamicQrUtmFormState = { error?: string; success?: string };
+
+export async function updateDynamicQrUtmAction(
+  _state: UpdateDynamicQrUtmFormState,
+  formData: FormData,
+): Promise<UpdateDynamicQrUtmFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
+
+  const parsed = updateDynamicQrUtmSchema.safeParse({
+    qrId: formData.get("qrId"),
+    utmSource: formData.get("utmSource") || undefined,
+    utmMedium: formData.get("utmMedium") || undefined,
+    utmCampaign: formData.get("utmCampaign") || undefined,
+    utmTerm: formData.get("utmTerm") || undefined,
+    utmContent: formData.get("utmContent") || undefined,
+  });
+  if (!parsed.success) return { error: "Ingresa etiquetas UTM válidas." };
+
+  const qr = await getQrCode(parsed.data.qrId);
+  if (!qr || qr.mode !== "dynamic" || !qr.linkId || qr.organizationId !== user.profile.organizationId) {
+    return { error: "El código QR no está disponible." };
+  }
+
+  const before = await getLink(qr.linkId);
+  if (
+    !before ||
+    before.organizationId !== user.profile.organizationId ||
+    destinationContainsReservedUtm(before.destinationUrl)
+  ) {
+    return { error: "La URL de destino no permite etiquetas UTM editables." };
+  }
+
+  const normalizedValues = {
+    utmSource: parsed.data.utmSource ? normalizeUtmValue(parsed.data.utmSource) : undefined,
+    utmMedium: parsed.data.utmMedium ? normalizeUtmValue(parsed.data.utmMedium) : undefined,
+    utmCampaign: parsed.data.utmCampaign ? normalizeUtmValue(parsed.data.utmCampaign) : undefined,
+    utmTerm: parsed.data.utmTerm ? normalizeUtmValue(parsed.data.utmTerm) : undefined,
+    utmContent: parsed.data.utmContent ? normalizeUtmValue(parsed.data.utmContent) : undefined,
+  };
+  const after = await updateLinkUtmValues({
+    organizationId: user.profile.organizationId,
+    linkId: qr.linkId,
+    values: normalizedValues,
+  });
+  if (!after) return { error: "La URL de destino no permite etiquetas UTM editables." };
+
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "destination_change",
+    resourceType: "link",
+    resourceId: qr.linkId,
+    before: {
+      utmSource: before.utmSource,
+      utmMedium: before.utmMedium,
+      utmCampaign: before.utmCampaign,
+      utmTerm: before.utmTerm,
+      utmContent: before.utmContent,
+    },
+    after: {
+      utmSource: after.utmSource,
+      utmMedium: after.utmMedium,
+      utmCampaign: after.utmCampaign,
+      utmTerm: after.utmTerm,
+      utmContent: after.utmContent,
+    },
+  });
+  revalidatePath("/qr");
+  revalidatePath(`/links/${qr.linkId}`);
+  return { success: "Etiquetas UTM actualizadas." };
+}
+
 const bulkQrRowSchema = z.object({
   rowNumber: z.number().int().positive(),
   url: z.string(),
   title: z.string(),
+  utmSource: z.string().optional(),
+  utmMedium: z.string().optional(),
+  utmCampaign: z.string().optional(),
+  utmTerm: z.string().optional(),
+  utmContent: z.string().optional(),
 });
-const bulkQrRowsSchema = z.array(bulkQrRowSchema).max(BULK_QR_MAX_ROWS);
+
+export type BulkQrDesign = Required<
+  Pick<
+    QrCustomization,
+    "backgroundColor" | "foregroundColor" | "errorCorrectionLevel" | "dotsType" | "cornersSquareType" | "cornersDotType"
+  >
+> &
+  Pick<QrCustomization, "logoUrl">;
+
+export type CreateBulkWebsiteQrCodesActionInput = {
+  rows: BulkQrImportRow[];
+  folderId?: string;
+  campaignId?: string;
+  design: BulkQrDesign;
+  saveAsTemplate: boolean;
+  templateName?: string;
+};
+
+const bulkInputSchema = z.object({
+  rows: z.array(bulkQrRowSchema).min(1).max(BULK_QR_MAX_ROWS),
+  folderId: z.string().uuid().optional(),
+  campaignId: z.string().uuid().optional(),
+  design: customizationSchema,
+  saveAsTemplate: z.boolean(),
+  templateName: z.string().optional(),
+});
 
 export type BulkQrImportResult =
   | { rowNumber: number; title: string; status: "created"; qrCodeId: string }
@@ -478,86 +605,158 @@ function emptyBulkQrImportSummary(error: string): BulkQrImportSummary {
   return { requested: 0, created: 0, failed: 0, results: [], error };
 }
 
-export async function createBulkWebsiteQrCodesAction(
-  submittedRows: BulkQrImportRow[],
-): Promise<BulkQrImportSummary> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (!checkRateLimit(user.id)) return emptyBulkQrImportSummary(RATE_LIMIT_ERROR);
+type BulkPreflight = {
+  domain: Domain;
+  group: { folderId?: string; campaignId?: string };
+  rows: BulkQrImportRow[];
+  design: BulkQrDesign;
+  templateName?: string;
+};
 
-  const parsed = bulkQrRowsSchema.safeParse(submittedRows);
-  if (!parsed.success) {
-    return emptyBulkQrImportSummary("No hay filas válidas para crear.");
-  }
-
-  const orderedResults: Array<BulkQrImportResult | undefined> = [];
-  const validRows: Array<{ row: BulkQrImportRow; resultIndex: number }> = [];
+function preflightRowErrors(rows: BulkQrImportRow[]): Array<BulkQrImportResult | undefined> {
   const rowNumbers = new Set<number>();
 
-  for (const [resultIndex, submittedRow] of parsed.data.entries()) {
-    const row = normalizeBulkQrRow(submittedRow);
+  return rows.map((submittedRow) => {
+    let row: BulkQrImportRow;
+    try {
+      row = normalizeBulkQrRow(submittedRow);
+    } catch {
+      return {
+        rowNumber: submittedRow.rowNumber,
+        title: submittedRow.title.trim(),
+        status: "failed",
+        error: `La fila ${submittedRow.rowNumber} tiene un valor UTM inválido.`,
+      };
+    }
+
     if (rowNumbers.has(row.rowNumber)) {
-      orderedResults[resultIndex] = {
+      return {
         rowNumber: row.rowNumber,
         title: row.title,
         status: "failed",
         error: `La fila ${row.rowNumber} está duplicada.`,
       };
-      continue;
     }
     rowNumbers.add(row.rowNumber);
 
     const error = validateBulkQrRow(row);
-    if (error) {
-      orderedResults[resultIndex] = { rowNumber: row.rowNumber, title: row.title, status: "failed", error };
-      continue;
-    }
-    validRows.push({ row, resultIndex });
-  }
+    if (error) return { rowNumber: row.rowNumber, title: row.title, status: "failed", error };
+    return undefined;
+  });
+}
 
-  const results = orderedResults.filter(
-    (result): result is BulkQrImportResult => result !== undefined,
-  );
-
-  if (validRows.length === 0) {
+async function preflightBulkWebsiteQrCodes(
+  organizationId: string,
+  input: z.infer<typeof bulkInputSchema>,
+): Promise<BulkPreflight | { error: BulkQrImportSummary }> {
+  const rowErrors = preflightRowErrors(input.rows);
+  if (rowErrors.some((rowError) => rowError !== undefined)) {
     return {
-      requested: parsed.data.length,
-      created: 0,
-      failed: results.length,
-      results,
-      error: results.length === 0 ? "No hay filas válidas para crear." : undefined,
+      error: {
+        requested: input.rows.length,
+        created: 0,
+        failed: input.rows.length,
+        results: input.rows.map((row, index) => rowErrors[index] ?? {
+          rowNumber: row.rowNumber,
+          title: row.title.trim(),
+          status: "failed" as const,
+          error: "La fila no pudo validarse.",
+        }),
+        error: "Revisa las filas del lote antes de crear los códigos QR.",
+      },
     };
   }
 
-  const domains = await listDomains(user.profile.organizationId);
+  if (Boolean(input.folderId) === Boolean(input.campaignId)) {
+    return { error: emptyBulkQrImportSummary("Selecciona exactamente una carpeta o campaña para el lote.") };
+  }
+
+  const templateName = input.templateName?.trim();
+  if (input.saveAsTemplate && (!templateName || templateName.length > 255)) {
+    return { error: emptyBulkQrImportSummary("Ingresa un nombre de plantilla válido.") };
+  }
+
+  const [domains, folders, campaigns] = await Promise.all([
+    listDomains(organizationId),
+    listFolders(organizationId),
+    listCampaigns(organizationId),
+  ]);
   const domain = domains[0];
   if (!domain) {
-    return emptyBulkQrImportSummary("Primero agrega un dominio en la página de Enlaces.");
+    return { error: emptyBulkQrImportSummary("Primero agrega un dominio en la página de Enlaces.") };
+  }
+
+  if (input.folderId && !folders.some((folder) => folder.id === input.folderId)) {
+    return { error: emptyBulkQrImportSummary("La carpeta seleccionada no pertenece a tu organización.") };
+  }
+  if (input.campaignId && !campaigns.some((campaign) => campaign.id === input.campaignId)) {
+    return { error: emptyBulkQrImportSummary("La campaña seleccionada no pertenece a tu organización.") };
+  }
+
+  return {
+    domain,
+    group: input.folderId ? { folderId: input.folderId } : { campaignId: input.campaignId },
+    rows: input.rows.map(normalizeBulkQrRow),
+    design: {
+      ...input.design,
+      logoUrl: input.design.logoUrl || undefined,
+    },
+    templateName: input.saveAsTemplate ? templateName : undefined,
+  };
+}
+
+export async function createBulkWebsiteQrCodesAction(
+  input: CreateBulkWebsiteQrCodesActionInput,
+): Promise<BulkQrImportSummary> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!checkRateLimit(user.id)) return emptyBulkQrImportSummary(RATE_LIMIT_ERROR);
+
+  const parsed = bulkInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return emptyBulkQrImportSummary("No hay filas válidas para crear.");
+  }
+
+  const preflight = await preflightBulkWebsiteQrCodes(user.profile.organizationId, parsed.data);
+  if ("error" in preflight) return preflight.error;
+
+  if (preflight.templateName) {
+    try {
+      await createQrDesignTemplate({
+        organizationId: user.profile.organizationId,
+        name: preflight.templateName,
+        ...preflight.design,
+      });
+    } catch (error) {
+      return emptyBulkQrImportSummary(error instanceof Error ? error.message : "No se pudo guardar la plantilla.");
+    }
   }
 
   let created = 0;
-  for (const { row, resultIndex } of validRows) {
+  const results: BulkQrImportResult[] = [];
+  for (const row of preflight.rows) {
     try {
       const link = await createLink({
         organizationId: user.profile.organizationId,
         destinationUrl: row.url,
+        utmSource: row.utmSource,
+        utmMedium: row.utmMedium,
+        utmCampaign: row.utmCampaign,
+        utmTerm: row.utmTerm,
+        utmContent: row.utmContent,
       });
       const shortLink = await createShortLink({
         organizationId: user.profile.organizationId,
         linkId: link.id,
-        domainId: domain.id,
+        domainId: preflight.domain.id,
       });
       const qrCode = await createDynamicQrCode({
         organizationId: user.profile.organizationId,
         linkId: link.id,
         shortLinkId: shortLink.id,
         name: row.title,
-        backgroundColor: "#1c1213",
-        foregroundColor: "#f7edee",
-        errorCorrectionLevel: "M",
-        dotsType: "square",
-        cornersSquareType: "square",
-        cornersDotType: "square",
+        ...preflight.group,
+        ...preflight.design,
       });
       await recordAudit({
         organizationId: user.profile.organizationId,
@@ -568,32 +767,28 @@ export async function createBulkWebsiteQrCodesAction(
         after: qrCode,
       });
       created += 1;
-      orderedResults[resultIndex] = {
+      results.push({
         rowNumber: row.rowNumber,
         title: row.title,
         status: "created",
         qrCodeId: qrCode.id,
-      };
+      });
     } catch (error) {
-      orderedResults[resultIndex] = {
+      results.push({
         rowNumber: row.rowNumber,
         title: row.title,
         status: "failed",
         error: error instanceof Error ? error.message : "No se pudo crear el código QR.",
-      };
+      });
     }
   }
 
   if (created > 0) revalidatePath("/qr");
 
-  const finalResults = orderedResults.filter(
-    (result): result is BulkQrImportResult => result !== undefined,
-  );
-
   return {
-    requested: parsed.data.length,
+    requested: preflight.rows.length,
     created,
-    failed: finalResults.length - created,
-    results: finalResults,
+    failed: results.length - created,
+    results,
   };
 }
