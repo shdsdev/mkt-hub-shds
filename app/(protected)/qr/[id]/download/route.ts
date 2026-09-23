@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/modules/auth";
-import { getQrCode, exportQrPng, exportQrSvg } from "@/modules/qr";
+import { getQrCode, exportQrPng, exportQrSvg, exportQrPdf } from "@/modules/qr";
 import { getShortLink, getDomain } from "@/modules/links";
 
 export async function GET(
@@ -32,7 +32,8 @@ export async function GET(
     return new NextResponse(null, { status: 404 });
   }
 
-  const format = request.nextUrl.searchParams.get("format") === "svg" ? "svg" : "png";
+  const rawFormat = request.nextUrl.searchParams.get("format");
+  const format = rawFormat === "svg" || rawFormat === "ai" ? rawFormat : "png";
   const customization = {
     backgroundColor: qr.backgroundColor,
     foregroundColor: qr.foregroundColor,
@@ -49,6 +50,20 @@ export async function GET(
       headers: {
         "Content-Type": "image/svg+xml",
         "Content-Disposition": `attachment; filename="qr-${qr.id}.svg"`,
+      },
+    });
+  }
+
+  // A vector PDF saved under the .ai extension — Illustrator's native format has been PDF-based
+  // internally since AI 9, so it opens this as fully editable artwork despite not being a
+  // byte-for-byte proprietary .ai file (see exportQrPdf's comment for why that's not achievable
+  // without Adobe's own tooling).
+  if (format === "ai") {
+    const pdf = await exportQrPdf(encodedValue, customization);
+    return new NextResponse(new Uint8Array(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="qr-${qr.id}.ai"`,
       },
     });
   }

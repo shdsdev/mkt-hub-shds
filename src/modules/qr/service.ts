@@ -2,6 +2,10 @@ import { eq } from "drizzle-orm";
 import { JSDOM } from "jsdom";
 import QRCodeStyling from "qr-code-styling";
 import sharp from "sharp";
+import { jsPDF } from "jspdf";
+// The UMD/main entry point doesn't expose a named `svg2pdf` export under Node's ESM loader
+// (cjs-module-lexer can't see through the minified UMD bundle) — import the ES build directly.
+import { svg2pdf } from "svg2pdf.js/dist/svg2pdf.es.js";
 import { readFile } from "fs/promises";
 import path from "path";
 import { db } from "@/db/client";
@@ -188,4 +192,63 @@ export async function exportQrSvg(encodedValue: string, options: QrCustomization
   let svg = await buildBaseSvg(encodedValue, options);
   if (options.logoUrl) svg = await embedLogo(svg, options.logoUrl);
   return svg;
+}
+
+// A vector PDF — since Illustrator's native .ai format has been PDF-based internally since AI 9
+// (2000), a plain PDF opens in Illustrator as fully editable artwork regardless of the file
+// extension it's saved under; the download route names it "qr-<id>.ai" for that reason.
+//
+// The logo is composited in a second step, not spliced into the SVG before conversion like the
+// PNG/SVG exports do: svg2pdf resolving an <image> element itself hangs forever in this same
+// jsdom-without-a-real-Image-loader environment (the exact issue noted on embedLogo/buildBaseSvg
+// above, verified directly here too) — jsPDF's own addImage() is synchronous and sidesteps it.
+export async function exportQrPdf(encodedValue: string, options: QrCustomization): Promise<Buffer> {
+  const svg = await buildBaseSvg(encodedValue, options);
+  const logo = options.logoUrl ? await readLogoBytes(options.logoUrl) : undefined;
+  const logoIsSvg = logo?.contentType.includes("svg") ?? false;
+  const logoMarkup = logo && logoIsSvg ? logo.bytes.toString("utf-8") : "";
+
+  // svg2pdf reaches for these as ambient globals, not just via the element it's given — scoped to
+  // this call and restored in `finally` so two concurrent PDF exports don't fight over them.
+  const dom = new JSDOM(`<!DOCTYPE html><body>${svg}${logoMarkup}</body>`);
+  const globals = {
+    window: dom.window,
+    document: dom.window.document,
+    DOMParser: dom.window.DOMParser,
+    XMLSerializer: dom.window.XMLSerializer,
+    Element: dom.window.Element,
+    SVGElement: dom.window.SVGElement,
+    Node: dom.window.Node,
+  };
+  const previous: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(globals)) {
+    previous[key] = (globalThis as Record<string, unknown>)[key];
+    (globalThis as Record<string, unknown>)[key] = value;
+  }
+
+  try {
+    const [qrSvgEl, logoSvgEl] = dom.window.document.querySelectorAll("svg");
+    if (!qrSvgEl) throw new Error("No se pudo generar el QR.");
+
+    const pdf = new jsPDF({ unit: "pt", format: [QR_PIXEL_SIZE, QR_PIXEL_SIZE] });
+    await svg2pdf(qrSvgEl, pdf, { x: 0, y: 0, width: QR_PIXEL_SIZE, height: QR_PIXEL_SIZE });
+
+    if (logo) {
+      const logoSize = QR_PIXEL_SIZE * LOGO_SAFE_ZONE_RATIO;
+      const offset = (QR_PIXEL_SIZE - logoSize) / 2;
+      if (logoIsSvg && logoSvgEl) {
+        await svg2pdf(logoSvgEl, pdf, { x: offset, y: offset, width: logoSize, height: logoSize });
+      } else if (!logoIsSvg) {
+        const format = logo.contentType.includes("jpeg") ? "JPEG" : "PNG";
+        pdf.addImage(logo.bytes, format, offset, offset, logoSize, logoSize);
+      }
+    }
+
+    return Buffer.from(pdf.output("arraybuffer"));
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete (globalThis as Record<string, unknown>)[key];
+      else (globalThis as Record<string, unknown>)[key] = value;
+    }
+  }
 }

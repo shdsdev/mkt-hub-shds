@@ -4,7 +4,13 @@ import { useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { QrCode, IdCard, Mail, MessageSquare, Wifi, FileText, X } from "lucide-react";
-import { Download, DownloadCloud, Image, ImageDown, Archive, Check, Pencil } from "lucide";
+import { Download, DownloadCloud, Image, ImageDown, FileOutput, Archive, Check, Pencil } from "lucide";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BorderBeam } from "border-beam";
 import { CreateQrModal } from "./create-qr-modal";
 import { archiveQrCodeAction, updateDynamicQrUtmAction, updateQrNameAction } from "./actions";
@@ -312,8 +318,6 @@ function QrScanCount({ scanCount }: { scanCount: number }) {
 // Tooltip markup written directly (not the shared <Tooltip>) so the real <a>/<button> stays the
 // one tab stop and carries .t-tt-trigger itself — see src/components/tooltip.tsx's docstring.
 function QrActions({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => void }) {
-  const pngTooltipId = useId();
-  const svgTooltipId = useId();
   const archiveTooltipId = useId();
   const editTooltipId = useId();
 
@@ -337,30 +341,28 @@ function QrActions({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) =>
           </span>
         </span>
       )}
-      <span className="t-tt-wrap">
-        <a
-          href={`/qr/${row.id}/download?format=png`}
-          aria-describedby={pngTooltipId}
-          className="t-tt-trigger hover:text-foreground"
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label="Descargar"
+          className="text-muted-foreground outline-hidden hover:text-foreground data-[popup-open]:text-foreground"
         >
           <HoverMorphIcon idle={Download} active={DownloadCloud} />
-        </a>
-        <span className="t-tt" id={pngTooltipId} role="tooltip">
-          Descargar PNG
-        </span>
-      </span>
-      <span className="t-tt-wrap">
-        <a
-          href={`/qr/${row.id}/download?format=svg`}
-          aria-describedby={svgTooltipId}
-          className="t-tt-trigger hover:text-foreground"
-        >
-          <HoverMorphIcon idle={Image} active={ImageDown} />
-        </a>
-        <span className="t-tt" id={svgTooltipId} role="tooltip">
-          Descargar SVG
-        </span>
-      </span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem render={<a href={`/qr/${row.id}/download?format=png`} />}>
+            <HoverMorphIcon idle={Image} active={ImageDown} size={16} />
+            PNG
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<a href={`/qr/${row.id}/download?format=svg`} />}>
+            <HoverMorphIcon idle={Image} active={ImageDown} size={16} />
+            SVG
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<a href={`/qr/${row.id}/download?format=ai`} />}>
+            <HoverMorphIcon idle={FileOutput} active={FileOutput} size={16} />
+            AI 
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {row.status === "active" && (
         <form action={archiveQrCodeAction}>
           <input type="hidden" name="id" value={row.id} />
