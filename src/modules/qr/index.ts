@@ -21,3 +21,4 @@ export {
 } from "./service";
 export { type ErrorCorrectionLevel } from "./logo";
 export { buildStaticPayload, type StaticPayloadInput } from "./static-payload";
+export { qrDownloadFilename } from "./filename";

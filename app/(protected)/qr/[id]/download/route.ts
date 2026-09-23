@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/modules/auth";
-import { getQrCode, exportQrPng, exportQrSvg, exportQrPdf } from "@/modules/qr";
+import { getQrCode, exportQrPng, exportQrSvg, exportQrPdf, qrDownloadFilename } from "@/modules/qr";
 import { getShortLink, getDomain } from "@/modules/links";
 
 export async function GET(
@@ -34,6 +34,7 @@ export async function GET(
 
   const rawFormat = request.nextUrl.searchParams.get("format");
   const format = rawFormat === "svg" || rawFormat === "ai" ? rawFormat : "png";
+  const downloadName = `${qrDownloadFilename(qr.name, qr.id)}.${format}`;
   const customization = {
     backgroundColor: qr.backgroundColor,
     foregroundColor: qr.foregroundColor,
@@ -49,7 +50,7 @@ export async function GET(
     return new NextResponse(svg, {
       headers: {
         "Content-Type": "image/svg+xml",
-        "Content-Disposition": `attachment; filename="qr-${qr.id}.svg"`,
+        "Content-Disposition": `attachment; filename="${downloadName}"`,
       },
     });
   }
@@ -63,7 +64,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="qr-${qr.id}.ai"`,
+        "Content-Disposition": `attachment; filename="${downloadName}"`,
       },
     });
   }
@@ -72,7 +73,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(png), {
     headers: {
       "Content-Type": "image/png",
-      "Content-Disposition": `attachment; filename="qr-${qr.id}.png"`,
+      "Content-Disposition": `attachment; filename="${downloadName}"`,
     },
   });
 }
