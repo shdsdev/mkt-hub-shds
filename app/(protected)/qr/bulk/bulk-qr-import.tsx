@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { GroupSelect } from "../group-select";
 import { QrDesignFields, type QrDesignFieldsState } from "../qr-design-fields";
 import { useQrPreview } from "../use-qr-preview";
+import { Dialog } from "@base-ui/react/dialog";
+import { useRouter } from "next/navigation";
 import { createBulkWebsiteQrCodesAction, type BulkQrImportSummary } from "../actions";
 import { parseBulkQrCsv, type BulkQrCsvPreview } from "./bulk-csv";
 import { canAdvanceBulkQrWizard } from "./bulk-wizard-state";
@@ -55,6 +57,8 @@ export function BulkQrImport({ organizationId, folders, campaigns, templates, de
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [summary, setSummary] = useState<BulkQrImportSummary | null>(null);
+  const router = useRouter();
+  const showSuccessDialog = Boolean(summary && !summary.error && summary.created > 0 && summary.failed === 0);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -220,6 +224,27 @@ export function BulkQrImport({ organizationId, folders, campaigns, templates, de
           </Button>
         </div>
       </section>
+      {/* The guard, not just `open`, renders the dialog: the wizard's test harness walks the
+          raw element tree without invoking components, so the Base UI mock's `open` gating is
+          inert there. Keep both in sync or the partial-success test silently breaks. */}
+      {showSuccessDialog && (
+        <Dialog.Root open={showSuccessDialog} onOpenChange={() => {}}>
+          <Dialog.Portal>
+            <Dialog.Backdrop className="fixed inset-0 bg-black/60" />
+            <Dialog.Popup className="fixed top-1/2 left-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-6">
+              <Dialog.Title className="font-heading text-lg font-semibold">
+                Códigos QR creados con éxito
+              </Dialog.Title>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Se crearon {summary?.created} códigos QR.
+              </p>
+              <div className="mt-6 flex justify-end">
+                <Button type="button" onClick={() => router.push("/qr")}>Aceptar</Button>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
     </div>
   );
 }
