@@ -9,6 +9,7 @@ export {
   updateQrCodeName,
   exportQrPng,
   exportQrSvg,
+  exportQrPdf,
   createQrDesignTemplate,
   listQrDesignTemplates,
   type QrCodeRow,
