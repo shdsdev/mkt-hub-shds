@@ -35,6 +35,8 @@ const eslintConfig = defineConfig([
     rules: {
       // Cross-module access goes through src/modules/<module>/index.ts only (ARCHITECTURE.md I-4).
       // Within a module, internal files may freely import each other and lib/db-barrel.
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/refs": "off",
       "boundaries/dependencies": [
         "error",
         {

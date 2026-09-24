@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/modules/auth";
 import { listLinks } from "@/modules/links";
-import { listQrCodes } from "@/modules/qr";
+import { countActiveQrCodes } from "@/modules/qr";
 import { listCampaigns } from "@/modules/campaigns";
 import { getOrgTrafficLast30Days } from "@/modules/analytics";
 
@@ -10,15 +10,14 @@ export default async function OverviewPage() {
   if (!user) return null;
 
   const orgId = user.profile.organizationId;
-  const [links, qrCodes, campaigns, traffic30d] = await Promise.all([
+  const [links, activeQrCodes, campaigns, traffic30d] = await Promise.all([
     listLinks(orgId),
-    listQrCodes(orgId),
+    countActiveQrCodes(orgId),
     listCampaigns(orgId),
     getOrgTrafficLast30Days(orgId),
   ]);
 
   const activeLinks = links.filter((link) => link.status === "active").length;
-  const activeQrCodes = qrCodes.filter((qr) => qr.status === "active").length;
   const activeCampaigns = campaigns.filter((campaign) => campaign.status === "active").length;
 
   const recentLinks = [...links]

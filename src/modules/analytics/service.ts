@@ -1,4 +1,4 @@
-import { count, countDistinct, eq, and, gte, lte, sql, asc, desc, sum } from "drizzle-orm";
+import { count, countDistinct, eq, and, gte, lte, sql, asc, desc, sum, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { trackingEvents, trackingRollupDaily } from "./db";
 import { createTrackingBuffer } from "./buffer";
@@ -90,6 +90,26 @@ export async function countEventsForQrCode(qrCodeId: string): Promise<number> {
     .from(trackingEvents)
     .where(and(eq(trackingEvents.linkId, qr.linkId), eq(trackingEvents.sourceType, "qr_scan")));
   return row?.count ?? 0;
+}
+
+// Batched form of countEventsForQrCode — one grouped query for every dynamic QR in `qrCodes`
+// instead of one query (plus a redundant getQrCode lookup) per row. Callers already have full
+// QrCodeRows in hand (e.g. from listQrCodes), so this takes { id, linkId } pairs rather than bare
+// ids to avoid re-fetching them.
+export async function countEventsForQrCodes(
+  qrCodes: { id: string; linkId: string | null }[],
+): Promise<Map<string, number>> {
+  const linkIds = qrCodes.map((qr) => qr.linkId).filter((id): id is string => id !== null);
+  const counts =
+    linkIds.length === 0
+      ? []
+      : await db
+          .select({ linkId: trackingEvents.linkId, count: count() })
+          .from(trackingEvents)
+          .where(and(inArray(trackingEvents.linkId, linkIds), eq(trackingEvents.sourceType, "qr_scan")))
+          .groupBy(trackingEvents.linkId);
+  const countsByLinkId = new Map(counts.map((row) => [row.linkId, row.count]));
+  return new Map(qrCodes.map((qr) => [qr.id, qr.linkId ? (countsByLinkId.get(qr.linkId) ?? 0) : 0]));
 }
 
 export async function countUniqueScansForQrCode(qrCodeId: string): Promise<number> {

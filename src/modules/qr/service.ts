@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNotNull, or } from "drizzle-orm";
 import { JSDOM } from "jsdom";
 import QRCodeStyling from "qr-code-styling";
 import sharp from "sharp";
@@ -9,11 +9,22 @@ import { svg2pdf } from "svg2pdf.js/dist/svg2pdf.es.js";
 import { readFile } from "fs/promises";
 import path from "path";
 import { db } from "@/db/client";
+import { links, shortLinks } from "@/modules/links";
 import { qrCodes, qrDesignTemplates } from "./db";
 import { LOGO_SAFE_ZONE_RATIO, resolveErrorCorrectionLevel, type ErrorCorrectionLevel } from "./logo";
 
 export type QrCodeRow = typeof qrCodes.$inferSelect;
 export type QrDesignTemplateRow = typeof qrDesignTemplates.$inferSelect;
+
+export type QrCodeListFilter = {
+  status?: "active" | "archived" | "disabled";
+  mode?: "dynamic" | "static";
+  folderId?: string;
+  campaignId?: string;
+  search?: string;
+  page: number;
+  pageSize: number;
+};
 
 export type QrShapeType = "square" | "rounded" | "dots" | "classy" | "classy-rounded" | "extra-rounded";
 export type QrCornerType = QrShapeType | "dot";
@@ -85,8 +96,86 @@ export async function getQrCodeByLinkId(linkId: string): Promise<QrCodeRow | und
   return rows[0];
 }
 
-export async function listQrCodes(organizationId: string): Promise<QrCodeRow[]> {
-  return db.select().from(qrCodes).where(eq(qrCodes.organizationId, organizationId));
+function escapeLikePattern(value: string): string {
+  return value.replace(/[%_\\]/g, "\\$&");
+}
+
+export async function listQrCodes(
+  organizationId: string,
+  filter: QrCodeListFilter,
+): Promise<{ rows: QrCodeRow[]; total: number; page: number }> {
+  const pageSize = Math.max(1, filter.pageSize);
+  const search = filter.search?.trim();
+  const searchPattern = search ? `%${escapeLikePattern(search)}%` : undefined;
+  const where = and(
+    eq(qrCodes.organizationId, organizationId),
+    filter.status ? eq(qrCodes.status, filter.status) : undefined,
+    filter.mode ? eq(qrCodes.mode, filter.mode) : undefined,
+    filter.folderId ? eq(qrCodes.folderId, filter.folderId) : undefined,
+    filter.campaignId ? eq(qrCodes.campaignId, filter.campaignId) : undefined,
+    searchPattern
+      ? or(
+          ilike(qrCodes.name, searchPattern),
+          ilike(qrCodes.staticPayload, searchPattern),
+          ilike(links.destinationUrl, searchPattern),
+          ilike(shortLinks.slug, searchPattern),
+        )
+      : undefined,
+  );
+
+  const [totals] = await db
+    .select({ total: count() })
+    .from(qrCodes)
+    .leftJoin(links, eq(qrCodes.linkId, links.id))
+    .leftJoin(shortLinks, eq(qrCodes.shortLinkId, shortLinks.id))
+    .where(where);
+
+  const total = totals?.total ?? 0;
+  const requestedPage = Math.max(1, filter.page);
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(requestedPage, lastPage);
+
+  const rows = await db
+    .select({ qr: qrCodes })
+    .from(qrCodes)
+    .leftJoin(links, eq(qrCodes.linkId, links.id))
+    .leftJoin(shortLinks, eq(qrCodes.shortLinkId, shortLinks.id))
+    .where(where)
+    .orderBy(desc(qrCodes.createdAt), desc(qrCodes.id))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+
+  return { rows: rows.map((row) => row.qr), total, page };
+}
+
+export async function countActiveQrCodes(organizationId: string): Promise<number> {
+  const rows = await db
+    .select({ count: count() })
+    .from(qrCodes)
+    .where(and(eq(qrCodes.organizationId, organizationId), eq(qrCodes.status, "active")));
+
+  return rows[0]?.count ?? 0;
+}
+
+export async function listQrGroupAvailability(organizationId: string): Promise<{
+  folderIds: string[];
+  campaignIds: string[];
+}> {
+  const [folders, campaigns] = await Promise.all([
+    db
+      .selectDistinct({ id: qrCodes.folderId })
+      .from(qrCodes)
+      .where(and(eq(qrCodes.organizationId, organizationId), isNotNull(qrCodes.folderId))),
+    db
+      .selectDistinct({ id: qrCodes.campaignId })
+      .from(qrCodes)
+      .where(and(eq(qrCodes.organizationId, organizationId), isNotNull(qrCodes.campaignId))),
+  ]);
+
+  return {
+    folderIds: folders.flatMap((row) => (row.id ? [row.id] : [])),
+    campaignIds: campaigns.flatMap((row) => (row.id ? [row.id] : [])),
+  };
 }
 
 // No hard-delete anywhere (I-7). "archived" keeps a dynamic QR resolving — see

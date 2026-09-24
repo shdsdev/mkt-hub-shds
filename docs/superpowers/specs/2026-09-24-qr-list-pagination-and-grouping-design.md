@@ -92,8 +92,20 @@ export async function listQrCodes(
   pasted short URL will no longer match by the `https://`/domain prefix, only by its slug tail.
 - Returns `{ rows, total }` — `total` is a second `count()` query with the same `WHERE` (no
   `limit`/`offset`), needed to render "página X de Y" and disable next/prev at the edges.
-- All existing callers of the old no-args `listQrCodes` (just `app/(protected)/qr/page.tsx`) are
-  updated in the same change; there are no other callers (checked via `Grep`).
+- Results are ordered by `createdAt desc`, then `id desc` as a deterministic tie-breaker. Pagination
+  must never rely on database natural order because inserts with the same timestamp may otherwise
+  repeat or skip rows between pages.
+- `app/(protected)/qr/page.tsx` consumes the paginated result. The overview dashboard
+  (`app/(protected)/page.tsx`) also currently calls the old unbounded `listQrCodes` only to count
+  active QR codes; it must instead call the dedicated count function below so its metric remains an
+  organization-wide total, not the size of page one.
+
+### Dashboard active-QR count
+
+Add `countActiveQrCodes(organizationId: string): Promise<number>` to `src/modules/qr/service.ts`
+and export it from the module barrel. It performs one `count()` query filtered by organization and
+`status = "active"`. The overview dashboard replaces its `listQrCodes` fetch and in-memory filter
+with this count, preserving the existing "Códigos QR activos" metric when the list becomes paginated.
 
 ### Route: reading filter/page state
 
@@ -140,23 +152,26 @@ import — same pattern already used for every other icon button in the app.
 
 ## Testing
 
-The existing `src/modules/qr/*.test.ts` files are pure unit tests of pure functions (no DB) — none
-of them are a precedent for testing a query. `listQrCodes`'s filtering and `countEventsForQrCodes`'s
-grouping can't be verified by asserting on a Drizzle query-builder object without also proving the
-resulting SQL does the right thing, so both need real rows to assert against — the same
-live-local-Supabase-with-seeded-rows pattern the Phase 7 rollup job's tests use
-(`docs/superpowers/specs/2026-09-09-phase7-analytics-design.md`'s Testing section), applied here for
-the first time in the `qr` module rather than `analytics`:
+No test file anywhere in this codebase actually connects to a live database — checked directly
+(`grep -rl "@/db/client" --include="*.test.ts"` across the whole repo) rather than assumed from an
+older spec's prose. The two files that do import `@/db/client` in a test
+(`src/modules/links/destination-url.test.ts`, `.../utm.test.ts`) only `vi.mock` it to satisfy the
+module's top-level import so a *different*, DB-free function can be unit-tested — that's the actual,
+demonstrated convention this codebase follows: mock `db`, test the surrounding logic.
 
-- `listQrCodes`'s filter-building: seed a handful of QR codes spanning every status/mode/folder/
-  campaign combination, call with each filter combination, assert exactly the expected subset (and
-  its `total`) comes back.
-- `countEventsForQrCodes`: seeded `tracking_events` rows across multiple QR codes (including one
-  with zero scans, and a static QR with no `linkId`), confirm the returned map has the right counts
-  and the static QR maps to `0` without erroring.
-- Pagination edges: `total` exactly divisible by `pageSize`, `total < pageSize` (single page, both
-  arrows disabled), `page` beyond the last page (should not 500 — clamp or 404, decided during
-  `writing-plans`).
+- `countEventsForQrCodes`: `vi.mock("@/db/client", ...)` with a fake chainable query object whose
+  terminal call resolves to a canned `{ linkId, count }[]`. Assert the returned `Map` is correct for
+  a mix of QR codes: some sharing a `linkId` with scans, one with a `linkId` but zero matching rows,
+  and one static QR (`linkId: null`) — this exercises the actual interesting logic (zero-filling,
+  static-QR short-circuiting, the `linkId → qrCodeId` remap) without needing a real database.
+- `listQrCodes`: same `vi.mock` approach, asserting the mocked query builder's `.where(...)` receives
+  the expected condition set for each filter combination (status/mode/folder/campaign/search present
+  or absent) and that `.limit`/`.offset` receive values derived from `page`/`pageSize`. If asserting
+  on Drizzle's internal condition objects proves impractical, fall back to asserting call arguments
+  on the mocked chain's methods instead (spy on `.where`, `.limit`, `.offset` and check what they
+  were called with) — decided during implementation, not re-litigated here.
+- Pagination edges (`total` exactly divisible by `pageSize`, `total < pageSize`, `page` beyond the
+  last page) are covered the same way, against the mock, not a real dataset.
 
 The `Tabs`/`Pagination`/`Select` UI itself is verified live in the browser, per this session's
 established practice (screenshot before/after, click through folder and campaign selection, confirm

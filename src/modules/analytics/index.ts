@@ -3,6 +3,7 @@ export {
   trackRedirect,
   countEventsForShortLink,
   countEventsForQrCode,
+  countEventsForQrCodes,
   countUniqueScansForQrCode,
   countQrScansForLink,
   countUniqueQrScansForLink,
