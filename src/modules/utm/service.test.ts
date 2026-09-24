@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/db/client", () => ({
-  db: { insert: mocks.insert, update: mocks.update, select: mocks.select },
+  db: { insert: mocks.insert, update: mocks.update, select: mocks.select, delete: mocks.del },
 }));
 
 import {
@@ -25,6 +25,7 @@ import {
   listActiveUtmTemplates,
   getActiveUtmTemplate,
   archiveUtmPreset,
+  deleteUtmPreset,
 } from "./service";
 
 const legacyRow = {
@@ -193,6 +194,15 @@ describe("utm service", () => {
     const archived = await archiveUtmPreset("preset-1", "org-1");
     expect(archived.status).toBe("archived");
     expect(mocks.set).toHaveBeenCalledWith(expect.objectContaining({ status: "archived" }));
+  });
+
+  it("deleteUtmPreset removes only the current organization's template", async () => {
+    mocks.returning.mockResolvedValue([legacyRow]);
+    mocks.where.mockReturnValue({ returning: mocks.returning });
+    mocks.del.mockReturnValue({ where: mocks.where });
+
+    await expect(deleteUtmPreset("preset-1", "org-1")).resolves.toBeUndefined();
+    expect(mocks.del).toHaveBeenCalledWith(expect.anything());
   });
 
   it("updateUtmPreset throws when the template is outside the organization", async () => {

@@ -3,6 +3,7 @@ import { Poppins, Inter, Jersey_25, JetBrains_Mono } from "next/font/google";
 import { getCurrentUser } from "@/modules/auth";
 import { DEFAULT_THEME_ID } from "@/modules/users";
 import { AuraBackground, type AuraThemeId } from "@/components/aura-background";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -53,7 +54,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           overlay covers the whole page with a false-alarm error on every load. */}
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {auraTheme && <AuraBackground theme={auraTheme} />}
-        {children}
+        <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
   );

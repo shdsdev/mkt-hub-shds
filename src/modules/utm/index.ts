@@ -6,6 +6,7 @@ export {
   listActiveUtmTemplates,
   getActiveUtmTemplate,
   archiveUtmPreset,
+  deleteUtmPreset,
   normalizeTemplateValues,
   type UtmPreset,
   type ApplyableUtmTemplate,

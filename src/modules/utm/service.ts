@@ -258,3 +258,15 @@ export async function archiveUtmPreset(id: string, organizationId: string): Prom
   }
   return preset;
 }
+
+// UTM templates are reusable configuration, not delivery records. A hard delete is intentionally
+// limited to this table; generated Links and QR codes retain their own persisted tracking values.
+export async function deleteUtmPreset(id: string, organizationId: string): Promise<void> {
+  const [preset] = await db
+    .delete(utmPresets)
+    .where(and(eq(utmPresets.id, id), eq(utmPresets.organizationId, organizationId)))
+    .returning();
+  if (!preset) {
+    throw new Error("Plantilla no encontrada.");
+  }
+}

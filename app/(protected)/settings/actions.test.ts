@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   createUtmPreset: vi.fn(),
   updateUtmPreset: vi.fn(),
   archiveUtmPreset: vi.fn(),
+  deleteUtmPreset: vi.fn(),
   revalidatePath: vi.fn(),
   redirect: vi.fn(),
   // Unused-by-UTM actions but imported by settings/actions.ts top-level.
@@ -24,6 +25,7 @@ vi.mock("@/modules/utm", () => ({
   createUtmPreset: mocks.createUtmPreset,
   updateUtmPreset: mocks.updateUtmPreset,
   archiveUtmPreset: mocks.archiveUtmPreset,
+  deleteUtmPreset: mocks.deleteUtmPreset,
 }));
 vi.mock("@/modules/users", () => ({
   updateTheme: mocks.updateTheme,
@@ -45,6 +47,7 @@ import {
   createUtmPresetAction,
   updateUtmPresetAction,
   archiveUtmPresetAction,
+  deleteUtmPresetAction,
 } from "./actions";
 
 const user = {
@@ -80,6 +83,7 @@ describe("utm settings server actions", () => {
     mocks.createUtmPreset.mockResolvedValue({ id: TEMPLATE_ID });
     mocks.updateUtmPreset.mockResolvedValue({ id: TEMPLATE_ID });
     mocks.archiveUtmPreset.mockResolvedValue({ id: TEMPLATE_ID });
+    mocks.deleteUtmPreset.mockResolvedValue(undefined);
   });
 
   it("passes organization id, creator, and typed custom parameters to the service", async () => {
@@ -146,6 +150,16 @@ describe("utm settings server actions", () => {
     await archiveUtmPresetAction(formData);
 
     expect(mocks.archiveUtmPreset).toHaveBeenCalledWith(TEMPLATE_ID, "org-1");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/settings/utm");
+  });
+
+  it("deletes within the current organization only", async () => {
+    const formData = new FormData();
+    formData.set("id", TEMPLATE_ID);
+
+    await deleteUtmPresetAction(formData);
+
+    expect(mocks.deleteUtmPreset).toHaveBeenCalledWith(TEMPLATE_ID, "org-1");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/settings/utm");
   });
 });
