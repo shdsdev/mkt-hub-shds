@@ -12,7 +12,14 @@ import {
   getDomain,
   reassignShortLinksToDomain,
 } from "@/modules/links";
-import { createUtmPreset, deleteUtmPreset } from "@/modules/utm";
+import {
+  createUtmPreset,
+  updateUtmPreset,
+  archiveUtmPreset,
+  type CustomParameter,
+  type SourceMode,
+  type TemplateStatus,
+} from "@/modules/utm";
 import { checkRateLimit } from "@/modules/audit";
 
 export async function updateUserThemeAction(formData: FormData): Promise<void> {
@@ -119,19 +126,54 @@ export async function reassignDomainShortLinksAction(
   return {};
 }
 
-const utmPresetFieldSchema = z.string().trim().min(1).max(100);
-const optionalUtmFieldSchema = z.string().trim().max(100).optional();
+const utmPresetFieldSchema = z.string().trim().min(1).max(255);
+const optionalUtmFieldSchema = z.string().trim().max(255).optional();
+
+const customParameterSchema = z.object({
+  key: z.string().trim().min(1),
+  value: z.string().trim().min(1),
+});
+
+const sourceModeSchema = z.enum(["controlled", "partner", "external"]);
+const templateStatusSchema = z.enum(["active", "draft", "archived"]);
+
+// The form serializes dynamic custom-parameter rows as a JSON string; parse it here so the service
+// receives a typed CustomParameter[] and any malformed payload fails validation server-side.
+function parseCustomParameters(raw: FormDataEntryValue | null): CustomParameter[] {
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  const parsed: unknown = JSON.parse(raw);
+  return z.array(customParameterSchema).parse(parsed);
+}
 
 const createUtmPresetSchema = z.object({
   name: utmPresetFieldSchema,
+  description: z.string().trim().max(500).optional(),
   utmSource: utmPresetFieldSchema,
   utmMedium: utmPresetFieldSchema,
   utmCampaign: utmPresetFieldSchema,
   utmTerm: optionalUtmFieldSchema,
   utmContent: optionalUtmFieldSchema,
+  utmId: optionalUtmFieldSchema,
+  status: templateStatusSchema.optional(),
+  sourceMode: sourceModeSchema.optional(),
 });
 
-export type CreateUtmPresetFormState = { error?: string };
+function readUtmPresetForm(formData: FormData) {
+  return createUtmPresetSchema.safeParse({
+    name: formData.get("name"),
+    description: formData.get("description") || undefined,
+    utmSource: formData.get("utmSource"),
+    utmMedium: formData.get("utmMedium"),
+    utmCampaign: formData.get("utmCampaign"),
+    utmTerm: formData.get("utmTerm") || undefined,
+    utmContent: formData.get("utmContent") || undefined,
+    utmId: formData.get("utmId") || undefined,
+    status: formData.get("status") || undefined,
+    sourceMode: formData.get("sourceMode") || undefined,
+  });
+}
+
+export type CreateUtmPresetFormState = { error?: string; success?: string };
 
 export async function createUtmPresetAction(
   _prevState: CreateUtmPresetFormState,
@@ -140,30 +182,39 @@ export async function createUtmPresetAction(
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const parsed = createUtmPresetSchema.safeParse({
-    name: formData.get("name"),
-    utmSource: formData.get("utmSource"),
-    utmMedium: formData.get("utmMedium"),
-    utmCampaign: formData.get("utmCampaign"),
-    utmTerm: formData.get("utmTerm") || undefined,
-    utmContent: formData.get("utmContent") || undefined,
-  });
-
+  const parsed = readUtmPresetForm(formData);
   if (!parsed.success) {
     return { error: "Completá los campos obligatorios." };
   }
 
-  await createUtmPreset({ ...parsed.data, organizationId: user.profile.organizationId });
-  revalidatePath("/settings");
-  return {};
+  let customParameters: CustomParameter[];
+  try {
+    customParameters = parseCustomParameters(formData.get("customParameters"));
+  } catch {
+    return { error: "Los parámetros personalizados no son válidos." };
+  }
+
+  try {
+    await createUtmPreset({
+      organizationId: user.profile.organizationId,
+      createdBy: user.id,
+      ...parsed.data,
+      sourceMode: (parsed.data.sourceMode ?? "controlled") as SourceMode,
+      status: (parsed.data.status ?? "active") as TemplateStatus,
+      customParameters,
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "No se pudo guardar la plantilla." };
+  }
+
+  revalidatePath("/settings/utm");
+  return { success: "Plantilla guardada." };
 }
 
-export type DeleteUtmPresetFormState = { error?: string };
-
-export async function deleteUtmPresetAction(
-  _prevState: DeleteUtmPresetFormState,
+export async function updateUtmPresetAction(
+  _prevState: CreateUtmPresetFormState,
   formData: FormData,
-): Promise<DeleteUtmPresetFormState> {
+): Promise<CreateUtmPresetFormState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -172,14 +223,49 @@ export async function deleteUtmPresetAction(
     return { error: "Plantilla inválida." };
   }
 
-  try {
-    await deleteUtmPreset(id.data, user.profile.organizationId);
-  } catch {
-    return { error: "No se pudo eliminar la plantilla." };
+  const parsed = readUtmPresetForm(formData);
+  if (!parsed.success) {
+    return { error: "Completá los campos obligatorios." };
   }
 
-  revalidatePath("/settings");
-  return {};
+  let customParameters: CustomParameter[];
+  try {
+    customParameters = parseCustomParameters(formData.get("customParameters"));
+  } catch {
+    return { error: "Los parámetros personalizados no son válidos." };
+  }
+
+  try {
+    await updateUtmPreset({
+      id: id.data,
+      organizationId: user.profile.organizationId,
+      ...parsed.data,
+      sourceMode: (parsed.data.sourceMode ?? "controlled") as SourceMode,
+      status: parsed.data.status as TemplateStatus | undefined,
+      customParameters,
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "No se pudo actualizar la plantilla." };
+  }
+
+  revalidatePath("/settings/utm");
+  return { success: "Plantilla actualizada." };
+}
+
+export async function archiveUtmPresetAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return;
+
+  try {
+    await archiveUtmPreset(id.data, user.profile.organizationId);
+  } catch {
+    return;
+  }
+
+  revalidatePath("/settings/utm");
 }
 
 export type DeleteDomainFormState = { error?: string };

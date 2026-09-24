@@ -113,10 +113,10 @@ describe("updateDynamicQrUtmAction", () => {
     const after = {
       ...link,
       utmSource: "google",
-      utmMedium: "paid-social",
-      utmCampaign: "launch-2026",
-      utmTerm: "blue-widget",
-      utmContent: "hero-banner",
+      utmMedium: "paid_social",
+      utmCampaign: "launch_2026",
+      utmTerm: "blue_widget",
+      utmContent: "hero_banner",
     };
     mocks.updateLinkUtmValues.mockResolvedValue(after);
 
@@ -135,10 +135,10 @@ describe("updateDynamicQrUtmAction", () => {
       linkId: "link-1",
       values: {
         utmSource: "google",
-        utmMedium: "paid-social",
-        utmCampaign: "launch-2026",
-        utmTerm: "blue-widget",
-        utmContent: "hero-banner",
+        utmMedium: "paid_social",
+        utmCampaign: "launch_2026",
+        utmTerm: "blue_widget",
+        utmContent: "hero_banner",
       },
     });
     expect(mocks.recordAudit).toHaveBeenCalledWith({
@@ -156,10 +156,10 @@ describe("updateDynamicQrUtmAction", () => {
       },
       after: {
         utmSource: "google",
-        utmMedium: "paid-social",
-        utmCampaign: "launch-2026",
-        utmTerm: "blue-widget",
-        utmContent: "hero-banner",
+        utmMedium: "paid_social",
+        utmCampaign: "launch_2026",
+        utmTerm: "blue_widget",
+        utmContent: "hero_banner",
       },
     });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/qr");

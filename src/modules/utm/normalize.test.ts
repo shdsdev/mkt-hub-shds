@@ -7,27 +7,27 @@ describe("normalizeUtmValue", () => {
     expect(normalizeUtmValue("FACEBOOK")).toBe("facebook");
   });
 
-  it("replaces whitespace with a single dash", () => {
-    expect(normalizeUtmValue("Facebook Ads")).toBe("facebook-ads");
-    expect(normalizeUtmValue("Facebook   Ads")).toBe("facebook-ads");
+  it("replaces whitespace with a single underscore", () => {
+    expect(normalizeUtmValue("Facebook Ads")).toBe("facebook_ads");
+    expect(normalizeUtmValue("Facebook   Ads")).toBe("facebook_ads");
   });
 
-  it("replaces invalid characters with a dash", () => {
-    expect(normalizeUtmValue("Q4_Launch!")).toBe("q4-launch");
-    expect(normalizeUtmValue("50%_off")).toBe("50-off");
+  it("replaces invalid characters with an underscore", () => {
+    expect(normalizeUtmValue("Q4_Launch!")).toBe("q4_launch");
+    expect(normalizeUtmValue("50%_off")).toBe("50_off");
   });
 
-  it("collapses consecutive dashes into one", () => {
-    expect(normalizeUtmValue("a -- b")).toBe("a-b");
+  it("collapses consecutive separators into one underscore", () => {
+    expect(normalizeUtmValue("a -- b")).toBe("a_b");
   });
 
-  it("strips leading and trailing dashes", () => {
+  it("strips leading and trailing underscores", () => {
     expect(normalizeUtmValue("-facebook-")).toBe("facebook");
     expect(normalizeUtmValue("  facebook  ")).toBe("facebook");
   });
 
-  it("keeps digits and existing dashes", () => {
-    expect(normalizeUtmValue("spring-2026")).toBe("spring-2026");
+  it("normalizes dashes to underscores", () => {
+    expect(normalizeUtmValue("spring-2026")).toBe("spring_2026");
   });
 
   it("throws when the result would be empty", () => {

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { getLink, listShortLinksForLink, listDomains } from "@/modules/links";
+import { listActiveUtmTemplates } from "@/modules/utm";
 import { getScanRateForShortLink } from "@/modules/campaigns";
 import { DestinationForm } from "./destination-form";
 import { ShortLinkForm } from "./short-link-form";
@@ -28,9 +29,10 @@ export default async function LinkDetailPage({
     notFound();
   }
 
-  const [shortLinks, domains] = await Promise.all([
+  const [shortLinks, domains, templates] = await Promise.all([
     listShortLinksForLink(id),
     listDomains(user.profile.organizationId),
+    listActiveUtmTemplates(user.profile.organizationId),
   ]);
   const domainById = new Map(domains.map((domain) => [domain.id, domain.hostname]));
   const scanRates = await Promise.all(
@@ -58,7 +60,7 @@ export default async function LinkDetailPage({
 
       <div className="space-y-2">
         <p className="text-sm text-muted-foreground">Destino</p>
-        <DestinationForm linkId={link.id} destinationUrl={link.destinationUrl} />
+        <DestinationForm linkId={link.id} destinationUrl={link.destinationUrl} templates={templates} />
       </div>
 
       <div className="space-y-3">

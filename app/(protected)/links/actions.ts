@@ -11,9 +11,8 @@ import {
   archiveLink,
   archiveShortLink,
   getLink,
+  applyUtmTemplateToLink,
 } from "@/modules/links";
-import { normalizeUtmValue } from "@/lib/utm";
-import { createUtmPreset } from "@/modules/utm";
 import { recordPrintRun } from "@/modules/campaigns";
 import { recordAudit, checkRateLimit } from "@/modules/audit";
 
@@ -21,9 +20,7 @@ const RATE_LIMIT_ERROR = "Demasiadas acciones. Inténtalo de nuevo en breve.";
 
 const createLinkSchema = z.object({
   destinationUrl: z.string().trim().min(1).max(2048),
-  utmSource: z.string().trim().max(255).optional(),
-  utmMedium: z.string().trim().max(255).optional(),
-  utmCampaign: z.string().trim().max(255).optional(),
+  templateId: z.string().uuid().optional(),
 });
 
 export type CreateLinkFormState = { error?: string };
@@ -41,9 +38,7 @@ export async function createLinkAction(
 
   const parsed = createLinkSchema.safeParse({
     destinationUrl: formData.get("destinationUrl"),
-    utmSource: formData.get("utmSource") || undefined,
-    utmMedium: formData.get("utmMedium") || undefined,
-    utmCampaign: formData.get("utmCampaign") || undefined,
+    templateId: formData.get("templateId") || undefined,
   });
   if (!parsed.success) {
     return { error: "Ingresa una URL de destino válida." };
@@ -53,10 +48,18 @@ export async function createLinkAction(
     const link = await createLink({
       organizationId: user.profile.organizationId,
       destinationUrl: parsed.data.destinationUrl,
-      utmSource: parsed.data.utmSource ? normalizeUtmValue(parsed.data.utmSource) : undefined,
-      utmMedium: parsed.data.utmMedium ? normalizeUtmValue(parsed.data.utmMedium) : undefined,
-      utmCampaign: parsed.data.utmCampaign ? normalizeUtmValue(parsed.data.utmCampaign) : undefined,
     });
+
+    // Server-authoritative application: the submitted templateId is re-fetched against the
+    // organization, so a draft/archived/cross-org template is rejected and never applied.
+    if (parsed.data.templateId) {
+      await applyUtmTemplateToLink({
+        organizationId: user.profile.organizationId,
+        linkId: link.id,
+        templateId: parsed.data.templateId,
+      });
+    }
+
     await recordAudit({
       organizationId: user.profile.organizationId,
       userId: user.id,
@@ -78,39 +81,32 @@ export async function createLinkAction(
   }
 }
 
-const createUtmPresetSchema = z.object({
-  name: z.string().trim().min(1).max(255),
-  utmSource: z.string().trim().min(1).max(255),
-  utmMedium: z.string().trim().min(1).max(255),
-  utmCampaign: z.string().trim().min(1).max(255),
-});
+export type ApplyUtmTemplateFormState = { error?: string };
 
-export type CreateUtmPresetFormState = { error?: string };
-
-export async function createUtmPresetAction(
-  _prevState: CreateUtmPresetFormState,
+export async function applyUtmTemplateAction(
+  _prevState: ApplyUtmTemplateFormState,
   formData: FormData,
-): Promise<CreateUtmPresetFormState> {
+): Promise<ApplyUtmTemplateFormState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const parsed = createUtmPresetSchema.safeParse({
-    name: formData.get("name"),
-    utmSource: formData.get("utmSource"),
-    utmMedium: formData.get("utmMedium"),
-    utmCampaign: formData.get("utmCampaign"),
-  });
-  if (!parsed.success) {
-    return { error: "Completa nombre, source, medium y campaign." };
+  const linkId = z.string().uuid().safeParse(formData.get("linkId"));
+  const templateId = z.string().uuid().safeParse(formData.get("templateId"));
+  if (!linkId.success || !templateId.success) {
+    return { error: "Plantilla inválida." };
   }
 
   try {
-    await createUtmPreset({ organizationId: user.profile.organizationId, ...parsed.data });
+    await applyUtmTemplateToLink({
+      organizationId: user.profile.organizationId,
+      linkId: linkId.data,
+      templateId: templateId.data,
+    });
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "No se pudo crear el preajuste." };
+    return { error: error instanceof Error ? error.message : "No se pudo aplicar la plantilla." };
   }
 
-  revalidatePath("/links");
+  revalidatePath(`/links/${linkId.data}`);
   return {};
 }
 

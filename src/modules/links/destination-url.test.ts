@@ -13,6 +13,7 @@ const link: Link = {
   utmCampaign: null,
   utmTerm: null,
   utmContent: null,
+  utmId: null,
   folderId: null,
   status: "active",
   createdAt: new Date("2026-09-23T00:00:00.000Z"),
@@ -28,5 +29,15 @@ describe("buildDestinationUrl", () => {
         utmContent: "hero",
       }),
     ).toBe("https://example.com/p?a=1&utm_source=google&utm_content=hero");
+  });
+
+  it("includes utm_id when building a redirect", () => {
+    expect(
+      buildDestinationUrl({
+        ...link,
+        destinationUrl: "https://example.com/p",
+        utmId: "campaign-123",
+      }),
+    ).toBe("https://example.com/p?utm_id=campaign-123");
   });
 });
