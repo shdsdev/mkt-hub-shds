@@ -211,6 +211,9 @@ export async function createWebsiteQrCodeAction(
       utmSource: parsed.data.utmSource,
       utmMedium: parsed.data.utmMedium,
       utmCampaign: parsed.data.utmCampaign,
+      // The QR wizard accepts free-text source/medium, so its saved presets are treated as a
+      // custom/external source rather than an approved-taxonomy selection.
+      sourceMode: "external",
     });
     revalidatePath("/links");
   }

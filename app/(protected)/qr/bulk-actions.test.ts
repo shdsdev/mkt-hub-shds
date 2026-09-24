@@ -202,7 +202,7 @@ describe("createBulkWebsiteQrCodesAction", () => {
       organizationId: "org-1",
       destinationUrl: "https://one.example",
       utmSource: "google",
-      utmTerm: "blue-term",
+      utmTerm: "blue_term",
       utmContent: "hero",
     }));
     expect(mocks.createShortLink).toHaveBeenNthCalledWith(1, {

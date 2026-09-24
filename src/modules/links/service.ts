@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { domains, folders, tags, linkTags, links, shortLinks } from "./db";
 import { isValidSlug, generateSlug } from "./slug";
 import { isResolvable } from "./resource-status";
+import { getActiveUtmTemplate, type ApplyableUtmTemplate } from "@/modules/utm";
 
 export type Link = typeof links.$inferSelect;
 export type ShortLink = typeof shortLinks.$inferSelect;
@@ -159,6 +160,15 @@ export async function listShortLinksForOrganization(organizationId: string): Pro
   return db.select().from(shortLinks).where(eq(shortLinks.organizationId, organizationId));
 }
 
+const STANDARD_UTM_KEYS = new Set([
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "utm_id",
+]);
+
 // Destination + UTM only — never anything request-supplied (open-redirect mitigation,
 // ARCHITECTURE.md threat matrix).
 export function buildDestinationUrl(link: Link): string {
@@ -169,11 +179,99 @@ export function buildDestinationUrl(link: Link): string {
     ["utm_campaign", link.utmCampaign],
     ["utm_term", link.utmTerm],
     ["utm_content", link.utmContent],
+    ["utm_id", link.utmId],
   ];
   for (const [key, value] of utmEntries) {
     if (value) url.searchParams.set(key, value);
   }
   return url.toString();
+}
+
+function applyCustomPairs(url: URL, customParameters: ApplyableUtmTemplate["customParameters"]): void {
+  for (const pair of customParameters) {
+    if (!pair.value) continue;
+    // Custom pairs never override standard UTM keys (spec) — a reserved key is skipped defensively.
+    if (STANDARD_UTM_KEYS.has(pair.key.toLowerCase())) continue;
+    url.searchParams.set(pair.key, pair.value);
+  }
+}
+
+// Pure, deterministic merge: non-empty standard values replace matching keys, non-empty custom
+// pairs are set (never overriding `utm_*`), empty values are omitted, and unrelated query
+// parameters + the hash survive. Produces the effective destination URL for a template.
+export function applyTemplateToDestination(
+  destinationUrl: string,
+  template: ApplyableUtmTemplate,
+): string {
+  const url = new URL(destinationUrl);
+  applyCustomPairs(url, template.customParameters);
+  const standardEntries: [string, string | null][] = [
+    ["utm_source", template.utmSource],
+    ["utm_medium", template.utmMedium],
+    ["utm_campaign", template.utmCampaign],
+    ["utm_term", template.utmTerm],
+    ["utm_content", template.utmContent],
+    ["utm_id", template.utmId],
+  ];
+  for (const [key, value] of standardEntries) {
+    if (value) url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+// Persistence-side counterpart: standard keys live in `links.utm_*` columns (not the URL), so this
+// strips supplied standard keys from the base URL and merges only custom pairs into the query.
+export function mergeCustomParametersToDestination(
+  destinationUrl: string,
+  customParameters: ApplyableUtmTemplate["customParameters"],
+): string {
+  const url = new URL(destinationUrl);
+  for (const key of STANDARD_UTM_KEYS) url.searchParams.delete(key);
+  applyCustomPairs(url, customParameters);
+  return url.toString();
+}
+
+export type ApplyUtmTemplateToLinkInput = {
+  organizationId: string;
+  linkId: string;
+  templateId: string;
+};
+
+// Server-authoritative template application: re-fetches the active, org-scoped template (draft /
+// archived / cross-org templates are rejected), then persists standard values in the `utm_*`
+// columns and custom pairs in the destination query. Never touches short_links or qr_codes.
+export async function applyUtmTemplateToLink(
+  input: ApplyUtmTemplateToLinkInput,
+): Promise<Link> {
+  const template = await getActiveUtmTemplate(input.templateId, input.organizationId);
+  if (!template) {
+    throw new Error("La plantilla no está disponible o no pertenece a tu organización.");
+  }
+
+  const existing = await getLink(input.linkId);
+  if (!existing || existing.organizationId !== input.organizationId) {
+    throw new Error("Enlace no encontrado.");
+  }
+
+  const destinationUrl = mergeCustomParametersToDestination(
+    existing.destinationUrl,
+    template.customParameters,
+  );
+
+  const [link] = await db
+    .update(links)
+    .set({
+      destinationUrl,
+      utmSource: template.utmSource || null,
+      utmMedium: template.utmMedium || null,
+      utmCampaign: template.utmCampaign || null,
+      utmTerm: template.utmTerm,
+      utmContent: template.utmContent,
+      utmId: template.utmId,
+    })
+    .where(and(eq(links.id, input.linkId), eq(links.organizationId, input.organizationId)))
+    .returning();
+  return link;
 }
 
 export type ResolvedShortLink = { link: Link; shortLink: ShortLink };

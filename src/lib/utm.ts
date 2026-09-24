@@ -7,8 +7,8 @@ export function normalizeUtmValue(raw: string): string {
   const normalized = raw
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 
   if (normalized.length === 0) {
     throw new Error("UTM value must contain at least one letter or digit.");

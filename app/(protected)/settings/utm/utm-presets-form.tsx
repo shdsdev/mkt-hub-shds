@@ -1,24 +1,97 @@
 "use client";
 
-import { useActionState } from "react";
-import { Trash2 } from "lucide";
-import type { UtmPreset } from "@/modules/utm";
-import { createUtmPresetAction, deleteUtmPresetAction } from "../actions";
+import { useActionState, useMemo, useState } from "react";
+import { Trash2, Archive } from "lucide";
+import { Plus, X } from "lucide-react";
+import type { UtmPreset, TaxonomyOption } from "@/modules/utm";
+import type { Campaign } from "@/modules/campaigns";
+import {
+  createUtmPresetAction,
+  archiveUtmPresetAction,
+  type CreateUtmPresetFormState,
+} from "../actions";
 import { BinaryLoader } from "@/components/binary-loader";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const createInitialState: { error?: string } = {};
-const deleteInitialState: { error?: string } = {};
+type SourceMode = "controlled" | "partner" | "external";
+type CustomParamRow = { key: string; value: string };
 
-export function UtmPresetsForm({ presets }: { presets: UtmPreset[] }) {
+const createInitialState: CreateUtmPresetFormState = {};
+
+const STATUS_LABEL: Record<string, string> = {
+  active: "activa",
+  draft: "borrador",
+  archived: "archivada",
+};
+
+export function groupByCategory(options: TaxonomyOption[]): Array<[string, TaxonomyOption[]]> {
+  const map = new Map<string, TaxonomyOption[]>();
+  for (const option of options) {
+    const group = map.get(option.category) ?? [];
+    group.push(option);
+    map.set(option.category, group);
+  }
+  return [...map.entries()];
+}
+
+export function UtmPresetsForm({
+  presets,
+  campaigns,
+  sourceOptions,
+  mediumOptions,
+}: {
+  presets: UtmPreset[];
+  campaigns: Campaign[];
+  sourceOptions: TaxonomyOption[];
+  mediumOptions: TaxonomyOption[];
+}) {
   const [createState, createFormAction, createPending] = useActionState(
     createUtmPresetAction,
     createInitialState,
   );
-  const [deleteState, deleteFormAction, deletePending] = useActionState(
-    deleteUtmPresetAction,
-    deleteInitialState,
-  );
+
+  const [sourceMode, setSourceMode] = useState<SourceMode>("controlled");
+  const [source, setSource] = useState("");
+  const [medium, setMedium] = useState("");
+  const [campaign, setCampaign] = useState("");
+  const [status, setStatus] = useState("active");
+  const [campaignPrefill, setCampaignPrefill] = useState("");
+  const [customParams, setCustomParams] = useState<CustomParamRow[]>([]);
+
+  const sourceGroups = useMemo(() => groupByCategory(sourceOptions), [sourceOptions]);
+  const mediumGroups = useMemo(() => groupByCategory(mediumOptions), [mediumOptions]);
+
+  const pairingWarning = useMemo(() => {
+    if (!source || !medium) return null;
+    const sourceOption = sourceOptions.find((option) => option.value === source);
+    if (
+      sourceOption?.recommendedWith &&
+      sourceOption.recommendedWith.length > 0 &&
+      !sourceOption.recommendedWith.includes(medium)
+    ) {
+      return `El source "${source}" no se recomienda con el medium "${medium}".`;
+    }
+    return null;
+  }, [source, medium, sourceOptions]);
+
+  function addCustomParam() {
+    setCustomParams((rows) => [...rows, { key: "", value: "" }]);
+  }
+  function updateCustomParam(index: number, field: keyof CustomParamRow, value: string) {
+    setCustomParams((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  }
+  function removeCustomParam(index: number) {
+    setCustomParams((rows) => rows.filter((_, i) => i !== index));
+  }
 
   return (
     <div className="space-y-6">
@@ -40,29 +113,123 @@ export function UtmPresetsForm({ presets }: { presets: UtmPreset[] }) {
             />
           </div>
           <div className="space-y-1">
-            <label htmlFor="utm-source" className="text-xs text-muted-foreground uppercase">
-              Source
+            <label htmlFor="utm-status" className="text-xs text-muted-foreground uppercase">
+              Estado
             </label>
+            <input type="hidden" name="status" value={status} />
+            <Select value={status} onValueChange={(value) => setStatus(value ?? "active")}>
+              <SelectTrigger id="utm-status" className="w-full bg-background">
+                <SelectValue placeholder="Elegí un estado" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectGroup>
+                  <SelectItem value="active">Activa</SelectItem>
+                  <SelectItem value="draft">Borrador</SelectItem>
+                  <SelectItem value="archived">Archivada</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <label htmlFor="utm-description" className="text-xs text-muted-foreground uppercase">
+              Descripción
+            </label>
+            <textarea
+              id="utm-description"
+              name="description"
+              rows={2}
+              placeholder="Opcional"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-xs text-muted-foreground uppercase">Source</span>
+          <div className="flex flex-wrap gap-2">
+            {(["controlled", "partner", "external"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  setSourceMode(mode);
+                  if (mode !== "controlled") setSource("");
+                }}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                  sourceMode === mode
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {mode === "controlled" ? "Taxonomía" : mode === "partner" ? "Partner" : "Externo"}
+              </button>
+            ))}
+          </div>
+          <input type="hidden" name="sourceMode" value={sourceMode} />
+          {sourceMode === "controlled" ? (
+            <>
+              <input type="hidden" name="utmSource" value={source} />
+              <Select value={source} onValueChange={(value) => setSource(value ?? "") }>
+                <SelectTrigger aria-label="Elegir un source" className="w-full bg-background">
+                  <SelectValue placeholder="Elegí un source…" />
+                </SelectTrigger>
+                <SelectContent align="start" className="max-h-72">
+                  {sourceGroups.map(([category, options]) => (
+                    <SelectGroup key={category}>
+                      <SelectLabel>{category}</SelectLabel>
+                      {options.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          ) : (
             <input
-              id="utm-source"
               name="utmSource"
               required
-              placeholder="Ej. instagram"
+              value={source}
+              onChange={(event) => setSource(event.target.value)}
+              placeholder={sourceMode === "partner" ? "Ej. mi partner agency" : "Ej. external platform"}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="utm-medium" className="text-xs text-muted-foreground uppercase">
-              Medium
-            </label>
-            <input
-              id="utm-medium"
-              name="utmMedium"
-              required
-              placeholder="Ej. qr"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-          </div>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="utm-medium" className="text-xs text-muted-foreground uppercase">
+            Medium
+          </label>
+          <input type="hidden" name="utmMedium" value={medium} />
+          <Select value={medium} onValueChange={(value) => setMedium(value ?? "") }>
+            <SelectTrigger id="utm-medium" className="w-full bg-background">
+              <SelectValue placeholder="Elegí un medium…" />
+            </SelectTrigger>
+            <SelectContent align="start" className="max-h-72">
+              {mediumGroups.map(([category, options]) => (
+                <SelectGroup key={category}>
+                  <SelectLabel>{category}</SelectLabel>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {pairingWarning && (
+          <p role="status" className="text-sm text-amber-600">
+            {pairingWarning}
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <label htmlFor="utm-campaign" className="text-xs text-muted-foreground uppercase">
               Campaign
@@ -71,10 +238,41 @@ export function UtmPresetsForm({ presets }: { presets: UtmPreset[] }) {
               id="utm-campaign"
               name="utmCampaign"
               required
-              placeholder="Ej. verano-2026"
+              value={campaign}
+              onChange={(event) => setCampaign(event.target.value)}
+              placeholder="Ej. verano_2026"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
           </div>
+          {campaigns.length > 0 && (
+            <div className="space-y-1">
+              <label htmlFor="campaign-prefill" className="text-xs text-muted-foreground uppercase">
+                Prellenar desde campaña
+              </label>
+              <Select
+                value={campaignPrefill}
+                onValueChange={(value) => {
+                  const nextValue = value ?? "";
+                  setCampaignPrefill(nextValue);
+                  if (nextValue) setCampaign(nextValue);
+                }}
+              >
+                <SelectTrigger id="campaign-prefill" className="w-full bg-background">
+                  <SelectValue placeholder="Elegí una campaña…" />
+                </SelectTrigger>
+                <SelectContent align="start" className="max-h-72">
+                  <SelectGroup>
+                    <SelectLabel>Campañas existentes</SelectLabel>
+                    {campaigns.map((campaignOption) => (
+                      <SelectItem key={campaignOption.id} value={campaignOption.name}>
+                        {campaignOption.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1">
             <label htmlFor="utm-term" className="text-xs text-muted-foreground uppercase">
               Term
@@ -97,6 +295,57 @@ export function UtmPresetsForm({ presets }: { presets: UtmPreset[] }) {
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
           </div>
+          <div className="space-y-1">
+            <label htmlFor="utm-id" className="text-xs text-muted-foreground uppercase">
+              ID
+            </label>
+            <input
+              id="utm-id"
+              name="utmId"
+              placeholder="Opcional"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground uppercase">Parámetros personalizados</span>
+            <button
+              type="button"
+              onClick={addCustomParam}
+              className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground"
+            >
+              <Plus size={14} /> Agregar
+            </button>
+          </div>
+          {customParams.map((row, index) => (
+            <div key={index} className="flex gap-2">
+              <input
+                aria-label={`Clave ${index + 1}`}
+                value={row.key}
+                onChange={(event) => updateCustomParam(index, "key", event.target.value)}
+                placeholder="clave"
+                className="w-1/2 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <input
+                aria-label={`Valor ${index + 1}`}
+                value={row.value}
+                onChange={(event) => updateCustomParam(index, "value", event.target.value)}
+                placeholder="valor"
+                className="w-1/2 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => removeCustomParam(index)}
+                aria-label={`Quitar parámetro ${index + 1}`}
+                className="rounded-md p-2 text-muted-foreground hover:text-destructive"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <input type="hidden" name="customParameters" value={JSON.stringify(customParams)} />
         </div>
 
         <div className="flex items-center gap-3">
@@ -110,6 +359,11 @@ export function UtmPresetsForm({ presets }: { presets: UtmPreset[] }) {
           {createState.error && (
             <p role="alert" className="text-sm text-destructive">
               {createState.error}
+            </p>
+          )}
+          {createState.success && (
+            <p role="status" className="text-sm text-emerald-600">
+              {createState.success}
             </p>
           )}
         </div>
@@ -127,32 +381,33 @@ export function UtmPresetsForm({ presets }: { presets: UtmPreset[] }) {
                 className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-3"
               >
                 <div className="min-w-0">
-                  <p className="font-medium">{preset.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{preset.name}</p>
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                      {STATUS_LABEL[preset.status]}
+                    </span>
+                  </div>
                   <p className="truncate text-xs text-muted-foreground">
                     source={preset.utmSource} · medium={preset.utmMedium} · campaign={preset.utmCampaign}
                     {preset.utmTerm && ` · term=${preset.utmTerm}`}
                     {preset.utmContent && ` · content=${preset.utmContent}`}
+                    {preset.utmId && ` · id=${preset.utmId}`}
                   </p>
                 </div>
-                <form action={deleteFormAction}>
+                <form action={archiveUtmPresetAction}>
                   <input type="hidden" name="id" value={preset.id} />
                   <button
                     type="submit"
-                    disabled={deletePending}
-                    aria-label={`Eliminar ${preset.name}`}
+                    disabled={preset.status === "archived"}
+                    aria-label={`Archivar ${preset.name}`}
                     className="rounded-md p-2 text-muted-foreground hover:text-destructive disabled:opacity-50"
                   >
-                    {deletePending ? <BinaryLoader /> : <HoverMorphIcon idle={Trash2} active={Trash2} size={16} />}
+                    <HoverMorphIcon idle={preset.status === "archived" ? Trash2 : Archive} active={Archive} size={16} />
                   </button>
                 </form>
               </li>
             ))}
           </ul>
-        )}
-        {deleteState.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {deleteState.error}
-          </p>
         )}
       </div>
     </div>

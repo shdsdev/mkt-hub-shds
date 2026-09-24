@@ -44,6 +44,9 @@ supabase/.branches
 # brainstorming visual companion
 .superpowers/
 
+# local agent skill registry
+.atl/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

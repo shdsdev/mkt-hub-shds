@@ -12,6 +12,9 @@ export {
   listShortLinksForOrganization,
   resolveShortLinkByHostAndSlug,
   buildDestinationUrl,
+  applyTemplateToDestination,
+  mergeCustomParametersToDestination,
+  applyUtmTemplateToLink,
   listDomains,
   createDomain,
   updateDomain,
@@ -35,5 +38,6 @@ export {
   type UpdateLinkUtmValuesInput,
   type CreateShortLinkInput,
   type ResolvedShortLink,
+  type ApplyUtmTemplateToLinkInput,
 } from "./service";
 export { links, shortLinks } from "./db";

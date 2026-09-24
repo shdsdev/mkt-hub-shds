@@ -1,0 +1,77 @@
+schema: spec-driven
+
+project: mkt-hub-shds
+execution_mode: interactive
+artifact_store: openspec
+strict_tdd: true
+
+context: |
+  Tech stack: Next.js 16 App Router, React 19, TypeScript 5, Tailwind CSS 4, shadcn/ui.
+  Data: Supabase (Postgres, Auth, Storage) with Drizzle ORM and drizzle-kit migrations.
+  Architecture: modular monolith; modules expose only src/modules/<module>/index.ts publicly.
+  Boundary enforcement: eslint-plugin-boundaries blocks cross-module internal imports.
+  Testing: Vitest 5 in Node; unit and module/route integration tests are present; no E2E suite.
+  Package manager: pnpm 11; Node.js 22.x; production build uses Next.js webpack mode.
+
+testing:
+  detected_on: "2026-09-24"
+  strict_tdd: true
+  test_runner:
+    framework: Vitest 5
+    command: pnpm test
+    environment: node
+  layers:
+    unit:
+      available: true
+      tool: Vitest
+    integration:
+      available: true
+      tool: Vitest (module, route, and action tests)
+    e2e:
+      available: false
+      tool: null
+  coverage:
+    available: false
+    command: null
+  quality:
+    linter:
+      available: true
+      command: pnpm lint
+    typecheck:
+      available: true
+      command: pnpm typecheck
+    formatter:
+      available: false
+      command: null
+    build:
+      available: true
+      command: pnpm build
+    full_check:
+      available: true
+      command: pnpm check
+
+rules:
+  proposal:
+    - Include scope, exclusions, risks, and rollback plan for risky changes.
+  specs:
+    - Use RFC 2119 keywords.
+    - Express scenarios with Given/When/Then.
+    - Preserve the architecture invariants in docs/ARCHITECTURE.md.
+  design:
+    - Document rationale and affected module boundaries.
+    - Cross-module dependencies MUST use each module's public index.ts interface.
+  tasks:
+    - Group tasks by phase and keep each task completable in one session.
+  apply:
+    guidelines:
+      - Follow existing module shapes and ESLint boundary rules.
+      - Do not bypass lint rules with import exceptions or disables.
+    tdd: true
+    test_command: pnpm test
+  verify:
+    test_command: pnpm test
+    build_command: pnpm build
+    quality_command: pnpm check
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive delta specifications.

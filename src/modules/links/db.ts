@@ -60,6 +60,7 @@ export const links = pgTable("links", {
   utmCampaign: text("utm_campaign"),
   utmTerm: text("utm_term"),
   utmContent: text("utm_content"),
+  utmId: text("utm_id"),
   folderId: uuid("folder_id").references(() => folders.id),
   status: resourceStatus("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
