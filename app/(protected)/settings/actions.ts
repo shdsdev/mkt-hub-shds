@@ -16,6 +16,7 @@ import {
   createUtmPreset,
   updateUtmPreset,
   archiveUtmPreset,
+  deleteUtmPreset,
   type CustomParameter,
   type SourceMode,
   type TemplateStatus,
@@ -261,6 +262,22 @@ export async function archiveUtmPresetAction(formData: FormData): Promise<void> 
 
   try {
     await archiveUtmPreset(id.data, user.profile.organizationId);
+  } catch {
+    return;
+  }
+
+  revalidatePath("/settings/utm");
+}
+
+export async function deleteUtmPresetAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return;
+
+  try {
+    await deleteUtmPreset(id.data, user.profile.organizationId);
   } catch {
     return;
   }
