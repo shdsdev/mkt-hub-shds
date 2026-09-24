@@ -36,3 +36,4 @@ export {
   type CreateShortLinkInput,
   type ResolvedShortLink,
 } from "./service";
+export { links, shortLinks } from "./db";

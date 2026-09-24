@@ -1,9 +1,9 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
-import { QrCode, IdCard, Mail, MessageSquare, Wifi, FileText, X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { LayoutGrid, List, QrCode, IdCard, Mail, MessageSquare, Wifi, FileText, X } from "lucide-react";
 import { Download, DownloadCloud, Image, ImageDown, FileOutput, Archive, Check, Pencil } from "lucide";
 import {
   DropdownMenu,
@@ -26,10 +26,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationFirst,
+  PaginationItem,
+  PaginationLast,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import type { Folder } from "@/modules/links";
 import type { Campaign } from "@/modules/campaigns";
 import type { UtmPreset } from "@/modules/utm";
-import type { QrDesignTemplateRow } from "@/modules/qr";
+import type { QrCodeListFilter, QrDesignTemplateRow } from "@/modules/qr";
+import { requiresGroupSelection, type QrGroupTab } from "./qr-list-group-state";
 
 export type QrListRow = {
   id: string;
@@ -50,6 +61,8 @@ export type QrListRow = {
   name: string;
   staticKind?: "text" | "vcard" | "email" | "sms" | "wifi";
   groupName?: string;
+  folderId: string | null;
+  campaignId: string | null;
 };
 
 // Explicit locale + timeZone (not the runtime default) — this is a Client Component, so this
@@ -69,13 +82,39 @@ const STATIC_KIND_ICON: Record<NonNullable<QrListRow["staticKind"]>, typeof File
 };
 
 type ViewMode = "grid" | "list";
-type StatusFilter = "all" | "active" | "archived";
-type TypeFilter = "all" | "dynamic" | "static";
 
-function matchesSearch(row: QrListRow, query: string): boolean {
-  if (!query) return true;
-  const haystack = [row.name, row.destinationUrl, row.shortUrl, row.payload].filter(Boolean).join(" ");
-  return haystack.toLowerCase().includes(query.toLowerCase());
+function ViewModeButton({
+  label,
+  active,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  icon: typeof LayoutGrid;
+  onClick: () => void;
+}) {
+  const tooltipId = useId();
+
+  return (
+    <span className="t-tt-wrap">
+      <button
+        type="button"
+        aria-label={label}
+        aria-describedby={tooltipId}
+        aria-pressed={active}
+        onClick={onClick}
+        className={`t-tt-trigger rounded-md p-2 transition-colors ${
+          active ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        }`}
+      >
+        <Icon size={16} />
+      </button>
+      <span className="t-tt" id={tooltipId} role="tooltip">
+        {label}
+      </span>
+    </span>
+  );
 }
 
 export function QrList({
@@ -83,58 +122,115 @@ export function QrList({
   organizationId,
   folders,
   campaigns,
+  filterFolders,
+  filterCampaigns,
   utmPresets,
   templates,
   defaultLogoUrl,
+  total,
+  page,
+  pageSize,
+  filter,
 }: {
   rows: QrListRow[];
   organizationId: string;
   folders: Folder[];
   campaigns: Campaign[];
+  filterFolders: Folder[];
+  filterCampaigns: Campaign[];
   utmPresets: UtmPreset[];
   templates: QrDesignTemplateRow[];
   defaultLogoUrl?: string;
+  total: number;
+  page: number;
+  pageSize: number;
+  filter: Omit<QrCodeListFilter, "page" | "pageSize">;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [search, setSearch] = useState("");
+  const [selectedGroupTab, setSelectedGroupTab] = useState<QrGroupTab>("all");
   const [searchFocused, setSearchFocused] = useState(false);
   const [editingQrId, setEditingQrId] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState(filter.search ?? "");
+  const searchParamRef = useRef(filter.search ?? "");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const editingRow = rows.find((r) => r.id === editingQrId);
+  const groupTab = filter.folderId ? "folders" : filter.campaignId ? "campaigns" : selectedGroupTab;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (searchParamRef.current !== (filter.search ?? "")) {
+    searchParamRef.current = filter.search ?? "";
+    setSearchText(filter.search ?? "");
+  }
+  const hasActiveFilter = Boolean(filter.status || filter.mode || filter.folderId || filter.campaignId || filter.search);
+  const needsGroupSelection = requiresGroupSelection(groupTab, filter.folderId, filter.campaignId);
+  const visibleRows = needsGroupSelection ? [] : rows;
+  const hasNoAvailableGroups =
+    (groupTab === "folders" && filterFolders.length === 0) ||
+    (groupTab === "campaigns" && filterCampaigns.length === 0);
 
-  const filteredRows = useMemo(() => {
-    return rows
-      .filter((row) => statusFilter === "all" || row.status === statusFilter)
-      .filter((row) => typeFilter === "all" || row.mode === typeFilter)
-      .filter((row) => matchesSearch(row, search));
-  }, [rows, statusFilter, typeFilter, search]);
+  function pushFilter(values: Record<string, string | undefined>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(values)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    params.delete("page");
+    router.push(`${pathname}${params.size ? `?${params}` : ""}`);
+  }
+
+  function pushPage(nextPage: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(nextPage));
+    router.push(`${pathname}?${params}`);
+  }
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <CreateQrModal
+          organizationId={organizationId}
+          folders={folders}
+          campaigns={campaigns}
+          utmPresets={utmPresets}
+          templates={templates}
+          defaultLogoUrl={defaultLogoUrl}
+        />
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex overflow-hidden rounded-md border border-input">
-          <button
-            type="button"
-            onClick={() => setViewMode("grid")}
-            className={`px-3 py-1.5 text-sm ${viewMode === "grid" ? "bg-primary/20" : ""}`}
-          >
-            Cuadrícula
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            className={`px-3 py-1.5 text-sm ${viewMode === "list" ? "bg-primary/20" : ""}`}
-          >
-            Lista
-          </button>
-        </div>
+        <Tabs
+          value={groupTab}
+          onValueChange={(value) => {
+            const nextTab = value as QrGroupTab;
+            setSelectedGroupTab(nextTab);
+            pushFilter({ folder: undefined, campaign: undefined });
+          }}
+        >
+          <TabsList aria-label="Agrupar códigos QR">
+            <TabsTrigger value="all">Todos</TabsTrigger>
+            <TabsTrigger value="folders">Carpetas</TabsTrigger>
+            <TabsTrigger value="campaigns">Campañas</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {groupTab === "folders" && (
+          <Select disabled={filterFolders.length === 0} value={filter.folderId ?? null} onValueChange={(value) => pushFilter({ folder: value ?? undefined, campaign: undefined })}>
+            <SelectTrigger aria-label="Filtrar por carpeta"><SelectValue placeholder="Seleccionar carpeta" /></SelectTrigger>
+            <SelectContent><SelectGroup>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectGroup></SelectContent>
+          </Select>
+        )}
+
+        {groupTab === "campaigns" && (
+          <Select disabled={filterCampaigns.length === 0} value={filter.campaignId ?? null} onValueChange={(value) => pushFilter({ campaign: value ?? undefined, folder: undefined })}>
+            <SelectTrigger aria-label="Filtrar por campaña"><SelectValue placeholder="Seleccionar campaña" /></SelectTrigger>
+            <SelectContent><SelectGroup>{filterCampaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectGroup></SelectContent>
+          </Select>
+        )}
 
         <Select
-          value={statusFilter}
-          onValueChange={(value) => {
-            if (value) setStatusFilter(value as StatusFilter);
-          }}
+          value={filter.status ?? "all"}
+          onValueChange={(value) => pushFilter({ status: value === "all" ? undefined : value ?? undefined })}
         >
           <SelectTrigger aria-label="Filtrar por estado">
             <SelectValue />
@@ -144,15 +240,14 @@ export function QrList({
               <SelectItem value="all">Todos los estados</SelectItem>
               <SelectItem value="active">Activo</SelectItem>
               <SelectItem value="archived">Archivado</SelectItem>
+              <SelectItem value="disabled">Deshabilitado</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
 
         <Select
-          value={typeFilter}
-          onValueChange={(value) => {
-            if (value) setTypeFilter(value as TypeFilter);
-          }}
+          value={filter.mode ?? "all"}
+          onValueChange={(value) => pushFilter({ mode: value === "all" ? undefined : value ?? undefined })}
         >
           <SelectTrigger aria-label="Filtrar por tipo">
             <SelectValue />
@@ -175,8 +270,12 @@ export function QrList({
           className="min-w-64 flex-1"
         >
           <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={searchText}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSearchText(value);
+              pushFilter({ q: value || undefined });
+            }}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
             placeholder="Buscar por destino, URL o contenido"
@@ -184,17 +283,44 @@ export function QrList({
           />
         </BorderBeam>
 
-        <CreateQrModal
-          organizationId={organizationId}
-          folders={folders}
-          campaigns={campaigns}
-          utmPresets={utmPresets}
-          templates={templates}
-          defaultLogoUrl={defaultLogoUrl}
-        />
+        <div className="flex items-center rounded-md border border-input p-0.5">
+          <ViewModeButton
+            label="Cuadrícula"
+            active={viewMode === "grid"}
+            icon={LayoutGrid}
+            onClick={() => setViewMode("grid")}
+          />
+          <ViewModeButton
+            label="Lista"
+            active={viewMode === "list"}
+            icon={List}
+            onClick={() => setViewMode("list")}
+          />
+        </div>
       </div>
 
-      {rows.length === 0 && (
+      {needsGroupSelection && (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-12 text-center">
+          <p className="font-medium">
+            {hasNoAvailableGroups
+              ? groupTab === "campaigns"
+                ? "No hay campañas activas con códigos QR"
+                : "No hay carpetas con códigos QR"
+              : groupTab === "campaigns"
+                ? "Selecciona una campaña activa"
+                : "Selecciona una carpeta"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {hasNoAvailableGroups
+              ? "Crea o asigna un código QR a un grupo para verlo aquí."
+              : groupTab === "campaigns"
+                ? "Elige una campaña activa para ver sus códigos QR."
+                : "Elige una carpeta para ver sus códigos QR."}
+          </p>
+        </div>
+      )}
+
+      {!needsGroupSelection && rows.length === 0 && !hasActiveFilter && (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-12 text-center">
           <p className="font-medium">Crea tu primer código QR</p>
           <p className="text-sm text-muted-foreground">
@@ -211,25 +337,43 @@ export function QrList({
         </div>
       )}
 
-      {rows.length > 0 && filteredRows.length === 0 && (
+      {!needsGroupSelection && rows.length === 0 && hasActiveFilter && (
         <p className="text-sm text-muted-foreground">
           Ningún código QR coincide con estos filtros.
         </p>
       )}
 
-      {viewMode === "list" && filteredRows.length > 0 && (
+      {viewMode === "list" && visibleRows.length > 0 && (
         <ul className="space-y-3">
-          {filteredRows.map((row) => (
+          {visibleRows.map((row) => (
             <QrRow key={row.id} row={row} onEdit={setEditingQrId} />
           ))}
         </ul>
       )}
 
-      {viewMode === "grid" && filteredRows.length > 0 && (
+      {viewMode === "grid" && visibleRows.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredRows.map((row) => (
+          {visibleRows.map((row) => (
             <QrCard key={row.id} row={row} onEdit={setEditingQrId} />
           ))}
+        </div>
+      )}
+
+      {!needsGroupSelection && total > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <p className="text-sm text-muted-foreground">Página {page} de {totalPages}</p>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem><PaginationFirst href="#" aria-disabled={page === 1} tabIndex={page === 1 ? -1 : undefined} className={page === 1 ? "pointer-events-none opacity-50" : undefined} onClick={(event) => { event.preventDefault(); if (page > 1) pushPage(1); }} /></PaginationItem>
+              <PaginationItem><PaginationPrevious href="#" aria-disabled={page === 1} tabIndex={page === 1 ? -1 : undefined} className={page === 1 ? "pointer-events-none opacity-50" : undefined} onClick={(event) => { event.preventDefault(); if (page > 1) pushPage(page - 1); }} /></PaginationItem>
+              <PaginationItem><PaginationNext href="#" aria-disabled={page >= totalPages} tabIndex={page >= totalPages ? -1 : undefined} className={page >= totalPages ? "pointer-events-none opacity-50" : undefined} onClick={(event) => { event.preventDefault(); if (page < totalPages) pushPage(page + 1); }} /></PaginationItem>
+              <PaginationItem><PaginationLast href="#" aria-disabled={page >= totalPages} tabIndex={page >= totalPages ? -1 : undefined} className={page >= totalPages ? "pointer-events-none opacity-50" : undefined} onClick={(event) => { event.preventDefault(); if (page < totalPages) pushPage(totalPages); }} /></PaginationItem>
+            </PaginationContent>
+          </Pagination>
+          <Select value={String(page)} onValueChange={(value) => { if (value) pushPage(Number(value)); }}>
+            <SelectTrigger aria-label="Ir a página"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectGroup>{Array.from({ length: totalPages }, (_, index) => <SelectItem key={index + 1} value={String(index + 1)}>Página {index + 1}</SelectItem>)}</SelectGroup></SelectContent>
+          </Select>
         </div>
       )}
 
