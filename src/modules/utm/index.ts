@@ -2,6 +2,7 @@
 export {
   createUtmPreset,
   listUtmPresets,
+  deleteUtmPreset,
   type UtmPreset,
   type CreateUtmPresetInput,
 } from "./service";

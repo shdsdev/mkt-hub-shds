@@ -9,8 +9,6 @@ import {
   Gauge,
   QrCode,
   ScanLine,
-  Link2,
-  ExternalLink,
   Megaphone,
   Volume2,
   ScrollText,
@@ -67,11 +65,17 @@ function NavItem({
   const [hovered, setHovered] = useState(false);
   return (
     <SidebarMenuItem>
+      {/* Hover no longer paints the shared button's own bg/text pill (canceled below) — only the
+          icon picks up the theme accent on hover, via the same `hovered` state that already
+          drives HoverMorphIcon's shape morph. The active route keeps its normal pill unchanged. */}
       <SidebarMenuButton
         isActive={active}
+        className="hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent active:text-sidebar-foreground"
         render={<Link href={href} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} />}
       >
-        <HoverMorphIcon idle={idle} active={activeIcon} size={16} hovered={hovered} />
+        <span className={hovered ? "text-accent" : undefined}>
+          <HoverMorphIcon idle={idle} active={activeIcon} size={16} hovered={hovered} />
+        </span>
         <span>{children}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -116,20 +120,20 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={qrShortLinksActive}
+                  className="hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent active:text-sidebar-foreground"
                   onClick={() => setQrShortLinksOpen((open) => !open)}
                   onMouseEnter={() => setQrGroupHovered(true)}
                   onMouseLeave={() => setQrGroupHovered(false)}
                 >
-                  <HoverMorphIcon idle={QrCode} active={ScanLine} size={16} hovered={qrGroupHovered} />
+                  <span className={qrGroupHovered ? "text-accent" : undefined}>
+                    <HoverMorphIcon idle={QrCode} active={ScanLine} size={16} hovered={qrGroupHovered} />
+                  </span>
                   <span className="flex-1">QR Short Links</span>
                   {qrShortLinksOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {qrShortLinksOpen && (
                 <div className="ml-3 space-y-1.5 border-l border-sidebar-border pl-3">
-                  <NavItem href="/links" idle={Link2} active={ExternalLink}>
-                    Enlaces
-                  </NavItem>
                   <NavItem href="/qr" idle={ScanLine} active={QrCode}>
                     Códigos QR
                   </NavItem>
