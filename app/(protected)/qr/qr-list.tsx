@@ -1,9 +1,22 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, List, QrCode, IdCard, Mail, MessageSquare, Wifi, FileText, X } from "lucide-react";
+import {
+  LayoutGrid,
+  List,
+  QrCode,
+  IdCard,
+  Mail,
+  MessageSquare,
+  Wifi,
+  FileText,
+  X,
+  FolderOpen,
+  Megaphone,
+  SearchX,
+} from "lucide-react";
 import { Download, DownloadCloud, Image, ImageDown, FileOutput, Archive, Check, Pencil } from "lucide";
 import {
   DropdownMenu,
@@ -11,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { BorderBeam } from "border-beam";
 import { CreateQrModal } from "./create-qr-modal";
 import { archiveQrCodeAction, updateDynamicQrUtmAction, updateQrNameAction } from "./actions";
@@ -151,23 +165,38 @@ export function QrList({
   const [searchFocused, setSearchFocused] = useState(false);
   const [editingQrId, setEditingQrId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState(filter.search ?? "");
-  const searchParamRef = useRef(filter.search ?? "");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const editingRow = rows.find((r) => r.id === editingQrId);
   const groupTab = filter.folderId ? "folders" : filter.campaignId ? "campaigns" : selectedGroupTab;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  if (searchParamRef.current !== (filter.search ?? "")) {
-    searchParamRef.current = filter.search ?? "";
-    setSearchText(filter.search ?? "");
-  }
   const hasActiveFilter = Boolean(filter.status || filter.mode || filter.folderId || filter.campaignId || filter.search);
+  const showClearFilters = hasActiveFilter || groupTab !== "all";
   const needsGroupSelection = requiresGroupSelection(groupTab, filter.folderId, filter.campaignId);
   const visibleRows = needsGroupSelection ? [] : rows;
   const hasNoAvailableGroups =
     (groupTab === "folders" && filterFolders.length === 0) ||
     (groupTab === "campaigns" && filterCampaigns.length === 0);
+
+  useEffect(() => {
+    setSearchText(filter.search ?? "");
+  }, [filter.search]);
+
+  useEffect(() => {
+    const currentQuery = filter.search ?? "";
+    if (searchText === currentQuery) return;
+
+    const timeout = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (searchText) params.set("q", searchText);
+      else params.delete("q");
+      params.delete("page");
+      router.push(`${pathname}${params.size ? `?${params}` : ""}`);
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [searchText, filter.search, pathname, router, searchParams]);
 
   function pushFilter(values: Record<string, string | undefined>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -185,6 +214,11 @@ export function QrList({
     router.push(`${pathname}?${params}`);
   }
 
+  function clearFilters() {
+    setSelectedGroupTab("all");
+    pushFilter({ status: undefined, mode: undefined, folder: undefined, campaign: undefined, q: undefined });
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -198,125 +232,181 @@ export function QrList({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Tabs
-          value={groupTab}
-          onValueChange={(value) => {
-            const nextTab = value as QrGroupTab;
-            setSelectedGroupTab(nextTab);
-            pushFilter({ folder: undefined, campaign: undefined });
-          }}
-        >
-          <TabsList aria-label="Agrupar códigos QR">
-            <TabsTrigger value="all">Todos</TabsTrigger>
-            <TabsTrigger value="folders">Carpetas</TabsTrigger>
-            <TabsTrigger value="campaigns">Campañas</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {groupTab === "folders" && (
-          <Select disabled={filterFolders.length === 0} value={filter.folderId ?? null} onValueChange={(value) => pushFilter({ folder: value ?? undefined, campaign: undefined })}>
-            <SelectTrigger aria-label="Filtrar por carpeta"><SelectValue placeholder="Seleccionar carpeta" /></SelectTrigger>
-            <SelectContent><SelectGroup>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectGroup></SelectContent>
-          </Select>
-        )}
-
-        {groupTab === "campaigns" && (
-          <Select disabled={filterCampaigns.length === 0} value={filter.campaignId ?? null} onValueChange={(value) => pushFilter({ campaign: value ?? undefined, folder: undefined })}>
-            <SelectTrigger aria-label="Filtrar por campaña"><SelectValue placeholder="Seleccionar campaña" /></SelectTrigger>
-            <SelectContent><SelectGroup>{filterCampaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectGroup></SelectContent>
-          </Select>
-        )}
-
-        <Select
-          value={filter.status ?? "all"}
-          onValueChange={(value) => pushFilter({ status: value === "all" ? undefined : value ?? undefined })}
-        >
-          <SelectTrigger aria-label="Filtrar por estado">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="all">Todos los estados</SelectItem>
-              <SelectItem value="active">Activo</SelectItem>
-              <SelectItem value="archived">Archivado</SelectItem>
-              <SelectItem value="disabled">Deshabilitado</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filter.mode ?? "all"}
-          onValueChange={(value) => pushFilter({ mode: value === "all" ? undefined : value ?? undefined })}
-        >
-          <SelectTrigger aria-label="Filtrar por tipo">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="all">Todos los tipos</SelectItem>
-              <SelectItem value="dynamic">Sitio web</SelectItem>
-              <SelectItem value="static">Texto fijo</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-
-        <BorderBeam
-          size="sm"
-          colorVariant="mono"
-          theme="dark"
-          strength={0.6}
-          active={searchFocused}
-          className="min-w-64 flex-1"
-        >
-          <input
-            value={searchText}
-            onChange={(event) => {
-              const value = event.target.value;
-              setSearchText(value);
-              pushFilter({ q: value || undefined });
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Tabs
+            value={groupTab}
+            onValueChange={(value) => {
+              const nextTab = value as QrGroupTab;
+              setSelectedGroupTab(nextTab);
+              pushFilter({ folder: undefined, campaign: undefined });
             }}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            placeholder="Buscar por destino, URL o contenido"
-            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </BorderBeam>
+          >
+            <TabsList aria-label="Agrupar códigos QR">
+              <TabsTrigger value="all">Todos</TabsTrigger>
+              <TabsTrigger value="folders">Carpetas</TabsTrigger>
+              <TabsTrigger value="campaigns">Campañas</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-        <div className="flex items-center rounded-md border border-input p-0.5">
-          <ViewModeButton
-            label="Cuadrícula"
-            active={viewMode === "grid"}
-            icon={LayoutGrid}
-            onClick={() => setViewMode("grid")}
-          />
-          <ViewModeButton
-            label="Lista"
-            active={viewMode === "list"}
-            icon={List}
-            onClick={() => setViewMode("list")}
-          />
+          {groupTab === "folders" && (
+            <Select disabled={filterFolders.length === 0} value={filter.folderId ?? null} onValueChange={(value) => pushFilter({ folder: value ?? undefined, campaign: undefined })}>
+              <SelectTrigger aria-label="Filtrar por carpeta"><SelectValue placeholder="Seleccionar carpeta" /></SelectTrigger>
+              <SelectContent><SelectGroup>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectGroup></SelectContent>
+            </Select>
+          )}
+
+          {groupTab === "campaigns" && (
+            <Select disabled={filterCampaigns.length === 0} value={filter.campaignId ?? null} onValueChange={(value) => pushFilter({ campaign: value ?? undefined, folder: undefined })}>
+              <SelectTrigger aria-label="Filtrar por campaña"><SelectValue placeholder="Seleccionar campaña" /></SelectTrigger>
+              <SelectContent><SelectGroup>{filterCampaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectGroup></SelectContent>
+            </Select>
+          )}
+
+          <BorderBeam
+            size="sm"
+            colorVariant="mono"
+            theme="dark"
+            strength={0.6}
+            active={searchFocused}
+            className="min-w-64 flex-1"
+          >
+            <input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              placeholder="Buscar por destino, URL o contenido"
+              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            />
+          </BorderBeam>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={filter.status ?? "all"}
+            onValueChange={(value) => pushFilter({ status: value === "all" ? undefined : value ?? undefined })}
+          >
+            <SelectTrigger aria-label="Filtrar por estado">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="active">Activo</SelectItem>
+                <SelectItem value="archived">Archivado</SelectItem>
+                <SelectItem value="disabled">Deshabilitado</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filter.mode ?? "all"}
+            onValueChange={(value) => pushFilter({ mode: value === "all" ? undefined : value ?? undefined })}
+          >
+            <SelectTrigger aria-label="Filtrar por tipo">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="dynamic">Sitio web</SelectItem>
+                <SelectItem value="static">Texto fijo</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center rounded-md border border-input p-0.5">
+            <ViewModeButton
+              label="Cuadrícula"
+              active={viewMode === "grid"}
+              icon={LayoutGrid}
+              onClick={() => setViewMode("grid")}
+            />
+            <ViewModeButton
+              label="Lista"
+              active={viewMode === "list"}
+              icon={List}
+              onClick={() => setViewMode("list")}
+            />
+          </div>
+
+          {showClearFilters && (
+            <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
+              Limpiar filtros
+            </Button>
+          )}
         </div>
       </div>
 
       {needsGroupSelection && (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-12 text-center">
-          <p className="font-medium">
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-12 text-center">
+          {groupTab === "campaigns" ? <Megaphone size={48} className="text-muted-foreground" /> : <FolderOpen size={48} className="text-muted-foreground" />}
+          <p className="font-medium text-lg">
             {hasNoAvailableGroups
               ? groupTab === "campaigns"
                 ? "No hay campañas activas con códigos QR"
                 : "No hay carpetas con códigos QR"
               : groupTab === "campaigns"
-                ? "Selecciona una campaña activa"
-                : "Selecciona una carpeta"}
+                ? "Seleccioná una campaña"
+                : "Seleccioná una carpeta"}
           </p>
           <p className="text-sm text-muted-foreground">
             {hasNoAvailableGroups
-              ? "Crea o asigna un código QR a un grupo para verlo aquí."
+              ? "Creá un código QR y asignalo a un grupo para verlo acá."
               : groupTab === "campaigns"
-                ? "Elige una campaña activa para ver sus códigos QR."
-                : "Elige una carpeta para ver sus códigos QR."}
+                ? "Elegí una campaña activa para ver sus códigos QR."
+                : "Elegí una carpeta para ver sus códigos QR."}
           </p>
+          {hasNoAvailableGroups ? (
+            <CreateQrModal
+              organizationId={organizationId}
+              folders={folders}
+              campaigns={campaigns}
+              utmPresets={utmPresets}
+              templates={templates}
+              defaultLogoUrl={defaultLogoUrl}
+            />
+          ) : groupTab === "campaigns" ? (
+            <Select value={filter.campaignId ?? null} onValueChange={(value) => pushFilter({ campaign: value ?? undefined, folder: undefined })}>
+              <SelectTrigger className="w-64" aria-label="Seleccionar campaña"><SelectValue placeholder="Seleccionar campaña" /></SelectTrigger>
+              <SelectContent><SelectGroup>{filterCampaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectGroup></SelectContent>
+            </Select>
+          ) : (
+            <Select value={filter.folderId ?? null} onValueChange={(value) => pushFilter({ folder: value ?? undefined, campaign: undefined })}>
+              <SelectTrigger className="w-64" aria-label="Seleccionar carpeta"><SelectValue placeholder="Seleccionar carpeta" /></SelectTrigger>
+              <SelectContent><SelectGroup>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectGroup></SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
+
+      {!needsGroupSelection && rows.length === 0 && !hasActiveFilter && (
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-12 text-center">
+          <QrCode size={48} className="text-muted-foreground" />
+          <p className="font-medium text-lg">Crea tu primer código QR</p>
+          <p className="text-sm text-muted-foreground">
+            Elige un tipo, agrega tu contenido, elige un color y después gestiona todo desde acá.
+          </p>
+          <CreateQrModal
+            organizationId={organizationId}
+            folders={folders}
+            campaigns={campaigns}
+            utmPresets={utmPresets}
+            templates={templates}
+            defaultLogoUrl={defaultLogoUrl}
+          />
+        </div>
+      )}
+
+      {!needsGroupSelection && rows.length === 0 && hasActiveFilter && (
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-12 text-center">
+          <SearchX size={48} className="text-muted-foreground" />
+          <p className="font-medium text-lg">Ningún código QR coincide</p>
+          <p className="text-sm text-muted-foreground">Probá con otros términos o limpiá los filtros.</p>
+          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+            Limpiar filtros
+          </Button>
         </div>
       )}
 
