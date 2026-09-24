@@ -12,6 +12,7 @@ import {
   getDomain,
   reassignShortLinksToDomain,
 } from "@/modules/links";
+import { createUtmPreset, deleteUtmPreset } from "@/modules/utm";
 import { checkRateLimit } from "@/modules/audit";
 
 export async function updateUserThemeAction(formData: FormData): Promise<void> {
@@ -114,6 +115,69 @@ export async function reassignDomainShortLinksAction(
       error: "Alguno de esos enlaces ya existe con ese slug en el dominio destino — cámbialo antes de mover.",
     };
   }
+  revalidatePath("/settings");
+  return {};
+}
+
+const utmPresetFieldSchema = z.string().trim().min(1).max(100);
+const optionalUtmFieldSchema = z.string().trim().max(100).optional();
+
+const createUtmPresetSchema = z.object({
+  name: utmPresetFieldSchema,
+  utmSource: utmPresetFieldSchema,
+  utmMedium: utmPresetFieldSchema,
+  utmCampaign: utmPresetFieldSchema,
+  utmTerm: optionalUtmFieldSchema,
+  utmContent: optionalUtmFieldSchema,
+});
+
+export type CreateUtmPresetFormState = { error?: string };
+
+export async function createUtmPresetAction(
+  _prevState: CreateUtmPresetFormState,
+  formData: FormData,
+): Promise<CreateUtmPresetFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const parsed = createUtmPresetSchema.safeParse({
+    name: formData.get("name"),
+    utmSource: formData.get("utmSource"),
+    utmMedium: formData.get("utmMedium"),
+    utmCampaign: formData.get("utmCampaign"),
+    utmTerm: formData.get("utmTerm") || undefined,
+    utmContent: formData.get("utmContent") || undefined,
+  });
+
+  if (!parsed.success) {
+    return { error: "Completá los campos obligatorios." };
+  }
+
+  await createUtmPreset({ ...parsed.data, organizationId: user.profile.organizationId });
+  revalidatePath("/settings");
+  return {};
+}
+
+export type DeleteUtmPresetFormState = { error?: string };
+
+export async function deleteUtmPresetAction(
+  _prevState: DeleteUtmPresetFormState,
+  formData: FormData,
+): Promise<DeleteUtmPresetFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) {
+    return { error: "Plantilla inválida." };
+  }
+
+  try {
+    await deleteUtmPreset(id.data, user.profile.organizationId);
+  } catch {
+    return { error: "No se pudo eliminar la plantilla." };
+  }
+
   revalidatePath("/settings");
   return {};
 }

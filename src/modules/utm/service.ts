@@ -34,3 +34,12 @@ export async function createUtmPreset(input: CreateUtmPresetInput): Promise<UtmP
 export async function listUtmPresets(organizationId: string): Promise<UtmPreset[]> {
   return db.select().from(utmPresets).where(eq(utmPresets.organizationId, organizationId));
 }
+
+export async function deleteUtmPreset(id: string, organizationId: string): Promise<void> {
+  const rows = await db.select().from(utmPresets).where(eq(utmPresets.id, id)).limit(1);
+  const preset = rows[0];
+  if (!preset || preset.organizationId !== organizationId) {
+    throw new Error("Plantilla no encontrada.");
+  }
+  await db.delete(utmPresets).where(eq(utmPresets.id, id));
+}
