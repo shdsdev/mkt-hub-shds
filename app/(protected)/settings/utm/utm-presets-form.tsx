@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { UtmPreset, TaxonomyOption } from "@/modules/utm";
 import type { Campaign } from "@/modules/campaigns";
 import {
@@ -21,6 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type SourceMode = "controlled" | "partner" | "external";
 type CustomParamRow = { key: string; value: string };
@@ -425,48 +433,67 @@ export function UtmPresetsForm({
                   />
                 ) : (
                   <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{preset.name}</p>
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                      {STATUS_LABEL[preset.status]}
-                    </span>
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">
-                    source={preset.utmSource} · medium={preset.utmMedium} · campaign={preset.utmCampaign}
-                    {preset.utmTerm && ` · term=${preset.utmTerm}`}
-                    {preset.utmContent && ` · content=${preset.utmContent}`}
-                    {preset.utmId && ` · id=${preset.utmId}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingPresetId(preset.id)}
-                    className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                  >
-                    <Pencil data-icon="inline-start" />
-                    Editar
-                  </button>
-                  <form
-                    action={deleteUtmPresetAction}
-                    onSubmit={(event) => {
-                      if (!window.confirm(`¿Eliminar definitivamente la plantilla "${preset.name}"?`)) {
-                        event.preventDefault();
-                      }
-                    }}
-                  >
-                    <input type="hidden" name="id" value={preset.id} />
-                    <button
-                      type="submit"
-                      aria-label={`Eliminar ${preset.name}`}
-                      className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 data-icon="inline-start" />
-                      Eliminar
-                    </button>
-                  </form>
-                </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-medium">{preset.name}</p>
+                        <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          {STATUS_LABEL[preset.status]}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                        {preset.utmSource} / {preset.utmMedium} / {preset.utmCampaign}
+                        {preset.utmTerm && ` / ${preset.utmTerm}`}
+                        {preset.utmContent && ` / ${preset.utmContent}`}
+                        {preset.utmId && ` / ${preset.utmId}`}
+                      </p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <button
+                            type="button"
+                            aria-label={`Opciones para ${preset.name}`}
+                            className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <MoreHorizontal />
+                          </button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="w-25 p-1.5">
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem onClick={() => setEditingPresetId(preset.id)} className="gap-3 p-2">
+                            <Pencil />
+                            <span className="flex flex-col">
+                              <span className="font-medium">Editar</span>
+                              {/* <span className="text-xs text-muted-foreground">Modificá campos y parámetros</span> */}
+                            </span>
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                        <form
+                          action={deleteUtmPresetAction}
+                          onSubmit={(event) => {
+                            if (!window.confirm(`¿Eliminar definitivamente la plantilla "${preset.name}"?`)) {
+                              event.preventDefault();
+                            }
+                          }}
+                        >
+                          <input type="hidden" name="id" value={preset.id} />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            nativeButton
+                            render={<button type="submit" className="w-full" />}
+                            className="gap-3 p-2"
+                          >
+                            <Trash2 />
+                            <span className="flex flex-col">
+                              <span className="font-medium">Eliminar</span>
+                              {/* <span className="text-xs opacity-70">Borrar definitivamente</span> */}
+                            </span>
+                          </DropdownMenuItem>
+                        </form>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )}
               </li>

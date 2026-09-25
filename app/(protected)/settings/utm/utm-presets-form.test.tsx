@@ -125,7 +125,6 @@ describe("UtmPresetsForm template-manager boundary", () => {
       />,
     );
 
-    expect(html).toContain("Editar");
-    expect(html).toContain("Eliminar");
+    expect(html).toContain("Opciones para Instagram Story");
   });
 });
