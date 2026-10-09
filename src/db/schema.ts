@@ -10,3 +10,5 @@ export * from "@/modules/campaigns/db";
 export * from "@/modules/analytics/db";
 export * from "@/modules/integrations/db";
 export * from "@/modules/audit/db";
+export * from "@/modules/events/db";
+export * from "@/modules/notifications/db";
