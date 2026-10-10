@@ -1,12 +1,3 @@
--- Additive migration for the events-module (PR1 — schema + module core).
--- Hand-authored instead of drizzle-kit-generated: `drizzle/meta/_journal.json` / snapshot chain
--- has pre-existing drift (see apply-progress / PR1 report) that makes a raw `drizzle-kit generate`
--- unsafe right now — it re-emits CREATE TABLE for agent_version_tool_bindings,
--- agent_tool_confirmations, agent_draft_tool_assignments, and agent_pending_tool_interactions,
--- which already have their own un-journaled migrations (0024-0026) on disk. This file contains
--- ONLY the statements a clean diff against the current schema.ts would produce for the new
--- `events` and `notifications` modules; verified against a scratch `drizzle-kit generate` run
--- whose unrelated output was discarded (not committed).
 CREATE TYPE "public"."event_registration_source" AS ENUM('public', 'admin_added');--> statement-breakpoint
 CREATE TYPE "public"."event_registration_status" AS ENUM('confirmed', 'waitlisted', 'cancelled', 'checked_in');--> statement-breakpoint
 CREATE TYPE "public"."event_status" AS ENUM('draft', 'published', 'closed');--> statement-breakpoint
@@ -62,6 +53,8 @@ CREATE TABLE "events" (
 	"ends_at" timestamp with time zone,
 	"capacity" integer,
 	"reminder_offset_minutes" integer,
+	"collect_company" boolean DEFAULT false NOT NULL,
+	"collect_job_title" boolean DEFAULT false NOT NULL,
 	"utm_source" text,
 	"utm_medium" text,
 	"utm_campaign" text,

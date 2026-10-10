@@ -99,11 +99,20 @@ describe("events schema (additive events-module migration, PR1)", () => {
   });
 });
 
-describe("events-module migration (0027, additive)", () => {
+describe("events-module migration (additive)", () => {
   const migrationDir = path.join(process.cwd(), "drizzle");
   const migration = readdirSync(migrationDir)
     .sort()
-    .find((name) => name.startsWith("0027_") && name.endsWith(".sql"));
+    .find((name) => {
+      if (!name.endsWith(".sql")) return false;
+      const sql = readFileSync(path.join(migrationDir, name), "utf8");
+      return (
+        sql.includes('CREATE TABLE "events"') &&
+        sql.includes('CREATE TABLE "event_registrations"') &&
+        sql.includes('CREATE TABLE "event_attendees"') &&
+        sql.includes('CREATE TABLE "notification_log"')
+      );
+    });
 
   it("finds the generated migration", () => {
     expect(migration).toBeDefined();
