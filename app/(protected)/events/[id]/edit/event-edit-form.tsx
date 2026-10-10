@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/checkbox";
 import { Input } from "@/components/ui/input";
 import type { EventRow } from "@/modules/events";
 import {
@@ -22,6 +23,9 @@ function toDateTimeLocal(date: Date | null): string {
 
 export function EventEditForm({ event }: { event: EventRow }) {
   const [state, formAction, pending] = useActionState(updateEventAction, initialState);
+  // spec.md "Fixed Optional Field Catalog" — seeded from the event's current toggle state.
+  const [collectCompany, setCollectCompany] = useState(event.collectCompany);
+  const [collectJobTitle, setCollectJobTitle] = useState(event.collectJobTitle);
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,6 +69,21 @@ export function EventEditForm({ event }: { event: EventRow }) {
             className="min-h-24 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
           />
         </label>
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <p className="text-sm font-medium">Campos opcionales del formulario de registro</p>
+          <Checkbox
+            checked={collectCompany}
+            onChange={setCollectCompany}
+            label="Solicitar empresa"
+          />
+          <input type="hidden" name="collectCompany" value={collectCompany ? "true" : ""} />
+          <Checkbox
+            checked={collectJobTitle}
+            onChange={setCollectJobTitle}
+            label="Solicitar puesto"
+          />
+          <input type="hidden" name="collectJobTitle" value={collectJobTitle ? "true" : ""} />
+        </div>
         <div className="flex items-end sm:col-span-2">
           <Button type="submit" disabled={pending}>
             {pending ? "Guardando…" : "Guardar cambios"}

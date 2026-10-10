@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/checkbox";
 import { Input } from "@/components/ui/input";
 import { createEventAction, type EventFormState } from "./actions";
 
@@ -9,6 +10,11 @@ const initialState: EventFormState = {};
 
 export function EventCreateForm() {
   const [state, formAction, pending] = useActionState(createEventAction, initialState);
+  // spec.md "Fixed Optional Field Catalog" — disabled by default, matching the
+  // "Optional field disabled by default" scenario. Hidden-input pairing mirrors
+  // app/(protected)/qr/qr-design-fields.tsx's `saveAsTemplate` convention.
+  const [collectCompany, setCollectCompany] = useState(false);
+  const [collectJobTitle, setCollectJobTitle] = useState(false);
 
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
@@ -55,6 +61,21 @@ export function EventCreateForm() {
           Recordatorio (minutos antes, opcional)
           <Input name="reminderOffsetMinutes" type="number" min={0} />
         </label>
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <p className="text-sm font-medium">Campos opcionales del formulario de registro</p>
+          <Checkbox
+            checked={collectCompany}
+            onChange={setCollectCompany}
+            label="Solicitar empresa"
+          />
+          <input type="hidden" name="collectCompany" value={collectCompany ? "true" : ""} />
+          <Checkbox
+            checked={collectJobTitle}
+            onChange={setCollectJobTitle}
+            label="Solicitar puesto"
+          />
+          <input type="hidden" name="collectJobTitle" value={collectJobTitle ? "true" : ""} />
+        </div>
         <div className="flex items-end sm:col-span-2">
           <Button type="submit" disabled={pending}>
             {pending ? "Creando…" : "Crear evento"}

@@ -42,20 +42,37 @@ const eventFieldsSchema = z.object({
   endsAt: z.coerce.date().optional(),
   capacity: optionalInt,
   reminderOffsetMinutes: optionalInt,
+  // spec.md "Fixed Optional Field Catalog" — hidden-input "true"/"" pattern matching
+  // app/(protected)/qr/qr-design-fields.tsx's `saveAsTemplate` convention.
+  collectCompany: z.coerce.boolean().default(false),
+  collectJobTitle: z.coerce.boolean().default(false),
 });
 
 export type EventFormState = { error?: string; success?: string; eventId?: string };
 
 function readEventFields(formData: FormData) {
   return {
-    name: formData.get("name"),
-    slug: formData.get("slug"),
-    description: formData.get("description") || undefined,
-    location: formData.get("location") || undefined,
-    startsAt: formData.get("startsAt"),
+    // `??` (not `||`) for name/slug/startsAt: a field key absent from the submitted form (e.g.
+    // the edit form never renders a `slug` input — see event-edit-form.tsx) makes
+    // `formData.get(...)` return `null`, which `eventFieldsSchema.partial(...)` does NOT treat as
+    // "omitted" the way it treats `undefined` — `z.string()` rejects an explicit `null`. Using `??`
+    // normalizes the missing-key case to `undefined` so the partial schema accepts it.
+    name: formData.get("name") ?? undefined,
+    slug: formData.get("slug") ?? undefined,
+    // `??` (not `||`) here specifically so an explicitly-submitted empty string stays "" instead
+    // of collapsing to `undefined` (verify-report W2) — `updateEventAction` below needs to tell
+    // "field submitted empty, clear it" (`""`) apart from "field key absent" (`undefined`).
+    description: formData.get("description") ?? undefined,
+    location: formData.get("location") ?? undefined,
+    startsAt: formData.get("startsAt") ?? undefined,
+    // endsAt/capacity/reminderOffsetMinutes keep `||`: an empty string here means "no value", not
+    // "clear" (there is no clearable-null contract for them in the edit form, and
+    // `z.coerce.date()` would reject an empty string as an invalid date).
     endsAt: formData.get("endsAt") || undefined,
     capacity: formData.get("capacity") || undefined,
     reminderOffsetMinutes: formData.get("reminderOffsetMinutes") || undefined,
+    collectCompany: formData.get("collectCompany"),
+    collectJobTitle: formData.get("collectJobTitle"),
   };
 }
 
@@ -80,6 +97,8 @@ export async function createEventAction(
     endsAt: parsed.data.endsAt,
     capacity: parsed.data.capacity,
     reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
+    collectCompany: parsed.data.collectCompany,
+    collectJobTitle: parsed.data.collectJobTitle,
   });
   if (!result.ok) return { error: PERMISSION_ERROR };
 
@@ -108,12 +127,18 @@ export async function updateEventAction(
     actorRole: user.profile.role,
     changes: {
       name: parsed.data.name,
-      description: parsed.data.description || undefined,
-      location: parsed.data.location || undefined,
+      // verify-report W2: when the field key WAS submitted (not `undefined`) but empty, map to
+      // explicit `null` so `updateEvent`'s `.set()` actually clears the stored value instead of
+      // Drizzle silently skipping an `undefined` key and leaving the old value in place.
+      description:
+        parsed.data.description === undefined ? undefined : parsed.data.description || null,
+      location: parsed.data.location === undefined ? undefined : parsed.data.location || null,
       startsAt: parsed.data.startsAt,
       endsAt: parsed.data.endsAt,
       capacity: parsed.data.capacity,
       reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
+      collectCompany: parsed.data.collectCompany,
+      collectJobTitle: parsed.data.collectJobTitle,
     },
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };

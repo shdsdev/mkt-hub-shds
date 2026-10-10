@@ -18,6 +18,15 @@ export type ClaimNotificationInput = {
 // RETURNING id against the UNIQUE(subject_id, notification_type) constraint. A duplicate claim
 // for the same subject+type returns no row, so only the first caller for a given send actually
 // dispatches an email; retries/duplicate webhook pings are free.
+// Test-pinning note (verify-report C1 remediation): service.test.ts asserts the mock insert chain
+// actually receives `.onConflictDoNothing({ target: [subjectId, notificationType] })` with the
+// exact unique-constraint columns from db.ts, so deleting/weakening this call fails that test.
+// What those tests CANNOT prove — because there is no local Postgres harness in this repo's test
+// infra — is the real Postgres-level guarantee: two concurrent INSERTs racing on the same
+// (subject_id, notification_type) unique index resolve to exactly one row via ON CONFLICT DO
+// NOTHING at the database engine level. That requires a future integration test against a real
+// Postgres instance (issuing two concurrent/sequential real claims and asserting only one
+// `{ id }` comes back); it remains unverified by this test suite today.
 export async function claimNotification(
   input: ClaimNotificationInput,
 ): Promise<{ id: string } | undefined> {

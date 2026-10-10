@@ -113,6 +113,19 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/events");
   });
 
+  it("passes the fixed optional-field catalog toggles through to createEvent (spec.md 'Fixed Optional Field Catalog')", async () => {
+    mocks.createEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await createEventAction(
+      {},
+      createFormData({ ...validCreateFields, collectCompany: "true", collectJobTitle: "" }),
+    );
+
+    expect(mocks.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ collectCompany: true, collectJobTitle: false }),
+    );
+  });
+
   it("returns a validation error without calling the service for malformed input", async () => {
     const result = await createEventAction({}, createFormData({ name: "", slug: "", startsAt: "" }));
 
@@ -142,5 +155,43 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
     expect(mocks.setEventStatus).toHaveBeenCalledWith(
       expect.objectContaining({ status: "closed" }),
     );
+  });
+
+  it("clears a previously-set description/location by mapping an empty submitted field to explicit null, not undefined (verify-report W2)", async () => {
+    mocks.updateEvent.mockResolvedValue({
+      ok: true,
+      event: { id: "event-1", description: null, location: null },
+    });
+
+    await updateEventAction(
+      {},
+      createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        description: "",
+        location: "",
+      }),
+    );
+
+    // UpdateEventChanges types description/location as `string | null` specifically to allow
+    // clearing — Drizzle's `.set()` skips `undefined` keys, so only an explicit `null` here (not
+    // `undefined`) actually clears the stored value in `updateEvent`.
+    expect(mocks.updateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changes: expect.objectContaining({ description: null, location: null }),
+      }),
+    );
+  });
+
+  it("leaves description/location untouched (undefined) when the field key is not submitted at all", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "event-1", name: "Renamed" } });
+
+    await updateEventAction(
+      {},
+      createFormData({ id: "11111111-1111-4111-8111-111111111111", name: "Renamed" }),
+    );
+
+    const call = mocks.updateEvent.mock.calls[0][0];
+    expect(call.changes.description).toBeUndefined();
+    expect(call.changes.location).toBeUndefined();
   });
 });

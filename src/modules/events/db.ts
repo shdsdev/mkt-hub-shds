@@ -50,6 +50,13 @@ export const events = pgTable("events", {
   // integer minutes resolved over `interval`, trivially comparable in Drizzle/Postgres without an
   // interval driver mapping). Null = no reminder configured for this event.
   reminderOffsetMinutes: integer("reminder_offset_minutes"),
+  // spec.md "Fixed Optional Field Catalog" — a small FIXED, predefined set of optional
+  // registration-form fields an ADMIN can toggle per event. No free-form field builder: adding a
+  // new optional field means adding a new column here, never a user-defined schema. Both default
+  // false ("Optional field disabled by default" scenario). `event_attendees.company`/`job_title`
+  // (PR1) are the data sinks these toggles control; PR3 wires the public form to read them.
+  collectCompany: boolean("collect_company").notNull().default(false),
+  collectJobTitle: boolean("collect_job_title").notNull().default(false),
   // Acquisition source capture — column set and naming reused exactly from
   // `src/modules/links/db.ts` (design.md "Interfaces"), read/validated via `@/modules/utm`.
   utmSource: text("utm_source"),

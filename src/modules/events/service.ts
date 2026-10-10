@@ -53,6 +53,9 @@ export type CreateEventInput = {
   endsAt?: Date;
   capacity?: number | null;
   reminderOffsetMinutes?: number | null;
+  // spec.md "Fixed Optional Field Catalog" — omitted on create means the schema default (false).
+  collectCompany?: boolean;
+  collectJobTitle?: boolean;
 };
 
 // spec.md "ADMIN-Only Event Authoring": only ADMIN may create, edit, publish, or close events;
@@ -72,6 +75,8 @@ export async function createEvent(input: CreateEventInput): Promise<EventMutatio
       endsAt: input.endsAt,
       capacity: input.capacity,
       reminderOffsetMinutes: input.reminderOffsetMinutes,
+      collectCompany: input.collectCompany,
+      collectJobTitle: input.collectJobTitle,
     })
     .returning();
   return { ok: true, event };
@@ -85,6 +90,8 @@ export type UpdateEventChanges = Partial<{
   endsAt: Date | null;
   capacity: number | null;
   reminderOffsetMinutes: number | null;
+  collectCompany: boolean;
+  collectJobTitle: boolean;
 }>;
 
 export async function updateEvent(input: {
@@ -141,12 +148,25 @@ export async function getEvent(id: string, organizationId: string): Promise<Even
 }
 
 // spec.md "Event Lifecycle Status": draft events MUST NOT render on the public landing route —
-// this is the only read path that route can use, so a draft never has a row to return.
-export async function getPublishedEventBySlug(slug: string): Promise<EventRow | undefined> {
+// this is the only read path that route can use, so a draft never has a row to return. Scoped by
+// organizationId like every other read in this module (verify-report W4): without it, a slug
+// collision across organizations would leak a cross-tenant read once PR3 wires this into a public
+// route. Test-pinned (verify-report C3): service.test.ts asserts the exact `and(eq(...))` WHERE
+// predicate object, so deleting the status or organization clause fails that test.
+export async function getPublishedEventBySlug(
+  slug: string,
+  organizationId: string,
+): Promise<EventRow | undefined> {
   const rows = await db
     .select()
     .from(events)
-    .where(and(eq(events.slug, slug), eq(events.status, "published")))
+    .where(
+      and(
+        eq(events.slug, slug),
+        eq(events.status, "published"),
+        eq(events.organizationId, organizationId),
+      ),
+    )
     .limit(1);
   return rows[0];
 }

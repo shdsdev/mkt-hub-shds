@@ -18,6 +18,8 @@ vi.mock("@/modules/users", () => ({
   isAdmin: (profile: { role: string }) => profile.role === "ADMIN",
 }));
 
+import { and, eq } from "drizzle-orm";
+import { events } from "./db";
 import {
   CROCKFORD_BASE32_ALPHABET,
   generateBackupCode,
@@ -75,6 +77,8 @@ const baseEvent = {
   endsAt: null,
   capacity: null,
   reminderOffsetMinutes: null,
+  collectCompany: false,
+  collectJobTitle: false,
   utmSource: null,
   utmMedium: null,
   utmCampaign: null,
@@ -198,6 +202,62 @@ describe("events service — ADMIN-only authoring (design.md 'event-management')
     expect(result).toEqual({ ok: true, event: closed });
   });
 
+  it("creates an event with the fixed optional-field toggles disabled by default (spec.md 'Fixed Optional Field Catalog')", async () => {
+    insertMock.mockReturnValue(insertChain([baseEvent]));
+
+    const result = await createEvent({
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      name: "Launch Day",
+      slug: "launch-day",
+      startsAt: new Date("2026-11-01T18:00:00Z"),
+    });
+
+    expect(result).toEqual({ ok: true, event: baseEvent });
+    if (result.ok) {
+      expect(result.event.collectCompany).toBe(false);
+      expect(result.event.collectJobTitle).toBe(false);
+    }
+  });
+
+  it("creates an event enabling the company and job-title optional fields from the fixed catalog", async () => {
+    const withToggles = { ...baseEvent, collectCompany: true, collectJobTitle: true };
+    const chain = insertChain([withToggles]);
+    insertMock.mockReturnValue(chain);
+
+    const result = await createEvent({
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      name: "Launch Day",
+      slug: "launch-day",
+      startsAt: new Date("2026-11-01T18:00:00Z"),
+      collectCompany: true,
+      collectJobTitle: true,
+    });
+
+    expect(result).toEqual({ ok: true, event: withToggles });
+    // Real assertion that production code passes the toggles through to the insert, not just that
+    // the mocked row happens to carry them.
+    expect(chain.values).toHaveBeenCalledWith(
+      expect.objectContaining({ collectCompany: true, collectJobTitle: true }),
+    );
+  });
+
+  it("updates an event's optional-field toggles and reads the change back", async () => {
+    const updated = { ...baseEvent, collectCompany: true };
+    updateMock.mockReturnValue(updateChain([updated]));
+
+    const result = await updateEvent({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      changes: { collectCompany: true },
+    });
+
+    expect(result).toEqual({ ok: true, event: updated });
+    if (result.ok) expect(result.event.collectCompany).toBe(true);
+  });
+
   it("accepts a null capacity, meaning unlimited", async () => {
     insertMock.mockReturnValue(insertChain([{ ...baseEvent, capacity: null }]));
 
@@ -241,21 +301,34 @@ describe("events service — read paths", () => {
     expect(result).toBeUndefined();
   });
 
-  it("returns a published event by slug (draft excluded from public read)", async () => {
+  it("returns a published event by slug, querying with the exact slug+status+organization predicate", async () => {
     const published = { ...baseEvent, status: "published" as const };
-    selectMock.mockReturnValue(selectChain([published]));
+    const chain = selectChain([published]);
+    selectMock.mockReturnValue(chain);
 
-    const result = await getPublishedEventBySlug("launch-day");
+    const result = await getPublishedEventBySlug("launch-day", "org-1");
+
     expect(result).toEqual(published);
+    // Pins the actual WHERE predicate to slug + status='published' + organizationId (verify-report
+    // C3/W4 remediation). The mock can't execute real SQL, so this asserts the exact `and(eq(...))`
+    // condition object the service builds and hands to `.where(...)` — deleting or loosening the
+    // `eq(events.status, "published")` clause (or dropping organization scoping) changes that
+    // object and fails this assertion even though `.returning`/mocked rows stay unchanged.
+    expect(chain.where).toHaveBeenCalledWith(
+      and(
+        eq(events.slug, "launch-day"),
+        eq(events.status, "published"),
+        eq(events.organizationId, "org-1"),
+      ),
+    );
   });
 
-  it("returns undefined for a draft event's slug, since the query filters status=published", async () => {
-    // The mock can't evaluate the WHERE clause, so this asserts the function's contract: when
-    // the (filtered) query yields no rows, the public read path yields no event — a draft event
-    // would never produce a row from the real status='published' filter.
+  it("returns undefined for a draft event's slug, since the pinned query filters status=published", async () => {
+    // The mock can't evaluate the WHERE clause itself, so the companion test above pins the exact
+    // predicate object; this test documents the function's contract on the no-rows branch.
     selectMock.mockReturnValue(selectChain([]));
 
-    const result = await getPublishedEventBySlug("draft-only-event");
+    const result = await getPublishedEventBySlug("draft-only-event", "org-1");
     expect(result).toBeUndefined();
   });
 });

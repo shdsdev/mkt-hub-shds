@@ -27,6 +27,7 @@ import {
   sendReminderEmail,
   escapeHtml,
 } from "./service";
+import { notificationLog } from "./db";
 
 function insertChain(rows: unknown[]) {
   const chain = { values: vi.fn(), onConflictDoNothing: vi.fn(), returning: vi.fn() };
@@ -58,8 +59,9 @@ describe("notifications service — claimNotification idempotency (design.md 'Re
     vi.clearAllMocks();
   });
 
-  it("claims a notification by inserting a pending row and returning its id", async () => {
-    insertMock.mockReturnValue(insertChain([{ id: "log-1" }]));
+  it("claims a notification by inserting a pending row with ON CONFLICT DO NOTHING on the exact unique-constraint columns, returning its id", async () => {
+    const chain = insertChain([{ id: "log-1" }]);
+    insertMock.mockReturnValue(chain);
 
     const claim = await claimNotification({
       organizationId: "org-1",
@@ -70,10 +72,18 @@ describe("notifications service — claimNotification idempotency (design.md 'Re
 
     expect(claim).toEqual({ id: "log-1" });
     expect(insertMock).toHaveBeenCalledOnce();
+    // Pins the actual conflict target to notification_log's unique constraint columns
+    // (subject_id, notification_type) — deleting the real `.onConflictDoNothing(...)` call from
+    // production source, or pointing it at the wrong columns, fails this assertion even though the
+    // insert/returning mock chain still resolves a row.
+    expect(chain.onConflictDoNothing).toHaveBeenCalledWith({
+      target: [notificationLog.subjectId, notificationLog.notificationType],
+    });
   });
 
-  it("returns no row for a duplicate claim on the same (subject_id, notification_type)", async () => {
-    insertMock.mockReturnValue(insertChain([]));
+  it("returns no row for a duplicate claim on the same (subject_id, notification_type), still requesting the correct conflict target", async () => {
+    const chain = insertChain([]);
+    insertMock.mockReturnValue(chain);
 
     const claim = await claimNotification({
       organizationId: "org-1",
@@ -83,6 +93,9 @@ describe("notifications service — claimNotification idempotency (design.md 'Re
     });
 
     expect(claim).toBeUndefined();
+    expect(chain.onConflictDoNothing).toHaveBeenCalledWith({
+      target: [notificationLog.subjectId, notificationLog.notificationType],
+    });
   });
 });
 
