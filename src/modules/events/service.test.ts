@@ -57,6 +57,9 @@ import {
   isReminderDue,
   listDueReminderAttendees,
   checkInAttendee,
+  recordEventVisit,
+  listRegistrations,
+  getEventInsights,
 } from "./service";
 
 // Chainable mock builders matching the project's established pattern
@@ -818,5 +821,126 @@ describe("events service — listDueReminderAttendees", () => {
 
     const result = await listDueReminderAttendees(now);
     expect(result).toEqual([]);
+  });
+});
+
+// tasks.md 5.5 — the dashboard's "visits" counter (design.md Open Questions, resolved in PR5):
+// a plain increment on `events.visit_count`, never a write into `tracking_events`.
+describe("events service — recordEventVisit", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("increments the visit counter for a published event by slug", async () => {
+    const chain = updateChain([]);
+    updateMock.mockReturnValue(chain);
+
+    await recordEventVisit("launch-day");
+
+    expect(updateMock).toHaveBeenCalledWith(events);
+    expect(chain.where).toHaveBeenCalledWith(
+      and(eq(events.slug, "launch-day"), eq(events.status, "published")),
+    );
+  });
+});
+
+// tasks.md 5.1/5.2 — registrations admin: scoped to event+organization, optional status filter,
+// attendees (companions/contact/pass status) joined back onto each registration.
+describe("events service — listRegistrations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("lists registrations scoped to the event/org with their attendees joined", async () => {
+    const registration = {
+      id: "reg-1",
+      eventId: "event-1",
+      organizationId: "org-1",
+      status: "confirmed",
+      createdAt: new Date("2026-10-01T00:00:00Z"),
+    };
+    const attendee = { id: "att-1", registrationId: "reg-1", fullName: "Ada Lovelace" };
+    selectMock
+      .mockReturnValueOnce(selectChain([registration]))
+      .mockReturnValueOnce(selectChain([attendee]));
+
+    const result = await listRegistrations("event-1", "org-1");
+
+    expect(result).toEqual([{ ...registration, attendees: [attendee] }]);
+  });
+
+  it("filters by status when given", async () => {
+    const chain = selectChain([]);
+    selectMock.mockReturnValueOnce(chain);
+
+    await listRegistrations("event-1", "org-1", { status: "waitlisted" });
+
+    expect(chain.where).toHaveBeenCalledWith(
+      and(
+        eq(eventRegistrations.eventId, "event-1"),
+        eq(eventRegistrations.organizationId, "org-1"),
+        eq(eventRegistrations.status, "waitlisted"),
+      ),
+    );
+  });
+
+  it("returns an empty array without querying attendees when there are no registrations", async () => {
+    selectMock.mockReturnValueOnce(selectChain([]));
+
+    const result = await listRegistrations("event-1", "org-1");
+
+    expect(result).toEqual([]);
+    expect(selectMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("filters by a free-text query matched against any attendee's name or email", async () => {
+    const registrationA = { id: "reg-a", eventId: "event-1", organizationId: "org-1", status: "confirmed" };
+    const registrationB = { id: "reg-b", eventId: "event-1", organizationId: "org-1", status: "confirmed" };
+    const attendeeA = { id: "att-a", registrationId: "reg-a", fullName: "Ada Lovelace", email: "ada@example.com" };
+    const attendeeB = { id: "att-b", registrationId: "reg-b", fullName: "Alan Turing", email: "alan@example.com" };
+    selectMock
+      .mockReturnValueOnce(selectChain([registrationA, registrationB]))
+      .mockReturnValueOnce(selectChain([attendeeA, attendeeB]));
+
+    const result = await listRegistrations("event-1", "org-1", { q: "ada" });
+
+    expect(result).toEqual([{ ...registrationA, attendees: [attendeeA] }]);
+  });
+});
+
+// tasks.md 5.5/5.6 — ADMIN-only per-event dashboard numbers.
+describe("events service — getEventInsights", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns undefined when the event is not found or outside the organization", async () => {
+    selectMock.mockReturnValueOnce(selectChain([]));
+
+    const result = await getEventInsights("event-1", "org-1");
+    expect(result).toBeUndefined();
+  });
+
+  it("computes visits/registrations/attendance/conversion", async () => {
+    const event = { ...baseEvent, visitCount: 100 };
+    selectMock
+      .mockReturnValueOnce(selectChain([event]))
+      .mockReturnValueOnce(selectChain([{ total: 40 }]))
+      .mockReturnValueOnce(selectChain([{ total: 10 }]));
+
+    const result = await getEventInsights("event-1", "org-1");
+
+    expect(result).toEqual({ visits: 100, registrations: 40, attendance: 10, conversion: 0.4 });
+  });
+
+  it("returns a null conversion (not 0) when there have been no visits yet", async () => {
+    const event = { ...baseEvent, visitCount: 0 };
+    selectMock
+      .mockReturnValueOnce(selectChain([event]))
+      .mockReturnValueOnce(selectChain([{ total: 0 }]))
+      .mockReturnValueOnce(selectChain([{ total: 0 }]));
+
+    const result = await getEventInsights("event-1", "org-1");
+    expect(result?.conversion).toBeNull();
   });
 });

@@ -127,6 +127,13 @@
       "when": 1791646770671,
       "tag": "0017_serious_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791819646326,
+      "tag": "0018_careless_ultragirl",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPublishedEventBySlugPublic } from "@/modules/events";
+import { getPublishedEventBySlugPublic, recordEventVisit } from "@/modules/events";
 import { RegisterForm } from "./register-form";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -37,6 +37,10 @@ export default async function EventLandingPage({
   const { slug } = await params;
   const event = await getPublishedEventBySlugPublic(slug);
   if (!event) notFound();
+
+  // Fire-and-forget: a visit-count hiccup must never break the landing page itself (design.md
+  // Open Questions, resolved in PR5 — see recordEventVisit's own rationale in service.ts).
+  void recordEventVisit(slug).catch(() => {});
 
   const utm = readUtmFromSearchParams(await searchParams);
 

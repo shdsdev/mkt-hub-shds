@@ -16,6 +16,9 @@ export {
   checkInAttendee,
   isReminderDue,
   listDueReminderAttendees,
+  recordEventVisit,
+  listRegistrations,
+  getEventInsights,
   type EventRow,
   type EventMutationResult,
   type CreateEventInput,
@@ -30,4 +33,6 @@ export {
   type CheckInInput,
   type CheckInResult,
   type DueReminderAttendee,
+  type RegistrationWithAttendees,
+  type EventInsights,
 } from "./service";

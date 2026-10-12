@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isAdmin, type UserRole } from "@/modules/users";
 import { events, eventRegistrations, eventAttendees } from "./db";
@@ -503,4 +503,118 @@ export async function listDueReminderAttendees(now: Date = new Date()): Promise<
   return rows.filter(
     ({ event }) => event.reminderOffsetMinutes !== null && isReminderDue(now, event.startsAt, event.reminderOffsetMinutes),
   );
+}
+
+// design.md "Open Questions" (resolved in PR5) — a plain atomic increment on `events.visit_count`
+// for the dashboard's "visits" number, never a write into `tracking_events` (analytics' own
+// link/QR click-tracking table; this module stays a leaf consumer of @/modules/analytics'
+// public index, not a writer to its tables). Scoped to `status = 'published'` so a draft/closed
+// event's stray view (or a crawler hitting a stale link) never inflates a number ADMIN sees.
+// Deliberately fire-and-forget from the caller's perspective: this function itself still awaits
+// the write, but a caller renders the page regardless of whether this resolves or rejects.
+export async function recordEventVisit(slug: string): Promise<void> {
+  await db
+    .update(events)
+    .set({ visitCount: sql`${events.visitCount} + 1` })
+    .where(and(eq(events.slug, slug), eq(events.status, "published")));
+}
+
+export type RegistrationWithAttendees = EventRegistrationRow & { attendees: EventAttendeeRow[] };
+
+// spec.md "Registrations Admin Search and Filter" — scoped to one event+organization, with an
+// optional status filter; each registration carries its own attendees (companions/contact/pass
+// status) joined back on, one extra query rather than N+1 per registration.
+export async function listRegistrations(
+  eventId: string,
+  organizationId: string,
+  filter?: { status?: EventRegistrationRow["status"]; q?: string },
+): Promise<RegistrationWithAttendees[]> {
+  const scope = filter?.status
+    ? and(
+        eq(eventRegistrations.eventId, eventId),
+        eq(eventRegistrations.organizationId, organizationId),
+        eq(eventRegistrations.status, filter.status),
+      )
+    : and(eq(eventRegistrations.eventId, eventId), eq(eventRegistrations.organizationId, organizationId));
+
+  const registrations = await db
+    .select()
+    .from(eventRegistrations)
+    .where(scope)
+    .orderBy(desc(eventRegistrations.createdAt));
+  if (registrations.length === 0) return [];
+
+  const registrationIds = registrations.map((registration) => registration.id);
+  const attendees = await db
+    .select()
+    .from(eventAttendees)
+    .where(inArray(eventAttendees.registrationId, registrationIds));
+
+  const attendeesByRegistration = new Map<string, EventAttendeeRow[]>();
+  for (const attendee of attendees) {
+    const list = attendeesByRegistration.get(attendee.registrationId) ?? [];
+    list.push(attendee);
+    attendeesByRegistration.set(attendee.registrationId, list);
+  }
+
+  const withAttendees = registrations.map((registration) => ({
+    ...registration,
+    attendees: attendeesByRegistration.get(registration.id) ?? [],
+  }));
+
+  // Free-text search against the already-joined attendees rather than a second DB round-trip —
+  // matches the spec's "search" half of "Registrations Admin Search and Filter" without a
+  // separate full-text query path for what's at most a few hundred rows per event.
+  if (!filter?.q) return withAttendees;
+  const needle = filter.q.trim().toLowerCase();
+  if (!needle) return withAttendees;
+  return withAttendees.filter((registration) =>
+    registration.attendees.some(
+      (attendee) =>
+        attendee.fullName.toLowerCase().includes(needle) || attendee.email.toLowerCase().includes(needle),
+    ),
+  );
+}
+
+export type EventInsights = {
+  visits: number;
+  registrations: number;
+  attendance: number;
+  conversion: number | null;
+};
+
+// spec.md "ADMIN-Only Results Dashboard" — conversion mirrors
+// `src/modules/campaigns/service.ts#getScanRateForShortLink`'s "null (not 0%) when there's
+// nothing to divide by yet" convention, rather than reporting a misleading 0%.
+export async function getEventInsights(
+  eventId: string,
+  organizationId: string,
+): Promise<EventInsights | undefined> {
+  const event = await getEvent(eventId, organizationId);
+  if (!event) return undefined;
+
+  const [registrationsRow] = await db
+    .select({ total: count() })
+    .from(eventRegistrations)
+    .where(and(eq(eventRegistrations.eventId, eventId), ne(eventRegistrations.status, "cancelled")));
+  const [attendanceRow] = await db
+    .select({ total: count() })
+    .from(eventAttendees)
+    .where(
+      and(
+        eq(eventAttendees.eventId, eventId),
+        eq(eventAttendees.isActive, true),
+        isNotNull(eventAttendees.checkedInAt),
+      ),
+    );
+
+  const registrations = registrationsRow?.total ?? 0;
+  const attendance = attendanceRow?.total ?? 0;
+
+  return {
+    visits: event.visitCount,
+    registrations,
+    attendance,
+    conversion: event.visitCount === 0 ? null : registrations / event.visitCount,
+  };
 }

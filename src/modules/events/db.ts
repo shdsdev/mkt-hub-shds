@@ -65,6 +65,13 @@ export const events = pgTable("events", {
   utmTerm: text("utm_term"),
   utmContent: text("utm_content"),
   utmId: text("utm_id"),
+  // design.md "Open Questions" (resolved in PR5): the dashboard's "visits" counter is its own
+  // column, incremented by the public landing page view — explicitly NOT a write into
+  // `tracking_events` (that table is analytics' own link/QR click-tracking concern; events stays
+  // a leaf consumer of @/modules/analytics' public index, never a writer to its tables). A plain
+  // counter, not a visits log: no per-visit row, no UTM/IP capture here — this is a landing-page
+  // view count for a conversion ratio, not an analytics feature in its own right.
+  visitCount: integer("visit_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
