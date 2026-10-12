@@ -1,13 +1,32 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 
-const { insertMock, updateMock, selectMock } = vi.hoisted(() => ({
+const {
+  insertMock,
+  updateMock,
+  selectMock,
+  transactionMock,
+  txExecuteMock,
+  txSelectMock,
+  txInsertMock,
+  txUpdateMock,
+} = vi.hoisted(() => ({
   insertMock: vi.fn(),
   updateMock: vi.fn(),
   selectMock: vi.fn(),
+  transactionMock: vi.fn(),
+  txExecuteMock: vi.fn(),
+  txSelectMock: vi.fn(),
+  txInsertMock: vi.fn(),
+  txUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({
-  db: { insert: insertMock, update: updateMock, select: selectMock },
+  db: {
+    insert: insertMock,
+    update: updateMock,
+    select: selectMock,
+    transaction: transactionMock,
+  },
 }));
 
 // Avoids pulling the real `@/modules/users` barrel into this unit test — that barrel re-exports
@@ -19,7 +38,7 @@ vi.mock("@/modules/users", () => ({
 }));
 
 import { and, eq } from "drizzle-orm";
-import { events } from "./db";
+import { events, eventRegistrations } from "./db";
 import {
   CROCKFORD_BASE32_ALPHABET,
   generateBackupCode,
@@ -31,6 +50,10 @@ import {
   listEvents,
   getEvent,
   getPublishedEventBySlug,
+  getPublishedEventBySlugPublic,
+  getRegistrationByCancelToken,
+  registerForEvent,
+  cancelRegistrationByToken,
 } from "./service";
 
 // Chainable mock builders matching the project's established pattern
@@ -330,6 +353,264 @@ describe("events service — read paths", () => {
 
     const result = await getPublishedEventBySlug("draft-only-event", "org-1");
     expect(result).toBeUndefined();
+  });
+
+  it("resolves a published event by slug ALONE (no organization in scope yet — the public route has no session)", async () => {
+    const published = { ...baseEvent, status: "published" as const };
+    const chain = selectChain([published]);
+    selectMock.mockReturnValue(chain);
+
+    const result = await getPublishedEventBySlugPublic("launch-day");
+
+    expect(result).toEqual(published);
+    expect(chain.where).toHaveBeenCalledWith(and(eq(events.slug, "launch-day"), eq(events.status, "published")));
+  });
+
+  it("returns undefined for a draft event's slug on the public (session-less) lookup", async () => {
+    selectMock.mockReturnValue(selectChain([]));
+
+    const result = await getPublishedEventBySlugPublic("draft-only-event");
+    expect(result).toBeUndefined();
+  });
+
+  it("resolves a registration by its cancel token, for the self-cancel link landing page", async () => {
+    const registration = { id: "reg-1", eventId: "event-1", cancelToken: "cancel-token-1", status: "confirmed" };
+    const chain = selectChain([registration]);
+    selectMock.mockReturnValue(chain);
+
+    const result = await getRegistrationByCancelToken("cancel-token-1");
+
+    expect(result).toEqual(registration);
+    expect(chain.where).toHaveBeenCalledWith(eq(eventRegistrations.cancelToken, "cancel-token-1"));
+  });
+
+  it("returns undefined for an unknown cancel token", async () => {
+    selectMock.mockReturnValue(selectChain([]));
+
+    const result = await getRegistrationByCancelToken("unknown-token");
+    expect(result).toBeUndefined();
+  });
+});
+
+// Generic thenable chain for transaction-scoped mocks (tasks.md 3.3-3.8): awaitable at any point
+// in the call chain (`.where()` alone, or further `.returning()`/`.limit()`), since
+// registerForEvent/cancelRegistrationByToken await different points depending on the statement.
+function txChain<T>(rows: T[]) {
+  const chain: Record<string, unknown> = {
+    from: vi.fn(),
+    innerJoin: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    values: vi.fn(),
+    set: vi.fn(),
+    returning: vi.fn(),
+    then: (resolve: (value: T[]) => unknown) => Promise.resolve(rows).then(resolve),
+  };
+  for (const key of ["from", "innerJoin", "where", "orderBy", "limit", "values", "set"]) {
+    (chain[key] as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+  }
+  (chain.returning as ReturnType<typeof vi.fn>).mockResolvedValue(rows);
+  return chain;
+}
+
+// tasks.md 3.3-3.8 — registerForEvent: companions, capacity/waitlist, concurrency lock,
+// duplicate-email mapping. design.md "Waitlist concurrency" / "Active-email uniqueness".
+describe("events service — registerForEvent", () => {
+  const unlimitedEvent = { ...baseEvent, status: "published" as const, capacity: null };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ execute: txExecuteMock, select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+    );
+  });
+
+  it("confirms the primary attendee when the event has unlimited capacity", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([unlimitedEvent]));
+    const registrationRow = { id: "reg-1", status: "confirmed" };
+    const attendeeRow = { id: "att-1", email: "ada@example.com" };
+    txInsertMock.mockReturnValueOnce(txChain([registrationRow])).mockReturnValueOnce(txChain([attendeeRow]));
+
+    const result = await registerForEvent({
+      eventId: "event-1",
+      primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
+    });
+
+    expect(result).toEqual({ ok: true, registration: registrationRow, attendees: [attendeeRow] });
+    expect(txExecuteMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("waitlists the whole group when confirmed seats would exceed capacity", async () => {
+    const limitedEvent = { ...unlimitedEvent, capacity: 1 };
+    txSelectMock
+      .mockReturnValueOnce(txChain([limitedEvent]))
+      .mockReturnValueOnce(txChain([{ seatsUsed: 1 }]));
+    const registrationRow = { id: "reg-1", status: "waitlisted" };
+    const attendeeRow = { id: "att-1", email: "ada@example.com" };
+    txInsertMock.mockReturnValueOnce(txChain([registrationRow])).mockReturnValueOnce(txChain([attendeeRow]));
+
+    const result = await registerForEvent({
+      eventId: "event-1",
+      primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.registration.status).toBe("waitlisted");
+  });
+
+  it("returns event_not_found when the event id does not resolve", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([]));
+
+    const result = await registerForEvent({
+      eventId: "missing",
+      primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "event_not_found" });
+    expect(txInsertMock).not.toHaveBeenCalled();
+  });
+
+  it("returns event_not_found for a draft event on the public source (draft never publicly reachable)", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([{ ...unlimitedEvent, status: "draft" }]));
+
+    const result = await registerForEvent({
+      eventId: "event-1",
+      source: "public",
+      primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "event_not_found" });
+  });
+
+  it("allows admin_added registrations onto a draft event", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([{ ...unlimitedEvent, status: "draft" }]));
+    const registrationRow = { id: "reg-1", status: "confirmed" };
+    const attendeeRow = { id: "att-1" };
+    txInsertMock.mockReturnValueOnce(txChain([registrationRow])).mockReturnValueOnce(txChain([attendeeRow]));
+
+    const result = await registerForEvent({
+      eventId: "event-1",
+      source: "admin_added",
+      primary: { fullName: "Staff Entry", email: "staff@example.com" },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("maps the active-email unique-violation to duplicate_email instead of rethrowing", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([unlimitedEvent]));
+    const registrationRow = { id: "reg-1", status: "confirmed" };
+    txInsertMock.mockReturnValueOnce(txChain([registrationRow])).mockImplementationOnce(() => {
+      throw { code: "23505", constraint_name: "event_attendees_event_email_active_unique" };
+    });
+
+    const result = await registerForEvent({
+      eventId: "event-1",
+      primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "duplicate_email" });
+  });
+
+  it("rethrows a unique-violation unrelated to the active-email index", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([unlimitedEvent]));
+    const registrationRow = { id: "reg-1", status: "confirmed" };
+    const otherError = { code: "23505", constraint_name: "event_attendees_event_backup_code_unique" };
+    txInsertMock.mockReturnValueOnce(txChain([registrationRow])).mockImplementationOnce(() => {
+      throw otherError;
+    });
+
+    await expect(
+      registerForEvent({
+        eventId: "event-1",
+        primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
+      }),
+    ).rejects.toBe(otherError);
+  });
+});
+
+// tasks.md 3.10 — cancelRegistrationByToken: invalid/unknown token is a no-op, a cancelled
+// registration is idempotent, and cancelling a confirmed registration promotes exactly the oldest
+// waitlisted one (design.md "Waitlist concurrency").
+describe("events service — cancelRegistrationByToken", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ execute: txExecuteMock, select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+    );
+  });
+
+  it("returns invalid_token when no registration matches the cancel token", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([]));
+
+    const result = await cancelRegistrationByToken("unknown-token");
+
+    expect(result).toEqual({ ok: false, reason: "invalid_token" });
+    expect(txExecuteMock).not.toHaveBeenCalled();
+  });
+
+  it("returns already_cancelled without re-locking or re-cancelling", async () => {
+    txSelectMock.mockReturnValueOnce(
+      txChain([{ id: "reg-1", eventId: "event-1", status: "cancelled" }]),
+    );
+
+    const result = await cancelRegistrationByToken("cancel-token-1");
+
+    expect(result).toEqual({ ok: false, reason: "already_cancelled" });
+    expect(txExecuteMock).not.toHaveBeenCalled();
+    expect(txUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels a waitlisted registration and does not look for anyone to promote", async () => {
+    const cancelledRow = { id: "reg-1", eventId: "event-1", status: "cancelled" };
+    txSelectMock.mockReturnValueOnce(
+      txChain([{ id: "reg-1", eventId: "event-1", status: "waitlisted" }]),
+    );
+    txUpdateMock
+      .mockReturnValueOnce(txChain([cancelledRow]))
+      .mockReturnValueOnce(txChain([]));
+
+    const result = await cancelRegistrationByToken("cancel-token-1");
+
+    expect(result).toEqual({ ok: true, registration: cancelledRow });
+    expect(txSelectMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a confirmed registration and promotes the oldest waitlisted one", async () => {
+    const cancelledRow = { id: "reg-1", eventId: "event-1", status: "cancelled" };
+    const oldestWaitlisted = { id: "reg-2", eventId: "event-1", status: "waitlisted" };
+    const promotedRow = { id: "reg-2", eventId: "event-1", status: "confirmed" };
+    const promotedAttendees = [{ id: "att-2", email: "alan@example.com" }];
+
+    txSelectMock
+      .mockReturnValueOnce(txChain([{ id: "reg-1", eventId: "event-1", status: "confirmed" }]))
+      .mockReturnValueOnce(txChain([oldestWaitlisted]))
+      .mockReturnValueOnce(txChain(promotedAttendees));
+    txUpdateMock
+      .mockReturnValueOnce(txChain([cancelledRow]))
+      .mockReturnValueOnce(txChain([]))
+      .mockReturnValueOnce(txChain([promotedRow]));
+
+    const result = await cancelRegistrationByToken("cancel-token-1");
+
+    expect(result).toEqual({
+      ok: true,
+      registration: cancelledRow,
+      promoted: { registration: promotedRow, attendees: promotedAttendees },
+    });
+  });
+
+  it("cancels a confirmed registration with nobody left on the waitlist to promote", async () => {
+    const cancelledRow = { id: "reg-1", eventId: "event-1", status: "cancelled" };
+    txSelectMock
+      .mockReturnValueOnce(txChain([{ id: "reg-1", eventId: "event-1", status: "confirmed" }]))
+      .mockReturnValueOnce(txChain([]));
+    txUpdateMock.mockReturnValueOnce(txChain([cancelledRow])).mockReturnValueOnce(txChain([]));
+
+    const result = await cancelRegistrationByToken("cancel-token-1");
+
+    expect(result).toEqual({ ok: true, registration: cancelledRow });
   });
 });
 
