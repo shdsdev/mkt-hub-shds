@@ -34,7 +34,9 @@ const publishedEvent = {
 };
 
 function makeParams(slug: string) {
-  return Promise.resolve({ slug });
+  // The route's dynamic segment is named `id` (not `slug`) to satisfy Next.js's cross-route-group
+  // param-naming constraint — see page.tsx's comment. The value is still the event's slug.
+  return Promise.resolve({ id: slug });
 }
 
 function makeSearchParams(entries: Record<string, string | undefined> = {}) {
