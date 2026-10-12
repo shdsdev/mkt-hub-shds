@@ -27,14 +27,21 @@ function readUtmFromSearchParams(searchParams: SearchParams) {
 // Lifecycle Status" (draft never publicly reachable) — getPublishedEventBySlugPublic's status
 // filter is the only gate; a draft or unknown slug returns `undefined` here, same 404 shape as
 // every other admin-gated page in this app (see app/(protected)/events/page.tsx).
+//
+// The dynamic segment is named `id` (not `slug`) purely because Next.js's App Router requires
+// every route contributing to the same URL position to use the SAME param name across the whole
+// app — route groups like `(protected)` are stripped from the URL, so this public page and
+// `app/(protected)/events/[id]/edit` both resolve under `/events/...` and collide otherwise
+// ("You cannot use different slug names for the same dynamic path"). The value itself is still
+// the event's slug, not a UUID — only the folder/param name had to match.
 export default async function EventLandingPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ id: string }>;
   searchParams: Promise<SearchParams>;
 }) {
-  const { slug } = await params;
+  const { id: slug } = await params;
   const event = await getPublishedEventBySlugPublic(slug);
   if (!event) notFound();
 
