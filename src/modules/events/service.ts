@@ -235,8 +235,15 @@ export type RegisterForEventResult =
 // domain error (spec.md "Per-Event Email Uniqueness"); any other unique violation (e.g. a
 // backup-code collision, astronomically rare at 32^8 combinations) is a real defect and is
 // re-thrown rather than silently mislabeled.
+// drizzle-orm's postgres-js driver wraps the raw Postgres error in its own `DrizzleQueryError`
+// (observed live: a real duplicate registration crashed the page instead of showing the friendly
+// message, because this check read `error.code` directly — but `code`/`constraint_name` live on
+// `error.cause`, not the wrapper itself). Check `error.cause` first since that's what actually
+// ships today; fall back to `error` itself so a future driver version that stops wrapping (or any
+// other caller that throws the bare pg error) still matches.
 function isDuplicateEmailViolation(error: unknown): boolean {
-  const pgError = error as { code?: string; constraint_name?: string } | undefined;
+  const wrapper = error as { cause?: unknown } | undefined;
+  const pgError = (wrapper?.cause ?? error) as { code?: string; constraint_name?: string } | undefined;
   return (
     pgError?.code === "23505" &&
     pgError?.constraint_name === "event_attendees_event_email_active_unique"

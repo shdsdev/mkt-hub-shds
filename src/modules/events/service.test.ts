@@ -566,10 +566,50 @@ describe("events service — registerForEvent", () => {
     expect(result).toEqual({ ok: false, reason: "duplicate_email" });
   });
 
+  // Regression: live-tested, this crashed the page instead of showing the friendly message.
+  // drizzle-orm's postgres-js driver actually throws a `DrizzleQueryError` wrapper whose OWN
+  // `code`/`constraint_name` are undefined — the real Postgres fields live on `error.cause`.
+  it("maps a wrapped (DrizzleQueryError-shaped) unique-violation to duplicate_email, reading error.cause", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([unlimitedEvent]));
+    const registrationRow = { id: "reg-1", status: "confirmed" };
+    txInsertMock.mockReturnValueOnce(txChain([registrationRow])).mockImplementationOnce(() => {
+      throw {
+        message: "Failed query: insert into ...",
+        cause: { code: "23505", constraint_name: "event_attendees_event_email_active_unique" },
+      };
+    });
+
+    const result = await registerForEvent({
+      eventId: "event-1",
+      primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "duplicate_email" });
+  });
+
   it("rethrows a unique-violation unrelated to the active-email index", async () => {
     txSelectMock.mockReturnValueOnce(txChain([unlimitedEvent]));
     const registrationRow = { id: "reg-1", status: "confirmed" };
     const otherError = { code: "23505", constraint_name: "event_attendees_event_backup_code_unique" };
+    txInsertMock.mockReturnValueOnce(txChain([registrationRow])).mockImplementationOnce(() => {
+      throw otherError;
+    });
+
+    await expect(
+      registerForEvent({
+        eventId: "event-1",
+        primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
+      }),
+    ).rejects.toBe(otherError);
+  });
+
+  it("rethrows a wrapped unique-violation unrelated to the active-email index", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([unlimitedEvent]));
+    const registrationRow = { id: "reg-1", status: "confirmed" };
+    const otherError = {
+      message: "Failed query",
+      cause: { code: "23505", constraint_name: "event_attendees_event_backup_code_unique" },
+    };
     txInsertMock.mockReturnValueOnce(txChain([registrationRow])).mockImplementationOnce(() => {
       throw otherError;
     });
