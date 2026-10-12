@@ -7,9 +7,18 @@ import {
   boolean,
   timestamp,
   uniqueIndex,
+  jsonb,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organizations } from "@/modules/users/db";
+
+// Agenda is a short, admin-ordered list of time blocks — not a scheduling system (no per-item
+// speakers/rooms by the original module's non-goals). `time` is free text ("10:00 AM", "Welcome")
+// rather than a Date: an agenda item describes a point in the day's flow, not a reminder-eligible
+// instant, and admins write it exactly as it should read on the landing page.
+export type AgendaItem = { time: string; title: string; description?: string };
+export type SponsorLogo = { url: string; name?: string };
 
 // Lifecycle status (design.md "event-management"): draft is never publicly reachable, published
 // serves the public landing, closed stops new registrations without hiding history.
@@ -72,9 +81,19 @@ export const events = pgTable("events", {
   // counter, not a visits log: no per-visit row, no UTM/IP capture here — this is a landing-page
   // view count for a conversion ratio, not an analytics feature in its own right.
   visitCount: integer("visit_count").notNull().default(0),
+  // Landing-page content model (grill-me session, this round): optional hero image for the public
+  // landing; `agenda`/`sponsorLogos` are short admin-ordered lists, not relational tables — an
+  // event has at most a handful of each, and the array's order IS the display order, so a
+  // dedicated child table would only add a sort-column problem to solve.
+  heroImageUrl: text("hero_image_url"),
+  agenda: jsonb("agenda").$type<AgendaItem[]>().notNull().default(sql`'[]'::jsonb`),
+  sponsorLogos: jsonb("sponsor_logos").$type<SponsorLogo[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  check("events_agenda_is_array", sql`jsonb_typeof(${table.agenda}) = 'array'`),
+  check("events_sponsor_logos_is_array", sql`jsonb_typeof(${table.sponsorLogos}) = 'array'`),
+]);
 
 // One checkout action per registration, which may include N companions on `event_attendees`
 // (design.md "Booking vs person"). Capacity is enforced on attendees, not registrations.

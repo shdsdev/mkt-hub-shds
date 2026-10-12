@@ -5,16 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/checkbox";
 import { Input } from "@/components/ui/input";
 import { createEventAction, type EventFormState } from "./actions";
+import { EventImageUpload } from "./event-image-upload";
+import { AgendaEditor } from "./agenda-editor";
+import { SponsorLogosEditor } from "./sponsor-logos-editor";
 
 const initialState: EventFormState = {};
 
-export function EventCreateForm() {
+export function EventCreateForm({ organizationId }: { organizationId: string }) {
   const [state, formAction, pending] = useActionState(createEventAction, initialState);
   // spec.md "Fixed Optional Field Catalog" — disabled by default, matching the
   // "Optional field disabled by default" scenario. Hidden-input pairing mirrors
   // app/(protected)/qr/qr-design-fields.tsx's `saveAsTemplate` convention.
   const [collectCompany, setCollectCompany] = useState(false);
   const [collectJobTitle, setCollectJobTitle] = useState(false);
+  const [heroImageUrl, setHeroImageUrl] = useState<string>();
 
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
@@ -61,6 +65,22 @@ export function EventCreateForm() {
           Recordatorio (minutos antes, opcional)
           <Input name="reminderOffsetMinutes" type="number" min={0} />
         </label>
+        <div className="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
+          Imagen de portada (opcional)
+          <EventImageUpload
+            organizationId={organizationId}
+            label="Subir imagen"
+            value={heroImageUrl}
+            onUploaded={setHeroImageUrl}
+          />
+          <input type="hidden" name="heroImageUrl" value={heroImageUrl ?? ""} />
+        </div>
+        <div className="sm:col-span-2">
+          <AgendaEditor initial={[]} />
+        </div>
+        <div className="sm:col-span-2">
+          <SponsorLogosEditor organizationId={organizationId} initial={[]} />
+        </div>
         <div className="flex flex-col gap-2 sm:col-span-2">
           <p className="text-sm font-medium">Campos opcionales del formulario de registro</p>
           <Checkbox

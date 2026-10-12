@@ -289,6 +289,51 @@ describe("events service — ADMIN-only authoring (design.md 'event-management')
     if (result.ok) expect(result.event.collectCompany).toBe(true);
   });
 
+  it("creates an event with a hero image, agenda, and sponsor logos (landing content model)", async () => {
+    const agenda = [{ time: "10:00 AM", title: "Registro" }];
+    const sponsorLogos = [{ url: "https://cdn.example.com/sponsor.png", name: "Acme" }];
+    const withContent = { ...baseEvent, heroImageUrl: "https://cdn.example.com/hero.jpg", agenda, sponsorLogos };
+    const chain = insertChain([withContent]);
+    insertMock.mockReturnValue(chain);
+
+    const result = await createEvent({
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      name: "Launch Day",
+      slug: "launch-day",
+      startsAt: new Date("2026-11-01T18:00:00Z"),
+      heroImageUrl: "https://cdn.example.com/hero.jpg",
+      agenda,
+      sponsorLogos,
+    });
+
+    expect(result).toEqual({ ok: true, event: withContent });
+    expect(chain.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        heroImageUrl: "https://cdn.example.com/hero.jpg",
+        agenda,
+        sponsorLogos,
+      }),
+    );
+  });
+
+  it("updates an event's agenda and reads the change back", async () => {
+    const agenda = [{ time: "9:00 AM", title: "Apertura" }, { time: "11:00 AM", title: "Cierre" }];
+    const updated = { ...baseEvent, agenda };
+    const chain = updateChain([updated]);
+    updateMock.mockReturnValue(chain);
+
+    const result = await updateEvent({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      changes: { agenda },
+    });
+
+    expect(result).toEqual({ ok: true, event: updated });
+    expect(chain.set).toHaveBeenCalledWith(expect.objectContaining({ agenda }));
+  });
+
   it("accepts a null capacity, meaning unlimited", async () => {
     insertMock.mockReturnValue(insertChain([{ ...baseEvent, capacity: null }]));
 

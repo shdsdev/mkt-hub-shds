@@ -22,7 +22,7 @@ export default async function EventsPage() {
         </p>
       </div>
 
-      <EventCreateForm />
+      <EventCreateForm organizationId={user.profile.organizationId} />
 
       <div className="flex flex-col gap-2">
         {events.length === 0 ? (

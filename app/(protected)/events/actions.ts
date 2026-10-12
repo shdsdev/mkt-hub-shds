@@ -28,6 +28,39 @@ const optionalInt = z
   .transform((value) => (value ? Number.parseInt(value, 10) : null))
   .refine((value) => value === null || Number.isInteger(value), "Debe ser un número entero.");
 
+// Landing content model: the client-side form keeps agenda/sponsorLogos as array state and
+// serializes the current array into a hidden input's JSON string on every render (same "form
+// owns a structured value via one hidden input" shape as collectCompany's "true"/"" pattern, just
+// carrying a list instead of a boolean). An empty/absent field means "no items", not "field
+// omitted" — the edit form always renders this hidden input, so there is no clearable-vs-absent
+// distinction to make here the way there is for description/location.
+function jsonArrayField<T extends z.ZodTypeAny>(itemSchema: T) {
+  return z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (!value) return [];
+      try {
+        return JSON.parse(value);
+      } catch {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "JSON inválido." });
+        return z.NEVER;
+      }
+    })
+    .pipe(z.array(itemSchema));
+}
+
+const agendaItemSchema = z.object({
+  time: z.string().trim().min(1).max(50),
+  title: z.string().trim().min(1).max(255),
+  description: z.string().trim().max(1000).optional(),
+});
+
+const sponsorLogoSchema = z.object({
+  url: z.string().trim().url().max(2000),
+  name: z.string().trim().max(255).optional(),
+});
+
 const eventFieldsSchema = z.object({
   name: z.string().trim().min(1).max(255),
   slug: z
@@ -46,6 +79,9 @@ const eventFieldsSchema = z.object({
   // app/(protected)/qr/qr-design-fields.tsx's `saveAsTemplate` convention.
   collectCompany: z.coerce.boolean().default(false),
   collectJobTitle: z.coerce.boolean().default(false),
+  heroImageUrl: z.string().trim().url().max(2000).optional().or(z.literal("")),
+  agenda: jsonArrayField(agendaItemSchema),
+  sponsorLogos: jsonArrayField(sponsorLogoSchema),
 });
 
 export type EventFormState = { error?: string; success?: string; eventId?: string };
@@ -73,6 +109,9 @@ function readEventFields(formData: FormData) {
     reminderOffsetMinutes: formData.get("reminderOffsetMinutes") || undefined,
     collectCompany: formData.get("collectCompany"),
     collectJobTitle: formData.get("collectJobTitle"),
+    heroImageUrl: formData.get("heroImageUrl") ?? undefined,
+    agenda: formData.get("agenda") ?? undefined,
+    sponsorLogos: formData.get("sponsorLogos") ?? undefined,
   };
 }
 
@@ -99,6 +138,9 @@ export async function createEventAction(
     reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
     collectCompany: parsed.data.collectCompany,
     collectJobTitle: parsed.data.collectJobTitle,
+    heroImageUrl: parsed.data.heroImageUrl || undefined,
+    agenda: parsed.data.agenda,
+    sponsorLogos: parsed.data.sponsorLogos,
   });
   if (!result.ok) return { error: PERMISSION_ERROR };
 
@@ -139,6 +181,10 @@ export async function updateEventAction(
       reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
       collectCompany: parsed.data.collectCompany,
       collectJobTitle: parsed.data.collectJobTitle,
+      heroImageUrl:
+        parsed.data.heroImageUrl === undefined ? undefined : parsed.data.heroImageUrl || null,
+      agenda: parsed.data.agenda,
+      sponsorLogos: parsed.data.sponsorLogos,
     },
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };

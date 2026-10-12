@@ -33,6 +33,9 @@ const publishedEvent = {
   reminderOffsetMinutes: null,
   collectCompany: true,
   collectJobTitle: false,
+  heroImageUrl: null,
+  agenda: [],
+  sponsorLogos: [],
 };
 
 function makeParams(slug: string) {

@@ -11,6 +11,9 @@ import {
   closeEventAction,
   type EventFormState,
 } from "../../actions";
+import { EventImageUpload } from "../../event-image-upload";
+import { AgendaEditor } from "../../agenda-editor";
+import { SponsorLogosEditor } from "../../sponsor-logos-editor";
 
 const initialState: EventFormState = {};
 
@@ -26,6 +29,7 @@ export function EventEditForm({ event }: { event: EventRow }) {
   // spec.md "Fixed Optional Field Catalog" — seeded from the event's current toggle state.
   const [collectCompany, setCollectCompany] = useState(event.collectCompany);
   const [collectJobTitle, setCollectJobTitle] = useState(event.collectJobTitle);
+  const [heroImageUrl, setHeroImageUrl] = useState<string | undefined>(event.heroImageUrl ?? undefined);
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,6 +73,22 @@ export function EventEditForm({ event }: { event: EventRow }) {
             className="min-h-24 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
           />
         </label>
+        <div className="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
+          Imagen de portada (opcional)
+          <EventImageUpload
+            organizationId={event.organizationId}
+            label="Subir imagen"
+            value={heroImageUrl}
+            onUploaded={setHeroImageUrl}
+          />
+          <input type="hidden" name="heroImageUrl" value={heroImageUrl ?? ""} />
+        </div>
+        <div className="sm:col-span-2">
+          <AgendaEditor initial={event.agenda} />
+        </div>
+        <div className="sm:col-span-2">
+          <SponsorLogosEditor organizationId={event.organizationId} initial={event.sponsorLogos} />
+        </div>
         <div className="flex flex-col gap-2 sm:col-span-2">
           <p className="text-sm font-medium">Campos opcionales del formulario de registro</p>
           <Checkbox

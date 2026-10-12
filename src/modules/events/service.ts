@@ -2,7 +2,9 @@ import { randomBytes } from "node:crypto";
 import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isAdmin, type UserRole } from "@/modules/users";
-import { events, eventRegistrations, eventAttendees } from "./db";
+import { events, eventRegistrations, eventAttendees, type AgendaItem, type SponsorLogo } from "./db";
+
+export type { AgendaItem, SponsorLogo };
 
 // Crockford base32 (design.md "Backup code") — 32 chars, excludes I/L/O/U by construction so a
 // human reading the code aloud at the door never confuses visually similar characters.
@@ -56,6 +58,10 @@ export type CreateEventInput = {
   // spec.md "Fixed Optional Field Catalog" — omitted on create means the schema default (false).
   collectCompany?: boolean;
   collectJobTitle?: boolean;
+  // Landing content model — omitted on create means the schema default (null / empty array).
+  heroImageUrl?: string | null;
+  agenda?: AgendaItem[];
+  sponsorLogos?: SponsorLogo[];
 };
 
 // spec.md "ADMIN-Only Event Authoring": only ADMIN may create, edit, publish, or close events;
@@ -77,6 +83,9 @@ export async function createEvent(input: CreateEventInput): Promise<EventMutatio
       reminderOffsetMinutes: input.reminderOffsetMinutes,
       collectCompany: input.collectCompany,
       collectJobTitle: input.collectJobTitle,
+      heroImageUrl: input.heroImageUrl,
+      agenda: input.agenda,
+      sponsorLogos: input.sponsorLogos,
     })
     .returning();
   return { ok: true, event };
@@ -92,6 +101,9 @@ export type UpdateEventChanges = Partial<{
   reminderOffsetMinutes: number | null;
   collectCompany: boolean;
   collectJobTitle: boolean;
+  heroImageUrl: string | null;
+  agenda: AgendaItem[];
+  sponsorLogos: SponsorLogo[];
 }>;
 
 export async function updateEvent(input: {

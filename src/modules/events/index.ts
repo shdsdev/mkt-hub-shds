@@ -35,4 +35,6 @@ export {
   type DueReminderAttendee,
   type RegistrationWithAttendees,
   type EventInsights,
+  type AgendaItem,
+  type SponsorLogo,
 } from "./service";

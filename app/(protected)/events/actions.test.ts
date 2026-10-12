@@ -194,4 +194,90 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
     expect(call.changes.description).toBeUndefined();
     expect(call.changes.location).toBeUndefined();
   });
+
+  it("creates an event with a hero image, agenda, and sponsor logos", async () => {
+    mocks.createEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+    const agenda = [{ time: "10:00 AM", title: "Registro" }];
+    const sponsorLogos = [{ url: "https://cdn.example.com/sponsor.png", name: "Acme" }];
+
+    await createEventAction(
+      {},
+      createFormData({
+        ...validCreateFields,
+        heroImageUrl: "https://cdn.example.com/hero.jpg",
+        agenda: JSON.stringify(agenda),
+        sponsorLogos: JSON.stringify(sponsorLogos),
+      }),
+    );
+
+    expect(mocks.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        heroImageUrl: "https://cdn.example.com/hero.jpg",
+        agenda,
+        sponsorLogos,
+      }),
+    );
+  });
+
+  it("defaults agenda and sponsorLogos to empty arrays when not submitted", async () => {
+    mocks.createEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await createEventAction({}, createFormData(validCreateFields));
+
+    expect(mocks.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ agenda: [], sponsorLogos: [] }),
+    );
+  });
+
+  it("rejects malformed agenda JSON without calling the service", async () => {
+    const result = await createEventAction(
+      {},
+      createFormData({ ...validCreateFields, agenda: "not-json" }),
+    );
+
+    expect(result).toEqual({ error: "Revisa los datos del evento." });
+    expect(mocks.createEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects an agenda item missing a title without calling the service", async () => {
+    const result = await createEventAction(
+      {},
+      createFormData({ ...validCreateFields, agenda: JSON.stringify([{ time: "10:00 AM", title: "" }]) }),
+    );
+
+    expect(result).toEqual({ error: "Revisa los datos del evento." });
+    expect(mocks.createEvent).not.toHaveBeenCalled();
+  });
+
+  it("updates an event's hero image, agenda, and sponsor logos", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+    const agenda = [{ time: "9:00 AM", title: "Apertura" }];
+
+    await updateEventAction(
+      {},
+      createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        heroImageUrl: "https://cdn.example.com/hero.jpg",
+        agenda: JSON.stringify(agenda),
+        sponsorLogos: JSON.stringify([]),
+      }),
+    );
+
+    const call = mocks.updateEvent.mock.calls[0][0];
+    expect(call.changes.heroImageUrl).toBe("https://cdn.example.com/hero.jpg");
+    expect(call.changes.agenda).toEqual(agenda);
+    expect(call.changes.sponsorLogos).toEqual([]);
+  });
+
+  it("clears a previously-set hero image by mapping an empty submitted field to explicit null", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await updateEventAction(
+      {},
+      createFormData({ id: "11111111-1111-4111-8111-111111111111", heroImageUrl: "" }),
+    );
+
+    const call = mocks.updateEvent.mock.calls[0][0];
+    expect(call.changes.heroImageUrl).toBeNull();
+  });
 });
