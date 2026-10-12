@@ -3,16 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   isActive: vi.fn(),
+  isAdmin: vi.fn(),
   getEvent: vi.fn(),
   notFound: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
-vi.mock("@/modules/users", () => ({ isActive: mocks.isActive }));
+vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
 vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("./check-in-form", () => ({
   CheckInForm: ({ eventId }: { eventId: string }) => <div data-event-id={eventId} />,
+}));
+vi.mock("../../event-sub-nav", () => ({
+  EventSubNav: ({ eventId }: { eventId: string }) => <div data-sub-nav-event-id={eventId} />,
 }));
 
 import EventCheckInPage from "./page";
@@ -32,6 +36,7 @@ describe("EventCheckInPage", () => {
     vi.resetAllMocks();
     mocks.getCurrentUser.mockResolvedValue(activeUser);
     mocks.isActive.mockReturnValue(true);
+    mocks.isAdmin.mockReturnValue(false);
     mocks.notFound.mockImplementation(() => {
       throw new Error("NEXT_NOT_FOUND");
     });
@@ -57,5 +62,15 @@ describe("EventCheckInPage", () => {
 
     expect(mocks.getEvent).toHaveBeenCalledWith("event-1", "org-1");
     expect(JSON.stringify(result)).toContain("Workshop de Marketing");
+    expect(JSON.stringify(result)).not.toContain('"current":"check-in"');
+  });
+
+  it("renders the cross-event sub-nav for an ADMIN", async () => {
+    mocks.isAdmin.mockReturnValue(true);
+    mocks.getEvent.mockResolvedValue({ id: "event-1", name: "Workshop de Marketing" });
+
+    const result = await EventCheckInPage({ params: makeParams("event-1") });
+
+    expect(JSON.stringify(result)).toContain('"current":"check-in"');
   });
 });

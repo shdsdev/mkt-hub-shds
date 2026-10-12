@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
 import { getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
+import { EventSubNav } from "../../event-sub-nav";
 
 const STATUS_LABELS: Record<EventRegistrationRow["status"], string> = {
   confirmed: "Confirmado",
@@ -42,6 +43,7 @@ export default async function RegistrationsPage({
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <EventSubNav eventId={id} current="registrations" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-xl font-semibold">Registros: {event.name}</h1>

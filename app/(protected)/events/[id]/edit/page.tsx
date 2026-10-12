@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
 import { getEvent } from "@/modules/events";
 import { EventEditForm } from "./event-edit-form";
+import { EventSubNav } from "../../event-sub-nav";
 
 // ADMIN-only, same gate as app/(protected)/events/page.tsx.
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +20,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
         <h1 className="font-heading text-xl font-semibold">{event.name}</h1>
         <p className="text-sm text-muted-foreground">Estado actual: {event.status}</p>
       </div>
+
+      <EventSubNav eventId={event.id} current="edit" />
 
       {/* Keyed by updatedAt: after a save, revalidatePath re-fetches a fresh `event` object and
           re-renders this same mounted form with new defaultValue props on its (uncontrolled)

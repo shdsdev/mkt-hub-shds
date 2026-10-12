@@ -21,6 +21,8 @@ import {
   ChartColumnIncreasing,
   Users,
   UserRoundCheck,
+  Calendar,
+  CalendarDays,
 } from "lucide";
 import {
   Sidebar,
@@ -144,6 +146,9 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
               )}
               <NavItem href="/campaigns" idle={Megaphone} active={Volume2}>
                 Campañas
+              </NavItem>
+              <NavItem href="/events" idle={Calendar} active={CalendarDays}>
+                Eventos
               </NavItem>
             </SidebarMenu>
           </SidebarGroupContent>

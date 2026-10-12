@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
 import { getEvent, getEventInsights } from "@/modules/events";
+import { EventSubNav } from "../../event-sub-nav";
 
 function formatConversion(conversion: number | null): string {
   // design.md's scan_rate convention (src/modules/campaigns/service.ts) — a dash, never a
@@ -32,6 +33,7 @@ export default async function EventDashboardPage({ params }: { params: Promise<{
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <EventSubNav eventId={id} current="dashboard" />
       <h1 className="font-heading text-xl font-semibold">Resultados: {event.name}</h1>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Visitas" value={insights.visits} />

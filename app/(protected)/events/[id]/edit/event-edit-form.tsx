@@ -125,7 +125,17 @@ export function EventEditForm({ event }: { event: EventRow }) {
           </form>
         ) : null}
         {event.status !== "closed" ? (
-          <form action={closeEventAction}>
+          <form
+            action={closeEventAction}
+            onSubmit={(e) => {
+              // User feedback: "la landing se despublica a cada rato" — a plain click next to
+              // "Guardar cambios" was likely the cause, not a code bug (no duplicate rows, no
+              // code path flips status on save). This confirm is the mitigation.
+              if (!confirm("¿Cerrar este evento? Dejará de aceptar nuevos registros.")) {
+                e.preventDefault();
+              }
+            }}
+          >
             <input type="hidden" name="id" value={event.id} />
             <Button type="submit" variant="outline">
               Cerrar
