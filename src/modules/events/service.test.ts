@@ -60,6 +60,7 @@ import {
   recordEventVisit,
   listRegistrations,
   getEventInsights,
+  addAttendeeToRegistration,
 } from "./service";
 
 // Chainable mock builders matching the project's established pattern
@@ -620,6 +621,115 @@ describe("events service — registerForEvent", () => {
         primary: { fullName: "Ada Lovelace", email: "ada@example.com" },
       }),
     ).rejects.toBe(otherError);
+  });
+});
+
+// Admin feedback round ("master form" to add more companions to an ALREADY-submitted
+// registration): same per-event capacity lock as registerForEvent, but scoped to one existing
+// registration — the new attendee joins that registration's existing status rather than deciding
+// a fresh confirmed/waitlisted split.
+describe("events service — addAttendeeToRegistration", () => {
+  const confirmedRegistration = { id: "reg-1", eventId: "event-1", organizationId: "org-1", status: "confirmed" as const };
+  const waitlistedRegistration = { ...confirmedRegistration, status: "waitlisted" as const };
+  const cancelledRegistration = { ...confirmedRegistration, status: "cancelled" as const };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ execute: txExecuteMock, select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+    );
+  });
+
+  it("returns registration_not_found when the registration doesn't exist in this organization", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([]));
+
+    const result = await addAttendeeToRegistration({
+      registrationId: "reg-1",
+      organizationId: "org-1",
+      attendee: { fullName: "Alan Turing", email: "alan@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "registration_not_found" });
+    expect(txInsertMock).not.toHaveBeenCalled();
+  });
+
+  it("returns cancelled for a cancelled registration, without locking the event", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([cancelledRegistration]));
+
+    const result = await addAttendeeToRegistration({
+      registrationId: "reg-1",
+      organizationId: "org-1",
+      attendee: { fullName: "Alan Turing", email: "alan@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "cancelled" });
+    expect(txExecuteMock).not.toHaveBeenCalled();
+  });
+
+  it("adds an attendee to a confirmed registration under capacity", async () => {
+    const newAttendee = { id: "att-2", registrationId: "reg-1", fullName: "Alan Turing" };
+    txSelectMock
+      .mockReturnValueOnce(txChain([confirmedRegistration]))
+      .mockReturnValueOnce(txChain([{ ...baseEvent, capacity: 10 }]))
+      .mockReturnValueOnce(txChain([{ seatsUsed: 1 }]));
+    txInsertMock.mockReturnValueOnce(txChain([newAttendee]));
+
+    const result = await addAttendeeToRegistration({
+      registrationId: "reg-1",
+      organizationId: "org-1",
+      attendee: { fullName: "Alan Turing", email: "alan@example.com" },
+    });
+
+    expect(result).toEqual({ ok: true, attendee: newAttendee, registrationStatus: "confirmed" });
+  });
+
+  it("rejects adding to a confirmed registration when the event is at capacity", async () => {
+    txSelectMock
+      .mockReturnValueOnce(txChain([confirmedRegistration]))
+      .mockReturnValueOnce(txChain([{ ...baseEvent, capacity: 1 }]))
+      .mockReturnValueOnce(txChain([{ seatsUsed: 1 }]));
+
+    const result = await addAttendeeToRegistration({
+      registrationId: "reg-1",
+      organizationId: "org-1",
+      attendee: { fullName: "Alan Turing", email: "alan@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "at_capacity" });
+    expect(txInsertMock).not.toHaveBeenCalled();
+  });
+
+  it("adds an attendee to a waitlisted registration without checking capacity", async () => {
+    const newAttendee = { id: "att-2", registrationId: "reg-1", fullName: "Alan Turing" };
+    txSelectMock
+      .mockReturnValueOnce(txChain([waitlistedRegistration]))
+      .mockReturnValueOnce(txChain([{ ...baseEvent, capacity: 1 }]));
+    txInsertMock.mockReturnValueOnce(txChain([newAttendee]));
+
+    const result = await addAttendeeToRegistration({
+      registrationId: "reg-1",
+      organizationId: "org-1",
+      attendee: { fullName: "Alan Turing", email: "alan@example.com" },
+    });
+
+    expect(result).toEqual({ ok: true, attendee: newAttendee, registrationStatus: "waitlisted" });
+  });
+
+  it("maps a duplicate-email violation to duplicate_email", async () => {
+    txSelectMock
+      .mockReturnValueOnce(txChain([confirmedRegistration]))
+      .mockReturnValueOnce(txChain([{ ...baseEvent, capacity: null }]));
+    txInsertMock.mockImplementationOnce(() => {
+      throw { cause: { code: "23505", constraint_name: "event_attendees_event_email_active_unique" } };
+    });
+
+    const result = await addAttendeeToRegistration({
+      registrationId: "reg-1",
+      organizationId: "org-1",
+      attendee: { fullName: "Alan Turing", email: "alan@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "duplicate_email" });
   });
 });
 

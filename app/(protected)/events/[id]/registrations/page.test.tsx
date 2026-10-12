@@ -13,6 +13,11 @@ vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
 vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, listRegistrations: mocks.listRegistrations }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
+vi.mock("./add-companion-row", () => ({
+  AddCompanionRow: ({ registrationId }: { registrationId: string }) => (
+    <div data-add-companion-registration-id={registrationId} />
+  ),
+}));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a href={href}>{children}</a>

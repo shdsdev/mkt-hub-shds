@@ -1,0 +1,86 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { getCurrentUser } from "@/modules/auth";
+import { isActive, isAdmin } from "@/modules/users";
+import { addAttendeeToRegistration, getEvent, type AddAttendeeToRegistrationResult } from "@/modules/events";
+import { sendConfirmationEmail } from "@/modules/notifications";
+import { exportQrPng } from "@/modules/qr";
+
+const PERMISSION_ERROR = "No tienes permiso para administrar registros.";
+const INVALID_FORM_ERROR = "Revisa los datos del acompañante.";
+
+const REASON_MESSAGES: Record<Exclude<AddAttendeeToRegistrationResult, { ok: true }>["reason"], string> = {
+  registration_not_found: "No se encontró el registro.",
+  cancelled: "Este registro está cancelado.",
+  at_capacity: "El evento está a capacidad — no se puede agregar más gente a un registro confirmado.",
+  duplicate_email: "Ya existe un asistente activo con ese correo en este evento.",
+};
+
+const schema = z.object({
+  registrationId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  fullName: z.string().trim().min(1).max(255),
+  email: z.string().trim().email().max(255),
+  phone: z.string().trim().max(50).optional().or(z.literal("")),
+  company: z.string().trim().max(255).optional().or(z.literal("")),
+  jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
+});
+
+export type AddCompanionFormState = { error?: string; success?: boolean };
+
+// Admin feedback round: a "master form" to add more companions to a registration that was
+// already submitted (not the public registration form — that stays scoped to the person
+// registering themselves). ADMIN-only, same gate shape as app/(protected)/events/actions.ts.
+export async function addCompanionAction(
+  _prevState: AddCompanionFormState,
+  formData: FormData,
+): Promise<AddCompanionFormState> {
+  const user = await getCurrentUser();
+  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) return { error: PERMISSION_ERROR };
+
+  const parsed = schema.safeParse({
+    registrationId: formData.get("registrationId"),
+    eventId: formData.get("eventId"),
+    fullName: formData.get("fullName"),
+    email: formData.get("email"),
+    phone: formData.get("phone") ?? undefined,
+    company: formData.get("company") ?? undefined,
+    jobTitle: formData.get("jobTitle") ?? undefined,
+  });
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await addAttendeeToRegistration({
+    registrationId: parsed.data.registrationId,
+    organizationId: user.profile.organizationId,
+    attendee: {
+      fullName: parsed.data.fullName,
+      email: parsed.data.email,
+      phone: parsed.data.phone || undefined,
+      company: parsed.data.company || undefined,
+      jobTitle: parsed.data.jobTitle || undefined,
+    },
+  });
+
+  if (!result.ok) return { error: REASON_MESSAGES[result.reason] };
+
+  // design.md "Emails sent AFTER commit, never inside the lock" — same convention as
+  // registerForEventAction/cancelRegistrationAction.
+  if (result.registrationStatus === "confirmed") {
+    const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+    const qrPng = await exportQrPng(result.attendee.passToken, {});
+    await sendConfirmationEmail({
+      organizationId: result.attendee.organizationId,
+      attendeeId: result.attendee.id,
+      to: result.attendee.email,
+      attendeeName: result.attendee.fullName,
+      eventName: event?.name ?? "",
+      backupCode: result.attendee.backupCode,
+      qrPngBase64: qrPng.toString("base64"),
+    });
+  }
+
+  revalidatePath(`/events/${parsed.data.eventId}/registrations`);
+  return { success: true };
+}

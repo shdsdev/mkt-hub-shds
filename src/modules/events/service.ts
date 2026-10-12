@@ -353,6 +353,80 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
   }
 }
 
+export type AddAttendeeToRegistrationInput = {
+  registrationId: string;
+  organizationId: string;
+  attendee: AttendeeInput;
+};
+
+export type AddAttendeeToRegistrationResult =
+  | { ok: true; attendee: EventAttendeeRow; registrationStatus: "confirmed" | "waitlisted" }
+  | { ok: false; reason: "registration_not_found" | "cancelled" | "at_capacity" | "duplicate_email" };
+
+// Admin feedback round: a "master form" to add more companions to a registration AFTER it was
+// already submitted. The new attendee joins the registration's EXISTING status (design.md "whole
+// registration group shares one status" stays true — this never splits a confirmed registration
+// into mixed confirmed/waitlisted attendees); a confirmed registration that's now at capacity is
+// rejected outright (`at_capacity`) rather than silently waitlisting just the new person alone. A
+// waitlisted registration skips the capacity check entirely — it isn't holding a seat either way.
+export async function addAttendeeToRegistration(
+  input: AddAttendeeToRegistrationInput,
+): Promise<AddAttendeeToRegistrationResult> {
+  try {
+    return await db.transaction(async (tx) => {
+      const [registration] = await tx
+        .select()
+        .from(eventRegistrations)
+        .where(
+          and(
+            eq(eventRegistrations.id, input.registrationId),
+            eq(eventRegistrations.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1);
+      if (!registration) return { ok: false, reason: "registration_not_found" };
+      if (registration.status === "cancelled") return { ok: false, reason: "cancelled" };
+
+      await lockEventForCapacityDecision(tx, registration.eventId);
+
+      const [event] = await tx.select().from(events).where(eq(events.id, registration.eventId)).limit(1);
+      if (!event) return { ok: false, reason: "registration_not_found" };
+
+      if (registration.status !== "waitlisted" && event.capacity !== null) {
+        const seatsUsed = await countConfirmedSeats(tx, registration.eventId);
+        if (seatsUsed + 1 > event.capacity) return { ok: false, reason: "at_capacity" };
+      }
+
+      const [row] = await tx
+        .insert(eventAttendees)
+        .values({
+          organizationId: event.organizationId,
+          eventId: registration.eventId,
+          registrationId: registration.id,
+          fullName: input.attendee.fullName,
+          email: input.attendee.email,
+          emailNormalized: normalizeEmail(input.attendee.email),
+          phone: input.attendee.phone,
+          company: input.attendee.company,
+          jobTitle: input.attendee.jobTitle,
+          passToken: generateOpaqueToken(),
+          backupCode: generateBackupCode(),
+          isActive: true,
+        })
+        .returning();
+
+      return {
+        ok: true,
+        attendee: row,
+        registrationStatus: registration.status === "waitlisted" ? "waitlisted" : "confirmed",
+      };
+    });
+  } catch (error) {
+    if (isDuplicateEmailViolation(error)) return { ok: false, reason: "duplicate_email" };
+    throw error;
+  }
+}
+
 export type CancelRegistrationResult =
   | { ok: true; registration: EventRegistrationRow; promoted?: { registration: EventRegistrationRow; attendees: EventAttendeeRow[] } }
   | { ok: false; reason: "invalid_token" | "already_cancelled" };
