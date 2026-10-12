@@ -5,6 +5,7 @@ import { isActive, isAdmin } from "@/modules/users";
 import { getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
 import { EventSubNav } from "../../event-sub-nav";
 import { AddCompanionRow } from "./add-companion-row";
+import { RegistrationDetailSheet } from "./registration-detail-sheet";
 
 const STATUS_LABELS: Record<EventRegistrationRow["status"], string> = {
   confirmed: "Confirmado",
@@ -118,14 +119,20 @@ export default async function RegistrationsPage({
                   <td className="py-2 text-muted-foreground">{registration.utmSource ?? "—"}</td>
                   <td className="py-2">{primary?.checkedInAt ? "Registrado" : "Pendiente"}</td>
                   <td className="py-2">
-                    {registration.status !== "cancelled" ? (
-                      <AddCompanionRow
-                        registrationId={registration.id}
-                        eventId={id}
-                        collectCompany={event.collectCompany}
-                        collectJobTitle={event.collectJobTitle}
+                    <div className="flex flex-col items-start gap-1">
+                      <RegistrationDetailSheet
+                        registration={registration}
+                        statusLabel={STATUS_LABELS[registration.status]}
                       />
-                    ) : null}
+                      {registration.status !== "cancelled" ? (
+                        <AddCompanionRow
+                          registrationId={registration.id}
+                          eventId={id}
+                          collectCompany={event.collectCompany}
+                          collectJobTitle={event.collectJobTitle}
+                        />
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               );

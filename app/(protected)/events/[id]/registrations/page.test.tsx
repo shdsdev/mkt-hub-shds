@@ -18,6 +18,9 @@ vi.mock("./add-companion-row", () => ({
     <div data-add-companion-registration-id={registrationId} />
   ),
 }));
+vi.mock("./registration-detail-sheet", () => ({
+  RegistrationDetailSheet: () => <div data-registration-detail-sheet="" />,
+}));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a href={href}>{children}</a>
