@@ -421,3 +421,86 @@ export async function getRegistrationByCancelToken(
     .limit(1);
   return rows[0];
 }
+
+export type CheckInInput = {
+  eventId: string;
+  passToken?: string;
+  backupCode?: string;
+  checkedInBy: string;
+};
+
+export type CheckInResult =
+  | { ok: true; attendee: EventAttendeeRow; alreadyCheckedIn: boolean }
+  | { ok: false; reason: "not_found" };
+
+// spec.md "Individual Attendee Passes" / "Backup Code Manual Check-In" / "Duplicate Check-In
+// Prevention". Both lookups are scoped to `eventId` — the staff member checking people in is
+// always doing so for one specific event (design.md's check-in route is per-event), and
+// `backupCode` is only unique WITHIN an event (db.ts `event_attendees_event_backup_code_unique`),
+// never globally. A re-scan of an already-checked-in attendee returns the prior timestamp as-is
+// and performs no update at all — idempotent by construction, not by a second write that happens
+// to set the same value.
+export async function checkInAttendee(input: CheckInInput): Promise<CheckInResult> {
+  if (!input.passToken && !input.backupCode) return { ok: false, reason: "not_found" };
+
+  const condition = input.passToken
+    ? and(eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.passToken, input.passToken))
+    : and(eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.backupCode, input.backupCode!));
+
+  const [attendee] = await db.select().from(eventAttendees).where(condition).limit(1);
+  if (!attendee) return { ok: false, reason: "not_found" };
+  if (attendee.checkedInAt) return { ok: true, attendee, alreadyCheckedIn: true };
+
+  const [updated] = await db
+    .update(eventAttendees)
+    .set({ checkedInAt: new Date(), checkedInBy: input.checkedInBy })
+    .where(eq(eventAttendees.id, attendee.id))
+    .returning();
+
+  // design.md "per-attendee checked_in_at remains authoritative; registration flips to
+  // checked_in on first attendee check-in" — unconditional on every (necessarily first, since
+  // this branch only runs once per attendee) successful check-in.
+  await db
+    .update(eventRegistrations)
+    .set({ status: "checked_in" })
+    .where(eq(eventRegistrations.id, attendee.registrationId))
+    .returning();
+
+  return { ok: true, attendee: updated, alreadyCheckedIn: false };
+}
+
+// design.md "Testing Strategy" lists "reminder-due arithmetic" as its own unit — kept pure and
+// separate from the query below so the window logic needs no real clock or SQL interval
+// arithmetic to test. Due from the moment `reminderOffsetMinutes` before `startsAt` is reached,
+// until the event actually starts (never reminds about an event already underway).
+export function isReminderDue(now: Date, startsAt: Date, reminderOffsetMinutes: number): boolean {
+  const reminderOpensAt = startsAt.getTime() - reminderOffsetMinutes * 60_000;
+  return now.getTime() >= reminderOpensAt && now.getTime() < startsAt.getTime();
+}
+
+export type DueReminderAttendee = { event: EventRow; attendee: EventAttendeeRow };
+
+// spec.md "Webhook-Driven Reminder Trigger" — one query joining confirmed/active attendees of
+// published events to their event, then filtering by `isReminderDue` in application code rather
+// than a raw SQL interval predicate (keeps the due-window logic in the one place it's unit
+// tested). Exactly-once delivery per attendee is NOT this function's job — it just lists who is
+// currently due; `sendReminderEmail`'s `claimNotification` call is the idempotency boundary, safe
+// to call every time this list includes the same attendee across repeated webhook invocations.
+export async function listDueReminderAttendees(now: Date = new Date()): Promise<DueReminderAttendee[]> {
+  const rows = await db
+    .select({ event: events, attendee: eventAttendees })
+    .from(eventAttendees)
+    .innerJoin(eventRegistrations, eq(eventAttendees.registrationId, eventRegistrations.id))
+    .innerJoin(events, eq(eventAttendees.eventId, events.id))
+    .where(
+      and(
+        eq(eventAttendees.isActive, true),
+        eq(eventRegistrations.status, "confirmed"),
+        eq(events.status, "published"),
+      ),
+    );
+
+  return rows.filter(
+    ({ event }) => event.reminderOffsetMinutes !== null && isReminderDue(now, event.startsAt, event.reminderOffsetMinutes),
+  );
+}

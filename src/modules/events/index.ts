@@ -13,6 +13,9 @@ export {
   getRegistrationByCancelToken,
   registerForEvent,
   cancelRegistrationByToken,
+  checkInAttendee,
+  isReminderDue,
+  listDueReminderAttendees,
   type EventRow,
   type EventMutationResult,
   type CreateEventInput,
@@ -24,4 +27,7 @@ export {
   type RegisterForEventInput,
   type RegisterForEventResult,
   type CancelRegistrationResult,
+  type CheckInInput,
+  type CheckInResult,
+  type DueReminderAttendee,
 } from "./service";

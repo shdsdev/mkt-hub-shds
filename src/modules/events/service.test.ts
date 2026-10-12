@@ -38,7 +38,7 @@ vi.mock("@/modules/users", () => ({
 }));
 
 import { and, eq } from "drizzle-orm";
-import { events, eventRegistrations } from "./db";
+import { events, eventRegistrations, eventAttendees } from "./db";
 import {
   CROCKFORD_BASE32_ALPHABET,
   generateBackupCode,
@@ -54,6 +54,9 @@ import {
   getRegistrationByCancelToken,
   registerForEvent,
   cancelRegistrationByToken,
+  isReminderDue,
+  listDueReminderAttendees,
+  checkInAttendee,
 } from "./service";
 
 // Chainable mock builders matching the project's established pattern
@@ -76,12 +79,14 @@ function updateChain(rows: unknown[]) {
 function selectChain<T>(rows: T[]) {
   const chain = {
     from: vi.fn(),
+    innerJoin: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
     limit: vi.fn(),
     then: (resolve: (value: T[]) => unknown) => Promise.resolve(rows).then(resolve),
   };
   chain.from.mockReturnValue(chain);
+  chain.innerJoin.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
   chain.orderBy.mockReturnValue(chain);
   chain.limit.mockReturnValue(chain);
@@ -659,5 +664,159 @@ describe("events service — email normalization", () => {
   it("is stable under repeated normalization", () => {
     const once = normalizeEmail("Person@Domain.com");
     expect(normalizeEmail(once)).toBe(once);
+  });
+});
+
+// tasks.md 4.1/4.2 — check-in by pass_token or backup_code, scoped to the event the staff member
+// is checking people into; re-scan is idempotent (no mutation, returns the prior timestamp).
+describe("events service — checkInAttendee", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns not_found when neither pass_token nor backup_code is given", async () => {
+    const result = await checkInAttendee({ eventId: "event-1", checkedInBy: "staff-1" });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    expect(selectMock).not.toHaveBeenCalled();
+  });
+
+  it("returns not_found when no attendee matches the pass token for this event", async () => {
+    selectMock.mockReturnValue(selectChain([]));
+
+    const result = await checkInAttendee({
+      eventId: "event-1",
+      passToken: "unknown-token",
+      checkedInBy: "staff-1",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+  });
+
+  it("checks in an attendee by pass token and flips the registration to checked_in", async () => {
+    const attendee = {
+      id: "att-1",
+      eventId: "event-1",
+      registrationId: "reg-1",
+      passToken: "pass-token-1",
+      checkedInAt: null,
+    };
+    const checkedInAttendee = { ...attendee, checkedInAt: new Date("2026-11-01T18:05:00Z"), checkedInBy: "staff-1" };
+    selectMock.mockReturnValueOnce(selectChain([attendee]));
+    updateMock
+      .mockReturnValueOnce(updateChain([checkedInAttendee]))
+      .mockReturnValueOnce(updateChain([{ id: "reg-1", status: "checked_in" }]));
+
+    const result = await checkInAttendee({
+      eventId: "event-1",
+      passToken: "pass-token-1",
+      checkedInBy: "staff-1",
+    });
+
+    expect(result).toEqual({ ok: true, attendee: checkedInAttendee, alreadyCheckedIn: false });
+    expect(updateMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("checks in an attendee by backup code scoped to the event", async () => {
+    const attendee = {
+      id: "att-1",
+      eventId: "event-1",
+      registrationId: "reg-1",
+      backupCode: "ABCD1234",
+      checkedInAt: null,
+    };
+    const checkedInAttendee = { ...attendee, checkedInAt: new Date(), checkedInBy: "staff-1" };
+    const chain = selectChain([attendee]);
+    selectMock.mockReturnValueOnce(chain);
+    updateMock
+      .mockReturnValueOnce(updateChain([checkedInAttendee]))
+      .mockReturnValueOnce(updateChain([{ id: "reg-1", status: "checked_in" }]));
+
+    await checkInAttendee({ eventId: "event-1", backupCode: "ABCD1234", checkedInBy: "staff-1" });
+
+    expect(chain.where).toHaveBeenCalledWith(
+      and(eq(eventAttendees.eventId, "event-1"), eq(eventAttendees.backupCode, "ABCD1234")),
+    );
+  });
+
+  it("is idempotent on re-scan: returns the prior timestamp without mutating anything", async () => {
+    const alreadyCheckedIn = {
+      id: "att-1",
+      eventId: "event-1",
+      registrationId: "reg-1",
+      passToken: "pass-token-1",
+      checkedInAt: new Date("2026-11-01T18:00:00Z"),
+      checkedInBy: "staff-0",
+    };
+    selectMock.mockReturnValueOnce(selectChain([alreadyCheckedIn]));
+
+    const result = await checkInAttendee({
+      eventId: "event-1",
+      passToken: "pass-token-1",
+      checkedInBy: "staff-1",
+    });
+
+    expect(result).toEqual({ ok: true, attendee: alreadyCheckedIn, alreadyCheckedIn: true });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+// tasks.md 4.3 — reminder-due arithmetic as a pure function (design.md "Testing Strategy"),
+// separated from the query so the window logic is testable without a real clock/SQL interval.
+describe("events service — isReminderDue", () => {
+  const startsAt = new Date("2026-11-01T18:00:00Z");
+
+  it("is not due more than the offset before the start time", () => {
+    const now = new Date("2026-11-01T16:00:00Z"); // 2h before, offset is 60min
+    expect(isReminderDue(now, startsAt, 60)).toBe(false);
+  });
+
+  it("is due exactly at the offset window and up to the start time", () => {
+    const atWindowOpen = new Date("2026-11-01T17:00:00Z"); // exactly 60min before
+    const justBeforeStart = new Date("2026-11-01T17:59:00Z");
+    expect(isReminderDue(atWindowOpen, startsAt, 60)).toBe(true);
+    expect(isReminderDue(justBeforeStart, startsAt, 60)).toBe(true);
+  });
+
+  it("is no longer due once the event has started", () => {
+    const afterStart = new Date("2026-11-01T18:00:00Z");
+    expect(isReminderDue(afterStart, startsAt, 60)).toBe(false);
+  });
+});
+
+// tasks.md 4.3 — the reminder webhook's data source: confirmed, active attendees of a published
+// event whose reminder window is open right now.
+describe("events service — listDueReminderAttendees", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns only attendees whose event's reminder window is currently open", async () => {
+    const now = new Date("2026-11-01T17:30:00Z");
+    const dueEvent = { ...baseEvent, id: "event-due", status: "published" as const, startsAt: new Date("2026-11-01T18:00:00Z"), reminderOffsetMinutes: 60 };
+    const notYetDueEvent = { ...baseEvent, id: "event-not-due", status: "published" as const, startsAt: new Date("2026-11-03T18:00:00Z"), reminderOffsetMinutes: 60 };
+    const attendeeDue = { id: "att-1", eventId: "event-due" };
+    const attendeeNotDue = { id: "att-2", eventId: "event-not-due" };
+    selectMock.mockReturnValue(
+      selectChain([
+        { event: dueEvent, attendee: attendeeDue },
+        { event: notYetDueEvent, attendee: attendeeNotDue },
+      ]),
+    );
+
+    const result = await listDueReminderAttendees(now);
+
+    expect(result).toEqual([{ event: dueEvent, attendee: attendeeDue }]);
+  });
+
+  it("excludes events with no reminder configured", async () => {
+    const now = new Date("2026-11-01T17:30:00Z");
+    const noReminderEvent = { ...baseEvent, id: "event-x", status: "published" as const, startsAt: new Date("2026-11-01T18:00:00Z"), reminderOffsetMinutes: null };
+    selectMock.mockReturnValue(
+      selectChain([{ event: noReminderEvent, attendee: { id: "att-1", eventId: "event-x" } }]),
+    );
+
+    const result = await listDueReminderAttendees(now);
+    expect(result).toEqual([]);
   });
 });
