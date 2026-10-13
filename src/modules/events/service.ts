@@ -71,6 +71,7 @@ export type CreateEventInput = {
   heroImageUrl?: string | null;
   agenda?: AgendaItem[];
   sponsorLogos?: SponsorLogo[];
+  registrationFormConfig?: EventRow["registrationFormConfig"];
 };
 
 // spec.md "ADMIN-Only Event Authoring": only ADMIN may create, edit, publish, or close events;
@@ -113,6 +114,7 @@ export type UpdateEventChanges = Partial<{
   heroImageUrl: string | null;
   agenda: AgendaItem[];
   sponsorLogos: SponsorLogo[];
+  registrationFormConfig: EventRow["registrationFormConfig"];
 }>;
 
 export async function updateEvent(input: {

@@ -11,6 +11,7 @@ import {
   setEventStatus,
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
+  registrationFormConfigSchema,
 } from "@/modules/events";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar eventos.";
@@ -58,6 +59,19 @@ function jsonArrayField<T extends z.ZodTypeAny>(itemSchema: T) {
     .pipe(z.array(itemSchema));
 }
 
+const registrationFormConfigField = z
+  .string()
+  .min(1)
+  .transform((value, ctx) => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Configuración inválida." });
+      return z.NEVER;
+    }
+  })
+  .pipe(registrationFormConfigSchema);
+
 const agendaItemSchema = z.object({
   time: z.string().trim().min(1).max(50),
   title: z.string().trim().min(1).max(255),
@@ -90,6 +104,7 @@ const eventFieldsSchema = z.object({
   heroImageUrl: z.string().trim().url().max(2000).optional().or(z.literal("")),
   agenda: jsonArrayField(agendaItemSchema),
   sponsorLogos: jsonArrayField(sponsorLogoSchema),
+  registrationFormConfig: registrationFormConfigField.optional(),
 });
 
 export type EventFormState = { error?: string; success?: string; eventId?: string };
@@ -120,6 +135,7 @@ function readEventFields(formData: FormData) {
     heroImageUrl: formData.get("heroImageUrl") ?? undefined,
     agenda: formData.get("agenda") ?? undefined,
     sponsorLogos: formData.get("sponsorLogos") ?? undefined,
+    registrationFormConfig: formData.get("registrationFormConfig") ?? undefined,
   };
 }
 
@@ -193,6 +209,7 @@ export async function updateEventAction(
         parsed.data.heroImageUrl === undefined ? undefined : parsed.data.heroImageUrl || null,
       agenda: parsed.data.agenda,
       sponsorLogos: parsed.data.sponsorLogos,
+      registrationFormConfig: parsed.data.registrationFormConfig,
     },
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };

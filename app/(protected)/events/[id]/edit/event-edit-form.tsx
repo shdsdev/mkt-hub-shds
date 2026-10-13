@@ -2,7 +2,6 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/checkbox";
 import { Input } from "@/components/ui/input";
 import type { EventRow } from "@/modules/events";
 import {
@@ -11,6 +10,7 @@ import {
   closeEventAction,
   type EventFormState,
 } from "../../actions";
+import { resolveRegistrationFormConfig, type RegistrationFormConfig } from "@/modules/events";
 import { EventImageUpload } from "../../event-image-upload";
 import { AgendaEditor } from "../../agenda-editor";
 import { SponsorLogosEditor } from "../../sponsor-logos-editor";
@@ -37,9 +37,34 @@ export function EventEditForm({
 }) {
   const [state, formAction, pending] = useActionState(updateEventAction, initialState);
   // spec.md "Fixed Optional Field Catalog" — seeded from the event's current toggle state.
-  const [collectCompany, setCollectCompany] = useState(event.collectCompany);
-  const [collectJobTitle, setCollectJobTitle] = useState(event.collectJobTitle);
+  const [formConfig, setFormConfig] = useState<RegistrationFormConfig>(() => resolveRegistrationFormConfig(event));
   const [heroImageUrl, setHeroImageUrl] = useState<string | undefined>(event.heroImageUrl ?? undefined);
+
+  function updateField(field: "phone" | "company" | "jobTitle", key: "visible" | "required", value: boolean) {
+    setFormConfig((current) => ({
+      ...current,
+      fields: {
+        ...current.fields,
+        [field]: {
+          ...current.fields[field],
+          [key]: key === "required" ? value && current.fields[field].visible : value,
+          ...(key === "visible" && !value ? { required: false } : {}),
+        },
+      },
+    }));
+  }
+
+  function updateOptionGroup(group: "clientBrands" | "interests", option: string, enabled: boolean) {
+    setFormConfig((current) => ({
+      ...current,
+      [group]: {
+        ...current[group],
+        options: enabled
+          ? [...current[group].options, option]
+          : current[group].options.filter((value) => value !== option),
+      },
+    }));
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -99,20 +124,141 @@ export function EventEditForm({
         <div className="sm:col-span-2">
           <SponsorLogosEditor organizationId={event.organizationId} initial={event.sponsorLogos} />
         </div>
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <p className="text-sm font-medium">Campos opcionales del formulario de registro</p>
-          <Checkbox
-            checked={collectCompany}
-            onChange={setCollectCompany}
-            label="Solicitar empresa"
-          />
-          <input type="hidden" name="collectCompany" value={collectCompany ? "true" : ""} />
-          <Checkbox
-            checked={collectJobTitle}
-            onChange={setCollectJobTitle}
-            label="Solicitar puesto"
-          />
-          <input type="hidden" name="collectJobTitle" value={collectJobTitle ? "true" : ""} />
+        <div className="flex flex-col gap-4 rounded-md border border-border p-4 sm:col-span-2">
+          <div>
+            <p className="text-sm font-medium">Configuración del formulario de registro</p>
+            <p className="text-xs text-muted-foreground">Definí qué datos solicita este evento y cuáles son obligatorios.</p>
+          </div>
+          <input type="hidden" name="registrationFormConfig" value={JSON.stringify(formConfig)} />
+          <input type="hidden" name="collectCompany" value={formConfig.fields.company.visible ? "true" : ""} />
+          <input type="hidden" name="collectJobTitle" value={formConfig.fields.jobTitle.visible ? "true" : ""} />
+          <div className="grid gap-2 sm:grid-cols-3">
+            <p className="text-xs font-medium">Campo</p>
+            <p className="text-xs font-medium">Mostrar</p>
+            <p className="text-xs font-medium">Obligatorio</p>
+            <p className="text-sm">Nombre completo</p>
+            <p className="text-xs text-muted-foreground">Siempre visible</p>
+            <p className="text-xs text-muted-foreground">Siempre obligatorio</p>
+            <p className="text-sm">Correo electrónico</p>
+            <p className="text-xs text-muted-foreground">Siempre visible</p>
+            <p className="text-xs text-muted-foreground">Siempre obligatorio</p>
+            {(["phone", "company", "jobTitle"] as const).map((field) => {
+              const labels = { phone: "Teléfono", company: "Empresa", jobTitle: "Puesto" };
+              return (
+                <div key={field} className="contents">
+                  <p className="text-sm">{labels[field]}</p>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={formConfig.fields[field].visible}
+                      onChange={(e) => updateField(field, "visible", e.target.checked)}
+                    />
+                    Mostrar
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={formConfig.fields[field].required}
+                      disabled={!formConfig.fields[field].visible}
+                      onChange={(e) => updateField(field, "required", e.target.checked)}
+                    />
+                    Obligatorio
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={formConfig.companion.enabled}
+              onChange={(e) => setFormConfig((current) => ({ ...current, companion: { enabled: e.target.checked } }))}
+            />
+            Permitir un acompañante
+          </label>
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium">Cliente / marca</legend>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={formConfig.clientBrands.enabled}
+                onChange={(e) => setFormConfig((current) => ({ ...current, clientBrands: { ...current.clientBrands, enabled: e.target.checked } }))}
+              />
+              Mostrar selección de marca
+            </label>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(["shades", "bmighty", "drapery"] as const).map((option) => (
+                <label key={option} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={formConfig.clientBrands.options.includes(option)}
+                    disabled={!formConfig.clientBrands.enabled}
+                    onChange={(e) => updateOptionGroup("clientBrands", option, e.target.checked)}
+                  />
+                  {option === "bmighty" ? "BMighty" : option[0].toUpperCase() + option.slice(1)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium">Intereses</legend>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={formConfig.interests.enabled}
+                onChange={(e) => setFormConfig((current) => ({ ...current, interests: { ...current.interests, enabled: e.target.checked } }))}
+              />
+              Mostrar intereses
+            </label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {([
+                ["battery-motors", "Motores de baterías"],
+                ["wifi-automation", "Motores WiFi y automatización"],
+                ["curtains", "Cortinería"],
+                ["manual-and-motorized-rods", "Cortineros manuales y motorizados"],
+              ] as const).map(([option, label]) => (
+                <label key={option} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={formConfig.interests.options.includes(option)}
+                    disabled={!formConfig.interests.enabled}
+                    onChange={(e) => updateOptionGroup("interests", option, e.target.checked)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Texto de privacidad
+              <Input value={formConfig.consent.privacy.text} onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, privacy: { ...current.consent.privacy, text: e.target.value } } }))} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              URL de privacidad
+              <Input value={formConfig.consent.privacy.url} onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, privacy: { ...current.consent.privacy, url: e.target.value } } }))} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Texto de términos
+              <Input value={formConfig.consent.terms.text} onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, terms: { ...current.consent.terms, text: e.target.value } } }))} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              URL de términos
+              <Input value={formConfig.consent.terms.url} onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, terms: { ...current.consent.terms, url: e.target.value } } }))} />
+            </label>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={formConfig.consent.marketing.enabled}
+              onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, marketing: { ...current.consent.marketing, enabled: e.target.checked } } }))}
+            />
+            Solicitar consentimiento para comunicaciones comerciales
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Texto de comunicaciones comerciales
+            <Input value={formConfig.consent.marketing.text} onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, marketing: { ...current.consent.marketing, text: e.target.value } } }))} />
+          </label>
         </div>
         <div className="flex items-end sm:col-span-2">
           <Button type="submit" disabled={pending}>

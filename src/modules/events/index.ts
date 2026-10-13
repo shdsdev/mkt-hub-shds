@@ -4,6 +4,16 @@
 export { generateBackupCode, generateOpaqueToken, normalizeEmail } from "./service";
 export { getEventEmbedSnippet, getEventEmbedUrl } from "./embed";
 export {
+  CLIENT_BRAND_OPTIONS,
+  INTEREST_OPTIONS,
+  getDefaultRegistrationFormConfig,
+  registrationFormConfigSchema,
+  resolveRegistrationFormConfig,
+  type ClientBrandOption,
+  type InterestOption,
+  type RegistrationFormConfig,
+} from "./registration-form-config";
+export {
   createEvent,
   updateEvent,
   setEventStatus,

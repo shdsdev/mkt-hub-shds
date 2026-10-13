@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   setEventStatus: vi.fn(),
   setEventWebhookUrl: vi.fn(),
   regenerateEventWebhookSecret: vi.fn(),
+  registrationFormConfigSchema: require("zod").z.any(),
   revalidatePath: vi.fn(),
   redirect: vi.fn(),
 }));
@@ -21,6 +22,7 @@ vi.mock("@/modules/events", () => ({
   setEventStatus: mocks.setEventStatus,
   setEventWebhookUrl: mocks.setEventWebhookUrl,
   regenerateEventWebhookSecret: mocks.regenerateEventWebhookSecret,
+  registrationFormConfigSchema: mocks.registrationFormConfigSchema,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
