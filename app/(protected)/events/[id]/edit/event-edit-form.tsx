@@ -15,6 +15,7 @@ import { EventImageUpload } from "../../event-image-upload";
 import { AgendaEditor } from "../../agenda-editor";
 import { SponsorLogosEditor } from "../../sponsor-logos-editor";
 import { WebhookSettings } from "./webhook-settings";
+import { EmbedSettings } from "./embed-settings";
 
 const initialState: EventFormState = {};
 
@@ -25,7 +26,15 @@ function toDateTimeLocal(date: Date | null): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function EventEditForm({ event }: { event: EventRow }) {
+export function EventEditForm({
+  event,
+  embedUrl,
+  embedSnippet,
+}: {
+  event: EventRow;
+  embedUrl: string;
+  embedSnippet: string;
+}) {
   const [state, formAction, pending] = useActionState(updateEventAction, initialState);
   // spec.md "Fixed Optional Field Catalog" — seeded from the event's current toggle state.
   const [collectCompany, setCollectCompany] = useState(event.collectCompany);
@@ -150,6 +159,8 @@ export function EventEditForm({ event }: { event: EventRow }) {
         webhookUrl={event.webhookUrl}
         webhookSecret={event.webhookSecret}
       />
+
+      <EmbedSettings embedUrl={embedUrl} embedSnippet={embedSnippet} />
     </div>
   );
 }

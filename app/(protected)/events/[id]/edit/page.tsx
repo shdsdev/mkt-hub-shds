@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
-import { getEvent } from "@/modules/events";
+import { getEvent, getEventEmbedSnippet, getEventEmbedUrl } from "@/modules/events";
+import { env } from "@/lib/env";
 import { EventEditForm } from "./event-edit-form";
 import { EventSubNav } from "../../event-sub-nav";
 
@@ -13,6 +14,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const event = await getEvent(id, user.profile.organizationId);
   if (!event) notFound();
+  const embedUrl = getEventEmbedUrl(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
+  const embedSnippet = getEventEmbedSnippet(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
@@ -29,7 +32,12 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
           FieldControl after being initialized") because that's ambiguous once a field has its
           own uncontrolled state. The key forces React to treat a genuinely changed event as a new
           form instance (remount), instead of re-initializing already-mounted inputs. */}
-      <EventEditForm key={`${event.id}:${event.updatedAt.getTime()}`} event={event} />
+      <EventEditForm
+        key={`${event.id}:${event.updatedAt.getTime()}`}
+        event={event}
+        embedUrl={embedUrl}
+        embedSnippet={embedSnippet}
+      />
     </div>
   );
 }
