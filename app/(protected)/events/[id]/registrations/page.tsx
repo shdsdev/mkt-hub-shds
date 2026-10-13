@@ -99,6 +99,7 @@ export default async function RegistrationsPage({
               <th className="py-2">Fecha</th>
               <th className="py-2">UTM</th>
               <th className="py-2">Pase</th>
+              <th className="py-2">Seguimiento</th>
               <th className="py-2">Acciones</th>
             </tr>
           </thead>
@@ -109,7 +110,9 @@ export default async function RegistrationsPage({
                 <tr key={registration.id} className="border-t border-border">
                   <td className="py-2">
                     {primary?.fullName}
-                    <div className="text-muted-foreground">{primary?.email}</div>
+                    <div className="text-muted-foreground">
+                      {primary?.email ? <a href={`mailto:${primary.email}`} className="underline">{primary.email}</a> : null}
+                    </div>
                   </td>
                   <td className="py-2 text-muted-foreground">
                     {companions.map((companion) => companion.fullName).join(", ") || "—"}
@@ -118,6 +121,11 @@ export default async function RegistrationsPage({
                   <td className="py-2 text-muted-foreground">{registration.createdAt.toLocaleString()}</td>
                   <td className="py-2 text-muted-foreground">{registration.utmSource ?? "—"}</td>
                   <td className="py-2">{primary?.checkedInAt ? "Registrado" : "Pendiente"}</td>
+                  <td className="py-2">
+                    {registration.requestedMoreCompanions ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">Solicita más acompañantes</span>
+                    ) : "—"}
+                  </td>
                   <td className="py-2">
                     <div className="flex flex-col items-start gap-1">
                       <RegistrationDetailSheet

@@ -20,6 +20,16 @@ const UTM_LABELS: Record<string, string> = {
   utmId: "utm_id",
 };
 
+const OPTION_LABELS: Record<string, string> = {
+  shades: "Shades",
+  bmighty: "BMighty",
+  drapery: "Drapery",
+  "battery-motors": "Motores de baterías",
+  "wifi-automation": "Motores WiFi y automatización",
+  curtains: "Cortinería",
+  "manual-and-motorized-rods": "Cortineros manuales y motorizados",
+};
+
 // Admin feedback round: "prefiero... abrir un side panel al presionar la fila" — every field the
 // table's columns couldn't fit (phone/company/job title per attendee, backup code, check-in
 // timestamp, full UTM set, source) without the table itself going unreadably wide.
@@ -58,6 +68,28 @@ export function RegistrationDetailSheet({
                   </li>
                 ))}
               </ul>
+            </section>
+          ) : null}
+
+          {registration.requestedMoreCompanions || registration.clientBrands.length > 0 || registration.interests.length > 0 || registration.consents ? (
+            <section className="flex flex-col gap-1">
+              <h3 className="text-xs font-medium text-muted-foreground">Formulario</h3>
+              {registration.requestedMoreCompanions ? <p>Solicita más acompañantes: sí</p> : null}
+              {registration.clientBrands.length > 0 ? (
+                <p>Marcas: {registration.clientBrands.map((value) => OPTION_LABELS[value] ?? value).join(", ")}</p>
+              ) : null}
+              {registration.interests.length > 0 ? (
+                <p>Intereses: {registration.interests.map((value) => OPTION_LABELS[value] ?? value).join(", ")}</p>
+              ) : null}
+              {registration.consents ? (
+                <div className="text-xs text-muted-foreground">
+                  <p>Privacidad: {new Date(registration.consents.privacyAcceptedAt).toLocaleString()}</p>
+                  <p>Términos: {new Date(registration.consents.termsAcceptedAt).toLocaleString()}</p>
+                  {registration.consents.marketingAcceptedAt ? (
+                    <p>Marketing: {new Date(registration.consents.marketingAcceptedAt).toLocaleString()}</p>
+                  ) : null}
+                </div>
+              ) : null}
             </section>
           ) : null}
 

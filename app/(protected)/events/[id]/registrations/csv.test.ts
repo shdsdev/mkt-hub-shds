@@ -30,7 +30,7 @@ describe("buildRegistrationsCsv", () => {
   it("includes a header row even with no registrations", () => {
     const csv = buildRegistrationsCsv([]);
     expect(csv).toBe(
-      "fecha,estado,contacto_principal,correo_principal,acompanantes,utm_source,pase\r\n",
+      "fecha,estado,contacto_principal,correo_principal,acompanantes,utm_source,pase,solicita_mas_acompanantes,marcas,intereses,privacidad_aceptada,terminos_aceptados,marketing_aceptado\r\n",
     );
   });
 
@@ -74,5 +74,19 @@ describe("buildRegistrationsCsv", () => {
 
     const csv = buildRegistrationsCsv([row]);
     expect(csv).toContain('"Lovelace, Ada"');
+  });
+
+  it("exports follow-up, preferences, and consent status", () => {
+    const csv = buildRegistrationsCsv([registration({
+      requestedMoreCompanions: true,
+      clientBrands: ["shades"],
+      interests: ["curtains"],
+      consents: {
+        privacyAcceptedAt: "2026-10-13T10:00:00.000Z",
+        termsAcceptedAt: "2026-10-13T10:00:00.000Z",
+      },
+    })]);
+
+    expect(csv).toContain("sí,Shades,Cortinería,2026-10-13T10:00:00.000Z,2026-10-13T10:00:00.000Z");
   });
 });
