@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
-import { getEvent, getEventEmbedSnippet, getEventEmbedUrl, resolveRegistrationFormConfig } from "@/modules/events";
+import { getEvent, getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl, resolveRegistrationFormConfig } from "@/modules/events";
 import { env } from "@/lib/env";
 import { EventEditForm } from "./event-edit-form";
 import { EventSubNav } from "../../event-sub-nav";
+import { LandingLink } from "./landing-link";
 
 // ADMIN-only, same gate as app/(protected)/events/page.tsx.
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +17,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   if (!event) notFound();
   const embedUrl = getEventEmbedUrl(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
   const embedSnippet = getEventEmbedSnippet(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
+  const landingUrl = getEventLandingUrl(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
@@ -23,6 +25,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
         <h1 className="font-heading text-xl font-semibold">{event.name}</h1>
         <p className="text-sm text-muted-foreground">Estado actual: {event.status}</p>
       </div>
+
+      <LandingLink landingUrl={landingUrl} />
 
       <EventSubNav eventId={event.id} current="edit" />
 
