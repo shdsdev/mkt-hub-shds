@@ -21,6 +21,11 @@ vi.mock("./add-companion-row", () => ({
 vi.mock("./registration-detail-sheet", () => ({
   RegistrationDetailSheet: () => <div data-registration-detail-sheet="" />,
 }));
+vi.mock("./registrations-table", () => ({
+  RegistrationsTable: ({ registrations, eventId }: { registrations: unknown[]; eventId: string }) => (
+    <div data-testid="registrations-table">{eventId}:{registrations.length}</div>
+  ),
+}));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a href={href}>{children}</a>
@@ -94,7 +99,7 @@ describe("RegistrationsPage", () => {
     });
   });
 
-  it("renders the event name and each registration's primary contact", async () => {
+  it("passes filtered registrations to the interactive table", async () => {
     mocks.listRegistrations.mockResolvedValue([
       {
         id: "reg-1",
@@ -108,6 +113,7 @@ describe("RegistrationsPage", () => {
     const result = await RegistrationsPage({ params: params("event-1"), searchParams: searchParams() });
 
     expect(JSON.stringify(result)).toContain("Workshop de Marketing");
-    expect(JSON.stringify(result)).toContain("Ada Lovelace");
+     expect(JSON.stringify(result)).toContain('"registrations"');
+     expect(JSON.stringify(result)).toContain('"eventId":"event-1"');
   });
 });

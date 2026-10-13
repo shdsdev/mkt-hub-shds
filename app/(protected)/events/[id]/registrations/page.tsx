@@ -4,8 +4,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
 import { getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
 import { EventSubNav } from "../../event-sub-nav";
-import { AddCompanionRow } from "./add-companion-row";
-import { RegistrationDetailSheet } from "./registration-detail-sheet";
+import { RegistrationsTable } from "./registrations-table";
 
 const STATUS_LABELS: Record<EventRegistrationRow["status"], string> = {
   confirmed: "Confirmado",
@@ -90,63 +89,13 @@ export default async function RegistrationsPage({
       {registrations.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay registros que coincidan.</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-muted-foreground">
-              <th className="py-2">Contacto</th>
-              <th className="py-2">Acompañantes</th>
-              <th className="py-2">Estado</th>
-              <th className="py-2">Fecha</th>
-              <th className="py-2">UTM</th>
-              <th className="py-2">Pase</th>
-              <th className="py-2">Seguimiento</th>
-              <th className="py-2">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {registrations.map((registration) => {
-              const [primary, ...companions] = registration.attendees;
-              return (
-                <tr key={registration.id} className="border-t border-border">
-                  <td className="py-2">
-                    {primary?.fullName}
-                    <div className="text-muted-foreground">
-                      {primary?.email ? <a href={`mailto:${primary.email}`} className="underline">{primary.email}</a> : null}
-                    </div>
-                  </td>
-                  <td className="py-2 text-muted-foreground">
-                    {companions.map((companion) => companion.fullName).join(", ") || "—"}
-                  </td>
-                  <td className="py-2">{STATUS_LABELS[registration.status]}</td>
-                  <td className="py-2 text-muted-foreground">{registration.createdAt.toLocaleString()}</td>
-                  <td className="py-2 text-muted-foreground">{registration.utmSource ?? "—"}</td>
-                  <td className="py-2">{primary?.checkedInAt ? "Registrado" : "Pendiente"}</td>
-                  <td className="py-2">
-                    {registration.requestedMoreCompanions ? (
-                      <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">Solicita más acompañantes</span>
-                    ) : "—"}
-                  </td>
-                  <td className="py-2">
-                    <div className="flex flex-col items-start gap-1">
-                      <RegistrationDetailSheet
-                        registration={registration}
-                        statusLabel={STATUS_LABELS[registration.status]}
-                      />
-                      {registration.status !== "cancelled" ? (
-                        <AddCompanionRow
-                          registrationId={registration.id}
-                          eventId={id}
-                          collectCompany={event.collectCompany}
-                          collectJobTitle={event.collectJobTitle}
-                        />
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <RegistrationsTable
+          registrations={registrations}
+          eventId={id}
+          collectCompany={event.collectCompany}
+          collectJobTitle={event.collectJobTitle}
+          statusLabels={STATUS_LABELS}
+        />
       )}
     </div>
   );
