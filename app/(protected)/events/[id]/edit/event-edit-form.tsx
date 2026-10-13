@@ -3,14 +3,13 @@
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { EventRow } from "@/modules/events";
+import type { EventRow, RegistrationFormConfig } from "@/modules/events";
 import {
   updateEventAction,
   publishEventAction,
   closeEventAction,
   type EventFormState,
 } from "../../actions";
-import { resolveRegistrationFormConfig, type RegistrationFormConfig } from "@/modules/events";
 import { EventImageUpload } from "../../event-image-upload";
 import { AgendaEditor } from "../../agenda-editor";
 import { SponsorLogosEditor } from "../../sponsor-logos-editor";
@@ -28,16 +27,18 @@ function toDateTimeLocal(date: Date | null): string {
 
 export function EventEditForm({
   event,
+  formConfig: initialFormConfig,
   embedUrl,
   embedSnippet,
 }: {
   event: EventRow;
+  formConfig: RegistrationFormConfig;
   embedUrl: string;
   embedSnippet: string;
 }) {
   const [state, formAction, pending] = useActionState(updateEventAction, initialState);
   // spec.md "Fixed Optional Field Catalog" — seeded from the event's current toggle state.
-  const [formConfig, setFormConfig] = useState<RegistrationFormConfig>(() => resolveRegistrationFormConfig(event));
+  const [formConfig, setFormConfig] = useState<RegistrationFormConfig>(initialFormConfig);
   const [heroImageUrl, setHeroImageUrl] = useState<string | undefined>(event.heroImageUrl ?? undefined);
 
   function updateField(field: "phone" | "company" | "jobTitle", key: "visible" | "required", value: boolean) {

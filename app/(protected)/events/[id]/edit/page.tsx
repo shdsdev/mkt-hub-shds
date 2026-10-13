@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
-import { getEvent, getEventEmbedSnippet, getEventEmbedUrl } from "@/modules/events";
+import { getEvent, getEventEmbedSnippet, getEventEmbedUrl, resolveRegistrationFormConfig } from "@/modules/events";
 import { env } from "@/lib/env";
 import { EventEditForm } from "./event-edit-form";
 import { EventSubNav } from "../../event-sub-nav";
@@ -35,6 +35,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
       <EventEditForm
         key={`${event.id}:${event.updatedAt.getTime()}`}
         event={event}
+        formConfig={resolveRegistrationFormConfig(event)}
         embedUrl={embedUrl}
         embedSnippet={embedSnippet}
       />
