@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getEventEmbedSnippet, getEventEmbedUrl } from "./embed";
+import { getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl } from "./embed";
 
 describe("event embed helpers", () => {
   it("builds the public embed URL without a duplicate slash", () => {
@@ -19,6 +19,18 @@ describe("event embed helpers", () => {
   it("encodes a slug before placing it in the URL", () => {
     expect(getEventEmbedUrl("https://hub.example.com", "workshop mayo")).toBe(
       "https://hub.example.com/events/embed/workshop%20mayo",
+    );
+  });
+
+  it("builds the public landing URL without a duplicate slash", () => {
+    expect(getEventLandingUrl("https://hub.example.com/", "workshop-mayo")).toBe(
+      "https://hub.example.com/events/workshop-mayo",
+    );
+  });
+
+  it("encodes the event slug before placing it in the landing URL", () => {
+    expect(getEventLandingUrl("https://hub.example.com", "workshop mayo")).toBe(
+      "https://hub.example.com/events/workshop%20mayo",
     );
   });
 });
