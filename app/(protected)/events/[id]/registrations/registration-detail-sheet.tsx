@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import {
   Sheet,
-  SheetTrigger,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
 import type { RegistrationWithAttendees } from "@/modules/events";
+import { AddCompanionRow } from "./add-companion-row";
 
 const UTM_LABELS: Record<string, string> = {
   utmSource: "utm_source",
@@ -43,31 +42,66 @@ const OCCUPATION_LABELS: Record<string, string> = {
 export function RegistrationDetailSheet({
   registration,
   statusLabel,
+  open,
+  onOpenChange,
+  eventId,
+  collectCompany,
+  collectJobTitle,
 }: {
   registration: RegistrationWithAttendees;
   statusLabel: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  eventId: string;
+  collectCompany: boolean;
+  collectJobTitle: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const utmEntries = (Object.keys(UTM_LABELS) as (keyof typeof UTM_LABELS)[])
     .map((key) => [UTM_LABELS[key], registration[key as keyof RegistrationWithAttendees]] as const)
     .filter(([, value]) => Boolean(value));
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger className="text-xs text-primary underline">Ver detalle</SheetTrigger>
-      <SheetContent>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle>Registro</SheetTitle>
+          <SheetTitle>{registration.attendees[0]?.fullName ?? "Registro"}</SheetTitle>
           <SheetDescription>
-            {statusLabel} · {registration.createdAt.toLocaleString()} ·{" "}
-            {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
+            {statusLabel} · {registration.createdAt.toLocaleString()} · {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-4 overflow-y-auto px-4 pb-4 text-sm">
+        <div className="flex flex-col gap-6 px-4 pb-4 text-sm">
+          <section className="flex flex-col gap-3">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contacto</h3>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground">Correo</p>
+                <a href={`mailto:${registration.attendees[0]?.email ?? ""}`} className="break-all underline">
+                  {registration.attendees[0]?.email ?? "—"}
+                </a>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground">Teléfono</p>
+                <p>{registration.attendees[0]?.phone ?? "—"}</p>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground">Empresa</p>
+                <p>{registration.attendees[0]?.company ?? "—"}</p>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground">Puesto</p>
+                <p>{registration.attendees[0]?.jobTitle ?? "—"}</p>
+              </div>
+              <div className="rounded-md border border-border p-3 sm:col-span-2">
+                <p className="text-xs text-muted-foreground">Actividad profesional</p>
+                <p>{OCCUPATION_LABELS[registration.attendees[0]?.occupation ?? ""] ?? registration.attendees[0]?.occupation ?? "—"}</p>
+              </div>
+            </div>
+          </section>
+
           {utmEntries.length > 0 ? (
-            <section className="flex flex-col gap-1">
-              <h3 className="text-xs font-medium text-muted-foreground">Origen (UTM)</h3>
+            <section className="flex flex-col gap-2">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Origen (UTM)</h3>
               <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
                 {utmEntries.map(([label, value]) => (
                   <li key={label}>
@@ -80,7 +114,7 @@ export function RegistrationDetailSheet({
 
           {registration.requestedMoreCompanions || registration.clientBrands.length > 0 || registration.interests.length > 0 || registration.consents ? (
             <section className="flex flex-col gap-1">
-              <h3 className="text-xs font-medium text-muted-foreground">Formulario</h3>
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Preferencias</h3>
               {registration.requestedMoreCompanions ? <p>Solicita más acompañantes: sí</p> : null}
               {registration.clientBrands.length > 0 ? (
                 <p>Marcas: {registration.clientBrands.map((value) => OPTION_LABELS[value] ?? value).join(", ")}</p>
@@ -101,7 +135,7 @@ export function RegistrationDetailSheet({
           ) : null}
 
           <section className="flex flex-col gap-3">
-            <h3 className="text-xs font-medium text-muted-foreground">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Asistentes ({registration.attendees.length})
             </h3>
             {registration.attendees.map((attendee) => (
@@ -127,6 +161,18 @@ export function RegistrationDetailSheet({
               </div>
             ))}
           </section>
+
+          {registration.status !== "cancelled" ? (
+            <section className="flex flex-col gap-3 border-t border-border pt-4">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Acciones</h3>
+              <AddCompanionRow
+                registrationId={registration.id}
+                eventId={eventId}
+                collectCompany={collectCompany}
+                collectJobTitle={collectJobTitle}
+              />
+            </section>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>
