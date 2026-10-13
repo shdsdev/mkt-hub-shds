@@ -1,5 +1,6 @@
 import { getPublishedEventBySlugPublic, resolveRegistrationFormConfig } from "@/modules/events";
 import { RegisterForm } from "../../[id]/register-form";
+import { ResizeBridge } from "./resize-bridge";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -38,6 +39,7 @@ export default async function EmbedEventPage({
 
   return (
     <main className="min-h-screen bg-[#FAFAFA] p-4 font-sans text-[#202020] sm:p-6">
+      <ResizeBridge />
       <RegisterForm
         slug={event.slug}
         formConfig={resolveRegistrationFormConfig(event)}

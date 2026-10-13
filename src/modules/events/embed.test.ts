@@ -9,9 +9,11 @@ describe("event embed helpers", () => {
   });
 
   it("builds a copyable iframe snippet with safe defaults", () => {
-    expect(getEventEmbedSnippet("https://hub.example.com", "workshop-mayo")).toBe(
-      `<iframe src="https://hub.example.com/events/embed/workshop-mayo" style="width:100%;min-height:760px;border:0" loading="lazy" title="Formulario de registro"></iframe>`,
-    );
+    const snippet = getEventEmbedSnippet("https://hub.example.com", "workshop-mayo");
+    expect(snippet).toContain("data-event-registration-embed");
+    expect(snippet).toContain("https://hub.example.com/events/embed/workshop-mayo");
+    expect(snippet).toContain("event-registration:resize");
+    expect(snippet).toContain("event.source!==frame.contentWindow");
   });
 
   it("encodes a slug before placing it in the URL", () => {
