@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organizations } from "@/modules/users/db";
+import type { RegistrationFormConfig } from "./registration-form-config";
 
 // Agenda is a short, admin-ordered list of time blocks — not a scheduling system (no per-item
 // speakers/rooms by the original module's non-goals). `time` is free text ("10:00 AM", "Welcome")
@@ -66,6 +67,7 @@ export const events = pgTable("events", {
   // (PR1) are the data sinks these toggles control; PR3 wires the public form to read them.
   collectCompany: boolean("collect_company").notNull().default(false),
   collectJobTitle: boolean("collect_job_title").notNull().default(false),
+  registrationFormConfig: jsonb("registration_form_config").$type<RegistrationFormConfig | null>(),
   // Acquisition source capture — column set and naming reused exactly from
   // `src/modules/links/db.ts` (design.md "Interfaces"), read/validated via `@/modules/utm`.
   utmSource: text("utm_source"),
@@ -123,9 +125,19 @@ export const eventRegistrations = pgTable("event_registrations", {
   utmTerm: text("utm_term"),
   utmContent: text("utm_content"),
   utmId: text("utm_id"),
+  clientBrands: jsonb("client_brands").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  interests: jsonb("interests").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  requestedMoreCompanions: boolean("requested_more_companions").notNull().default(false),
+  consents: jsonb("consents").$type<RegistrationConsents | null>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type RegistrationConsents = {
+  privacyAcceptedAt: string;
+  termsAcceptedAt: string;
+  marketingAcceptedAt?: string;
+};
 
 // Person-level identity (design.md "Contact identity" — the key decision): full_name/email/phone
 // live here exactly once, never copied onto events/event_registrations, so a future CRM can

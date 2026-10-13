@@ -4,7 +4,14 @@ import { isIPv4, isIPv6 } from "node:net";
 import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isAdmin, type UserRole } from "@/modules/users";
-import { events, eventRegistrations, eventAttendees, type AgendaItem, type SponsorLogo } from "./db";
+import {
+  events,
+  eventRegistrations,
+  eventAttendees,
+  type AgendaItem,
+  type RegistrationConsents,
+  type SponsorLogo,
+} from "./db";
 
 export type { AgendaItem, SponsorLogo };
 
@@ -225,6 +232,14 @@ export type RegisterForEventInput = {
   source?: "public" | "admin_added";
   primary: AttendeeInput;
   companions?: AttendeeInput[];
+  clientBrands?: string[];
+  interests?: string[];
+  requestedMoreCompanions?: boolean;
+  consents?: {
+    privacyAcceptedAt: Date;
+    termsAcceptedAt: Date;
+    marketingAcceptedAt?: Date;
+  };
   utm?: UtmFields;
 };
 
@@ -322,6 +337,18 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
           utmTerm: input.utm?.utmTerm,
           utmContent: input.utm?.utmContent,
           utmId: input.utm?.utmId,
+          clientBrands: input.clientBrands ?? [],
+          interests: input.interests ?? [],
+          requestedMoreCompanions: input.requestedMoreCompanions ?? false,
+          consents: input.consents
+            ? ({
+                privacyAcceptedAt: input.consents.privacyAcceptedAt.toISOString(),
+                termsAcceptedAt: input.consents.termsAcceptedAt.toISOString(),
+                ...(input.consents.marketingAcceptedAt
+                  ? { marketingAcceptedAt: input.consents.marketingAcceptedAt.toISOString() }
+                  : {}),
+              } satisfies RegistrationConsents)
+            : null,
         })
         .returning();
 
