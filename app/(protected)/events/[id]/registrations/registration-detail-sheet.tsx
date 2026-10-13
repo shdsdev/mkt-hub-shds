@@ -9,6 +9,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import type { RegistrationWithAttendees } from "@/modules/events";
+import { CheckCircle2, Clock3, Mail, MessageCircle, Phone } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
 import { resendInvitationAction, type ResendInvitationState } from "./actions";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
@@ -69,46 +70,46 @@ export function RegistrationDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+      <SheetContent className="w-full max-w-none overflow-y-auto sm:max-w-[680px]">
         <SheetHeader>
-          <SheetTitle>{registration.attendees[0]?.fullName ?? "Registro"}</SheetTitle>
-          <SheetDescription>
+          <SheetTitle className="pr-8 text-xl font-semibold tracking-tight">{registration.attendees[0]?.fullName ?? "Registro"}</SheetTitle>
+          <SheetDescription className="text-xs">
             {statusLabel} · {registration.createdAt.toLocaleString()} · {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-col gap-6 px-4 pb-4 text-sm">
           <section className="flex flex-col gap-3">
-            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contacto</h3>
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Contacto</h3>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="rounded-md border border-border p-3">
-                <p className="text-xs text-muted-foreground">Correo</p>
-                <a href={`mailto:${registration.attendees[0]?.email ?? ""}`} className="break-all underline">
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Correo</p>
+                <a href={`mailto:${registration.attendees[0]?.email ?? ""}`} className="break-all text-sm font-medium underline underline-offset-2">
                   {registration.attendees[0]?.email ?? "—"}
                 </a>
               </div>
               <div className="rounded-md border border-border p-3">
-                <p className="text-xs text-muted-foreground">Teléfono</p>
-                <p>{registration.attendees[0]?.phone ?? "—"}</p>
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Teléfono</p>
+                <p className="text-sm font-medium">{registration.attendees[0]?.phone ?? "—"}</p>
               </div>
               <div className="rounded-md border border-border p-3">
-                <p className="text-xs text-muted-foreground">Empresa</p>
-                <p>{registration.attendees[0]?.company ?? "—"}</p>
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Empresa</p>
+                <p className="text-sm font-medium">{registration.attendees[0]?.company ?? "—"}</p>
               </div>
               <div className="rounded-md border border-border p-3">
-                <p className="text-xs text-muted-foreground">Puesto</p>
-                <p>{registration.attendees[0]?.jobTitle ?? "—"}</p>
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Puesto</p>
+                <p className="text-sm font-medium">{registration.attendees[0]?.jobTitle ?? "—"}</p>
               </div>
               <div className="rounded-md border border-border p-3 sm:col-span-2">
-                <p className="text-xs text-muted-foreground">Actividad profesional</p>
-                <p>{OCCUPATION_LABELS[registration.attendees[0]?.occupation ?? ""] ?? registration.attendees[0]?.occupation ?? "—"}</p>
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actividad profesional</p>
+                <p className="text-sm font-medium">{OCCUPATION_LABELS[registration.attendees[0]?.occupation ?? ""] ?? registration.attendees[0]?.occupation ?? "—"}</p>
               </div>
             </div>
           </section>
 
           {utmEntries.length > 0 ? (
             <section className="flex flex-col gap-2">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Origen (UTM)</h3>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Origen (UTM)</h3>
               <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
                 {utmEntries.map(([label, value]) => (
                   <li key={label}>
@@ -120,15 +121,13 @@ export function RegistrationDetailSheet({
           ) : null}
 
           {registration.requestedMoreCompanions || registration.clientBrands.length > 0 || registration.interests.length > 0 || registration.consents ? (
-            <section className="flex flex-col gap-1">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Preferencias</h3>
-              {registration.requestedMoreCompanions ? <p>Solicita más acompañantes: sí</p> : null}
-              {registration.clientBrands.length > 0 ? (
-                <p>Marcas: {registration.clientBrands.map((value) => OPTION_LABELS[value] ?? value).join(", ")}</p>
-              ) : null}
-              {registration.interests.length > 0 ? (
-                <p>Intereses: {registration.interests.map((value) => OPTION_LABELS[value] ?? value).join(", ")}</p>
-              ) : null}
+            <section className="flex flex-col gap-3 rounded-lg border border-border bg-card/40 p-4">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Preferencias</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div><p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Seguimiento</p><p className="mt-1 font-semibold">{registration.requestedMoreCompanions ? "Solicita más acompañantes" : "Sin solicitud adicional"}</p></div>
+                <div><p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Marcas</p><p className="mt-1 font-semibold">{registration.clientBrands.length > 0 ? registration.clientBrands.map((value) => OPTION_LABELS[value] ?? value).join(", ") : "No cliente"}</p></div>
+                <div className="sm:col-span-2"><p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Intereses</p><p className="mt-1 font-semibold">{registration.interests.length > 0 ? registration.interests.map((value) => OPTION_LABELS[value] ?? value).join(", ") : "Sin intereses seleccionados"}</p></div>
+              </div>
               {registration.consents ? (
                 <div className="text-xs text-muted-foreground">
                   <p>Privacidad: {new Date(registration.consents.privacyAcceptedAt).toLocaleString()}</p>
@@ -142,14 +141,16 @@ export function RegistrationDetailSheet({
           ) : null}
 
           <section className="flex flex-col gap-3">
-            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Asistentes ({registration.attendees.length})
             </h3>
             {registration.attendees.map((attendee) => (
-              <div key={attendee.id} className="flex flex-col gap-1 rounded-md border border-border p-3">
-                <p className="font-medium">{attendee.fullName}</p>
-                <p className="text-muted-foreground">{attendee.email}</p>
-                {attendee.phone ? <p className="text-muted-foreground">Tel: {attendee.phone}</p> : null}
+              <div key={attendee.id} className={`flex flex-col gap-2 rounded-lg border p-4 ${attendee.checkedInAt ? "border-emerald-500/40 bg-emerald-500/10" : "border-border"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div><p className="text-base font-semibold">{attendee.fullName}</p><p className="text-sm text-muted-foreground">{attendee.email}</p></div>
+                  {attendee.checkedInAt ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300"><CheckCircle2 className="size-3.5" /> Dentro</span> : <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"><Clock3 className="size-3.5" /> Pendiente</span>}
+                </div>
+                {attendee.phone ? <p className="text-sm text-muted-foreground">Tel: {attendee.phone}</p> : null}
                 {attendee.company ? (
                   <p className="text-muted-foreground">Empresa: {attendee.company}</p>
                 ) : null}
@@ -159,23 +160,21 @@ export function RegistrationDetailSheet({
                 {attendee.occupation ? (
                   <p className="text-muted-foreground">Actividad: {OCCUPATION_LABELS[attendee.occupation] ?? attendee.occupation}</p>
                 ) : null}
-                <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">Folio de acceso: {attendee.backupCode}</p>
-                <p className="text-xs text-muted-foreground">
-                  {attendee.checkedInAt
-                    ? `Check-in: ${attendee.checkedInAt.toLocaleString()}`
-                    : "Sin check-in"}
+                <div className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2"><p className="text-[11px] font-medium uppercase tracking-wide text-primary/80">Folio de acceso</p><p className="mt-1 font-mono text-lg font-bold tracking-wider text-primary">{attendee.backupCode}</p></div>
+                <p className={`text-xs font-medium ${attendee.checkedInAt ? "text-emerald-300" : "text-muted-foreground"}`}>
+                  {attendee.checkedInAt ? `Check-in: ${attendee.checkedInAt.toLocaleString()}` : "Sin check-in"}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {attendee.phone ? (
                     <>
-                      <a href={`tel:${attendee.phone}`} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-card">Llamar</a>
-                      <a href={buildWhatsAppInvitationUrl({ phone: attendee.phone, attendeeName: attendee.fullName, eventName, backupCode: attendee.backupCode })} target="_blank" rel="noreferrer" className="rounded-md border border-border px-2 py-1 text-xs hover:bg-card">WhatsApp</a>
+                      <a href={`tel:${attendee.phone}`} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-card"><Phone className="size-3" /> Llamar</a>
+                      <a href={buildWhatsAppInvitationUrl({ phone: attendee.phone, attendeeName: attendee.fullName, eventName, backupCode: attendee.backupCode })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-card"><MessageCircle className="size-3" /> WhatsApp</a>
                     </>
                   ) : null}
                   <form action={resendAction}>
                     <input type="hidden" name="eventId" value={eventId} />
                     <input type="hidden" name="attendeeId" value={attendee.id} />
-                    <button type="submit" disabled={resendPending} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-card">{resendPending ? "Enviando…" : "Reenviar por correo"}</button>
+                    <button type="submit" disabled={resendPending} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-card"><Mail className="size-3" /> {resendPending ? "Enviando…" : "Reenviar por correo"}</button>
                   </form>
                 </div>
               </div>
