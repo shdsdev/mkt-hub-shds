@@ -39,6 +39,14 @@ function formatWhen(startsAt: Date, endsAt: Date | null): string {
   return sameDay ? `${day} · ${start} – ${end}` : `${day} ${start} – ${dateFormatter.format(endsAt)} ${end}`;
 }
 
+// Reference: https://yukohealth-storefront-v1.21st.app/ — live-inspected computed styles, not a
+// screenshot guess. Grammar carried over 1:1: pill nav row, a small (28px/400) Inter headline
+// clipped to a 3-stop 105deg gradient, one large 40px-radius hero image with floating white
+// overlay cards on top of it, then a clean white card grid below — mapped onto this page's actual
+// content (date/location pills, agenda-as-cards, sponsors) rather than a literal product catalog.
+const GRADIENT_TEXT =
+  "bg-[linear-gradient(105deg,#0077b8_1%,#7d66b0_48%,#d0617b_99%)] bg-clip-text text-transparent";
+
 // spec.md "Public Landing Content Sections" (hero/agenda/location/form, no speakers) + "Event
 // Lifecycle Status" (draft never publicly reachable) — getPublishedEventBySlugPublic's status
 // filter is the only gate; a draft or unknown slug returns `undefined` here, same 404 shape as
@@ -68,85 +76,87 @@ export default async function EventLandingPage({
   const utm = readUtmFromSearchParams(await searchParams);
   const agenda = event.agenda ?? [];
   const sponsorLogos = event.sponsorLogos ?? [];
+  const when = formatWhen(event.startsAt, event.endsAt);
 
   return (
-    <div className="relative isolate min-h-screen overflow-x-clip bg-[#FBF7F1] font-sans text-[#201D1A]">
-      {/* Ambient gel-light texture, not photography — three soft blurred color fields, the pinned
-          reference's "blob" material rendered as the CSS gradient it actually is, never an SVG
-          scene imitating one (craft-floor "Real illustration or none"). */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -left-32 -top-40 size-[34rem] rounded-full bg-[radial-gradient(circle_at_30%_30%,#CFE1F6,transparent_70%)] blur-3xl" />
-        <div className="absolute -right-24 top-10 size-[28rem] rounded-full bg-[radial-gradient(circle_at_60%_40%,#F7D6E3,transparent_70%)] blur-3xl" />
-        <div className="absolute bottom-[-12rem] left-1/3 size-[30rem] rounded-full bg-[radial-gradient(circle_at_50%_50%,#DCEEE2,transparent_70%)] blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-[#FAFAFA] font-sans text-[#202020]">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 sm:px-10">
+        <span className="inline-flex items-center rounded-full bg-[#F0F0F0] px-4 py-2 text-sm text-[#202020]">
+          {when}
+        </span>
+        <span className="text-sm font-medium tracking-tight">{event.name}</span>
+        <a
+          href="#registro"
+          className="inline-flex items-center rounded-full bg-[#202020] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#3a3a3a]"
+        >
+          Registrarme
+        </a>
+      </header>
 
-      <main className="mx-auto flex max-w-3xl flex-col gap-20 px-6 py-20 sm:px-10">
-        {/* Hero — the thesis viewport: a cold visitor reads what this is, when, and acts. */}
-        <section className="flex flex-col items-start gap-6">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#201D1A]/10 bg-white/70 px-4 py-1.5 text-sm text-[#4A4740] backdrop-blur-sm">
-            <svg aria-hidden viewBox="0 0 20 20" className="size-4 shrink-0" fill="none">
-              <rect x="3" y="4.5" width="14" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.4" />
-              <path d="M3 8h14M7 2.5v3M13 2.5v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-            {formatWhen(event.startsAt, event.endsAt)}
-            {event.location ? ` · ${event.location}` : ""}
-          </span>
-
-          <h1 className="font-display text-5xl italic leading-[1.05] tracking-[-0.02em] sm:text-7xl">
-            <span className="bg-gradient-to-r from-[#5C86C9] via-[#9F84C9] to-[#D98CA6] bg-clip-text text-transparent">
-              {event.name}
-            </span>
+      <main className="mx-auto flex max-w-6xl flex-col gap-24 px-6 pb-24 sm:px-10">
+        {/* Hero — understated gradient tagline over one large image, floating cards for the facts
+            a cold visitor needs (when/where, what this is), matching the reference's composition
+            exactly instead of a big bold serif headline. */}
+        <section className="flex flex-col items-center pt-6">
+          <h1
+            className={`mx-auto mb-12 w-fit text-center font-sans text-[28px] leading-8 font-normal tracking-[-0.04em] sm:mb-16 ${GRADIENT_TEXT}`}
+          >
+            {event.name}
           </h1>
 
-          {event.description ? (
-            <p className="max-w-xl text-lg leading-relaxed text-[#4A4740]">{event.description}</p>
-          ) : null}
+          <div className="relative w-full">
+            {event.heroImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local asset
+              <img
+                src={event.heroImageUrl}
+                alt=""
+                className="h-[22rem] w-full rounded-[40px] object-cover sm:h-[30rem]"
+              />
+            ) : (
+              <div className="h-[22rem] w-full rounded-[40px] bg-[linear-gradient(135deg,#eef2f6_0%,#f3edf3_50%,#fbeef1_100%)] sm:h-[30rem]" />
+            )}
 
-          <a
-            href="#registro"
-            className="group mt-2 inline-flex items-center gap-2 rounded-full bg-[#201D1A] px-7 py-3.5 text-base font-medium text-[#FBF7F1] transition-colors hover:bg-[#3A3530]"
-          >
-            Registrarme
-            <svg aria-hidden viewBox="0 0 16 16" className="size-4 transition-transform group-hover:translate-x-0.5">
-              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </a>
+            {event.location ? (
+              <div className="absolute left-4 top-4 flex max-w-[16rem] items-center rounded-2xl bg-white px-4 py-3 text-sm text-[#202020] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)] sm:left-8 sm:top-8">
+                {event.location}
+              </div>
+            ) : null}
 
-          {event.heroImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local asset
-            <img
-              src={event.heroImageUrl}
-              alt=""
-              className="mt-4 h-72 w-full rounded-[2rem] object-cover shadow-[0_24px_60px_-20px_rgba(32,29,26,0.35)] sm:h-96"
-            />
-          ) : null}
+            {event.description ? (
+              <div className="absolute bottom-4 right-4 max-w-sm rounded-2xl bg-white px-5 py-4 text-center text-sm leading-relaxed text-[#4a4a4a] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)] sm:bottom-8 sm:right-8">
+                {event.description}
+              </div>
+            ) : null}
+          </div>
         </section>
 
         {agenda.length > 0 ? (
-          <section className="flex flex-col gap-6">
-            <h2 className="font-display text-2xl italic">Agenda</h2>
-            <ol className="flex flex-col">
+          <section className="flex flex-col gap-8">
+            <h2 className="font-sans text-xl font-medium tracking-tight">Agenda</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {agenda.map((item, index) => (
-                <li
+                <div
                   key={index}
-                  className="flex items-baseline gap-6 border-t border-[#201D1A]/10 py-4 first:border-t-0"
+                  className="relative flex min-h-[220px] flex-col justify-between rounded-[20px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/5"
                 >
-                  <span className="font-display w-28 shrink-0 text-base text-[#9F84C9]">{item.time}</span>
-                  <div className="flex flex-col gap-1">
+                  <span className="absolute right-5 top-5 rounded-full bg-[#F0F0F0] px-3 py-1 text-xs text-[#4a4a4a]">
+                    {item.time}
+                  </span>
+                  <div className="mt-10 flex flex-col gap-2">
                     <span className="text-base font-medium">{item.title}</span>
                     {item.description ? (
-                      <span className="text-sm text-[#6B6A63]">{item.description}</span>
+                      <span className="text-sm leading-relaxed text-[#6b6b6b]">{item.description}</span>
                     ) : null}
                   </div>
-                </li>
+                </div>
               ))}
-            </ol>
+            </div>
           </section>
         ) : null}
 
         {sponsorLogos.length > 0 ? (
-          <section className="flex flex-col items-center gap-5 border-t border-[#201D1A]/10 pt-12">
-            <p className="text-sm text-[#6B6A63]">Con el apoyo de</p>
+          <section className="flex flex-col items-center gap-5 border-t border-black/[0.06] pt-16">
+            <p className="text-sm text-[#6b6b6b]">Con el apoyo de</p>
             <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6">
               {sponsorLogos.map((sponsor, index) => (
                 // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local asset
@@ -154,7 +164,7 @@ export default async function EventLandingPage({
                   key={index}
                   src={sponsor.url}
                   alt={sponsor.name ?? ""}
-                  className="h-8 w-auto opacity-70 grayscale transition-opacity hover:opacity-100 hover:grayscale-0"
+                  className="h-8 w-auto opacity-60 grayscale transition-opacity hover:opacity-100 hover:grayscale-0"
                 />
               ))}
             </div>

@@ -274,9 +274,6 @@
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-heading: var(--font-jersey);
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
-  /* Public events landing only (app/events/layout.tsx) — the admin's font-heading (Jersey 25,
-     a digital/LCD display face) stays untouched for every other surface. */
-  --font-display: var(--font-fraunces), Georgia, serif;
   --radius-lg: var(--radius);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
