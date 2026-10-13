@@ -6,11 +6,13 @@ export { getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl } from "./em
 export {
   CLIENT_BRAND_OPTIONS,
   INTEREST_OPTIONS,
+  OCCUPATION_OPTIONS,
   getDefaultRegistrationFormConfig,
   registrationFormConfigSchema,
   resolveRegistrationFormConfig,
   type ClientBrandOption,
   type InterestOption,
+  type OccupationOption,
   type RegistrationFormConfig,
 } from "./registration-form-config";
 export {

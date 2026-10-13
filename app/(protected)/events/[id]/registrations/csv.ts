@@ -1,6 +1,6 @@
 import type { RegistrationWithAttendees } from "@/modules/events";
 
-const HEADER = "fecha,estado,contacto_principal,correo_principal,acompanantes,utm_source,pase,solicita_mas_acompanantes,marcas,intereses,privacidad_aceptada,terminos_aceptados,marketing_aceptado";
+const HEADER = "fecha,estado,contacto_principal,correo_principal,acompanantes,utm_source,pase,solicita_mas_acompanantes,marcas,intereses,privacidad_aceptada,terminos_aceptados,marketing_aceptado,actividad_principal,actividad_acompanante";
 
 const BRAND_LABELS: Record<string, string> = { shades: "Shades", bmighty: "BMighty", drapery: "Drapery" };
 const INTEREST_LABELS: Record<string, string> = {
@@ -8,6 +8,13 @@ const INTEREST_LABELS: Record<string, string> = {
   "wifi-automation": "Motores WiFi y automatización",
   curtains: "Cortinería",
   "manual-and-motorized-rods": "Cortineros manuales y motorizados",
+};
+const OCCUPATION_LABELS: Record<string, string> = {
+  distributor: "Distribuidor/a",
+  manufacturer: "Fabricante",
+  architect: "Arquitecto/a",
+  decorator: "Decorador/a",
+  "installer-technician": "Instalador/a o técnico/a",
 };
 
 function escapeCsvField(value: string): string {
@@ -37,6 +44,8 @@ export function buildRegistrationsCsv(registrations: RegistrationWithAttendees[]
       registration.consents?.privacyAcceptedAt ?? "",
       registration.consents?.termsAcceptedAt ?? "",
       registration.consents?.marketingAcceptedAt ?? "",
+      OCCUPATION_LABELS[primary?.occupation ?? ""] ?? primary?.occupation ?? "",
+      companions.map((companion) => OCCUPATION_LABELS[companion.occupation ?? ""] ?? companion.occupation ?? "").join("; "),
     ];
     return fields.map(escapeCsvField).join(",");
   });

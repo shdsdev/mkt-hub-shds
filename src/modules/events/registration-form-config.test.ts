@@ -37,4 +37,12 @@ describe("registration form configuration", () => {
       interests: { enabled: true, options: ["curtains"] },
     })).not.toThrow();
   });
+
+  it("rejects none combined with another client brand", () => {
+    const config = getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false });
+    expect(() => registrationFormConfigSchema.parse({
+      ...config,
+      clientBrands: { enabled: true, options: ["none", "shades"] },
+    })).toThrow();
+  });
 });

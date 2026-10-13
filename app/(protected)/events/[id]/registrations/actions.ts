@@ -8,6 +8,7 @@ import {
   addAttendeeToRegistration,
   getEvent,
   notifyEventWebhook,
+  OCCUPATION_OPTIONS,
   type AddAttendeeToRegistrationResult,
 } from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
@@ -31,6 +32,7 @@ const schema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   company: z.string().trim().max(255).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
+  occupation: z.enum(OCCUPATION_OPTIONS),
 });
 
 export type AddCompanionFormState = { error?: string; success?: boolean };
@@ -53,6 +55,7 @@ export async function addCompanionAction(
     phone: formData.get("phone") ?? undefined,
     company: formData.get("company") ?? undefined,
     jobTitle: formData.get("jobTitle") ?? undefined,
+    occupation: formData.get("occupation"),
   });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
@@ -65,6 +68,7 @@ export async function addCompanionAction(
       phone: parsed.data.phone || undefined,
       company: parsed.data.company || undefined,
       jobTitle: parsed.data.jobTitle || undefined,
+      occupation: parsed.data.occupation,
     },
   });
 

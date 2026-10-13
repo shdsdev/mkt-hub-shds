@@ -29,6 +29,13 @@ const OPTION_LABELS: Record<string, string> = {
   curtains: "Cortinería",
   "manual-and-motorized-rods": "Cortineros manuales y motorizados",
 };
+const OCCUPATION_LABELS: Record<string, string> = {
+  distributor: "Distribuidor/a",
+  manufacturer: "Fabricante",
+  architect: "Arquitecto/a",
+  decorator: "Decorador/a",
+  "installer-technician": "Instalador/a o técnico/a",
+};
 
 // Admin feedback round: "prefiero... abrir un side panel al presionar la fila" — every field the
 // table's columns couldn't fit (phone/company/job title per attendee, backup code, check-in
@@ -107,6 +114,9 @@ export function RegistrationDetailSheet({
                 ) : null}
                 {attendee.jobTitle ? (
                   <p className="text-muted-foreground">Puesto: {attendee.jobTitle}</p>
+                ) : null}
+                {attendee.occupation ? (
+                  <p className="text-muted-foreground">Actividad: {OCCUPATION_LABELS[attendee.occupation] ?? attendee.occupation}</p>
                 ) : null}
                 <p className="text-xs text-muted-foreground">Código de respaldo: {attendee.backupCode}</p>
                 <p className="text-xs text-muted-foreground">

@@ -30,7 +30,7 @@ describe("buildRegistrationsCsv", () => {
   it("includes a header row even with no registrations", () => {
     const csv = buildRegistrationsCsv([]);
     expect(csv).toBe(
-      "fecha,estado,contacto_principal,correo_principal,acompanantes,utm_source,pase,solicita_mas_acompanantes,marcas,intereses,privacidad_aceptada,terminos_aceptados,marketing_aceptado\r\n",
+      "fecha,estado,contacto_principal,correo_principal,acompanantes,utm_source,pase,solicita_mas_acompanantes,marcas,intereses,privacidad_aceptada,terminos_aceptados,marketing_aceptado,actividad_principal,actividad_acompanante\r\n",
     );
   });
 
@@ -88,5 +88,16 @@ describe("buildRegistrationsCsv", () => {
     })]);
 
     expect(csv).toContain("sí,Shades,Cortinería,2026-10-13T10:00:00.000Z,2026-10-13T10:00:00.000Z");
+  });
+
+  it("exports primary and companion occupation", () => {
+    const csv = buildRegistrationsCsv([registration({
+      attendees: [
+        { id: "att-1", registrationId: "reg-1", fullName: "Ada Lovelace", email: "ada@example.com", occupation: "architect", checkedInAt: null },
+        { id: "att-2", registrationId: "reg-1", fullName: "Alan Turing", email: "alan@example.com", occupation: "installer-technician", checkedInAt: null },
+      ] as never,
+    })]);
+
+    expect(csv).toContain("Arquitecto/a,Instalador/a o técnico/a");
   });
 });

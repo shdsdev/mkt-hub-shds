@@ -5,6 +5,7 @@ import {
   getPublishedEventBySlugPublic,
   registerForEvent,
   notifyEventWebhook,
+  OCCUPATION_OPTIONS,
   resolveRegistrationFormConfig,
   type AttendeeInput,
 } from "@/modules/events";
@@ -19,6 +20,9 @@ const INVALID_CONSENT_ERROR = "Acepta la política de privacidad y los términos
 const INVALID_BRANDS_ERROR = "Revisa las marcas seleccionadas.";
 const INVALID_INTERESTS_ERROR = "Revisa tus intereses seleccionados.";
 const TOO_MANY_COMPANIONS_ERROR = "Solo puedes registrar un acompañante.";
+const INVALID_OCCUPATION_ERROR = "Seleccioná tu actividad profesional para continuar.";
+const INVALID_COMPANION_OCCUPATION_ERROR = "Seleccioná la actividad del acompañante para continuar.";
+const INVALID_BRAND_COMBINATION_ERROR = "Seleccioná una sola opción: Ninguno o una marca.";
 
 const attendeeSchema = z.object({
   fullName: z.string().trim().min(1).max(255),
@@ -26,6 +30,7 @@ const attendeeSchema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   company: z.string().trim().max(255).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
+  occupation: z.enum(OCCUPATION_OPTIONS),
 });
 
 export type RegisterFormState = { error?: string; success?: boolean; status?: "confirmed" | "waitlisted" };
@@ -75,6 +80,7 @@ function normalizeConfiguredAttendee(
     phone: fields.phone.visible ? normalized.phone : undefined,
     company: fields.company.visible ? normalized.company : undefined,
     jobTitle: fields.jobTitle.visible ? normalized.jobTitle : undefined,
+    occupation: parsed.occupation,
   };
 }
 
@@ -88,14 +94,16 @@ function readCompanions(formData: FormData): unknown[] {
   const phones = formData.getAll("companionPhone").map(String);
   const companies = formData.getAll("companionCompany").map(String);
   const jobTitles = formData.getAll("companionJobTitle").map(String);
+  const occupations = formData.getAll("companionOccupation").map(String);
 
-  const rowCount = Math.max(fullNames.length, emails.length, phones.length, companies.length, jobTitles.length);
+  const rowCount = Math.max(fullNames.length, emails.length, phones.length, companies.length, jobTitles.length, occupations.length);
   return Array.from({ length: rowCount }, (_, index) => ({
       fullName: fullNames[index] ?? "",
       email: emails[index] ?? "",
       phone: phones[index] ?? "",
       company: companies[index] ?? "",
       jobTitle: jobTitles[index] ?? "",
+      occupation: occupations[index] ?? "",
     }))
     .filter((companion) => companion.fullName.trim() || companion.email.trim());
 }
@@ -130,6 +138,10 @@ export async function registerForEventAction(
   const event = await getPublishedEventBySlugPublic(slug);
   if (!event) return { error: EVENT_UNAVAILABLE_ERROR };
   const formConfig = resolveRegistrationFormConfig(event);
+  const occupation = formData.get("occupation");
+  if (typeof occupation !== "string" || !OCCUPATION_OPTIONS.includes(occupation as never)) {
+    return { error: INVALID_OCCUPATION_ERROR };
+  }
 
   const primaryParsed = attendeeSchema.safeParse({
     fullName: formData.get("fullName") ?? "",
@@ -137,6 +149,7 @@ export async function registerForEventAction(
     phone: formData.get("phone") ?? undefined,
     company: formData.get("company") ?? undefined,
     jobTitle: formData.get("jobTitle") ?? undefined,
+    occupation: formData.get("occupation") ?? "",
   });
   if (!primaryParsed.success) return { error: INVALID_FORM_ERROR };
   const primaryFieldError = validateConfiguredFields(primaryParsed.data, formConfig.fields);
@@ -145,6 +158,10 @@ export async function registerForEventAction(
   const companionInputs = readCompanions(formData);
   if (companionInputs.length > 1) return { error: TOO_MANY_COMPANIONS_ERROR };
   if (companionInputs.length > 0 && !formConfig.companion.enabled) return { error: INVALID_COMPANION_ERROR };
+  const firstCompanion = companionInputs[0] as { occupation?: unknown } | undefined;
+  if (firstCompanion && !OCCUPATION_OPTIONS.includes(String(firstCompanion.occupation) as never)) {
+    return { error: INVALID_COMPANION_OCCUPATION_ERROR };
+  }
   const companionsParsed = z.array(attendeeSchema).safeParse(companionInputs);
   if (!companionsParsed.success) return { error: INVALID_COMPANION_ERROR };
   if (companionsParsed.data[0]) {
@@ -157,6 +174,7 @@ export async function registerForEventAction(
   }
 
   const clientBrands = readSelectedOptions(formData, "clientBrands");
+  if (clientBrands.includes("none") && clientBrands.length > 1) return { error: INVALID_BRAND_COMBINATION_ERROR };
   if (!formConfig.clientBrands.enabled && clientBrands.length > 0) return { error: INVALID_BRANDS_ERROR };
   if (clientBrands.some((option) => !formConfig.clientBrands.options.some((allowed) => allowed === option))) {
     return { error: INVALID_BRANDS_ERROR };

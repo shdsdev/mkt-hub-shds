@@ -45,6 +45,14 @@ export function AddCompanionRow({
         <input name="email" type="email" placeholder="Correo" required className={fieldClass} />
         {collectCompany ? <input name="company" placeholder="Empresa" className={fieldClass} /> : null}
         {collectJobTitle ? <input name="jobTitle" placeholder="Puesto" className={fieldClass} /> : null}
+        <select name="occupation" required defaultValue="" className={fieldClass}>
+          <option value="" disabled>Actividad profesional</option>
+          <option value="distributor">Distribuidor/a</option>
+          <option value="manufacturer">Fabricante</option>
+          <option value="architect">Arquitecto/a</option>
+          <option value="decorator">Decorador/a</option>
+          <option value="installer-technician">Instalador/a o técnico/a</option>
+        </select>
       </div>
       <div className="flex items-center gap-2">
         <button

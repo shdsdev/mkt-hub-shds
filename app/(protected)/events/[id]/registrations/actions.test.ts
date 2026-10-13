@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   sendConfirmationEmail: vi.fn(),
   exportQrPng: vi.fn(),
   revalidatePath: vi.fn(),
+  OCCUPATION_OPTIONS: ["distributor", "manufacturer", "architect", "decorator", "installer-technician"],
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -18,6 +19,7 @@ vi.mock("@/modules/events", () => ({
   addAttendeeToRegistration: mocks.addAttendeeToRegistration,
   getEvent: mocks.getEvent,
   notifyEventWebhook: mocks.notifyEventWebhook,
+  OCCUPATION_OPTIONS: mocks.OCCUPATION_OPTIONS,
 }));
 vi.mock("@/modules/notifications", () => ({ sendConfirmationEmail: mocks.sendConfirmationEmail }));
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
@@ -40,6 +42,7 @@ function formData(fields: Record<string, string> = {}) {
   fd.set("eventId", EVENT_ID);
   fd.set("fullName", "Alan Turing");
   fd.set("email", "alan@example.com");
+  fd.set("occupation", "architect");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }

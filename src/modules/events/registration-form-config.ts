@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-export const CLIENT_BRAND_OPTIONS = ["shades", "bmighty", "drapery"] as const;
+export const CLIENT_BRAND_OPTIONS = ["none", "shades", "bmighty", "drapery"] as const;
+export const OCCUPATION_OPTIONS = [
+  "distributor",
+  "manufacturer",
+  "architect",
+  "decorator",
+  "installer-technician",
+] as const;
 export const INTEREST_OPTIONS = [
   "battery-motors",
   "wifi-automation",
@@ -9,6 +16,7 @@ export const INTEREST_OPTIONS = [
 ] as const;
 
 export type ClientBrandOption = (typeof CLIENT_BRAND_OPTIONS)[number];
+export type OccupationOption = (typeof OCCUPATION_OPTIONS)[number];
 export type InterestOption = (typeof INTEREST_OPTIONS)[number];
 
 const visibilitySchema = z
@@ -34,6 +42,7 @@ const consentLinkSchema = z.object({
 });
 
 const clientBrandOptionSchema = z.enum(CLIENT_BRAND_OPTIONS);
+const occupationOptionSchema = z.enum(OCCUPATION_OPTIONS);
 const interestOptionSchema = z.enum(INTEREST_OPTIONS);
 
 export const registrationFormConfigSchema = z.object({
@@ -47,6 +56,10 @@ export const registrationFormConfigSchema = z.object({
   clientBrands: z.object({
     enabled: z.boolean(),
     options: z.array(clientBrandOptionSchema),
+  }).superRefine((group, context) => {
+    if (group.options.includes("none") && group.options.length > 1) {
+      context.addIssue({ code: "custom", message: "Ninguno no puede combinarse con una marca.", path: ["options"] });
+    }
   }),
   interests: z.object({
     enabled: z.boolean(),
@@ -58,6 +71,8 @@ export const registrationFormConfigSchema = z.object({
     marketing: z.object({ enabled: z.boolean(), text: z.string().trim().min(1).max(500) }),
   }),
 });
+
+export { occupationOptionSchema };
 
 export type RegistrationFormConfig = z.infer<typeof registrationFormConfigSchema>;
 

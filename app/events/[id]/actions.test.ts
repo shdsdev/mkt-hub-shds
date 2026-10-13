@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   notifyEventWebhook: vi.fn(),
   sendConfirmationEmail: vi.fn(),
   exportQrPng: vi.fn(),
+  OCCUPATION_OPTIONS: ["distributor", "manufacturer", "architect", "decorator", "installer-technician"],
   resolveRegistrationFormConfig: vi.fn(() => ({
     version: 1,
     fields: {
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => ({
       jobTitle: { visible: false, required: false },
     },
     companion: { enabled: true },
-    clientBrands: { enabled: false, options: [] },
+    clientBrands: { enabled: true, options: ["none", "shades", "bmighty", "drapery"] },
     interests: { enabled: false, options: [] },
     consent: {
       privacy: { url: "/privacy", text: "Acepto la política de privacidad" },
@@ -28,6 +29,7 @@ vi.mock("@/modules/events", () => ({
   getPublishedEventBySlugPublic: mocks.getPublishedEventBySlugPublic,
   registerForEvent: mocks.registerForEvent,
   notifyEventWebhook: mocks.notifyEventWebhook,
+  OCCUPATION_OPTIONS: mocks.OCCUPATION_OPTIONS,
   resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
 }));
 vi.mock("@/modules/notifications", () => ({
@@ -52,6 +54,7 @@ function baseFormData(overrides: Record<string, string> = {}) {
   fd.set("slug", "workshop-marketing");
   fd.set("fullName", "Ada Lovelace");
   fd.set("email", "ada@example.com");
+  fd.set("occupation", "architect");
   fd.set("privacyAccepted", "true");
   fd.set("termsAccepted", "true");
   for (const [key, value] of Object.entries(overrides)) fd.set(key, value);
@@ -173,6 +176,7 @@ describe("registerForEventAction", () => {
     const fd = baseFormData();
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
+    fd.append("companionOccupation", "architect");
 
     mocks.registerForEvent.mockResolvedValue({
       ok: true,
@@ -211,8 +215,11 @@ describe("registerForEventAction", () => {
     const fd = baseFormData();
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
+    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect");
     fd.append("companionFullName", "Grace Hopper");
     fd.append("companionEmail", "grace@example.com");
+    fd.append("companionOccupation", "manufacturer");
 
     const result = await registerForEventAction({}, fd);
 
@@ -236,6 +243,27 @@ describe("registerForEventAction", () => {
     const result = await registerForEventAction({}, fd);
 
     expect(result.error).toBe("Revisa tus intereses seleccionados.");
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing primary occupation", async () => {
+    const fd = baseFormData();
+    fd.delete("occupation");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result.error).toContain("actividad profesional");
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects none combined with another brand", async () => {
+    const fd = baseFormData();
+    fd.append("clientBrands", "none");
+    fd.append("clientBrands", "shades");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result.error).toBe("Seleccioná una sola opción: Ninguno o una marca.");
     expect(mocks.registerForEvent).not.toHaveBeenCalled();
   });
 });
