@@ -41,49 +41,55 @@ export default async function RegistrationsPage({
     const qs = query.toString();
     return `/events/${id}/registrations${qs ? `?${qs}` : ""}`;
   };
+  const exportQuery = new URLSearchParams();
+  if (status) exportQuery.set("status", status);
+  if (q) exportQuery.set("q", q);
+  const exportHref = `/events/${id}/registrations/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
       <EventSubNav eventId={id} current="registrations" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-xl font-semibold">Registros: {event.name}</h1>
-          <p className="text-sm text-muted-foreground">{registrations.length} resultado(s)</p>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Registros: {event.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{registrations.length} resultado(s) con los filtros actuales</p>
         </div>
         <Link
-          href={`/events/${id}/registrations/export${status || q ? `?${new URLSearchParams({ ...(status ? { status } : {}), ...(q ? { q } : {}) }).toString()}` : ""}`}
-          className="text-sm text-primary underline"
+          href={exportHref}
+          className="rounded-md border border-border px-3 py-2 text-sm text-primary transition-colors hover:bg-card"
         >
           Exportar CSV
         </Link>
       </div>
 
-      <form className="flex flex-wrap items-center gap-2 text-sm">
+      <div className="flex flex-col gap-4 rounded-lg border border-border bg-card/40 p-4 lg:flex-row lg:items-end lg:justify-between">
+      <form className="flex w-full flex-col gap-2 text-sm sm:flex-row sm:items-center lg:max-w-xl">
         <input type="hidden" name="status" value={status ?? ""} />
         <input
           name="q"
           defaultValue={q ?? ""}
           placeholder="Buscar por nombre o correo"
-          className="rounded-md border border-input bg-transparent px-3 py-1.5"
+          className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/30"
         />
-        <button type="submit" className="rounded-md border border-border px-3 py-1.5">
+        <button type="submit" className="h-10 rounded-md border border-border px-4 transition-colors hover:bg-card">
           Buscar
         </button>
       </form>
 
-      <div className="flex gap-2 text-sm">
-        <Link href={filterHref(undefined)} className={!status ? "font-medium underline" : "text-muted-foreground"}>
+      <div className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 text-sm">
+        <Link href={filterHref(undefined)} className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${!status ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
           Todos
         </Link>
         {Object.entries(STATUS_LABELS).map(([value, label]) => (
           <Link
             key={value}
             href={filterHref(value as EventRegistrationRow["status"])}
-            className={status === value ? "font-medium underline" : "text-muted-foreground"}
+            className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${status === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
             {label}
           </Link>
         ))}
+      </div>
       </div>
 
       {registrations.length === 0 ? (

@@ -99,6 +99,17 @@ describe("RegistrationsPage", () => {
     });
   });
 
+  it("preserves status and search in filter and export links", async () => {
+    const result = await RegistrationsPage({
+      params: params("event-1"),
+      searchParams: searchParams({ status: "confirmed", q: "ada" }),
+    });
+    const serialized = JSON.stringify(result);
+
+    expect(serialized).toContain("/events/event-1/registrations?status=confirmed&q=ada");
+    expect(serialized).toContain("/events/event-1/registrations/export?status=confirmed&q=ada");
+  });
+
   it("passes filtered registrations to the interactive table", async () => {
     mocks.listRegistrations.mockResolvedValue([
       {
