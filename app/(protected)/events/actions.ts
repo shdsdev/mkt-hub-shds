@@ -1,0 +1,290 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { getCurrentUser } from "@/modules/auth";
+import { isActive, isAdmin } from "@/modules/users";
+import {
+  createEvent,
+  updateEvent,
+  setEventStatus,
+  setEventWebhookUrl,
+  regenerateEventWebhookSecret,
+} from "@/modules/events";
+
+const PERMISSION_ERROR = "No tienes permiso para administrar eventos.";
+const INVALID_FORM_ERROR = "Revisa los datos del evento.";
+const NOT_FOUND_ERROR = "El evento no está disponible.";
+const UNSAFE_WEBHOOK_URL_ERROR =
+  "Esa URL no es válida para un webhook — debe ser https:// y apuntar a una dirección pública.";
+
+// Same gate shape as app/(protected)/settings/users/actions.ts#requireActiveAdmin — duplicated
+// per module rather than shared, matching this repo's existing convention.
+async function requireActiveAdmin() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!isActive(user.profile) || !isAdmin(user.profile)) return undefined;
+  return user;
+}
+
+// `datetime-local` input values ("2026-11-01T18:00") parse fine via `z.coerce.date()`.
+const optionalInt = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ? Number.parseInt(value, 10) : null))
+  .refine((value) => value === null || Number.isInteger(value), "Debe ser un número entero.");
+
+// Landing content model: the client-side form keeps agenda/sponsorLogos as array state and
+// serializes the current array into a hidden input's JSON string on every render (same "form
+// owns a structured value via one hidden input" shape as collectCompany's "true"/"" pattern, just
+// carrying a list instead of a boolean). An empty/absent field means "no items", not "field
+// omitted" — the edit form always renders this hidden input, so there is no clearable-vs-absent
+// distinction to make here the way there is for description/location.
+function jsonArrayField<T extends z.ZodTypeAny>(itemSchema: T) {
+  return z
+    .string()
+    .optional()
+    .transform((value, ctx) => {
+      if (!value) return [];
+      try {
+        return JSON.parse(value);
+      } catch {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "JSON inválido." });
+        return z.NEVER;
+      }
+    })
+    .pipe(z.array(itemSchema));
+}
+
+const agendaItemSchema = z.object({
+  time: z.string().trim().min(1).max(50),
+  title: z.string().trim().min(1).max(255),
+  description: z.string().trim().max(1000).optional(),
+});
+
+const sponsorLogoSchema = z.object({
+  url: z.string().trim().url().max(2000),
+  name: z.string().trim().max(255).optional(),
+});
+
+const eventFieldsSchema = z.object({
+  name: z.string().trim().min(1).max(255),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .regex(/^[a-z0-9-]+$/, "El slug solo admite minúsculas, números y guiones."),
+  description: z.string().trim().max(5000).optional().or(z.literal("")),
+  location: z.string().trim().max(255).optional().or(z.literal("")),
+  startsAt: z.coerce.date(),
+  endsAt: z.coerce.date().optional(),
+  capacity: optionalInt,
+  reminderOffsetMinutes: optionalInt,
+  // spec.md "Fixed Optional Field Catalog" — hidden-input "true"/"" pattern matching
+  // app/(protected)/qr/qr-design-fields.tsx's `saveAsTemplate` convention.
+  collectCompany: z.coerce.boolean().default(false),
+  collectJobTitle: z.coerce.boolean().default(false),
+  heroImageUrl: z.string().trim().url().max(2000).optional().or(z.literal("")),
+  agenda: jsonArrayField(agendaItemSchema),
+  sponsorLogos: jsonArrayField(sponsorLogoSchema),
+});
+
+export type EventFormState = { error?: string; success?: string; eventId?: string };
+
+function readEventFields(formData: FormData) {
+  return {
+    // `??` (not `||`) for name/slug/startsAt: a field key absent from the submitted form (e.g.
+    // the edit form never renders a `slug` input — see event-edit-form.tsx) makes
+    // `formData.get(...)` return `null`, which `eventFieldsSchema.partial(...)` does NOT treat as
+    // "omitted" the way it treats `undefined` — `z.string()` rejects an explicit `null`. Using `??`
+    // normalizes the missing-key case to `undefined` so the partial schema accepts it.
+    name: formData.get("name") ?? undefined,
+    slug: formData.get("slug") ?? undefined,
+    // `??` (not `||`) here specifically so an explicitly-submitted empty string stays "" instead
+    // of collapsing to `undefined` (verify-report W2) — `updateEventAction` below needs to tell
+    // "field submitted empty, clear it" (`""`) apart from "field key absent" (`undefined`).
+    description: formData.get("description") ?? undefined,
+    location: formData.get("location") ?? undefined,
+    startsAt: formData.get("startsAt") ?? undefined,
+    // endsAt/capacity/reminderOffsetMinutes keep `||`: an empty string here means "no value", not
+    // "clear" (there is no clearable-null contract for them in the edit form, and
+    // `z.coerce.date()` would reject an empty string as an invalid date).
+    endsAt: formData.get("endsAt") || undefined,
+    capacity: formData.get("capacity") || undefined,
+    reminderOffsetMinutes: formData.get("reminderOffsetMinutes") || undefined,
+    collectCompany: formData.get("collectCompany"),
+    collectJobTitle: formData.get("collectJobTitle"),
+    heroImageUrl: formData.get("heroImageUrl") ?? undefined,
+    agenda: formData.get("agenda") ?? undefined,
+    sponsorLogos: formData.get("sponsorLogos") ?? undefined,
+  };
+}
+
+export async function createEventAction(
+  _prevState: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const parsed = eventFieldsSchema.safeParse(readEventFields(formData));
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await createEvent({
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+    name: parsed.data.name,
+    slug: parsed.data.slug,
+    description: parsed.data.description || undefined,
+    location: parsed.data.location || undefined,
+    startsAt: parsed.data.startsAt,
+    endsAt: parsed.data.endsAt,
+    capacity: parsed.data.capacity,
+    reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
+    collectCompany: parsed.data.collectCompany,
+    collectJobTitle: parsed.data.collectJobTitle,
+    heroImageUrl: parsed.data.heroImageUrl || undefined,
+    agenda: parsed.data.agenda,
+    sponsorLogos: parsed.data.sponsorLogos,
+  });
+  if (!result.ok) return { error: PERMISSION_ERROR };
+
+  revalidatePath("/events");
+  return { success: "Evento creado.", eventId: result.event.id };
+}
+
+const updateEventFieldsSchema = eventFieldsSchema.partial({ name: true, slug: true, startsAt: true });
+
+export async function updateEventAction(
+  _prevState: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: INVALID_FORM_ERROR };
+
+  const parsed = updateEventFieldsSchema.safeParse(readEventFields(formData));
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await updateEvent({
+    id: id.data,
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+    changes: {
+      name: parsed.data.name,
+      // verify-report W2: when the field key WAS submitted (not `undefined`) but empty, map to
+      // explicit `null` so `updateEvent`'s `.set()` actually clears the stored value instead of
+      // Drizzle silently skipping an `undefined` key and leaving the old value in place.
+      description:
+        parsed.data.description === undefined ? undefined : parsed.data.description || null,
+      location: parsed.data.location === undefined ? undefined : parsed.data.location || null,
+      startsAt: parsed.data.startsAt,
+      endsAt: parsed.data.endsAt,
+      capacity: parsed.data.capacity,
+      reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
+      collectCompany: parsed.data.collectCompany,
+      collectJobTitle: parsed.data.collectJobTitle,
+      heroImageUrl:
+        parsed.data.heroImageUrl === undefined ? undefined : parsed.data.heroImageUrl || null,
+      agenda: parsed.data.agenda,
+      sponsorLogos: parsed.data.sponsorLogos,
+    },
+  });
+  if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${id.data}/edit`);
+  return { success: "Evento actualizado." };
+}
+
+async function setStatusAction(formData: FormData, status: "published" | "closed"): Promise<void> {
+  const user = await requireActiveAdmin();
+  if (!user) return;
+
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return;
+
+  const result = await setEventStatus({
+    id: id.data,
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+    status,
+  });
+  if (!result.ok) return;
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${id.data}/edit`);
+}
+
+export async function publishEventAction(formData: FormData): Promise<void> {
+  return setStatusAction(formData, "published");
+}
+
+export async function closeEventAction(formData: FormData): Promise<void> {
+  return setStatusAction(formData, "closed");
+}
+
+const webhookUrlSchema = z.object({
+  id: z.string().uuid(),
+  webhookUrl: z.string().trim().url().max(2000).optional().or(z.literal("")),
+});
+
+export type WebhookFormState = { error?: string; success?: string; webhookSecret?: string };
+
+// Admin feedback round ("poder generar un webhook por evento"). A separate form/action from
+// updateEventAction on purpose: setEventWebhookUrl owns the "generate the secret exactly once"
+// logic, which a plain UpdateEventChanges passthrough would not.
+export async function setWebhookAction(
+  _prevState: WebhookFormState,
+  formData: FormData,
+): Promise<WebhookFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const parsed = webhookUrlSchema.safeParse({
+    id: formData.get("id"),
+    webhookUrl: formData.get("webhookUrl"),
+  });
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await setEventWebhookUrl({
+    id: parsed.data.id,
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+    webhookUrl: parsed.data.webhookUrl || null,
+  });
+  if (!result.ok) {
+    if (result.reason === "not_found") return { error: NOT_FOUND_ERROR };
+    if (result.reason === "unsafe_url") return { error: UNSAFE_WEBHOOK_URL_ERROR };
+    return { error: PERMISSION_ERROR };
+  }
+
+  revalidatePath(`/events/${parsed.data.id}/edit`);
+  return { success: "Webhook actualizado.", webhookSecret: result.event.webhookSecret ?? undefined };
+}
+
+export async function regenerateWebhookSecretAction(
+  _prevState: WebhookFormState,
+  formData: FormData,
+): Promise<WebhookFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await regenerateEventWebhookSecret({
+    id: id.data,
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+  });
+  if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
+
+  revalidatePath(`/events/${id.data}/edit`);
+  return { success: "Secreto regenerado.", webhookSecret: result.event.webhookSecret ?? undefined };
+}

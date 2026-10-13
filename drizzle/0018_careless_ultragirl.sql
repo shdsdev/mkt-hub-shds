@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD COLUMN "visit_count" integer DEFAULT 0 NOT NULL;
