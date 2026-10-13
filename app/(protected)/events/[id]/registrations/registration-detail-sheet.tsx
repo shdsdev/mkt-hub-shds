@@ -9,7 +9,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import type { RegistrationWithAttendees } from "@/modules/events";
-import { CheckCircle2, Clock3, Mail, MessageCircle, Phone } from "lucide-react";
+import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, XCircle } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
 import { resendInvitationAction, type ResendInvitationState } from "./actions";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
@@ -41,6 +41,19 @@ const OCCUPATION_LABELS: Record<string, string> = {
 };
 const initialResendState: ResendInvitationState = {};
 
+function ConsentStatus({ label, accepted, date }: { label: string; accepted: boolean; date?: string }) {
+  const Icon = accepted ? CheckCircle2 : XCircle;
+  return (
+    <div className="flex items-center justify-between gap-3 py-1">
+      <span className="font-medium">{label}</span>
+      <span className={`inline-flex items-center gap-1 text-xs font-medium ${accepted ? "text-emerald-300" : "text-red-400"}`}>
+        <Icon className="size-4" />
+        {accepted ? date ?? "Aceptado" : "No aceptado"}
+      </span>
+    </div>
+  );
+}
+
 // Admin feedback round: "prefiero... abrir un side panel al presionar la fila" — every field the
 // table's columns couldn't fit (phone/company/job title per attendee, backup code, check-in
 // timestamp, full UTM set, source) without the table itself going unreadably wide.
@@ -70,7 +83,7 @@ export function RegistrationDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full max-w-none overflow-y-auto sm:max-w-[680px]">
+      <SheetContent className="w-full max-w-none overflow-y-auto sm:w-[760px] sm:max-w-[760px]">
         <SheetHeader>
           <SheetTitle className="pr-8 text-xl font-semibold tracking-tight">{registration.attendees[0]?.fullName ?? "Registro"}</SheetTitle>
           <SheetDescription className="text-xs">
@@ -120,25 +133,31 @@ export function RegistrationDetailSheet({
             </section>
           ) : null}
 
-          {registration.requestedMoreCompanions || registration.clientBrands.length > 0 || registration.interests.length > 0 || registration.consents ? (
-            <section className="flex flex-col gap-3 rounded-lg border border-border bg-card/40 p-4">
+          <section className="flex flex-col gap-3 rounded-lg border border-border bg-card/40 p-4">
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Preferencias</h3>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div><p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Seguimiento</p><p className="mt-1 font-semibold">{registration.requestedMoreCompanions ? "Solicita más acompañantes" : "Sin solicitud adicional"}</p></div>
                 <div><p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Marcas</p><p className="mt-1 font-semibold">{registration.clientBrands.length > 0 ? registration.clientBrands.map((value) => OPTION_LABELS[value] ?? value).join(", ") : "No cliente"}</p></div>
                 <div className="sm:col-span-2"><p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Intereses</p><p className="mt-1 font-semibold">{registration.interests.length > 0 ? registration.interests.map((value) => OPTION_LABELS[value] ?? value).join(", ") : "Sin intereses seleccionados"}</p></div>
               </div>
-              {registration.consents ? (
-                <div className="text-xs text-muted-foreground">
-                  <p>Privacidad: {new Date(registration.consents.privacyAcceptedAt).toLocaleString()}</p>
-                  <p>Términos: {new Date(registration.consents.termsAcceptedAt).toLocaleString()}</p>
-                  {registration.consents.marketingAcceptedAt ? (
-                    <p>Marketing: {new Date(registration.consents.marketingAcceptedAt).toLocaleString()}</p>
-                  ) : null}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
+              <div className="divide-y divide-border border-t border-border pt-2 text-xs">
+                <ConsentStatus
+                  label="Aviso de privacidad"
+                  accepted={Boolean(registration.consents?.privacyAcceptedAt)}
+                  date={registration.consents?.privacyAcceptedAt ? new Date(registration.consents.privacyAcceptedAt).toLocaleString() : undefined}
+                />
+                <ConsentStatus
+                  label="Términos y condiciones"
+                  accepted={Boolean(registration.consents?.termsAcceptedAt)}
+                  date={registration.consents?.termsAcceptedAt ? new Date(registration.consents.termsAcceptedAt).toLocaleString() : undefined}
+                />
+                <ConsentStatus
+                  label="Envío de publicidad"
+                  accepted={Boolean(registration.consents?.marketingAcceptedAt)}
+                  date={registration.consents?.marketingAcceptedAt ? new Date(registration.consents.marketingAcceptedAt).toLocaleString() : undefined}
+                />
+              </div>
+          </section>
 
           <section className="flex flex-col gap-3">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
