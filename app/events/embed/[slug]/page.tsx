@@ -1,4 +1,4 @@
-import { getPublishedEventBySlugPublic } from "@/modules/events";
+import { getPublishedEventBySlugPublic, resolveRegistrationFormConfig } from "@/modules/events";
 import { RegisterForm } from "../../[id]/register-form";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -40,8 +40,7 @@ export default async function EmbedEventPage({
     <main className="min-h-screen bg-[#FAFAFA] p-4 font-sans text-[#202020] sm:p-6">
       <RegisterForm
         slug={event.slug}
-        collectCompany={event.collectCompany}
-        collectJobTitle={event.collectJobTitle}
+        formConfig={resolveRegistrationFormConfig(event)}
         utm={readUtmFromSearchParams(await searchParams)}
       />
     </main>

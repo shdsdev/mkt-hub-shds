@@ -1,11 +1,10 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import type { RegistrationFormConfig } from "@/modules/events";
 import { registerForEventAction, type RegisterFormState } from "./actions";
 
 const initialState: RegisterFormState = {};
-
-type Companion = { id: number };
 
 // Matches the reference's clean white-card world (rounded-card, ring-1 black/5) instead of the
 // dark admin theme's <Input> (craft-floor: "a stock component inside a committed form is a
@@ -15,14 +14,19 @@ const fieldClass =
 
 function Field({
   label,
+  required = false,
   children,
 }: {
   label: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <label className="flex flex-col gap-1.5 text-sm font-medium text-[#4a4a4a]">
-      {label}
+      <span>
+        {label}
+        {required ? <span className="ml-1 text-[#c0335a]" aria-hidden="true">•</span> : null}
+      </span>
       {children}
     </label>
   );
@@ -30,13 +34,11 @@ function Field({
 
 export function RegisterForm({
   slug,
-  collectCompany,
-  collectJobTitle,
+  formConfig,
   utm,
 }: {
   slug: string;
-  collectCompany: boolean;
-  collectJobTitle: boolean;
+  formConfig: RegistrationFormConfig;
   utm: Partial<{
     utmSource: string;
     utmMedium: string;
@@ -47,8 +49,7 @@ export function RegisterForm({
   }>;
 }) {
   const [state, formAction, pending] = useActionState(registerForEventAction, initialState);
-  const [companions, setCompanions] = useState<Companion[]>([]);
-  let nextCompanionId = companions.length > 0 ? Math.max(...companions.map((c) => c.id)) + 1 : 0;
+  const [hasCompanion, setHasCompanion] = useState(false);
 
   if (state.success) {
     return (
@@ -88,68 +89,121 @@ export function RegisterForm({
       {utm.utmId ? <input type="hidden" name="utmId" value={utm.utmId} /> : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Nombre completo">
-          <input name="fullName" required maxLength={255} className={fieldClass} />
-        </Field>
-        <Field label="Correo">
-          <input name="email" type="email" required maxLength={255} className={fieldClass} />
-        </Field>
-        <Field label="Teléfono (opcional)">
-          <input name="phone" maxLength={50} className={fieldClass} />
-        </Field>
-        {collectCompany ? (
-          <Field label="Empresa">
-            <input name="company" maxLength={255} className={fieldClass} />
-          </Field>
-        ) : null}
-        {collectJobTitle ? (
-          <Field label="Puesto">
-            <input name="jobTitle" maxLength={255} className={fieldClass} />
-          </Field>
-        ) : null}
-      </div>
+         <Field label="Nombre completo" required>
+           <input name="fullName" required aria-required="true" maxLength={255} className={fieldClass} />
+         </Field>
+         <Field label="Correo" required>
+           <input name="email" type="email" required aria-required="true" maxLength={255} className={fieldClass} />
+         </Field>
+         {formConfig.fields.phone.visible ? (
+           <Field label="Teléfono" required={formConfig.fields.phone.required}>
+             <input name="phone" required={formConfig.fields.phone.required} aria-required={formConfig.fields.phone.required} maxLength={50} className={fieldClass} />
+           </Field>
+         ) : null}
+         {formConfig.fields.company.visible ? (
+           <Field label="Empresa" required={formConfig.fields.company.required}>
+             <input name="company" required={formConfig.fields.company.required} aria-required={formConfig.fields.company.required} maxLength={255} className={fieldClass} />
+           </Field>
+         ) : null}
+         {formConfig.fields.jobTitle.visible ? (
+           <Field label="Puesto" required={formConfig.fields.jobTitle.required}>
+             <input name="jobTitle" required={formConfig.fields.jobTitle.required} aria-required={formConfig.fields.jobTitle.required} maxLength={255} className={fieldClass} />
+           </Field>
+         ) : null}
+       </div>
 
-      {companions.map((companion) => (
-        <div
-          key={companion.id}
-          className="grid grid-cols-1 gap-4 border-t border-black/[0.06] pt-6 sm:grid-cols-2"
-        >
-          <Field label="Nombre del acompañante">
-            <input name="companionFullName" maxLength={255} className={fieldClass} />
-          </Field>
-          <Field label="Correo del acompañante">
-            <input name="companionEmail" type="email" maxLength={255} className={fieldClass} />
-          </Field>
-          <Field label="Teléfono (opcional)">
-            <input name="companionPhone" maxLength={50} className={fieldClass} />
-          </Field>
-          {collectCompany ? (
-            <Field label="Empresa">
-              <input name="companionCompany" maxLength={255} className={fieldClass} />
-            </Field>
-          ) : null}
-          {collectJobTitle ? (
-            <Field label="Puesto">
-              <input name="companionJobTitle" maxLength={255} className={fieldClass} />
-            </Field>
-          ) : null}
-          <button
-            type="button"
-            className="self-start text-sm text-[#6b6b6b] underline underline-offset-2 hover:text-[#202020] sm:col-span-2"
-            onClick={() => setCompanions((prev) => prev.filter((c) => c.id !== companion.id))}
-          >
-            Quitar acompañante
-          </button>
-        </div>
-      ))}
+       {formConfig.clientBrands.enabled ? (
+         <fieldset className="flex flex-col gap-2">
+           <legend className="text-sm font-medium text-[#4a4a4a]">¿Con qué marca trabajás?</legend>
+           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+             {formConfig.clientBrands.options.map((option) => (
+               <label key={option} className="flex items-center gap-2 text-sm text-[#4a4a4a]">
+                 <input type="checkbox" name="clientBrands" value={option} />
+                 {option === "bmighty" ? "BMighty" : option[0].toUpperCase() + option.slice(1)}
+               </label>
+             ))}
+           </div>
+         </fieldset>
+       ) : null}
 
-      <button
-        type="button"
-        className="self-start rounded-full border border-black/10 px-5 py-2 text-sm font-medium text-[#4a4a4a] transition-colors hover:bg-black/[0.03]"
-        onClick={() => setCompanions((prev) => [...prev, { id: nextCompanionId++ }])}
-      >
-        + Agregar acompañante
-      </button>
+       {formConfig.interests.enabled ? (
+         <fieldset className="flex flex-col gap-2">
+           <legend className="text-sm font-medium text-[#4a4a4a]">¿Qué temas te interesan?</legend>
+           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+             {formConfig.interests.options.map((option) => {
+               const labels: Record<string, string> = {
+                 "battery-motors": "Motores de baterías",
+                 "wifi-automation": "Motores WiFi y automatización",
+                 curtains: "Cortinería",
+                 "manual-and-motorized-rods": "Cortineros manuales y motorizados",
+               };
+               return (
+                 <label key={option} className="flex items-center gap-2 text-sm text-[#4a4a4a]">
+                   <input type="checkbox" name="interests" value={option} />
+                   {labels[option]}
+                 </label>
+               );
+             })}
+           </div>
+         </fieldset>
+       ) : null}
+
+       {formConfig.companion.enabled ? (
+         <label className="flex items-center gap-2 text-sm text-[#4a4a4a]">
+           <input type="checkbox" name="requestMoreCompanions" value="true" />
+           Quiero agregar más acompañantes
+         </label>
+       ) : null}
+
+       {hasCompanion ? (
+         <div className="grid grid-cols-1 gap-4 border-t border-black/[0.06] pt-6 sm:grid-cols-2">
+           <Field label="Nombre del acompañante" required>
+             <input name="companionFullName" required aria-required="true" maxLength={255} className={fieldClass} />
+           </Field>
+           <Field label="Correo del acompañante" required>
+             <input name="companionEmail" type="email" required aria-required="true" maxLength={255} className={fieldClass} />
+           </Field>
+           {formConfig.fields.phone.visible ? (
+             <Field label="Teléfono del acompañante" required={formConfig.fields.phone.required}>
+               <input name="companionPhone" required={formConfig.fields.phone.required} maxLength={50} className={fieldClass} />
+             </Field>
+           ) : null}
+           <button
+             type="button"
+             className="self-start text-sm text-[#6b6b6b] underline underline-offset-2 hover:text-[#202020] sm:col-span-2"
+             onClick={() => setHasCompanion(false)}
+           >
+             Quitar acompañante
+           </button>
+         </div>
+       ) : null}
+
+       {formConfig.companion.enabled && !hasCompanion ? (
+         <button
+           type="button"
+           className="self-start rounded-full border border-black/10 px-5 py-2 text-sm font-medium text-[#4a4a4a] transition-colors hover:bg-black/[0.03]"
+           onClick={() => setHasCompanion(true)}
+         >
+           + Agregar acompañante
+         </button>
+       ) : null}
+
+       <div className="flex flex-col gap-3 border-t border-black/[0.06] pt-6 text-sm text-[#4a4a4a]">
+         <label className="flex items-start gap-2">
+           <input type="checkbox" name="privacyAccepted" value="true" required aria-required="true" />
+           <span><a href={formConfig.consent.privacy.url} target="_blank" rel="noreferrer" className="underline">{formConfig.consent.privacy.text}</a><span className="ml-1 text-[#c0335a]" aria-hidden="true">•</span></span>
+         </label>
+         <label className="flex items-start gap-2">
+           <input type="checkbox" name="termsAccepted" value="true" required aria-required="true" />
+           <span><a href={formConfig.consent.terms.url} target="_blank" rel="noreferrer" className="underline">{formConfig.consent.terms.text}</a><span className="ml-1 text-[#c0335a]" aria-hidden="true">•</span></span>
+         </label>
+         {formConfig.consent.marketing.enabled ? (
+           <label className="flex items-start gap-2">
+             <input type="checkbox" name="marketingAccepted" value="true" />
+             <span>{formConfig.consent.marketing.text}</span>
+           </label>
+         ) : null}
+       </div>
 
       <div>
         <button

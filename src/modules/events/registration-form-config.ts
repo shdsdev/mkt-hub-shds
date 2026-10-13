@@ -77,7 +77,7 @@ export function getDefaultRegistrationFormConfig(
       company: { visible: event.collectCompany, required: false },
       jobTitle: { visible: event.collectJobTitle, required: false },
     },
-    companion: { enabled: false },
+      companion: { enabled: true },
     clientBrands: { enabled: false, options: [] },
     interests: { enabled: false, options: [] },
     consent: {

@@ -9,7 +9,11 @@ const mocks = vi.hoisted(() => ({
   setEventStatus: vi.fn(),
   setEventWebhookUrl: vi.fn(),
   regenerateEventWebhookSecret: vi.fn(),
-  registrationFormConfigSchema: require("zod").z.any(),
+  registrationFormConfigSchema: {
+    _parse(input: { data: unknown }) {
+      return { status: "valid", value: input.data };
+    },
+  },
   revalidatePath: vi.fn(),
   redirect: vi.fn(),
 }));

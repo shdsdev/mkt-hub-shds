@@ -6,12 +6,29 @@ const mocks = vi.hoisted(() => ({
   notifyEventWebhook: vi.fn(),
   sendConfirmationEmail: vi.fn(),
   exportQrPng: vi.fn(),
+  resolveRegistrationFormConfig: vi.fn(() => ({
+    version: 1,
+    fields: {
+      phone: { visible: false, required: false },
+      company: { visible: false, required: false },
+      jobTitle: { visible: false, required: false },
+    },
+    companion: { enabled: true },
+    clientBrands: { enabled: false, options: [] },
+    interests: { enabled: false, options: [] },
+    consent: {
+      privacy: { url: "/privacy", text: "Acepto la política de privacidad" },
+      terms: { url: "/terms", text: "Acepto los términos y condiciones" },
+      marketing: { enabled: false, text: "Novedades" },
+    },
+  })),
 }));
 
 vi.mock("@/modules/events", () => ({
   getPublishedEventBySlugPublic: mocks.getPublishedEventBySlugPublic,
   registerForEvent: mocks.registerForEvent,
   notifyEventWebhook: mocks.notifyEventWebhook,
+  resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
 }));
 vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
@@ -35,6 +52,8 @@ function baseFormData(overrides: Record<string, string> = {}) {
   fd.set("slug", "workshop-marketing");
   fd.set("fullName", "Ada Lovelace");
   fd.set("email", "ada@example.com");
+  fd.set("privacyAccepted", "true");
+  fd.set("termsAccepted", "true");
   for (const [key, value] of Object.entries(overrides)) fd.set(key, value);
   return fd;
 }
@@ -186,5 +205,37 @@ describe("registerForEventAction", () => {
       }),
     );
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects more than one companion", async () => {
+    const fd = baseFormData();
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionFullName", "Grace Hopper");
+    fd.append("companionEmail", "grace@example.com");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result.error).toBe("Solo puedes registrar un acompañante.");
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing required consent", async () => {
+    const fd = baseFormData();
+    fd.delete("privacyAccepted");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result.error).toContain("política de privacidad");
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects an option that is disabled for the event", async () => {
+    const fd = baseFormData({ interests: "curtains" });
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result.error).toBe("Revisa tus intereses seleccionados.");
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
   });
 });

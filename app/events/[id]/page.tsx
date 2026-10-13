@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPublishedEventBySlugPublic, recordEventVisit } from "@/modules/events";
+import { getPublishedEventBySlugPublic, recordEventVisit, resolveRegistrationFormConfig } from "@/modules/events";
 import { RegisterForm } from "./register-form";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -174,8 +174,7 @@ export default async function EventLandingPage({
         <section id="registro" className="scroll-mt-10">
           <RegisterForm
             slug={event.slug}
-            collectCompany={event.collectCompany}
-            collectJobTitle={event.collectJobTitle}
+             formConfig={resolveRegistrationFormConfig(event)}
             utm={utm}
           />
         </section>

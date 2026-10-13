@@ -5,6 +5,7 @@ import {
   getPublishedEventBySlugPublic,
   registerForEvent,
   notifyEventWebhook,
+  resolveRegistrationFormConfig,
   type AttendeeInput,
 } from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
@@ -14,6 +15,10 @@ const EVENT_UNAVAILABLE_ERROR = "Este evento ya no está disponible.";
 const INVALID_FORM_ERROR = "Revisa tus datos de contacto.";
 const INVALID_COMPANION_ERROR = "Revisa los datos de tus acompañantes.";
 const DUPLICATE_EMAIL_ERROR = "Ya existe un registro activo con este correo para este evento.";
+const INVALID_CONSENT_ERROR = "Acepta la política de privacidad y los términos para continuar.";
+const INVALID_BRANDS_ERROR = "Revisa las marcas seleccionadas.";
+const INVALID_INTERESTS_ERROR = "Revisa tus intereses seleccionados.";
+const TOO_MANY_COMPANIONS_ERROR = "Solo puedes registrar un acompañante.";
 
 const attendeeSchema = z.object({
   fullName: z.string().trim().min(1).max(255),
@@ -35,6 +40,44 @@ function normalizeAttendee(parsed: z.infer<typeof attendeeSchema>): AttendeeInpu
   };
 }
 
+function isAccepted(formData: FormData, name: string): boolean {
+  const value = formData.get(name);
+  return value === "true" || value === "on";
+}
+
+function readSelectedOptions(formData: FormData, name: string): string[] {
+  return formData.getAll(name).map(String).filter(Boolean);
+}
+
+function validateConfiguredFields(
+  attendee: z.infer<typeof attendeeSchema>,
+  fields: { phone: { visible: boolean; required: boolean }; company: { visible: boolean; required: boolean }; jobTitle: { visible: boolean; required: boolean } },
+): string | undefined {
+  const requiredFields = [
+    ["phone", attendee.phone, fields.phone, "El teléfono"],
+    ["company", attendee.company, fields.company, "La empresa"],
+    ["jobTitle", attendee.jobTitle, fields.jobTitle, "El puesto"],
+  ] as const;
+
+  for (const [, value, field, label] of requiredFields) {
+    if (field.required && !value?.trim()) return `${label} es obligatorio.`;
+  }
+  return undefined;
+}
+
+function normalizeConfiguredAttendee(
+  parsed: z.infer<typeof attendeeSchema>,
+  fields: { phone: { visible: boolean; required: boolean }; company: { visible: boolean; required: boolean }; jobTitle: { visible: boolean; required: boolean } },
+): AttendeeInput {
+  const normalized = normalizeAttendee(parsed);
+  return {
+    ...normalized,
+    phone: fields.phone.visible ? normalized.phone : undefined,
+    company: fields.company.visible ? normalized.company : undefined,
+    jobTitle: fields.jobTitle.visible ? normalized.jobTitle : undefined,
+  };
+}
+
 // Companions are submitted as same-name repeated inputs (register-form.tsx renders one row per
 // companion) — `FormData.getAll` preserves submission order, so zipping by index pairs each
 // companion's fields back together. A row with neither name nor email filled in is treated as an
@@ -46,9 +89,9 @@ function readCompanions(formData: FormData): unknown[] {
   const companies = formData.getAll("companionCompany").map(String);
   const jobTitles = formData.getAll("companionJobTitle").map(String);
 
-  return fullNames
-    .map((fullName, index) => ({
-      fullName,
+  const rowCount = Math.max(fullNames.length, emails.length, phones.length, companies.length, jobTitles.length);
+  return Array.from({ length: rowCount }, (_, index) => ({
+      fullName: fullNames[index] ?? "",
       email: emails[index] ?? "",
       phone: phones[index] ?? "",
       company: companies[index] ?? "",
@@ -86,6 +129,7 @@ export async function registerForEventAction(
 
   const event = await getPublishedEventBySlugPublic(slug);
   if (!event) return { error: EVENT_UNAVAILABLE_ERROR };
+  const formConfig = resolveRegistrationFormConfig(event);
 
   const primaryParsed = attendeeSchema.safeParse({
     fullName: formData.get("fullName") ?? "",
@@ -95,15 +139,51 @@ export async function registerForEventAction(
     jobTitle: formData.get("jobTitle") ?? undefined,
   });
   if (!primaryParsed.success) return { error: INVALID_FORM_ERROR };
+  const primaryFieldError = validateConfiguredFields(primaryParsed.data, formConfig.fields);
+  if (primaryFieldError) return { error: primaryFieldError };
 
-  const companionsParsed = z.array(attendeeSchema).safeParse(readCompanions(formData));
+  const companionInputs = readCompanions(formData);
+  if (companionInputs.length > 1) return { error: TOO_MANY_COMPANIONS_ERROR };
+  if (companionInputs.length > 0 && !formConfig.companion.enabled) return { error: INVALID_COMPANION_ERROR };
+  const companionsParsed = z.array(attendeeSchema).safeParse(companionInputs);
   if (!companionsParsed.success) return { error: INVALID_COMPANION_ERROR };
+  if (companionsParsed.data[0]) {
+    const companionFieldError = validateConfiguredFields(companionsParsed.data[0], formConfig.fields);
+    if (companionFieldError) return { error: companionFieldError.replace(/^El |^La /, "El acompañante: ") };
+  }
+
+  if (!isAccepted(formData, "privacyAccepted") || !isAccepted(formData, "termsAccepted")) {
+    return { error: INVALID_CONSENT_ERROR };
+  }
+
+  const clientBrands = readSelectedOptions(formData, "clientBrands");
+  if (!formConfig.clientBrands.enabled && clientBrands.length > 0) return { error: INVALID_BRANDS_ERROR };
+  if (clientBrands.some((option) => !formConfig.clientBrands.options.some((allowed) => allowed === option))) {
+    return { error: INVALID_BRANDS_ERROR };
+  }
+
+  const interests = readSelectedOptions(formData, "interests");
+  if (!formConfig.interests.enabled && interests.length > 0) return { error: INVALID_INTERESTS_ERROR };
+  if (interests.some((option) => !formConfig.interests.options.some((allowed) => allowed === option))) {
+    return { error: INVALID_INTERESTS_ERROR };
+  }
+
+  const now = new Date();
+  const marketingAccepted = isAccepted(formData, "marketingAccepted");
 
   const result = await registerForEvent({
     eventId: event.id,
     source: "public",
-    primary: normalizeAttendee(primaryParsed.data),
-    companions: companionsParsed.data.map(normalizeAttendee),
+    primary: normalizeConfiguredAttendee(primaryParsed.data, formConfig.fields),
+    companions: companionsParsed.data.map((companion) => normalizeConfiguredAttendee(companion, formConfig.fields)),
+    clientBrands,
+    interests,
+    requestedMoreCompanions: isAccepted(formData, "requestMoreCompanions"),
+    consents: {
+      privacyAcceptedAt: now,
+      termsAcceptedAt: now,
+      ...(formConfig.consent.marketing.enabled && marketingAccepted ? { marketingAcceptedAt: now } : {}),
+    },
     utm: readUtm(formData),
   });
 
