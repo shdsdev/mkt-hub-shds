@@ -76,6 +76,11 @@ export async function registerForEventAction(
   _prevState: RegisterFormState,
   formData: FormData,
 ): Promise<RegisterFormState> {
+  const honeypot = formData.get("website");
+  if (typeof honeypot === "string" && honeypot.trim()) {
+    return { success: true, status: "confirmed" };
+  }
+
   const slug = formData.get("slug");
   if (typeof slug !== "string" || !slug) return { error: EVENT_UNAVAILABLE_ERROR };
 

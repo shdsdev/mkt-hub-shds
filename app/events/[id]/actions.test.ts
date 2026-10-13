@@ -64,6 +64,15 @@ describe("registerForEventAction", () => {
     expect(mocks.registerForEvent).not.toHaveBeenCalled();
   });
 
+  it("ignores submissions that fill the honeypot field", async () => {
+    const result = await registerForEventAction({}, baseFormData({ website: "https://spam.example" }));
+
+    expect(result).toEqual({ success: true, status: "confirmed" });
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
+    expect(mocks.notifyEventWebhook).not.toHaveBeenCalled();
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+  });
+
   it("registers the primary attendee and sends a confirmation email when confirmed", async () => {
     mocks.registerForEvent.mockResolvedValue({
       ok: true,

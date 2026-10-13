@@ -73,6 +73,13 @@ export function RegisterForm({
       <h2 className="font-sans text-xl font-medium tracking-tight">Reserva tu lugar</h2>
 
       <input type="hidden" name="slug" value={slug} />
+      <input
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="absolute -left-[10000px] h-px w-px overflow-hidden"
+      />
       {utm.utmSource ? <input type="hidden" name="utmSource" value={utm.utmSource} /> : null}
       {utm.utmMedium ? <input type="hidden" name="utmMedium" value={utm.utmMedium} /> : null}
       {utm.utmCampaign ? <input type="hidden" name="utmCampaign" value={utm.utmCampaign} /> : null}
