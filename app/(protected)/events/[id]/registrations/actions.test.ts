@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   isAdmin: vi.fn(),
   addAttendeeToRegistration: vi.fn(),
   getEvent: vi.fn(),
+  notifyEventWebhook: vi.fn(),
   sendConfirmationEmail: vi.fn(),
   exportQrPng: vi.fn(),
   revalidatePath: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isA
 vi.mock("@/modules/events", () => ({
   addAttendeeToRegistration: mocks.addAttendeeToRegistration,
   getEvent: mocks.getEvent,
+  notifyEventWebhook: mocks.notifyEventWebhook,
 }));
 vi.mock("@/modules/notifications", () => ({ sendConfirmationEmail: mocks.sendConfirmationEmail }));
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
@@ -50,6 +52,8 @@ describe("addCompanionAction", () => {
     mocks.isAdmin.mockReturnValue(true);
     mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
     mocks.sendConfirmationEmail.mockResolvedValue({ sent: true, notificationId: "n1" });
+    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop" });
+    mocks.notifyEventWebhook.mockResolvedValue(undefined);
   });
 
   it("rejects a non-admin without calling the service", async () => {
@@ -93,11 +97,16 @@ describe("addCompanionAction", () => {
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "alan@example.com", eventName: "Workshop" }),
     );
+    expect(mocks.notifyEventWebhook).toHaveBeenCalledWith(
+      { id: EVENT_ID, name: "Workshop" },
+      "registration.created",
+      expect.objectContaining({ status: "confirmed" }),
+    );
     expect(mocks.revalidatePath).toHaveBeenCalledWith(`/events/${EVENT_ID}/registrations`);
     expect(result).toEqual({ success: true });
   });
 
-  it("does not send an email when the registration is waitlisted", async () => {
+  it("does not send an email when the registration is waitlisted, but still notifies the webhook", async () => {
     mocks.addAttendeeToRegistration.mockResolvedValue({
       ok: true,
       registrationStatus: "waitlisted",
@@ -107,6 +116,11 @@ describe("addCompanionAction", () => {
     const result = await addCompanionAction({}, formData());
 
     expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+    expect(mocks.notifyEventWebhook).toHaveBeenCalledWith(
+      expect.anything(),
+      "registration.created",
+      expect.objectContaining({ status: "waitlisted" }),
+    );
     expect(result).toEqual({ success: true });
   });
 

@@ -5,7 +5,13 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
-import { createEvent, updateEvent, setEventStatus } from "@/modules/events";
+import {
+  createEvent,
+  updateEvent,
+  setEventStatus,
+  setEventWebhookUrl,
+  regenerateEventWebhookSecret,
+} from "@/modules/events";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar eventos.";
 const INVALID_FORM_ERROR = "Revisa los datos del evento.";
@@ -219,4 +225,60 @@ export async function publishEventAction(formData: FormData): Promise<void> {
 
 export async function closeEventAction(formData: FormData): Promise<void> {
   return setStatusAction(formData, "closed");
+}
+
+const webhookUrlSchema = z.object({
+  id: z.string().uuid(),
+  webhookUrl: z.string().trim().url().max(2000).optional().or(z.literal("")),
+});
+
+export type WebhookFormState = { error?: string; success?: string; webhookSecret?: string };
+
+// Admin feedback round ("poder generar un webhook por evento"). A separate form/action from
+// updateEventAction on purpose: setEventWebhookUrl owns the "generate the secret exactly once"
+// logic, which a plain UpdateEventChanges passthrough would not.
+export async function setWebhookAction(
+  _prevState: WebhookFormState,
+  formData: FormData,
+): Promise<WebhookFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const parsed = webhookUrlSchema.safeParse({
+    id: formData.get("id"),
+    webhookUrl: formData.get("webhookUrl"),
+  });
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await setEventWebhookUrl({
+    id: parsed.data.id,
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+    webhookUrl: parsed.data.webhookUrl || null,
+  });
+  if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
+
+  revalidatePath(`/events/${parsed.data.id}/edit`);
+  return { success: "Webhook actualizado.", webhookSecret: result.event.webhookSecret ?? undefined };
+}
+
+export async function regenerateWebhookSecretAction(
+  _prevState: WebhookFormState,
+  formData: FormData,
+): Promise<WebhookFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await regenerateEventWebhookSecret({
+    id: id.data,
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+  });
+  if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
+
+  revalidatePath(`/events/${id.data}/edit`);
+  return { success: "Secreto regenerado.", webhookSecret: result.event.webhookSecret ?? undefined };
 }

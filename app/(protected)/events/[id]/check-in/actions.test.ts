@@ -4,11 +4,17 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   isActive: vi.fn(),
   checkInAttendee: vi.fn(),
+  getEvent: vi.fn(),
+  notifyEventWebhook: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive }));
-vi.mock("@/modules/events", () => ({ checkInAttendee: mocks.checkInAttendee }));
+vi.mock("@/modules/events", () => ({
+  checkInAttendee: mocks.checkInAttendee,
+  getEvent: mocks.getEvent,
+  notifyEventWebhook: mocks.notifyEventWebhook,
+}));
 
 import { checkInAction } from "./actions";
 
@@ -38,6 +44,8 @@ describe("checkInAction", () => {
     vi.resetAllMocks();
     mocks.getCurrentUser.mockResolvedValue(activeUser);
     mocks.isActive.mockReturnValue(true);
+    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, webhookUrl: null, webhookSecret: null });
+    mocks.notifyEventWebhook.mockResolvedValue(undefined);
   });
 
   it("rejects when there is no active session, without calling the service", async () => {
@@ -109,5 +117,34 @@ describe("checkInAction", () => {
     const result = await checkInAction({}, formData(EVENT_ID, "ABCD1234"));
 
     expect(result).toEqual({ success: true, alreadyCheckedIn: true, attendeeName: "Ada Lovelace" });
+  });
+
+  it("notifies the event webhook on a genuine first check-in", async () => {
+    mocks.checkInAttendee.mockResolvedValue({
+      ok: true,
+      alreadyCheckedIn: false,
+      attendee: { id: "att-1", fullName: "Ada Lovelace", email: "ada@example.com" },
+    });
+
+    await checkInAction({}, formData(EVENT_ID, "ABCD1234"));
+
+    expect(mocks.notifyEventWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ id: EVENT_ID }),
+      "attendee.checked_in",
+      expect.objectContaining({ attendeeId: "att-1" }),
+    );
+  });
+
+  it("does not notify the webhook on an idempotent re-scan", async () => {
+    mocks.checkInAttendee.mockResolvedValue({
+      ok: true,
+      alreadyCheckedIn: true,
+      attendee: { id: "att-1", fullName: "Ada Lovelace" },
+    });
+
+    await checkInAction({}, formData(EVENT_ID, "ABCD1234"));
+
+    expect(mocks.notifyEventWebhook).not.toHaveBeenCalled();
+    expect(mocks.getEvent).not.toHaveBeenCalled();
   });
 });

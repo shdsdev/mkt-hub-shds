@@ -711,3 +711,78 @@ export async function getEventInsights(
     conversion: event.visitCount === 0 ? null : registrations / event.visitCount,
   };
 }
+
+export type SetEventWebhookResult =
+  | { ok: true; event: EventRow }
+  | { ok: false; reason: "forbidden" | "not_found" };
+
+// Admin feedback round ("poder generar un webhook por evento"): the admin supplies the
+// destination URL (their own CRM/Zapier/etc.), and a signing secret is generated here the first
+// time a URL is saved with no secret yet — never regenerated on a later URL edit, so a receiver
+// that already stored the secret to verify `x-webhook-secret` keeps working across URL changes.
+export async function setEventWebhookUrl(input: {
+  id: string;
+  organizationId: string;
+  actorRole: UserRole;
+  webhookUrl: string | null;
+}): Promise<SetEventWebhookResult> {
+  if (!isAdmin({ role: input.actorRole })) return { ok: false, reason: "forbidden" };
+
+  const existing = await getEvent(input.id, input.organizationId);
+  if (!existing) return { ok: false, reason: "not_found" };
+
+  const webhookSecret =
+    input.webhookUrl && !existing.webhookSecret ? generateOpaqueToken() : existing.webhookSecret;
+
+  const [event] = await db
+    .update(events)
+    .set({ webhookUrl: input.webhookUrl, webhookSecret })
+    .where(and(eq(events.id, input.id), eq(events.organizationId, input.organizationId)))
+    .returning();
+  if (!event) return { ok: false, reason: "not_found" };
+  return { ok: true, event };
+}
+
+// A deliberate separate action from setEventWebhookUrl — rotating the secret is a security
+// action an admin takes on purpose (the old secret stops verifying), never a side effect of
+// editing the URL.
+export async function regenerateEventWebhookSecret(input: {
+  id: string;
+  organizationId: string;
+  actorRole: UserRole;
+}): Promise<SetEventWebhookResult> {
+  if (!isAdmin({ role: input.actorRole })) return { ok: false, reason: "forbidden" };
+
+  const [event] = await db
+    .update(events)
+    .set({ webhookSecret: generateOpaqueToken() })
+    .where(and(eq(events.id, input.id), eq(events.organizationId, input.organizationId)))
+    .returning();
+  if (!event) return { ok: false, reason: "not_found" };
+  return { ok: true, event };
+}
+
+// Fire-and-forget: a failing/misconfigured receiver must never break the caller's own flow
+// (registration, check-in). No retry/delivery-log infrastructure exists yet — a known gap, not
+// silently promised. `type` is a dot-namespaced event name ("registration.created",
+// "attendee.checked_in"); `data` is caller-shaped JSON, never includes the secret itself.
+export async function notifyEventWebhook(
+  event: Pick<EventRow, "webhookUrl" | "webhookSecret">,
+  type: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  if (!event.webhookUrl) return;
+
+  try {
+    await fetch(event.webhookUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(event.webhookSecret ? { "x-webhook-secret": event.webhookSecret } : {}),
+      },
+      body: JSON.stringify({ type, data, sentAt: new Date().toISOString() }),
+    });
+  } catch {
+    // Swallowed on purpose — see function doc comment.
+  }
+}

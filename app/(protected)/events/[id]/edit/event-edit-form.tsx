@@ -14,6 +14,7 @@ import {
 import { EventImageUpload } from "../../event-image-upload";
 import { AgendaEditor } from "../../agenda-editor";
 import { SponsorLogosEditor } from "../../sponsor-logos-editor";
+import { WebhookSettings } from "./webhook-settings";
 
 const initialState: EventFormState = {};
 
@@ -143,6 +144,12 @@ export function EventEditForm({ event }: { event: EventRow }) {
           </form>
         ) : null}
       </div>
+
+      <WebhookSettings
+        eventId={event.id}
+        webhookUrl={event.webhookUrl}
+        webhookSecret={event.webhookSecret}
+      />
     </div>
   );
 }

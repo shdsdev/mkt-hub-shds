@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
-import { addAttendeeToRegistration, getEvent, type AddAttendeeToRegistrationResult } from "@/modules/events";
+import {
+  addAttendeeToRegistration,
+  getEvent,
+  notifyEventWebhook,
+  type AddAttendeeToRegistrationResult,
+} from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
 
@@ -65,10 +70,18 @@ export async function addCompanionAction(
 
   if (!result.ok) return { error: REASON_MESSAGES[result.reason] };
 
+  const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+  if (event) {
+    void notifyEventWebhook(event, "registration.created", {
+      registrationId: parsed.data.registrationId,
+      status: result.registrationStatus,
+      attendee: { id: result.attendee.id, fullName: result.attendee.fullName, email: result.attendee.email },
+    });
+  }
+
   // design.md "Emails sent AFTER commit, never inside the lock" — same convention as
   // registerForEventAction/cancelRegistrationAction.
   if (result.registrationStatus === "confirmed") {
-    const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
     const qrPng = await exportQrPng(result.attendee.passToken, {});
     await sendConfirmationEmail({
       organizationId: result.attendee.organizationId,

@@ -1,7 +1,12 @@
 "use server";
 
 import { z } from "zod";
-import { getPublishedEventBySlugPublic, registerForEvent, type AttendeeInput } from "@/modules/events";
+import {
+  getPublishedEventBySlugPublic,
+  registerForEvent,
+  notifyEventWebhook,
+  type AttendeeInput,
+} from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
 
@@ -100,6 +105,14 @@ export async function registerForEventAction(
   if (!result.ok) {
     return { error: result.reason === "duplicate_email" ? DUPLICATE_EMAIL_ERROR : EVENT_UNAVAILABLE_ERROR };
   }
+
+  // Fire-and-forget, same convention as recordEventVisit — notifyEventWebhook already swallows
+  // its own errors, so a slow/misconfigured receiver never delays or breaks the public response.
+  void notifyEventWebhook(event, "registration.created", {
+    registrationId: result.registration.id,
+    status: result.registration.status,
+    attendees: result.attendees.map((a) => ({ id: a.id, fullName: a.fullName, email: a.email })),
+  });
 
   // design.md "Emails sent AFTER commit, never inside the lock" — dispatched here, outside
   // registerForEvent's transaction. spec.md "Confirmation Email Content" is sent only on

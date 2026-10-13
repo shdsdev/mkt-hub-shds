@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getPublishedEventBySlugPublic: vi.fn(),
   registerForEvent: vi.fn(),
+  notifyEventWebhook: vi.fn(),
   sendConfirmationEmail: vi.fn(),
   exportQrPng: vi.fn(),
 }));
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/modules/events", () => ({
   getPublishedEventBySlugPublic: mocks.getPublishedEventBySlugPublic,
   registerForEvent: mocks.registerForEvent,
+  notifyEventWebhook: mocks.notifyEventWebhook,
 }));
 vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
@@ -43,6 +45,7 @@ describe("registerForEventAction", () => {
     mocks.getPublishedEventBySlugPublic.mockResolvedValue(event);
     mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
     mocks.sendConfirmationEmail.mockResolvedValue({ sent: true, notificationId: "n1" });
+    mocks.notifyEventWebhook.mockResolvedValue(undefined);
   });
 
   it("rejects when the event is no longer published", async () => {
@@ -85,6 +88,11 @@ describe("registerForEventAction", () => {
         source: "public",
         primary: expect.objectContaining({ fullName: "Ada Lovelace", email: "ada@example.com" }),
       }),
+    );
+    expect(mocks.notifyEventWebhook).toHaveBeenCalledWith(
+      event,
+      "registration.created",
+      expect.objectContaining({ status: "confirmed" }),
     );
     expect(mocks.exportQrPng).toHaveBeenCalledWith("pass-token-1", {});
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(

@@ -88,6 +88,13 @@ export const events = pgTable("events", {
   heroImageUrl: text("hero_image_url"),
   agenda: jsonb("agenda").$type<AgendaItem[]>().notNull().default(sql`'[]'::jsonb`),
   sponsorLogos: jsonb("sponsor_logos").$type<SponsorLogo[]>().notNull().default(sql`'[]'::jsonb`),
+  // Outbound notification (admin feedback round: "poder generar un webhook por evento") — admin
+  // supplies the destination URL (their own CRM/Zapier/etc.), we generate the signing secret.
+  // Both nullable: no webhook configured is the default, and `webhookUrl` without a secret never
+  // happens (the secret is generated the moment a URL is first saved — see
+  // `setEventWebhookUrl`/`regenerateEventWebhookSecret` in service.ts).
+  webhookUrl: text("webhook_url"),
+  webhookSecret: text("webhook_secret"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

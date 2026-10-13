@@ -20,6 +20,9 @@ export {
   recordEventVisit,
   listRegistrations,
   getEventInsights,
+  setEventWebhookUrl,
+  regenerateEventWebhookSecret,
+  notifyEventWebhook,
   type EventRow,
   type EventMutationResult,
   type CreateEventInput,
@@ -38,6 +41,7 @@ export {
   type DueReminderAttendee,
   type RegistrationWithAttendees,
   type EventInsights,
+  type SetEventWebhookResult,
   type AgendaItem,
   type SponsorLogo,
 } from "./service";

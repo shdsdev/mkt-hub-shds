@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   createEvent: vi.fn(),
   updateEvent: vi.fn(),
   setEventStatus: vi.fn(),
+  setEventWebhookUrl: vi.fn(),
+  regenerateEventWebhookSecret: vi.fn(),
   revalidatePath: vi.fn(),
   redirect: vi.fn(),
 }));
@@ -17,6 +19,8 @@ vi.mock("@/modules/events", () => ({
   createEvent: mocks.createEvent,
   updateEvent: mocks.updateEvent,
   setEventStatus: mocks.setEventStatus,
+  setEventWebhookUrl: mocks.setEventWebhookUrl,
+  regenerateEventWebhookSecret: mocks.regenerateEventWebhookSecret,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
@@ -26,6 +30,8 @@ import {
   updateEventAction,
   publishEventAction,
   closeEventAction,
+  setWebhookAction,
+  regenerateWebhookSecretAction,
 } from "./actions";
 
 const adminUser = {
@@ -279,5 +285,71 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
 
     const call = mocks.updateEvent.mock.calls[0][0];
     expect(call.changes.heroImageUrl).toBeNull();
+  });
+
+  it("rejects a webhook URL update for a non-admin without calling the service", async () => {
+    mocks.isAdmin.mockReturnValue(false);
+
+    const result = await setWebhookAction(
+      {},
+      createFormData({ id: "11111111-1111-4111-8111-111111111111", webhookUrl: "https://example.com/hook" }),
+    );
+
+    expect(result.error).toBeTruthy();
+    expect(mocks.setEventWebhookUrl).not.toHaveBeenCalled();
+  });
+
+  it("sets the webhook URL and surfaces the generated secret", async () => {
+    mocks.setEventWebhookUrl.mockResolvedValue({
+      ok: true,
+      event: { id: "event-1", webhookUrl: "https://example.com/hook", webhookSecret: "new-secret" },
+    });
+
+    const result = await setWebhookAction(
+      {},
+      createFormData({ id: "11111111-1111-4111-8111-111111111111", webhookUrl: "https://example.com/hook" }),
+    );
+
+    expect(mocks.setEventWebhookUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ webhookUrl: "https://example.com/hook", actorRole: "ADMIN" }),
+    );
+    expect(result).toEqual({ success: "Webhook actualizado.", webhookSecret: "new-secret" });
+  });
+
+  it("clears the webhook URL when submitted empty", async () => {
+    mocks.setEventWebhookUrl.mockResolvedValue({
+      ok: true,
+      event: { id: "event-1", webhookUrl: null, webhookSecret: null },
+    });
+
+    await setWebhookAction({}, createFormData({ id: "11111111-1111-4111-8111-111111111111", webhookUrl: "" }));
+
+    expect(mocks.setEventWebhookUrl).toHaveBeenCalledWith(expect.objectContaining({ webhookUrl: null }));
+  });
+
+  it("rejects secret regeneration for a non-admin without calling the service", async () => {
+    mocks.isAdmin.mockReturnValue(false);
+
+    const result = await regenerateWebhookSecretAction(
+      {},
+      createFormData({ id: "11111111-1111-4111-8111-111111111111" }),
+    );
+
+    expect(result.error).toBeTruthy();
+    expect(mocks.regenerateEventWebhookSecret).not.toHaveBeenCalled();
+  });
+
+  it("regenerates the secret for ADMIN", async () => {
+    mocks.regenerateEventWebhookSecret.mockResolvedValue({
+      ok: true,
+      event: { id: "event-1", webhookSecret: "rotated-secret" },
+    });
+
+    const result = await regenerateWebhookSecretAction(
+      {},
+      createFormData({ id: "11111111-1111-4111-8111-111111111111" }),
+    );
+
+    expect(result).toEqual({ success: "Secreto regenerado.", webhookSecret: "rotated-secret" });
   });
 });

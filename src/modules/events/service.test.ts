@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterAll, beforeEach, describe, it, expect, vi } from "vitest";
 
 const {
   insertMock,
@@ -61,6 +61,9 @@ import {
   listRegistrations,
   getEventInsights,
   addAttendeeToRegistration,
+  setEventWebhookUrl,
+  regenerateEventWebhookSecret,
+  notifyEventWebhook,
 } from "./service";
 
 // Chainable mock builders matching the project's established pattern
@@ -1137,5 +1140,169 @@ describe("events service — getEventInsights", () => {
 
     const result = await getEventInsights("event-1", "org-1");
     expect(result?.conversion).toBeNull();
+  });
+});
+
+// Admin feedback round ("poder generar un webhook por evento") — admin supplies the destination
+// URL, we generate the signing secret exactly once (the first time a URL is saved with no secret
+// yet), never silently regenerating it on every edit.
+describe("events service — setEventWebhookUrl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("denies a non-admin without updating anything", async () => {
+    const result = await setEventWebhookUrl({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "MARKETING_USER",
+      webhookUrl: "https://example.com/webhook",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "forbidden" });
+    expect(selectMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("generates a secret when setting a URL for the first time (no existing secret)", async () => {
+    selectMock.mockReturnValue(selectChain([{ ...baseEvent, webhookUrl: null, webhookSecret: null }]));
+    const updated = { ...baseEvent, webhookUrl: "https://example.com/webhook", webhookSecret: "generated-secret" };
+    const chain = updateChain([updated]);
+    updateMock.mockReturnValue(chain);
+
+    const result = await setEventWebhookUrl({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      webhookUrl: "https://example.com/webhook",
+    });
+
+    expect(result).toEqual({ ok: true, event: updated });
+    const setCall = chain.set.mock.calls[0][0];
+    expect(setCall.webhookUrl).toBe("https://example.com/webhook");
+    expect(typeof setCall.webhookSecret).toBe("string");
+    expect(setCall.webhookSecret.length).toBeGreaterThan(20);
+  });
+
+  it("keeps the existing secret when a URL is changed but a secret already exists", async () => {
+    selectMock.mockReturnValue(
+      selectChain([{ ...baseEvent, webhookUrl: "https://old.example.com", webhookSecret: "existing-secret" }]),
+    );
+    const chain = updateChain([{ ...baseEvent, webhookSecret: "existing-secret" }]);
+    updateMock.mockReturnValue(chain);
+
+    await setEventWebhookUrl({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      webhookUrl: "https://new.example.com",
+    });
+
+    expect(chain.set).toHaveBeenCalledWith(
+      expect.objectContaining({ webhookUrl: "https://new.example.com", webhookSecret: "existing-secret" }),
+    );
+  });
+
+  it("returns not_found when the event doesn't exist in this organization", async () => {
+    selectMock.mockReturnValue(selectChain([]));
+
+    const result = await setEventWebhookUrl({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      webhookUrl: "https://example.com/webhook",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("events service — regenerateEventWebhookSecret", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("denies a non-admin without updating anything", async () => {
+    const result = await regenerateEventWebhookSecret({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "VIEWER",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "forbidden" });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("sets a fresh secret for ADMIN", async () => {
+    const updated = { ...baseEvent, webhookSecret: "fresh-secret" };
+    const chain = updateChain([updated]);
+    updateMock.mockReturnValue(chain);
+
+    const result = await regenerateEventWebhookSecret({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+    });
+
+    expect(result).toEqual({ ok: true, event: updated });
+    const setCall = chain.set.mock.calls[0][0];
+    expect(typeof setCall.webhookSecret).toBe("string");
+    expect(setCall.webhookSecret.length).toBeGreaterThan(20);
+  });
+
+  it("returns not_found when the event doesn't exist in this organization", async () => {
+    updateMock.mockReturnValue(updateChain([]));
+
+    const result = await regenerateEventWebhookSecret({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+  });
+});
+
+describe("events service — notifyEventWebhook", () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("does nothing when the event has no webhook configured", async () => {
+    await notifyEventWebhook({ webhookUrl: null, webhookSecret: null }, "registration.created", { id: "reg-1" });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("POSTs the payload with the secret header when a webhook is configured", async () => {
+    await notifyEventWebhook(
+      { webhookUrl: "https://example.com/webhook", webhookSecret: "my-secret" },
+      "registration.created",
+      { id: "reg-1" },
+    );
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://example.com/webhook",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "x-webhook-secret": "my-secret" }),
+      }),
+    );
+    const body = JSON.parse((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
+    expect(body).toMatchObject({ type: "registration.created", data: { id: "reg-1" } });
+  });
+
+  it("swallows a fetch failure instead of throwing (fire-and-forget)", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("network down"));
+
+    await expect(
+      notifyEventWebhook({ webhookUrl: "https://example.com/webhook", webhookSecret: "s" }, "registration.created", {}),
+    ).resolves.toBeUndefined();
   });
 });

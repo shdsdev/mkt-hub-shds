@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive } from "@/modules/users";
-import { checkInAttendee } from "@/modules/events";
+import { checkInAttendee, getEvent, notifyEventWebhook } from "@/modules/events";
 
 const PERMISSION_ERROR = "No tienes permiso para hacer check-in.";
 const INVALID_FORM_ERROR = "Escanea o escribe un código válido.";
@@ -49,6 +49,19 @@ export async function checkInAction(
   });
 
   if (!result.ok) return { error: NOT_FOUND_ERROR };
+
+  // Only on a genuine first check-in — a re-scan of an already-checked-in attendee is a no-op
+  // and must not notify again.
+  if (!result.alreadyCheckedIn) {
+    const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+    if (event) {
+      void notifyEventWebhook(event, "attendee.checked_in", {
+        attendeeId: result.attendee.id,
+        fullName: result.attendee.fullName,
+        email: result.attendee.email,
+      });
+    }
+  }
 
   return {
     success: true,
