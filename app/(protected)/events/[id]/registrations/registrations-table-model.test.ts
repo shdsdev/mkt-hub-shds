@@ -36,9 +36,8 @@ describe("registration table model", () => {
   it("summarizes the high-value columns without losing detail data", () => {
     expect(getRegistrationTableValues(registration)).toEqual({
       companionCount: 1,
-      brands: "Shades",
-      interests: "Motores de baterías, Cortinería",
-      pass: "Pendiente",
+      isClient: true,
+      status: "Pendiente",
       followUp: true,
       source: "instagram",
     });

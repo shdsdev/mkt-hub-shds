@@ -101,6 +101,7 @@ export type AttendeeEmailInput = {
   eventName: string;
   backupCode: string;
   qrPngBase64: string;
+  force?: boolean;
 };
 
 // attendeeName/eventName originate from registration input (public-facing form in PR3) and must
@@ -149,13 +150,15 @@ async function sendAttendeeEmail(
   intro: string,
   input: AttendeeEmailInput,
 ): Promise<SendEmailResult> {
-  const claim = await claimNotification({
-    organizationId: input.organizationId,
-    subjectType: "event_attendee",
-    subjectId: input.attendeeId,
-    notificationType,
-  });
-  if (!claim) return { sent: false, reason: "already_sent" };
+  const claim = input.force
+    ? undefined
+    : await claimNotification({
+        organizationId: input.organizationId,
+        subjectType: "event_attendee",
+        subjectId: input.attendeeId,
+        notificationType,
+      });
+  if (!input.force && !claim) return { sent: false, reason: "already_sent" };
 
   const result = await sendViaResend({
     to: input.to,
@@ -163,11 +166,11 @@ async function sendAttendeeEmail(
     html: attendeePassEmailHtml(input, intro),
   });
   if (!result.ok) {
-    await markNotificationFailed(claim.id, result.error);
+    if (claim) await markNotificationFailed(claim.id, result.error);
     return { sent: false, reason: "provider_failure", error: result.error };
   }
-  await markNotificationSent(claim.id, result.messageId);
-  return { sent: true, notificationId: claim.id };
+  if (claim) await markNotificationSent(claim.id, result.messageId);
+  return { sent: true, notificationId: claim?.id ?? "resend" };
 }
 
 // spec.md "Confirmation Email Content" — sent per attendee (primary + each companion) on

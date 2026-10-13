@@ -98,6 +98,7 @@ export default async function RegistrationsPage({
         <RegistrationsTable
           registrations={registrations}
           eventId={id}
+          eventName={event.name}
           collectCompany={event.collectCompany}
           collectJobTitle={event.collectJobTitle}
           statusLabels={STATUS_LABELS}

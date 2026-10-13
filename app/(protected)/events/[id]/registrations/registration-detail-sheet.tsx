@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -9,6 +10,8 @@ import {
 } from "@/components/ui/sheet";
 import type { RegistrationWithAttendees } from "@/modules/events";
 import { AddCompanionRow } from "./add-companion-row";
+import { resendInvitationAction, type ResendInvitationState } from "./actions";
+import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
 
 const UTM_LABELS: Record<string, string> = {
   utmSource: "utm_source",
@@ -35,6 +38,7 @@ const OCCUPATION_LABELS: Record<string, string> = {
   decorator: "Decorador/a",
   "installer-technician": "Instalador/a o técnico/a",
 };
+const initialResendState: ResendInvitationState = {};
 
 // Admin feedback round: "prefiero... abrir un side panel al presionar la fila" — every field the
 // table's columns couldn't fit (phone/company/job title per attendee, backup code, check-in
@@ -45,6 +49,7 @@ export function RegistrationDetailSheet({
   open,
   onOpenChange,
   eventId,
+  eventName,
   collectCompany,
   collectJobTitle,
 }: {
@@ -53,9 +58,11 @@ export function RegistrationDetailSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   eventId: string;
+  eventName: string;
   collectCompany: boolean;
   collectJobTitle: boolean;
 }) {
+  const [resendState, resendAction, resendPending] = useActionState(resendInvitationAction, initialResendState);
   const utmEntries = (Object.keys(UTM_LABELS) as (keyof typeof UTM_LABELS)[])
     .map((key) => [UTM_LABELS[key], registration[key as keyof RegistrationWithAttendees]] as const)
     .filter(([, value]) => Boolean(value));
@@ -152,14 +159,29 @@ export function RegistrationDetailSheet({
                 {attendee.occupation ? (
                   <p className="text-muted-foreground">Actividad: {OCCUPATION_LABELS[attendee.occupation] ?? attendee.occupation}</p>
                 ) : null}
-                <p className="text-xs text-muted-foreground">Código de respaldo: {attendee.backupCode}</p>
+                <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">Folio de acceso: {attendee.backupCode}</p>
                 <p className="text-xs text-muted-foreground">
                   {attendee.checkedInAt
                     ? `Check-in: ${attendee.checkedInAt.toLocaleString()}`
                     : "Sin check-in"}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {attendee.phone ? (
+                    <>
+                      <a href={`tel:${attendee.phone}`} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-card">Llamar</a>
+                      <a href={buildWhatsAppInvitationUrl({ phone: attendee.phone, attendeeName: attendee.fullName, eventName, backupCode: attendee.backupCode })} target="_blank" rel="noreferrer" className="rounded-md border border-border px-2 py-1 text-xs hover:bg-card">WhatsApp</a>
+                    </>
+                  ) : null}
+                  <form action={resendAction}>
+                    <input type="hidden" name="eventId" value={eventId} />
+                    <input type="hidden" name="attendeeId" value={attendee.id} />
+                    <button type="submit" disabled={resendPending} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-card">{resendPending ? "Enviando…" : "Reenviar por correo"}</button>
+                  </form>
+                </div>
               </div>
             ))}
+            {resendState.error ? <p className="text-xs text-destructive">{resendState.error}</p> : null}
+            {resendState.success ? <p className="text-xs text-muted-foreground">{resendState.success}</p> : null}
           </section>
 
           {registration.status !== "cancelled" ? (

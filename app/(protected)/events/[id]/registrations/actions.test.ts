@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   isAdmin: vi.fn(),
   addAttendeeToRegistration: vi.fn(),
   getEvent: vi.fn(),
+  listRegistrations: vi.fn(),
   notifyEventWebhook: vi.fn(),
   sendConfirmationEmail: vi.fn(),
   exportQrPng: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isA
 vi.mock("@/modules/events", () => ({
   addAttendeeToRegistration: mocks.addAttendeeToRegistration,
   getEvent: mocks.getEvent,
+  listRegistrations: mocks.listRegistrations,
   notifyEventWebhook: mocks.notifyEventWebhook,
   OCCUPATION_OPTIONS: mocks.OCCUPATION_OPTIONS,
 }));
@@ -25,7 +27,7 @@ vi.mock("@/modules/notifications", () => ({ sendConfirmationEmail: mocks.sendCon
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 
-import { addCompanionAction } from "./actions";
+import { addCompanionAction, resendInvitationAction } from "./actions";
 
 const adminUser = {
   id: "admin-1",
@@ -80,7 +82,7 @@ describe("addCompanionAction", () => {
       ok: true,
       registrationStatus: "confirmed",
       attendee: {
-        id: "att-2",
+        id: "33333333-3333-4333-8333-333333333333",
         organizationId: "org-1",
         email: "alan@example.com",
         fullName: "Alan Turing",
@@ -134,5 +136,30 @@ describe("addCompanionAction", () => {
 
     expect(result.error).toMatch(/capacidad/i);
     expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+  });
+
+  it("resends the invitation email for an existing attendee", async () => {
+    mocks.listRegistrations.mockResolvedValue([{
+      attendees: [{
+        id: "33333333-3333-4333-8333-333333333333",
+        organizationId: "org-1",
+        fullName: "Alan Turing",
+        email: "alan@example.com",
+        passToken: "pass-token-2",
+        backupCode: "WXYZ5678",
+      }],
+    }]);
+    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop" });
+    mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
+    mocks.sendConfirmationEmail.mockResolvedValue({ sent: true, notificationId: "resend" });
+
+    const fd = formData({ attendeeId: "33333333-3333-4333-8333-333333333333" });
+    const result = await resendInvitationAction({}, fd);
+
+    expect(result).toEqual({ success: "Invitación reenviada por correo." });
+    expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({
+      attendeeId: "33333333-3333-4333-8333-333333333333",
+      force: true,
+    }));
   });
 });

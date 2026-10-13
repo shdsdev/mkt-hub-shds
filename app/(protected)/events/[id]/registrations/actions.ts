@@ -7,6 +7,7 @@ import { isActive, isAdmin } from "@/modules/users";
 import {
   addAttendeeToRegistration,
   getEvent,
+  listRegistrations,
   notifyEventWebhook,
   OCCUPATION_OPTIONS,
   type AddAttendeeToRegistrationResult,
@@ -36,6 +37,8 @@ const schema = z.object({
 });
 
 export type AddCompanionFormState = { error?: string; success?: boolean };
+
+export type ResendInvitationState = { error?: string; success?: string };
 
 // Admin feedback round: a "master form" to add more companions to a registration that was
 // already submitted (not the public registration form — that stays scoped to the person
@@ -100,4 +103,47 @@ export async function addCompanionAction(
 
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
   return { success: true };
+}
+
+const resendInvitationSchema = z.object({
+  eventId: z.string().uuid(),
+  attendeeId: z.string().uuid(),
+});
+
+export async function resendInvitationAction(
+  _prevState: ResendInvitationState,
+  formData: FormData,
+): Promise<ResendInvitationState> {
+  const user = await getCurrentUser();
+  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) return { error: PERMISSION_ERROR };
+
+  const parsed = resendInvitationSchema.safeParse({
+    eventId: formData.get("eventId"),
+    attendeeId: formData.get("attendeeId"),
+  });
+  if (!parsed.success) return { error: "No se pudo identificar al asistente." };
+
+  const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+  if (!event) return { error: "No se encontró el evento." };
+
+  const registrations = await listRegistrations(parsed.data.eventId, user.profile.organizationId);
+  const attendee = registrations.flatMap((registration) => registration.attendees).find(({ id }) => id === parsed.data.attendeeId);
+  if (!attendee) return { error: "No se encontró al asistente." };
+
+  const qrPng = await exportQrPng(attendee.passToken, {});
+  const result = await sendConfirmationEmail({
+    organizationId: attendee.organizationId,
+    attendeeId: attendee.id,
+    to: attendee.email,
+    attendeeName: attendee.fullName,
+    eventName: event.name,
+    backupCode: attendee.backupCode,
+    qrPngBase64: qrPng.toString("base64"),
+    force: true,
+  });
+
+  if (!result.sent) return { error: result.reason === "provider_failure" ? "No se pudo enviar el correo." : "No se pudo reenviar la invitación." };
+
+  revalidatePath(`/events/${parsed.data.eventId}/registrations`);
+  return { success: "Invitación reenviada por correo." };
 }

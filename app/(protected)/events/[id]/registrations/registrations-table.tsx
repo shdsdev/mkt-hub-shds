@@ -9,6 +9,7 @@ import { RegistrationDetailSheet } from "./registration-detail-sheet";
 type Props = {
   registrations: RegistrationWithAttendees[];
   eventId: string;
+  eventName: string;
   collectCompany: boolean;
   collectJobTitle: boolean;
   statusLabels: Record<EventRegistrationRow["status"], string>;
@@ -17,6 +18,7 @@ type Props = {
 export function RegistrationsTable({
   registrations,
   eventId,
+  eventName,
   collectCompany,
   collectJobTitle,
   statusLabels,
@@ -40,15 +42,12 @@ export function RegistrationsTable({
         <table className="min-w-[1120px] w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border text-xs text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Contacto</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
+              <th className="px-4 py-3 font-medium">Nombre</th>
+              <th className="px-4 py-3 font-medium">Empresa</th>
               <th className="px-4 py-3 font-medium">Fecha</th>
+              <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Marca</th>
-              <th className="px-4 py-3 font-medium">Intereses</th>
-              <th className="px-4 py-3 font-medium">Acompañantes</th>
-              <th className="px-4 py-3 font-medium">Pase</th>
               <th className="px-4 py-3 font-medium">Seguimiento</th>
-              <th className="px-4 py-3 font-medium">Origen</th>
               <th className="px-4 py-3 font-medium">Acciones</th>
             </tr>
           </thead>
@@ -70,24 +69,14 @@ export function RegistrationsTable({
                 >
                   <td className="max-w-56 px-4 py-3">
                     <strong className="block truncate font-medium">{primary?.fullName ?? "—"}</strong>
-                    {primary?.email ? (
-                      <a
-                        href={`mailto:${primary.email}`}
-                        className="block truncate text-xs text-muted-foreground underline underline-offset-2"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        {primary.email}
-                      </a>
-                    ) : null}
+                    {primary?.email ? <span className="block truncate text-xs text-muted-foreground">{primary.email}</span> : null}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{statusLabels[registration.status]}</td>
+                  <td className="max-w-48 truncate px-4 py-3">{primary?.company ?? "—"}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                     {registration.createdAt.toLocaleString()}
                   </td>
-                  <td className="max-w-44 truncate px-4 py-3">{values.brands}</td>
-                  <td className="max-w-56 truncate px-4 py-3">{values.interests}</td>
-                  <td className="px-4 py-3 text-center">{values.companionCount || "—"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{values.pass}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{statusLabels[registration.status]}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{values.isClient ? "Cliente" : "No cliente"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {values.followUp ? (
                       <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">
@@ -97,7 +86,6 @@ export function RegistrationsTable({
                       "—"
                     )}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{values.source}</td>
                   <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
                     {registration.status !== "cancelled" ? (
                       <AddCompanionRow
@@ -122,6 +110,7 @@ export function RegistrationsTable({
           open
           onOpenChange={(open) => !open && setSelectedId(null)}
           eventId={eventId}
+          eventName={eventName}
           collectCompany={collectCompany}
           collectJobTitle={collectJobTitle}
         />
