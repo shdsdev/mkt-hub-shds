@@ -327,6 +327,17 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
     expect(mocks.setEventWebhookUrl).toHaveBeenCalledWith(expect.objectContaining({ webhookUrl: null }));
   });
 
+  it("surfaces an unsafe_url rejection with its own friendly message", async () => {
+    mocks.setEventWebhookUrl.mockResolvedValue({ ok: false, reason: "unsafe_url" });
+
+    const result = await setWebhookAction(
+      {},
+      createFormData({ id: "11111111-1111-4111-8111-111111111111", webhookUrl: "https://169.254.169.254/" }),
+    );
+
+    expect(result.error).toMatch(/https/i);
+  });
+
   it("rejects secret regeneration for a non-admin without calling the service", async () => {
     mocks.isAdmin.mockReturnValue(false);
 

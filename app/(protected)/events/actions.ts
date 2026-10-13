@@ -16,6 +16,8 @@ import {
 const PERMISSION_ERROR = "No tienes permiso para administrar eventos.";
 const INVALID_FORM_ERROR = "Revisa los datos del evento.";
 const NOT_FOUND_ERROR = "El evento no está disponible.";
+const UNSAFE_WEBHOOK_URL_ERROR =
+  "Esa URL no es válida para un webhook — debe ser https:// y apuntar a una dirección pública.";
 
 // Same gate shape as app/(protected)/settings/users/actions.ts#requireActiveAdmin — duplicated
 // per module rather than shared, matching this repo's existing convention.
@@ -256,7 +258,11 @@ export async function setWebhookAction(
     actorRole: user.profile.role,
     webhookUrl: parsed.data.webhookUrl || null,
   });
-  if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
+  if (!result.ok) {
+    if (result.reason === "not_found") return { error: NOT_FOUND_ERROR };
+    if (result.reason === "unsafe_url") return { error: UNSAFE_WEBHOOK_URL_ERROR };
+    return { error: PERMISSION_ERROR };
+  }
 
   revalidatePath(`/events/${parsed.data.id}/edit`);
   return { success: "Webhook actualizado.", webhookSecret: result.event.webhookSecret ?? undefined };

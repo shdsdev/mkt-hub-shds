@@ -1,4 +1,6 @@
 import { randomBytes } from "node:crypto";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { isIPv4, isIPv6 } from "node:net";
 import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isAdmin, type UserRole } from "@/modules/users";
@@ -714,7 +716,62 @@ export async function getEventInsights(
 
 export type SetEventWebhookResult =
   | { ok: true; event: EventRow }
-  | { ok: false; reason: "forbidden" | "not_found" };
+  | { ok: false; reason: "forbidden" | "not_found" | "unsafe_url" };
+
+// SSRF guard (security review finding): an ADMIN-supplied webhookUrl is still an
+// attacker-reachable surface — a compromised or malicious admin account could point it at an
+// internal service (cloud metadata endpoints, internal admin panels, the DB itself) and use this
+// server as a proxy to reach it. Require HTTPS and reject any hostname that resolves to a
+// loopback/private/link-local/unspecified address. A literal IP in the URL is checked directly,
+// without a DNS lookup (nothing to resolve); a bare hostname resolves via `dns.lookup` ascertain
+// every address it could mean — `{ all: true }` so a multi-A-record host can't hide one bad
+// answer among good ones.
+function isDisallowedIPv4(address: string): boolean {
+  const octets = address.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((n) => Number.isNaN(n))) return true;
+  const [a, b] = octets;
+  if (a === 0) return true; // "this network"
+  if (a === 127) return true; // loopback
+  if (a === 10) return true; // private
+  if (a === 172 && b >= 16 && b <= 31) return true; // private
+  if (a === 192 && b === 168) return true; // private
+  if (a === 169 && b === 254) return true; // link-local (incl. cloud metadata, e.g. 169.254.169.254)
+  return false;
+}
+
+function isDisallowedIPv6(address: string): boolean {
+  const normalized = address.toLowerCase();
+  if (normalized === "::1" || normalized === "::") return true; // loopback / unspecified
+  if (/^fe[89ab][0-9a-f]:/.test(normalized)) return true; // link-local fe80::/10
+  if (/^f[cd][0-9a-f]{2}:/.test(normalized)) return true; // unique local fc00::/7
+  const v4Mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (v4Mapped) return isDisallowedIPv4(v4Mapped[1]);
+  return false;
+}
+
+async function isWebhookUrlSafe(urlString: string): Promise<boolean> {
+  let url: URL;
+  try {
+    url = new URL(urlString);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:") return false;
+
+  if (isIPv4(url.hostname)) return !isDisallowedIPv4(url.hostname);
+  if (isIPv6(url.hostname)) return !isDisallowedIPv6(url.hostname);
+
+  let records: { address: string; family: number }[];
+  try {
+    records = await dnsLookup(url.hostname, { all: true });
+  } catch {
+    return false; // unresolvable — reject rather than let a later lookup surprise us
+  }
+  if (records.length === 0) return false;
+  return records.every((record) =>
+    record.family === 6 ? !isDisallowedIPv6(record.address) : !isDisallowedIPv4(record.address),
+  );
+}
 
 // Admin feedback round ("poder generar un webhook por evento"): the admin supplies the
 // destination URL (their own CRM/Zapier/etc.), and a signing secret is generated here the first
@@ -727,6 +784,10 @@ export async function setEventWebhookUrl(input: {
   webhookUrl: string | null;
 }): Promise<SetEventWebhookResult> {
   if (!isAdmin({ role: input.actorRole })) return { ok: false, reason: "forbidden" };
+
+  if (input.webhookUrl && !(await isWebhookUrlSafe(input.webhookUrl))) {
+    return { ok: false, reason: "unsafe_url" };
+  }
 
   const existing = await getEvent(input.id, input.organizationId);
   if (!existing) return { ok: false, reason: "not_found" };
@@ -766,16 +827,23 @@ export async function regenerateEventWebhookSecret(input: {
 // (registration, check-in). No retry/delivery-log infrastructure exists yet — a known gap, not
 // silently promised. `type` is a dot-namespaced event name ("registration.created",
 // "attendee.checked_in"); `data` is caller-shaped JSON, never includes the secret itself.
+//
+// Re-runs the SSRF safety check here too (not just at save time in setEventWebhookUrl): a
+// hostname that resolved to a public IP when the admin saved the URL could resolve to an
+// internal one by the time this actually fires (DNS rebinding). `redirect: "manual"` stops
+// `fetch` from silently following a 3xx to an address that was never itself checked.
 export async function notifyEventWebhook(
   event: Pick<EventRow, "webhookUrl" | "webhookSecret">,
   type: string,
   data: Record<string, unknown>,
 ): Promise<void> {
   if (!event.webhookUrl) return;
+  if (!(await isWebhookUrlSafe(event.webhookUrl))) return;
 
   try {
     await fetch(event.webhookUrl, {
       method: "POST",
+      redirect: "manual",
       headers: {
         "content-type": "application/json",
         ...(event.webhookSecret ? { "x-webhook-secret": event.webhookSecret } : {}),

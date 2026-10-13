@@ -9,6 +9,7 @@ const {
   txSelectMock,
   txInsertMock,
   txUpdateMock,
+  dnsLookupMock,
 } = vi.hoisted(() => ({
   insertMock: vi.fn(),
   updateMock: vi.fn(),
@@ -18,6 +19,7 @@ const {
   txSelectMock: vi.fn(),
   txInsertMock: vi.fn(),
   txUpdateMock: vi.fn(),
+  dnsLookupMock: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({
@@ -28,6 +30,11 @@ vi.mock("@/db/client", () => ({
     transaction: transactionMock,
   },
 }));
+
+// SSRF-safety check (setEventWebhookUrl/notifyEventWebhook) resolves the hostname via DNS before
+// allowing a fetch to it — mocked here to a public IP by default so existing "https://example.com"
+// fixtures stay safe; individual tests override this to exercise the rejection paths.
+vi.mock("node:dns/promises", () => ({ lookup: dnsLookupMock }));
 
 // Avoids pulling the real `@/modules/users` barrel into this unit test — that barrel re-exports
 // `management.ts`, which imports `src/lib/supabase/admin.ts` (`import "server-only"`), a package
@@ -1149,6 +1156,7 @@ describe("events service — getEventInsights", () => {
 describe("events service — setEventWebhookUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
   });
 
   it("denies a non-admin without updating anything", async () => {
@@ -1216,6 +1224,66 @@ describe("events service — setEventWebhookUrl", () => {
     expect(result).toEqual({ ok: false, reason: "not_found" });
     expect(updateMock).not.toHaveBeenCalled();
   });
+
+  // SSRF: an ADMIN-controlled destination URL is still an attacker-reachable surface (a
+  // compromised/malicious admin, or a social-engineered one, could point this at an internal
+  // service). Rejected at save-time so a bad URL never even reaches the database.
+  it("rejects a non-https URL", async () => {
+    const result = await setEventWebhookUrl({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      webhookUrl: "http://example.com/webhook",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "unsafe_url" });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a URL whose hostname resolves to a private/loopback address", async () => {
+    selectMock.mockReturnValue(selectChain([{ ...baseEvent, webhookUrl: null, webhookSecret: null }]));
+    dnsLookupMock.mockResolvedValue([{ address: "127.0.0.1", family: 4 }]);
+
+    const result = await setEventWebhookUrl({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      webhookUrl: "https://internal.example.com/webhook",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "unsafe_url" });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a URL with a literal private IPv4 address, without a DNS lookup", async () => {
+    const result = await setEventWebhookUrl({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      webhookUrl: "https://10.0.0.5/webhook",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "unsafe_url" });
+    expect(dnsLookupMock).not.toHaveBeenCalled();
+  });
+
+  it("allows clearing the webhook URL (null) without any SSRF check", async () => {
+    selectMock.mockReturnValue(
+      selectChain([{ ...baseEvent, webhookUrl: "https://example.com", webhookSecret: "existing-secret" }]),
+    );
+    const chain = updateChain([{ ...baseEvent, webhookUrl: null }]);
+    updateMock.mockReturnValue(chain);
+
+    const result = await setEventWebhookUrl({
+      id: "event-1",
+      organizationId: "org-1",
+      actorRole: "ADMIN",
+      webhookUrl: null,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(dnsLookupMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("events service — regenerateEventWebhookSecret", () => {
@@ -1269,6 +1337,7 @@ describe("events service — notifyEventWebhook", () => {
 
   beforeEach(() => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
   });
 
   afterAll(() => {
@@ -1292,10 +1361,26 @@ describe("events service — notifyEventWebhook", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({ "x-webhook-secret": "my-secret" }),
+        redirect: "manual",
       }),
     );
     const body = JSON.parse((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
     expect(body).toMatchObject({ type: "registration.created", data: { id: "reg-1" } });
+  });
+
+  // SSRF defense-in-depth: re-checked at dispatch time (not just at save time) against DNS
+  // rebinding — a hostname that resolved to a public IP when the admin saved it could resolve to
+  // an internal one by the time this actually fires.
+  it("does not fetch when the hostname now resolves to a private address (DNS rebinding)", async () => {
+    dnsLookupMock.mockResolvedValue([{ address: "192.168.1.10", family: 4 }]);
+
+    await notifyEventWebhook(
+      { webhookUrl: "https://example.com/webhook", webhookSecret: "my-secret" },
+      "registration.created",
+      { id: "reg-1" },
+    );
+
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("swallows a fetch failure instead of throwing (fire-and-forget)", async () => {
