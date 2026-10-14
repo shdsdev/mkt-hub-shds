@@ -11,7 +11,7 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { organizations } from "@/modules/users/db";
+import { organizations, users } from "@/modules/users/db";
 import type { RegistrationFormConfig } from "./registration-form-config";
 
 // Agenda is a short, admin-ordered list of time blocks — not a scheduling system (no per-item
@@ -189,6 +189,20 @@ export const eventAttendees = pgTable(
   ],
 );
 
+export const eventReceptionists = pgTable(
+  "event_receptionists",
+  {
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("event_receptionists_event_user_unique").on(table.eventId, table.userId)],
+);
+
 export const eventsTables = {
   eventStatus,
   eventRegistrationStatus,
@@ -196,4 +210,5 @@ export const eventsTables = {
   events,
   eventRegistrations,
   eventAttendees,
+  eventReceptionists,
 } as const;

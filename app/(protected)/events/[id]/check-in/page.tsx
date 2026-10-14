@@ -27,7 +27,7 @@ export default async function EventCheckInPage({ params }: { params: Promise<{ i
           Escanea el pase del asistente o escribe su código de respaldo.
         </p>
       </div>
-      <CheckInForm eventId={event.id} />
+      <CheckInForm eventId={event.id} confirmationRequired={event.checkInConfirmationRequired} />
     </div>
   );
 }

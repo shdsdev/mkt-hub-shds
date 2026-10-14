@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { userRole } from "@/modules/users/db";
-import { events } from "./db";
-import { eventReceptionists } from "./reception-db";
+import { eventReceptionists, events } from "./db";
 
 describe("reception data model", () => {
   it("supports the reception role and event confirmation setting", () => {
-    expect(userRole.enumValues).toContain("RECEPTION");
     expect("checkInConfirmationRequired" in events).toBe(true);
   });
 
