@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import { isActive, isAdmin } from "@/modules/users";
-import { getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
+import { isActive } from "@/modules/users";
+import { canAccessEvent, getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
 import { EventSubNav } from "../../event-sub-nav";
 import { RegistrationsTable } from "./registrations-table";
 
@@ -22,11 +22,12 @@ export default async function RegistrationsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const user = await getCurrentUser();
-  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) notFound();
+  if (!user || !isActive(user.profile)) notFound();
 
   const { id } = await params;
   const event = await getEvent(id, user.profile.organizationId);
   if (!event) notFound();
+  if (!(await canAccessEvent({ userId: user.id, organizationId: user.profile.organizationId, role: user.profile.role, eventId: event.id, capability: "registrations" }))) notFound();
 
   const sp = await searchParams;
   const status = (sp.status as EventRegistrationRow["status"] | undefined) ?? undefined;
@@ -48,7 +49,7 @@ export default async function RegistrationsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
-      <EventSubNav eventId={id} current="registrations" />
+      <EventSubNav eventId={id} current="registrations" role={user.profile.role} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Registros: {event.name}</h1>

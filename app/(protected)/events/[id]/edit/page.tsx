@@ -33,7 +33,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
 
       <LandingLink landingUrl={landingUrl} />
 
-      <EventSubNav eventId={event.id} current="edit" />
+      <EventSubNav eventId={event.id} current="edit" role={user.profile.role} />
 
       <EventEditForm
         event={event}

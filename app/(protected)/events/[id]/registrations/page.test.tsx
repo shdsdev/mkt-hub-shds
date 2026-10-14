@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   isActive: vi.fn(),
   isAdmin: vi.fn(),
+  canAccessEvent: vi.fn(),
   getEvent: vi.fn(),
   listRegistrations: vi.fn(),
   notFound: vi.fn(),
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
-vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, listRegistrations: mocks.listRegistrations }));
+vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, listRegistrations: mocks.listRegistrations, canAccessEvent: mocks.canAccessEvent }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("./add-companion-row", () => ({
   AddCompanionRow: ({ registrationId }: { registrationId: string }) => (
@@ -54,6 +55,7 @@ describe("RegistrationsPage", () => {
     mocks.getCurrentUser.mockResolvedValue(adminUser);
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(true);
+    mocks.canAccessEvent.mockResolvedValue(true);
     mocks.getEvent.mockResolvedValue({ id: "event-1", name: "Workshop de Marketing" });
     mocks.listRegistrations.mockResolvedValue([]);
     mocks.notFound.mockImplementation(() => {
@@ -61,8 +63,9 @@ describe("RegistrationsPage", () => {
     });
   });
 
-  it("returns notFound for a non-ADMIN user", async () => {
+  it("returns notFound for a Reception user without event assignment", async () => {
     mocks.isAdmin.mockReturnValue(false);
+    mocks.canAccessEvent.mockResolvedValue(false);
 
     await expect(
       RegistrationsPage({ params: params("event-1"), searchParams: searchParams() }),
