@@ -97,6 +97,7 @@ const eventFieldsSchema = z.object({
   endsAt: z.coerce.date().optional(),
   capacity: optionalInt,
   reminderOffsetMinutes: optionalInt,
+  checkInConfirmationRequired: z.coerce.boolean().default(true),
   // spec.md "Fixed Optional Field Catalog" — hidden-input "true"/"" pattern matching
   // app/(protected)/qr/qr-design-fields.tsx's `saveAsTemplate` convention.
   collectCompany: z.coerce.boolean().default(false),
@@ -130,6 +131,7 @@ function readEventFields(formData: FormData) {
     endsAt: formData.get("endsAt") || undefined,
     capacity: formData.get("capacity") || undefined,
     reminderOffsetMinutes: formData.get("reminderOffsetMinutes") || undefined,
+    checkInConfirmationRequired: formData.get("checkInConfirmationRequired"),
     collectCompany: formData.get("collectCompany"),
     collectJobTitle: formData.get("collectJobTitle"),
     heroImageUrl: formData.get("heroImageUrl") ?? undefined,
@@ -203,6 +205,7 @@ export async function updateEventAction(
       endsAt: parsed.data.endsAt,
       capacity: parsed.data.capacity,
       reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
+      checkInConfirmationRequired: parsed.data.checkInConfirmationRequired,
       collectCompany: parsed.data.collectCompany,
       collectJobTitle: parsed.data.collectJobTitle,
       heroImageUrl:

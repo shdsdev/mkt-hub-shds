@@ -12,6 +12,8 @@ import {
   type RegistrationConsents,
   type SponsorLogo,
 } from "./db";
+import { getEffectiveRegistrationStatus } from "./registration-status";
+import { eventReceptionists } from "./reception-db";
 
 export type { AgendaItem, SponsorLogo };
 
@@ -64,6 +66,7 @@ export type CreateEventInput = {
   endsAt?: Date;
   capacity?: number | null;
   reminderOffsetMinutes?: number | null;
+  checkInConfirmationRequired?: boolean;
   // spec.md "Fixed Optional Field Catalog" — omitted on create means the schema default (false).
   collectCompany?: boolean;
   collectJobTitle?: boolean;
@@ -91,6 +94,7 @@ export async function createEvent(input: CreateEventInput): Promise<EventMutatio
       endsAt: input.endsAt,
       capacity: input.capacity,
       reminderOffsetMinutes: input.reminderOffsetMinutes,
+      checkInConfirmationRequired: input.checkInConfirmationRequired,
       collectCompany: input.collectCompany,
       collectJobTitle: input.collectJobTitle,
       heroImageUrl: input.heroImageUrl,
@@ -109,6 +113,7 @@ export type UpdateEventChanges = Partial<{
   endsAt: Date | null;
   capacity: number | null;
   reminderOffsetMinutes: number | null;
+  checkInConfirmationRequired: boolean;
   collectCompany: boolean;
   collectJobTitle: boolean;
   heroImageUrl: string | null;
@@ -648,6 +653,31 @@ export async function recordEventVisit(slug: string): Promise<void> {
 
 export type RegistrationWithAttendees = EventRegistrationRow & { attendees: EventAttendeeRow[] };
 
+export async function listEventReceptionistIds(eventId: string, organizationId: string): Promise<string[]> {
+  const rows = await db
+    .select({ userId: eventReceptionists.userId })
+    .from(eventReceptionists)
+    .innerJoin(events, eq(events.id, eventReceptionists.eventId))
+    .where(and(eq(eventReceptionists.eventId, eventId), eq(events.organizationId, organizationId)));
+  return rows.map((row) => row.userId);
+}
+
+export async function assignEventReceptionist(eventId: string, userId: string, organizationId: string): Promise<boolean> {
+  const event = await getEvent(eventId, organizationId);
+  if (!event) return false;
+  await db.insert(eventReceptionists).values({ eventId, userId }).onConflictDoNothing();
+  return true;
+}
+
+export async function removeEventReceptionist(eventId: string, userId: string, organizationId: string): Promise<boolean> {
+  const event = await getEvent(eventId, organizationId);
+  if (!event) return false;
+  await db
+    .delete(eventReceptionists)
+    .where(and(eq(eventReceptionists.eventId, eventId), eq(eventReceptionists.userId, userId)));
+  return true;
+}
+
 // spec.md "Registrations Admin Search and Filter" — scoped to one event+organization, with an
 // optional status filter; each registration carries its own attendees (companions/contact/pass
 // status) joined back on, one extra query rather than N+1 per registration.
@@ -656,7 +686,8 @@ export async function listRegistrations(
   organizationId: string,
   filter?: { status?: EventRegistrationRow["status"]; q?: string },
 ): Promise<RegistrationWithAttendees[]> {
-  const scope = filter?.status
+  const statusRequiresAttendees = filter?.status === "confirmed" || filter?.status === "checked_in";
+  const scope = filter?.status && !statusRequiresAttendees
     ? and(
         eq(eventRegistrations.eventId, eventId),
         eq(eventRegistrations.organizationId, organizationId),
@@ -689,13 +720,19 @@ export async function listRegistrations(
     attendees: attendeesByRegistration.get(registration.id) ?? [],
   }));
 
+  const statusFiltered = statusRequiresAttendees
+    ? withAttendees.filter(
+        (registration) => getEffectiveRegistrationStatus(registration.status, registration.attendees) === filter.status,
+      )
+    : withAttendees;
+
   // Free-text search against the already-joined attendees rather than a second DB round-trip —
   // matches the spec's "search" half of "Registrations Admin Search and Filter" without a
   // separate full-text query path for what's at most a few hundred rows per event.
-  if (!filter?.q) return withAttendees;
+  if (!filter?.q) return statusFiltered;
   const needle = filter.q.trim().toLowerCase();
-  if (!needle) return withAttendees;
-  return withAttendees.filter((registration) =>
+  if (!needle) return statusFiltered;
+  return statusFiltered.filter((registration) =>
     registration.attendees.some(
       (attendee) =>
         attendee.fullName.toLowerCase().includes(needle) || attendee.email.toLowerCase().includes(needle),

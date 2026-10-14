@@ -75,6 +75,11 @@ export function EventEditForm({
           Nombre
           <Input name="name" defaultValue={event.name} maxLength={255} />
         </label>
+        <label className="flex items-center gap-2 text-sm font-medium sm:col-span-2">
+          <input type="hidden" name="checkInConfirmationRequired" value="false" />
+          <input type="checkbox" name="checkInConfirmationRequired" value="true" defaultChecked={event.checkInConfirmationRequired} />
+          Pedir confirmación antes de registrar entrada
+        </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           Inicio
           <Input name="startsAt" type="datetime-local" defaultValue={toDateTimeLocal(event.startsAt)} />
