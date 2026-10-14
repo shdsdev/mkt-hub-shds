@@ -3,6 +3,7 @@ import { authUsers } from "@/db/auth-schema-ref";
 
 export const userRole = pgEnum("user_role", [
   "ADMIN",
+  "RECEPTION",
   "MARKETING_MANAGER",
   "MARKETING_USER",
   "VIEWER",

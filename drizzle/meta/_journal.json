@@ -162,6 +162,20 @@
       "when": 1791926010423,
       "tag": "0022_colorful_prism",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791993981575,
+      "tag": "0023_productive_moira_mactaggert",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791994024611,
+      "tag": "0024_naive_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

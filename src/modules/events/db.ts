@@ -60,6 +60,7 @@ export const events = pgTable("events", {
   // integer minutes resolved over `interval`, trivially comparable in Drizzle/Postgres without an
   // interval driver mapping). Null = no reminder configured for this event.
   reminderOffsetMinutes: integer("reminder_offset_minutes"),
+  checkInConfirmationRequired: boolean("check_in_confirmation_required").notNull().default(true),
   // spec.md "Fixed Optional Field Catalog" — a small FIXED, predefined set of optional
   // registration-form fields an ADMIN can toggle per event. No free-form field builder: adding a
   // new optional field means adding a new column here, never a user-defined schema. Both default
