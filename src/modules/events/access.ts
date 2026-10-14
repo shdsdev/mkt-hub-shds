@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isAdmin, type UserRole } from "@/modules/users";
 import { getEvent } from "./service";
-import { eventReceptionists } from "./reception-db";
+import { eventReceptionists } from "./db";
 import { canRoleAccessCapability, type EventCapability } from "./access-policy";
 
 export { canRoleAccessCapability, type EventCapability } from "./access-policy";

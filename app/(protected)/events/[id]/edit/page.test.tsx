@@ -24,17 +24,20 @@ const mocks = vi.hoisted(() => ({
       marketing: { enabled: false, text: "Marketing" },
     },
   })),
+  listManagedUsers: vi.fn(() => []),
+  listEventReceptionistIds: vi.fn(() => []),
   notFound: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
-vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
+vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin, listManagedUsers: mocks.listManagedUsers }));
 vi.mock("@/modules/events", () => ({
   getEvent: mocks.getEvent,
   getEventEmbedUrl: mocks.getEventEmbedUrl,
   getEventEmbedSnippet: mocks.getEventEmbedSnippet,
   getEventLandingUrl: mocks.getEventLandingUrl,
   resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
+  listEventReceptionistIds: mocks.listEventReceptionistIds,
 }));
 vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com" } }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
@@ -45,6 +48,7 @@ vi.mock("./event-edit-form", () => ({
 vi.mock("./landing-link", () => ({
   LandingLink: ({ landingUrl }: { landingUrl: string }) => <div>{landingUrl}</div>,
 }));
+vi.mock("./reception-team", () => ({ ReceptionTeam: () => <div /> }));
 
 import EditEventPage from "./page";
 
