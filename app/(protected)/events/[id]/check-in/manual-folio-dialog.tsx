@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
 
 export function ManualFolioDialog({ open, onOpenChange, pending, onSubmit }: { open: boolean; onOpenChange: (open: boolean) => void; pending: boolean; onSubmit: (code: string) => void }) {
   const [code, setCode] = useState("");
@@ -22,14 +23,19 @@ export function ManualFolioDialog({ open, onOpenChange, pending, onSubmit }: { o
             <DialogPrimitive.Title className="text-base font-semibold">Registrar acceso con código</DialogPrimitive.Title>
             <p className="mt-1 text-sm text-muted-foreground">Escribe el folio de 8 caracteres del pase.</p>
             <form className="mt-5 flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); onSubmit(code); }}>
-              <Input
+              <InputOTP
                 autoFocus
-                value={code}
                 maxLength={8}
-                placeholder="ABCD1234"
-                className="h-12 text-center font-mono text-lg uppercase tracking-[0.25em]"
-                onChange={(event) => setCode(event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase())}
-              />
+                pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
+                value={code}
+                onChange={(value) => setCode(value.toUpperCase())}
+                containerClassName="justify-center"
+                aria-label="Folio de 8 caracteres"
+              >
+                <InputOTPGroup>
+                  {Array.from({ length: 8 }, (_, index) => <InputOTPSlot key={index} index={index} className="size-10 font-mono text-base uppercase sm:size-11" />)}
+                </InputOTPGroup>
+              </InputOTP>
               <Button type="submit" disabled={pending || code.length !== 8}>{pending ? "Buscando…" : "Buscar asistente"}</Button>
             </form>
           </DialogPrimitive.Popup>
