@@ -8,12 +8,12 @@ import {
   events,
   eventRegistrations,
   eventAttendees,
+  eventReceptionists,
   type AgendaItem,
   type RegistrationConsents,
   type SponsorLogo,
 } from "./db";
 import { getEffectiveRegistrationStatus } from "./registration-status";
-import { eventReceptionists } from "./reception-db";
 import { getCheckInResultKind, type CheckInResultKind } from "./check-in-result";
 
 export type { AgendaItem, SponsorLogo };
@@ -395,6 +395,7 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
 export type AddAttendeeToRegistrationInput = {
   registrationId: string;
   organizationId: string;
+  ignoreCapacity?: boolean;
   attendee: AttendeeInput;
 };
 
@@ -431,7 +432,7 @@ export async function addAttendeeToRegistration(
       const [event] = await tx.select().from(events).where(eq(events.id, registration.eventId)).limit(1);
       if (!event) return { ok: false, reason: "registration_not_found" };
 
-      if (registration.status !== "waitlisted" && event.capacity !== null) {
+      if (!input.ignoreCapacity && registration.status !== "waitlisted" && event.capacity !== null) {
         const seatsUsed = await countConfirmedSeats(tx, registration.eventId);
         if (seatsUsed + 1 > event.capacity) return { ok: false, reason: "at_capacity" };
       }
@@ -598,6 +599,36 @@ export async function lookupAttendeeForCheckIn(input: { eventId: string; code: s
   const kind: CheckInResultKind = getCheckInResultKind({ registrationStatus: registration.status, checkedInAt: attendee.checkedInAt });
   if (kind === "blocked") return { kind, attendee, registration: registrationWithAttendees, reason: registration.status as "cancelled" | "waitlisted" };
   return { kind, attendee, registration: registrationWithAttendees };
+}
+
+export async function updatePrimaryAttendee(input: {
+  registrationId: string;
+  organizationId: string;
+  attendee: Partial<Pick<AttendeeInput, "fullName" | "email" | "phone" | "company" | "jobTitle" | "occupation">>;
+}): Promise<EventAttendeeRow | undefined> {
+  const [primary] = await db
+    .select({ id: eventAttendees.id })
+    .from(eventAttendees)
+    .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
+    .where(and(eq(eventAttendees.registrationId, input.registrationId), eq(eventRegistrations.organizationId, input.organizationId)))
+    .orderBy(asc(eventAttendees.createdAt))
+    .limit(1);
+  if (!primary) return undefined;
+  const [updated] = await db
+    .update(eventAttendees)
+    .set({
+      fullName: input.attendee.fullName,
+      email: input.attendee.email,
+      emailNormalized: input.attendee.email ? normalizeEmail(input.attendee.email) : undefined,
+      phone: input.attendee.phone,
+      company: input.attendee.company,
+      jobTitle: input.attendee.jobTitle,
+      occupation: input.attendee.occupation,
+      updatedAt: new Date(),
+    })
+    .where(eq(eventAttendees.id, primary.id))
+    .returning();
+  return updated;
 }
 
 export async function confirmAttendeeCheckIn(input: { eventId: string; attendeeId: string; checkedInBy: string }): Promise<CheckInResult> {

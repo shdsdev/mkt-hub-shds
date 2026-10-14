@@ -27,6 +27,7 @@ export {
   getRegistrationByCancelToken,
   registerForEvent,
   addAttendeeToRegistration,
+  updatePrimaryAttendee,
   cancelRegistrationByToken,
   checkInAttendee,
   lookupAttendeeForCheckIn,
