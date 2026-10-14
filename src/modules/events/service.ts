@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIPv4, isIPv6 } from "node:net";
-import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isAdmin, type UserRole } from "@/modules/users";
 import {
@@ -14,6 +14,7 @@ import {
 } from "./db";
 import { getEffectiveRegistrationStatus } from "./registration-status";
 import { eventReceptionists } from "./reception-db";
+import { getCheckInResultKind, type CheckInResultKind } from "./check-in-result";
 
 export type { AgendaItem, SponsorLogo };
 
@@ -564,6 +565,54 @@ export type CheckInInput = {
 export type CheckInResult =
   | { ok: true; attendee: EventAttendeeRow; alreadyCheckedIn: boolean }
   | { ok: false; reason: "not_found" };
+
+export type CheckInLookupResult =
+  | { kind: "not_found" }
+  | { kind: "already_checked_in" | "eligible" | "blocked"; attendee: EventAttendeeRow; registration: RegistrationWithAttendees; reason?: "cancelled" | "waitlisted" };
+
+export async function lookupAttendeeForCheckIn(input: { eventId: string; code: string }): Promise<CheckInLookupResult> {
+  const code = input.code.trim();
+  if (!code) return { kind: "not_found" };
+
+  const [attendee] = await db
+    .select()
+    .from(eventAttendees)
+    .where(
+      and(
+        eq(eventAttendees.eventId, input.eventId),
+        or(eq(eventAttendees.backupCode, code.toUpperCase()), eq(eventAttendees.passToken, code)),
+      ),
+    )
+    .limit(1);
+  if (!attendee) return { kind: "not_found" };
+
+  const [registration] = await db
+    .select()
+    .from(eventRegistrations)
+    .where(and(eq(eventRegistrations.id, attendee.registrationId), eq(eventRegistrations.eventId, input.eventId)))
+    .limit(1);
+  if (!registration) return { kind: "not_found" };
+
+  const attendees = await db.select().from(eventAttendees).where(eq(eventAttendees.registrationId, registration.id));
+  const registrationWithAttendees = { ...registration, attendees };
+  const kind: CheckInResultKind = getCheckInResultKind({ registrationStatus: registration.status, checkedInAt: attendee.checkedInAt });
+  if (kind === "blocked") return { kind, attendee, registration: registrationWithAttendees, reason: registration.status as "cancelled" | "waitlisted" };
+  return { kind, attendee, registration: registrationWithAttendees };
+}
+
+export async function confirmAttendeeCheckIn(input: { eventId: string; attendeeId: string; checkedInBy: string }): Promise<CheckInResult> {
+  const [updated] = await db
+    .update(eventAttendees)
+    .set({ checkedInAt: new Date(), checkedInBy: input.checkedInBy })
+    .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId), isNull(eventAttendees.checkedInAt)))
+    .returning();
+  if (!updated) {
+    const [existing] = await db.select().from(eventAttendees).where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId))).limit(1);
+    return existing ? { ok: true, attendee: existing, alreadyCheckedIn: true } : { ok: false, reason: "not_found" };
+  }
+  await db.update(eventRegistrations).set({ status: "checked_in" }).where(eq(eventRegistrations.id, updated.registrationId));
+  return { ok: true, attendee: updated, alreadyCheckedIn: false };
+}
 
 // spec.md "Individual Attendee Passes" / "Backup Code Manual Check-In" / "Duplicate Check-In
 // Prevention". Both lookups are scoped to `eventId` — the staff member checking people in is
