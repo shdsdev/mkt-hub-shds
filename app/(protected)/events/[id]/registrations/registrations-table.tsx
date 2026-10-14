@@ -5,6 +5,7 @@ import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/
 import { AddCompanionRow } from "./add-companion-row";
 import { getPrimaryAttendee, getRegistrationTableValues } from "./registrations-table-model";
 import { RegistrationDetailSheet } from "./registration-detail-sheet";
+import { formatRegistrationDate } from "./registration-date";
 
 type Props = {
   registrations: RegistrationWithAttendees[];
@@ -56,6 +57,13 @@ export function RegistrationsTable({
               const primary = getPrimaryAttendee(registration);
               const values = getRegistrationTableValues(registration);
               const selected = selectedId === registration.id;
+              const displayStatus = registration.status === "cancelled"
+                ? statusLabels[registration.status]
+                : values.status === "Check-in"
+                  ? statusLabels.checked_in
+                  : values.status === "Confirmado"
+                    ? statusLabels.confirmed
+                    : statusLabels[registration.status];
 
               return (
                 <tr
@@ -73,14 +81,14 @@ export function RegistrationsTable({
                   </td>
                   <td className="max-w-48 truncate px-4 py-3">{primary?.company ?? "—"}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                    {registration.createdAt.toLocaleString()}
+                    {formatRegistrationDate(registration.createdAt)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{statusLabels[registration.status]}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{displayStatus}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{values.isClient ? "Cliente" : "No cliente"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {values.followUp ? (
                       <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">
-                        Solicita más
+                        Solicita más acompañantes
                       </span>
                     ) : (
                       "—"
@@ -106,7 +114,13 @@ export function RegistrationsTable({
       {selectedRegistration ? (
         <RegistrationDetailSheet
           registration={selectedRegistration}
-          statusLabel={statusLabels[selectedRegistration.status]}
+          statusLabel={selectedRegistration.status === "cancelled"
+            ? statusLabels[selectedRegistration.status]
+            : getRegistrationTableValues(selectedRegistration).status === "Check-in"
+              ? statusLabels.checked_in
+              : getRegistrationTableValues(selectedRegistration).status === "Confirmado"
+                ? statusLabels.confirmed
+                : statusLabels[selectedRegistration.status]}
           open
           onOpenChange={(open) => !open && setSelectedId(null)}
           eventId={eventId}

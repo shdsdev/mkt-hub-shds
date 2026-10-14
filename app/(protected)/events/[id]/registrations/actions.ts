@@ -36,7 +36,8 @@ const schema = z.object({
   occupation: z.enum(OCCUPATION_OPTIONS),
 });
 
-export type AddCompanionFormState = { error?: string; success?: boolean };
+export type AddedCompanion = { fullName: string; backupCode: string };
+export type AddCompanionFormState = { error?: string; success?: boolean; addedCompanion?: AddedCompanion };
 
 export type ResendInvitationState = { error?: string; success?: string };
 
@@ -65,6 +66,7 @@ export async function addCompanionAction(
   const result = await addAttendeeToRegistration({
     registrationId: parsed.data.registrationId,
     organizationId: user.profile.organizationId,
+    ignoreCapacity: true,
     attendee: {
       fullName: parsed.data.fullName,
       email: parsed.data.email,
@@ -102,7 +104,13 @@ export async function addCompanionAction(
   }
 
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
-  return { success: true };
+  return {
+    success: true,
+    addedCompanion: {
+      fullName: result.attendee.fullName,
+      backupCode: result.attendee.backupCode,
+    },
+  };
 }
 
 const resendInvitationSchema = z.object({

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/checkbox";
 import { Input } from "@/components/ui/input";
 import type { EventRow, RegistrationFormConfig } from "@/modules/events";
 import {
@@ -40,6 +41,7 @@ export function EventEditForm({
   // spec.md "Fixed Optional Field Catalog" — seeded from the event's current toggle state.
   const [formConfig, setFormConfig] = useState<RegistrationFormConfig>(initialFormConfig);
   const [heroImageUrl, setHeroImageUrl] = useState<string | undefined>(event.heroImageUrl ?? undefined);
+  const [checkInConfirmationRequired, setCheckInConfirmationRequired] = useState(event.checkInConfirmationRequired);
 
   function updateField(field: "phone" | "company" | "jobTitle", key: "visible" | "required", value: boolean) {
     setFormConfig((current) => ({
@@ -75,11 +77,16 @@ export function EventEditForm({
           Nombre
           <Input name="name" defaultValue={event.name} maxLength={255} />
         </label>
-        <label className="flex items-center gap-2 text-sm font-medium sm:col-span-2">
+        <div className="sm:col-span-2">
+          <Checkbox
+            checked={checkInConfirmationRequired}
+            onChange={setCheckInConfirmationRequired}
+            label="Pedir confirmación antes de registrar entrada"
+            name="checkInConfirmationRequired"
+            value="true"
+          />
           <input type="hidden" name="checkInConfirmationRequired" value="false" />
-          <input type="checkbox" name="checkInConfirmationRequired" value="true" defaultChecked={event.checkInConfirmationRequired} />
-          Pedir confirmación antes de registrar entrada
-        </label>
+        </div>
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           Inicio
           <Input name="startsAt" type="datetime-local" defaultValue={toDateTimeLocal(event.startsAt)} />
@@ -153,69 +160,52 @@ export function EventEditForm({
               return (
                 <div key={field} className="contents">
                   <p className="text-sm">{labels[field]}</p>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={formConfig.fields[field].visible}
-                      onChange={(e) => updateField(field, "visible", e.target.checked)}
-                    />
-                    Mostrar
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={formConfig.fields[field].required}
-                      disabled={!formConfig.fields[field].visible}
-                      onChange={(e) => updateField(field, "required", e.target.checked)}
-                    />
-                    Obligatorio
-                  </label>
+                  <Checkbox
+                    checked={formConfig.fields[field].visible}
+                    onChange={(checked) => updateField(field, "visible", checked)}
+                    label="Mostrar"
+                  />
+                  <Checkbox
+                    checked={formConfig.fields[field].required}
+                    disabled={!formConfig.fields[field].visible}
+                    onChange={(checked) => updateField(field, "required", checked)}
+                    label="Obligatorio"
+                  />
                 </div>
               );
             })}
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={formConfig.companion.enabled}
-              onChange={(e) => setFormConfig((current) => ({ ...current, companion: { enabled: e.target.checked } }))}
-            />
-            Permitir un acompañante
-          </label>
+          <Checkbox
+            checked={formConfig.companion.enabled}
+            onChange={(checked) => setFormConfig((current) => ({ ...current, companion: { enabled: checked } }))}
+            label="Permitir un acompañante"
+          />
           <fieldset className="grid gap-2">
             <legend className="text-sm font-medium">Cliente / marca</legend>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={formConfig.clientBrands.enabled}
-                onChange={(e) => setFormConfig((current) => ({ ...current, clientBrands: { ...current.clientBrands, enabled: e.target.checked } }))}
-              />
-              Mostrar selección de marca
-            </label>
+            <Checkbox
+              checked={formConfig.clientBrands.enabled}
+              onChange={(checked) => setFormConfig((current) => ({ ...current, clientBrands: { ...current.clientBrands, enabled: checked } }))}
+              label="Mostrar selección de marca"
+            />
             <div className="grid gap-2 sm:grid-cols-3">
               {(["shades", "bmighty", "drapery"] as const).map((option) => (
-                <label key={option} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={formConfig.clientBrands.options.includes(option)}
-                    disabled={!formConfig.clientBrands.enabled}
-                    onChange={(e) => updateOptionGroup("clientBrands", option, e.target.checked)}
-                  />
-                  {option === "bmighty" ? "BMighty" : option[0].toUpperCase() + option.slice(1)}
-                </label>
+                <Checkbox
+                  key={option}
+                  checked={formConfig.clientBrands.options.includes(option)}
+                  disabled={!formConfig.clientBrands.enabled}
+                  onChange={(checked) => updateOptionGroup("clientBrands", option, checked)}
+                  label={option === "bmighty" ? "BMighty" : option[0].toUpperCase() + option.slice(1)}
+                />
               ))}
             </div>
           </fieldset>
           <fieldset className="grid gap-2">
             <legend className="text-sm font-medium">Intereses</legend>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={formConfig.interests.enabled}
-                onChange={(e) => setFormConfig((current) => ({ ...current, interests: { ...current.interests, enabled: e.target.checked } }))}
-              />
-              Mostrar intereses
-            </label>
+            <Checkbox
+              checked={formConfig.interests.enabled}
+              onChange={(checked) => setFormConfig((current) => ({ ...current, interests: { ...current.interests, enabled: checked } }))}
+              label="Mostrar intereses"
+            />
             <div className="grid gap-2 sm:grid-cols-2">
               {([
                 ["battery-motors", "Motores de baterías"],
@@ -223,15 +213,13 @@ export function EventEditForm({
                 ["curtains", "Cortinería"],
                 ["manual-and-motorized-rods", "Cortineros manuales y motorizados"],
               ] as const).map(([option, label]) => (
-                <label key={option} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={formConfig.interests.options.includes(option)}
-                    disabled={!formConfig.interests.enabled}
-                    onChange={(e) => updateOptionGroup("interests", option, e.target.checked)}
-                  />
-                  {label}
-                </label>
+                <Checkbox
+                  key={option}
+                  checked={formConfig.interests.options.includes(option)}
+                  disabled={!formConfig.interests.enabled}
+                  onChange={(checked) => updateOptionGroup("interests", option, checked)}
+                  label={label}
+                />
               ))}
             </div>
           </fieldset>
@@ -253,14 +241,11 @@ export function EventEditForm({
               <Input value={formConfig.consent.terms.url} onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, terms: { ...current.consent.terms, url: e.target.value } } }))} />
             </label>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={formConfig.consent.marketing.enabled}
-              onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, marketing: { ...current.consent.marketing, enabled: e.target.checked } } }))}
-            />
-            Solicitar consentimiento para comunicaciones comerciales
-          </label>
+          <Checkbox
+            checked={formConfig.consent.marketing.enabled}
+            onChange={(checked) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, marketing: { ...current.consent.marketing, enabled: checked } } }))}
+            label="Solicitar consentimiento para comunicaciones comerciales"
+          />
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Texto de comunicaciones comerciales
             <Input value={formConfig.consent.marketing.text} onChange={(e) => setFormConfig((current) => ({ ...current, consent: { ...current.consent, marketing: { ...current.consent.marketing, text: e.target.value } } }))} />

@@ -143,11 +143,13 @@ export async function registerForEventAction(
     return { error: INVALID_OCCUPATION_ERROR };
   }
 
+  const primaryCompany = z.string().trim().max(255).optional().safeParse(formData.get("company") || undefined);
+  if (!primaryCompany.success) return { error: "Revisa los datos de la empresa." };
   const primaryParsed = attendeeSchema.safeParse({
     fullName: formData.get("fullName") ?? "",
     email: formData.get("email") ?? "",
     phone: formData.get("phone") ?? undefined,
-    company: formData.get("company") ?? undefined,
+    company: primaryCompany.data,
     jobTitle: formData.get("jobTitle") ?? undefined,
     occupation: formData.get("occupation") ?? "",
   });
@@ -164,10 +166,22 @@ export async function registerForEventAction(
   }
   const companionsParsed = z.array(attendeeSchema).safeParse(companionInputs);
   if (!companionsParsed.success) return { error: INVALID_COMPANION_ERROR };
-  if (companionsParsed.data[0]) {
-    const companionFieldError = validateConfiguredFields(companionsParsed.data[0], formConfig.fields);
-    if (companionFieldError) return { error: companionFieldError.replace(/^El |^La /, "El acompañante: ") };
+  let companionsData = companionsParsed.data;
+  let resolvedCompanionCompany: string | undefined;
+  if (companionsData[0] && formConfig.fields.company.visible) {
+    const companionCompanyMode = z.enum(["same", "other"]).safeParse(formData.get("companionCompanyMode"));
+    if (!companionCompanyMode.success) return { error: "Revisa la empresa del acompañante." };
+    const rawCompanionCompany = z.string().trim().max(255).safeParse(formData.get("companionCompany") ?? "");
+    if (!rawCompanionCompany.success) return { error: "Revisa la empresa del acompañante." };
+    resolvedCompanionCompany = companionCompanyMode.data === "same"
+      ? primaryCompany.data
+      : rawCompanionCompany.data;
+    if (!resolvedCompanionCompany) return { error: "Revisa la empresa del acompañante." };
+
+    companionsData = [{ ...companionsData[0], company: resolvedCompanionCompany }, ...companionsData.slice(1)];
   }
+  const companionFieldError = companionsData[0] && validateConfiguredFields(companionsData[0], formConfig.fields);
+  if (companionFieldError) return { error: companionFieldError.replace(/^El |^La /, "El acompañante: ") };
 
   if (!isAccepted(formData, "privacyAccepted") || !isAccepted(formData, "termsAccepted")) {
     return { error: INVALID_CONSENT_ERROR };
@@ -189,11 +203,16 @@ export async function registerForEventAction(
   const now = new Date();
   const marketingAccepted = isAccepted(formData, "marketingAccepted");
 
+  const companions = companionsData.map((companion, index) => ({
+    ...normalizeConfiguredAttendee(companion, formConfig.fields),
+    ...(index === 0 && resolvedCompanionCompany ? { company: resolvedCompanionCompany } : {}),
+  }));
+
   const result = await registerForEvent({
     eventId: event.id,
     source: "public",
     primary: normalizeConfiguredAttendee(primaryParsed.data, formConfig.fields),
-    companions: companionsParsed.data.map((companion) => normalizeConfiguredAttendee(companion, formConfig.fields)),
+    companions,
     clientBrands,
     interests,
     requestedMoreCompanions: isAccepted(formData, "requestMoreCompanions"),

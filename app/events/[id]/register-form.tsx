@@ -80,6 +80,7 @@ export function RegisterForm({
 }) {
   const [state, formAction, pending] = useActionState(registerForEventAction, initialState);
   const [hasCompanion, setHasCompanion] = useState(false);
+  const [companionCompanyMode, setCompanionCompanyMode] = useState<"same" | "other">("same");
   const [selectedBrands, setSelectedBrands] = useState<string[]>(formConfig.clientBrands.options[0] === "none" ? ["none"] : []);
 
   function toggleBrand(brand: string, checked: boolean) {
@@ -216,9 +217,53 @@ export function RegisterForm({
              </Field>
            ) : null}
            {formConfig.fields.company.visible ? (
-             <Field label="Empresa del acompañante" required={formConfig.fields.company.required} help="Indicá la empresa, estudio o negocio con el que trabaja.">
-               <input name="companionCompany" required={formConfig.fields.company.required} maxLength={255} placeholder="Ej. Estudio Norte" className={fieldClass} />
-             </Field>
+             <fieldset className="flex flex-col gap-2 sm:col-span-2">
+               <legend className="flex items-center gap-1.5 text-sm font-medium text-[#4a4a4a]">
+                 Empresa del acompañante
+                 {formConfig.fields.company.required ? <span className="ml-1 text-[#c0335a]" aria-hidden="true">•</span> : null}
+                 <HelpTooltip label="Indicá la empresa, estudio o negocio con el que trabaja." />
+               </legend>
+               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                 <label className={choiceClass}>
+                   <input
+                     type="radio"
+                     name="companionCompanyMode"
+                     value="same"
+                     checked={companionCompanyMode === "same"}
+                     onChange={() => setCompanionCompanyMode("same")}
+                     className={checkboxClass}
+                   />
+                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-black/20 bg-white transition-colors after:h-2 after:w-2 after:rounded-full after:bg-white after:opacity-0 after:transition-opacity peer-checked:border-[#202020] peer-checked:bg-[#202020] peer-checked:after:opacity-100" aria-hidden="true" />
+                   <span>
+                     <span className="block">Misma empresa</span>
+                     <span className="block text-xs text-[#6b6b6b]">Se usará la empresa del titular.</span>
+                   </span>
+                 </label>
+                 <label className={choiceClass}>
+                   <input
+                     type="radio"
+                     name="companionCompanyMode"
+                     value="other"
+                     checked={companionCompanyMode === "other"}
+                     onChange={() => setCompanionCompanyMode("other")}
+                     className={checkboxClass}
+                   />
+                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-black/20 bg-white transition-colors after:h-2 after:w-2 after:rounded-full after:bg-white after:opacity-0 after:transition-opacity peer-checked:border-[#202020] peer-checked:bg-[#202020] peer-checked:after:opacity-100" aria-hidden="true" />
+                   Otra empresa
+                 </label>
+               </div>
+               {companionCompanyMode === "other" ? (
+                  <input
+                    name="companionCompany"
+                    required
+                    aria-required="true"
+                    aria-label="Empresa alternativa del acompañante"
+                    maxLength={255}
+                   placeholder="Ej. Estudio Norte"
+                   className={fieldClass}
+                 />
+               ) : null}
+             </fieldset>
            ) : null}
            {formConfig.fields.jobTitle.visible ? (
              <Field label="Puesto del acompañante" required={formConfig.fields.jobTitle.required} help="Escribí su cargo o función dentro de su empresa.">

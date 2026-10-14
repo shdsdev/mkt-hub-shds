@@ -13,20 +13,23 @@ export function EventSubNav({ eventId, current, role }: { eventId: string; curre
   ].filter((tab) => role === "ADMIN" || tab.key === "registrations" || tab.key === "check-in");
 
   return (
-    <nav className="flex gap-1 border-b border-border text-sm">
-      {tabs.map((tab) => (
-        <Link
-          key={tab.key}
-          href={tab.href}
-          className={
-            tab.key === current
-              ? "border-b-2 border-primary px-3 py-2 font-medium text-foreground"
-              : "border-b-2 border-transparent px-3 py-2 text-muted-foreground hover:text-foreground"
-          }
-        >
-          {tab.label}
-        </Link>
-      ))}
+    <nav className="w-full overflow-x-auto border-b border-border text-sm">
+      <div className="flex min-w-max w-max justify-start gap-1 p-1 sm:mx-auto sm:justify-center">
+        {tabs.map((tab) => (
+          <Link
+            key={tab.key}
+            href={tab.href}
+            aria-current={tab.key === current ? "page" : undefined}
+            className={
+              tab.key === current
+                ? "flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap border-b-2 border-primary px-4 py-2 text-center font-medium text-foreground outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                : "flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap border-b-2 border-transparent px-4 py-2 text-center text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            }
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </div>
     </nav>
   );
 }

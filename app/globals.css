@@ -675,6 +675,10 @@
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+.check:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
 
 /* Box spins a full turn as the checkmark lands. */
 .ck-10 input:checked + .box {

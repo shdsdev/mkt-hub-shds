@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getPrimaryAttendee, getRegistrationTableValues } from "./registrations-table-model";
 
-const registration = {
+const registrationData = {
   id: "reg-1",
   status: "confirmed",
   createdAt: new Date("2026-10-13T20:44:00.000Z"),
@@ -26,7 +26,8 @@ const registration = {
       occupation: "installer-technician",
     },
   ],
-} as never;
+};
+const registration = registrationData as never;
 
 describe("registration table model", () => {
   it("uses the first attendee as the primary contact", () => {
@@ -41,5 +42,31 @@ describe("registration table model", () => {
       followUp: true,
       source: "instagram",
     });
+  });
+
+  it("does not report check-in while a companion is still pending", () => {
+    const partiallyCheckedIn = {
+      ...registrationData,
+      status: "checked_in",
+      attendees: [
+        { ...registrationData.attendees[0], checkedInAt: new Date("2026-10-13T21:00:00.000Z") },
+        registrationData.attendees[1],
+      ],
+    } as never;
+
+    expect(getRegistrationTableValues(partiallyCheckedIn).status).toBe("Confirmado");
+  });
+
+  it("reports check-in only after every attendee is validated", () => {
+    const fullyCheckedIn = {
+      ...registrationData,
+      status: "checked_in",
+      attendees: registrationData.attendees.map((attendee) => ({
+        ...attendee,
+        checkedInAt: new Date("2026-10-13T21:00:00.000Z"),
+      })),
+    } as never;
+
+    expect(getRegistrationTableValues(fullyCheckedIn).status).toBe("Check-in");
   });
 });

@@ -601,11 +601,15 @@ export async function lookupAttendeeForCheckIn(input: { eventId: string; code: s
   return { kind, attendee, registration: registrationWithAttendees };
 }
 
+export type UpdatePrimaryAttendeeResult =
+  | { ok: true; attendee: EventAttendeeRow }
+  | { ok: false; reason: "not_found" | "duplicate_email" };
+
 export async function updatePrimaryAttendee(input: {
   registrationId: string;
   organizationId: string;
   attendee: Partial<Pick<AttendeeInput, "fullName" | "email" | "phone" | "company" | "jobTitle" | "occupation">>;
-}): Promise<EventAttendeeRow | undefined> {
+}): Promise<UpdatePrimaryAttendeeResult> {
   const [primary] = await db
     .select({ id: eventAttendees.id })
     .from(eventAttendees)
@@ -613,22 +617,28 @@ export async function updatePrimaryAttendee(input: {
     .where(and(eq(eventAttendees.registrationId, input.registrationId), eq(eventRegistrations.organizationId, input.organizationId)))
     .orderBy(asc(eventAttendees.createdAt))
     .limit(1);
-  if (!primary) return undefined;
-  const [updated] = await db
-    .update(eventAttendees)
-    .set({
-      fullName: input.attendee.fullName,
-      email: input.attendee.email,
-      emailNormalized: input.attendee.email ? normalizeEmail(input.attendee.email) : undefined,
-      phone: input.attendee.phone,
-      company: input.attendee.company,
-      jobTitle: input.attendee.jobTitle,
-      occupation: input.attendee.occupation,
-      updatedAt: new Date(),
-    })
-    .where(eq(eventAttendees.id, primary.id))
-    .returning();
-  return updated;
+  if (!primary) return { ok: false, reason: "not_found" };
+
+  try {
+    const [updated] = await db
+      .update(eventAttendees)
+      .set({
+        fullName: input.attendee.fullName,
+        email: input.attendee.email,
+        emailNormalized: input.attendee.email ? normalizeEmail(input.attendee.email) : undefined,
+        phone: input.attendee.phone,
+        company: input.attendee.company,
+        jobTitle: input.attendee.jobTitle,
+        occupation: input.attendee.occupation,
+        updatedAt: new Date(),
+      })
+      .where(eq(eventAttendees.id, primary.id))
+      .returning();
+    return updated ? { ok: true, attendee: updated } : { ok: false, reason: "not_found" };
+  } catch (error) {
+    if (isDuplicateEmailViolation(error)) return { ok: false, reason: "duplicate_email" };
+    throw error;
+  }
 }
 
 export async function confirmAttendeeCheckIn(input: { eventId: string; attendeeId: string; checkedInBy: string }): Promise<CheckInResult> {

@@ -25,27 +25,28 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   const landingUrl = getEventLandingUrl(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8">
-      <div>
-        <h1 className="font-heading text-xl font-semibold">{event.name}</h1>
-        <p className="text-sm text-muted-foreground">Estado actual: {event.status}</p>
-      </div>
-
-      <LandingLink landingUrl={landingUrl} />
-
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
       <EventSubNav eventId={event.id} current="edit" role={user.profile.role} />
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+        <div>
+          <h1 className="font-heading text-xl font-semibold">{event.name}</h1>
+          <p className="text-sm text-muted-foreground">Estado actual: {event.status}</p>
+        </div>
 
-      <EventEditForm
-        event={event}
-        formConfig={resolveRegistrationFormConfig(event)}
-        embedUrl={embedUrl}
-        embedSnippet={embedSnippet}
-      />
-      <ReceptionTeam
-        eventId={event.id}
-        users={managedUsers.filter((managedUser) => managedUser.role === "RECEPTION")}
-        assignedIds={assignedReceptionistIds}
-      />
+        <LandingLink landingUrl={landingUrl} />
+
+        <EventEditForm
+          event={event}
+          formConfig={resolveRegistrationFormConfig(event)}
+          embedUrl={embedUrl}
+          embedSnippet={embedSnippet}
+        />
+        <ReceptionTeam
+          eventId={event.id}
+          users={managedUsers.filter((managedUser) => managedUser.role === "RECEPTION")}
+          assignedIds={assignedReceptionistIds}
+        />
+      </div>
     </div>
   );
 }

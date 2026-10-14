@@ -13,6 +13,7 @@ import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, XCircle } from "lucid
 import { AddCompanionRow } from "./add-companion-row";
 import { resendInvitationAction, type ResendInvitationState } from "./actions";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
+import { formatRegistrationDate } from "./registration-date";
 
 const UTM_LABELS: Record<string, string> = {
   utmSource: "utm_source",
@@ -87,7 +88,7 @@ export function RegistrationDetailSheet({
         <SheetHeader>
           <SheetTitle className="pr-8 text-xl font-semibold tracking-tight">{registration.attendees[0]?.fullName ?? "Registro"}</SheetTitle>
           <SheetDescription className="text-xs">
-            {statusLabel} · {registration.createdAt.toLocaleString()} · {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
+            {statusLabel} · {formatRegistrationDate(registration.createdAt)} · {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
           </SheetDescription>
         </SheetHeader>
 
@@ -144,17 +145,17 @@ export function RegistrationDetailSheet({
                 <ConsentStatus
                   label="Aviso de privacidad"
                   accepted={Boolean(registration.consents?.privacyAcceptedAt)}
-                  date={registration.consents?.privacyAcceptedAt ? new Date(registration.consents.privacyAcceptedAt).toLocaleString() : undefined}
+                  date={registration.consents?.privacyAcceptedAt ? formatRegistrationDate(registration.consents.privacyAcceptedAt) : undefined}
                 />
                 <ConsentStatus
                   label="Términos y condiciones"
                   accepted={Boolean(registration.consents?.termsAcceptedAt)}
-                  date={registration.consents?.termsAcceptedAt ? new Date(registration.consents.termsAcceptedAt).toLocaleString() : undefined}
+                  date={registration.consents?.termsAcceptedAt ? formatRegistrationDate(registration.consents.termsAcceptedAt) : undefined}
                 />
                 <ConsentStatus
                   label="Envío de publicidad"
                   accepted={Boolean(registration.consents?.marketingAcceptedAt)}
-                  date={registration.consents?.marketingAcceptedAt ? new Date(registration.consents.marketingAcceptedAt).toLocaleString() : undefined}
+                  date={registration.consents?.marketingAcceptedAt ? formatRegistrationDate(registration.consents.marketingAcceptedAt) : undefined}
                 />
               </div>
           </section>
@@ -181,7 +182,7 @@ export function RegistrationDetailSheet({
                 ) : null}
                 <div className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2"><p className="text-[11px] font-medium uppercase tracking-wide text-primary/80">Folio de acceso</p><p className="mt-1 font-mono text-lg font-bold tracking-wider text-primary">{attendee.backupCode}</p></div>
                 <p className={`text-xs font-medium ${attendee.checkedInAt ? "text-emerald-300" : "text-muted-foreground"}`}>
-                  {attendee.checkedInAt ? `Check-in: ${attendee.checkedInAt.toLocaleString()}` : "Sin check-in"}
+                  {attendee.checkedInAt ? `Check-in: ${formatRegistrationDate(attendee.checkedInAt)}` : "Sin check-in"}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {attendee.phone ? (

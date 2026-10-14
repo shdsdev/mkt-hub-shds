@@ -97,6 +97,7 @@ describe("addCompanionAction", () => {
     expect(mocks.addAttendeeToRegistration).toHaveBeenCalledWith({
       registrationId: REGISTRATION_ID,
       organizationId: "org-1",
+      ignoreCapacity: true,
       attendee: expect.objectContaining({ fullName: "Alan Turing", email: "alan@example.com" }),
     });
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(
@@ -108,7 +109,10 @@ describe("addCompanionAction", () => {
       expect.objectContaining({ status: "confirmed" }),
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith(`/events/${EVENT_ID}/registrations`);
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({
+      success: true,
+      addedCompanion: { fullName: "Alan Turing", backupCode: "WXYZ5678" },
+    });
   });
 
   it("does not send an email when the registration is waitlisted, but still notifies the webhook", async () => {
@@ -126,7 +130,10 @@ describe("addCompanionAction", () => {
       "registration.created",
       expect.objectContaining({ status: "waitlisted" }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({
+      success: true,
+      addedCompanion: { fullName: "Alan Turing", backupCode: "b" },
+    });
   });
 
   it("surfaces an at_capacity failure as a friendly message", async () => {

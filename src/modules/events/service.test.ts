@@ -68,6 +68,7 @@ import {
   listRegistrations,
   getEventInsights,
   addAttendeeToRegistration,
+  updatePrimaryAttendee,
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
   notifyEventWebhook,
@@ -737,6 +738,29 @@ describe("events service — addAttendeeToRegistration", () => {
       registrationId: "reg-1",
       organizationId: "org-1",
       attendee: { fullName: "Alan Turing", email: "alan@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "duplicate_email" });
+  });
+});
+
+describe("events service — updatePrimaryAttendee", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("maps a duplicate email violation to duplicate_email", async () => {
+    selectMock.mockReturnValueOnce(selectChain([{ id: "att-1" }]));
+    const update = updateChain([]);
+    update.returning.mockRejectedValue({
+      cause: { code: "23505", constraint_name: "event_attendees_event_email_active_unique" },
+    });
+    updateMock.mockReturnValue(update);
+
+    const result = await updatePrimaryAttendee({
+      registrationId: "reg-1",
+      organizationId: "org-1",
+      attendee: { fullName: "Alonso Cabrera", email: "existing@example.com" },
     });
 
     expect(result).toEqual({ ok: false, reason: "duplicate_email" });

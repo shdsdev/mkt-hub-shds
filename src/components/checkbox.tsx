@@ -12,11 +12,15 @@ export function Checkbox({
   onChange,
   label,
   name,
+  value,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
   name?: string;
+  value?: string;
+  disabled?: boolean;
 }) {
   return (
     <label className="check ck-10">
@@ -24,6 +28,8 @@ export function Checkbox({
         type="checkbox"
         tabIndex={-1}
         name={name}
+        value={value}
+        disabled={disabled}
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
       />

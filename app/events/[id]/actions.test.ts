@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
     version: 1,
     fields: {
       phone: { visible: false, required: false },
-      company: { visible: false, required: false },
+      company: { visible: true, required: false },
       jobTitle: { visible: false, required: false },
     },
     companion: { enabled: true },
@@ -54,6 +54,7 @@ function baseFormData(overrides: Record<string, string> = {}) {
   fd.set("slug", "workshop-marketing");
   fd.set("fullName", "Ada Lovelace");
   fd.set("email", "ada@example.com");
+  fd.set("company", "Acme Interiors");
   fd.set("occupation", "architect");
   fd.set("privacyAccepted", "true");
   fd.set("termsAccepted", "true");
@@ -176,6 +177,7 @@ describe("registerForEventAction", () => {
     const fd = baseFormData();
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
+    fd.append("companionCompanyMode", "same");
     fd.append("companionOccupation", "architect");
 
     mocks.registerForEvent.mockResolvedValue({
@@ -209,6 +211,172 @@ describe("registerForEventAction", () => {
       }),
     );
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledTimes(2);
+  });
+
+  it("copies the primary company when the companion selects same, ignoring a forged company", async () => {
+    const fd = baseFormData();
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionCompanyMode", "same");
+    fd.append("companionCompany", "Forged Industries");
+    fd.append("companionOccupation", "architect");
+
+    mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
+
+    await registerForEventAction({}, fd);
+
+    expect(mocks.registerForEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companions: [expect.objectContaining({ company: "Acme Interiors" })],
+      }),
+    );
+  });
+
+  it("does not require or store companion company when company is hidden", async () => {
+    mocks.resolveRegistrationFormConfig.mockReturnValue({
+      ...mocks.resolveRegistrationFormConfig(),
+      fields: {
+        ...mocks.resolveRegistrationFormConfig().fields,
+        company: { visible: false, required: false },
+      },
+    });
+    const fd = baseFormData();
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionOccupation", "architect");
+
+    mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
+
+    await registerForEventAction({}, fd);
+
+    expect(mocks.registerForEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        primary: expect.objectContaining({ company: undefined }),
+        companions: [expect.objectContaining({ company: undefined })],
+      }),
+    );
+  });
+
+  it("applies the inherited company before validating a required companion field", async () => {
+    mocks.resolveRegistrationFormConfig.mockReturnValue({
+      ...mocks.resolveRegistrationFormConfig(),
+      fields: {
+        ...mocks.resolveRegistrationFormConfig().fields,
+        company: { visible: true, required: true },
+      },
+    });
+    const fd = baseFormData();
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionCompanyMode", "same");
+    fd.append("companionOccupation", "architect");
+
+    mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
+
+    await registerForEventAction({}, fd);
+
+    expect(mocks.registerForEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companions: [expect.objectContaining({ company: "Acme Interiors" })],
+      }),
+    );
+  });
+
+  it("rejects same mode when the primary company is empty", async () => {
+    const fd = baseFormData({ company: "" });
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionCompanyMode", "same");
+    fd.append("companionOccupation", "architect");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result).toEqual({ error: "Revisa la empresa del acompañante." });
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it("stores a trimmed alternate company when the companion selects other", async () => {
+    const fd = baseFormData();
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionCompanyMode", "other");
+    fd.append("companionCompany", "  Turing Labs  ");
+    fd.append("companionOccupation", "architect");
+
+    mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
+
+    await registerForEventAction({}, fd);
+
+    expect(mocks.registerForEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companions: [expect.objectContaining({ company: "Turing Labs" })],
+      }),
+    );
+  });
+
+  it("allows an alternate companion company when the primary company is optional", async () => {
+    const fd = baseFormData({ company: "" });
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionCompanyMode", "other");
+    fd.append("companionCompany", "Turing Labs");
+    fd.append("companionOccupation", "architect");
+
+    mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
+
+    await registerForEventAction({}, fd);
+
+    expect(mocks.registerForEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        primary: expect.objectContaining({ company: undefined }),
+        companions: [expect.objectContaining({ company: "Turing Labs" })],
+      }),
+    );
+  });
+
+  it("still rejects a missing primary company when the field is required", async () => {
+    mocks.resolveRegistrationFormConfig.mockReturnValue({
+      ...mocks.resolveRegistrationFormConfig(),
+      fields: {
+        ...mocks.resolveRegistrationFormConfig().fields,
+        company: { visible: true, required: true },
+      },
+    });
+
+    const result = await registerForEventAction({}, baseFormData({ company: "" }));
+
+    expect(result).toEqual({ error: "La empresa es obligatorio." });
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty alternate company without calling the service", async () => {
+    const fd = baseFormData();
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionCompanyMode", "other");
+    fd.append("companionCompany", "   ");
+    fd.append("companionOccupation", "architect");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result).toEqual({ error: "Revisa la empresa del acompañante." });
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["invalid", "unsupported"],
+  ])("rejects a %s companion company mode", async (_label, mode) => {
+    const fd = baseFormData();
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    if (mode) fd.append("companionCompanyMode", mode);
+    fd.append("companionOccupation", "architect");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result).toEqual({ error: "Revisa la empresa del acompañante." });
+    expect(mocks.registerForEvent).not.toHaveBeenCalled();
   });
 
   it("rejects more than one companion", async () => {

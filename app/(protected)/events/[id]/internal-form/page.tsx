@@ -14,13 +14,15 @@ export default async function InternalEventFormPage({ params }: { params: Promis
   if (!(await canAccessEvent({ userId: user.id, organizationId: user.profile.organizationId, role: user.profile.role, eventId: event.id, capability: "internal-form" }))) notFound();
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
       <EventSubNav eventId={event.id} current="internal-form" role={user.profile.role} />
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Formulario interno: {event.name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Administración de registros y acompañantes.</p>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Formulario interno: {event.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Administración de registros y acompañantes.</p>
+        </div>
+        <InternalRegistrationForm eventId={event.id} />
       </div>
-      <InternalRegistrationForm eventId={event.id} />
     </div>
   );
 }
