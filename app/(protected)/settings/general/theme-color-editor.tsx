@@ -37,14 +37,14 @@ function ColorField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
         <span
           className="h-6 w-6 shrink-0 rounded-full border border-border"
           style={{ backgroundColor: isValid ? hex : defaultHex }}
           aria-hidden="true"
         />
-        <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">{TOKEN_LABELS[token]}</span>
-        <form action={setAction} className="flex flex-1 items-center gap-2">
+        <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">{TOKEN_LABELS[token]}</span>
+        <form action={setAction} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="themeId" value={themeId} />
           <input type="hidden" name="token" value={token} />
           <input
@@ -58,7 +58,7 @@ function ColorField({
             name="hex"
             value={hex}
             onChange={(event) => setHex(event.target.value)}
-            className="w-28 font-mono text-xs"
+            className="w-24 font-mono text-xs"
             aria-label={`Hexadecimal para ${TOKEN_LABELS[token]}`}
           />
           <Button type="submit" variant="outline" size="sm" disabled={setPending || !isValid}>
@@ -105,7 +105,7 @@ export function ThemeColorEditor({ theme }: { theme: Theme }) {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md" />
-        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-popover px-6 py-6 text-popover-foreground shadow-2xl">
+        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-popover px-6 py-6 text-popover-foreground shadow-2xl">
           <Dialog.Title className="text-lg font-semibold tracking-tight">
             Editar colores — {theme.label}
           </Dialog.Title>
