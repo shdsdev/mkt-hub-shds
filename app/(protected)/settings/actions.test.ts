@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   updateTheme: vi.fn(),
   isValidThemeId: vi.fn(),
   updateDefaultLogo: vi.fn(),
+  setThemeColorOverride: vi.fn(),
+  clearThemeColorOverride: vi.fn(),
   createDomain: vi.fn(),
   updateDomain: vi.fn(),
   deleteDomain: vi.fn(),
@@ -31,6 +33,8 @@ vi.mock("@/modules/users", () => ({
   updateTheme: mocks.updateTheme,
   isValidThemeId: mocks.isValidThemeId,
   updateDefaultLogo: mocks.updateDefaultLogo,
+  setThemeColorOverride: mocks.setThemeColorOverride,
+  clearThemeColorOverride: mocks.clearThemeColorOverride,
 }));
 vi.mock("@/modules/links", () => ({
   createDomain: mocks.createDomain,
@@ -48,6 +52,8 @@ import {
   updateUtmPresetAction,
   archiveUtmPresetAction,
   deleteUtmPresetAction,
+  setThemeColorOverrideAction,
+  clearThemeColorOverrideAction,
 } from "./actions";
 
 const user = {
@@ -161,5 +167,80 @@ describe("utm settings server actions", () => {
 
     expect(mocks.deleteUtmPreset).toHaveBeenCalledWith(TEMPLATE_ID, "org-1");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/settings/utm");
+  });
+});
+
+describe("theme color override server actions", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.getCurrentUser.mockResolvedValue(user);
+  });
+
+  function overrideFormData(overrides: Record<string, string> = {}) {
+    const formData = new FormData();
+    formData.set("themeId", "arctic-frost");
+    formData.set("token", "primary");
+    formData.set("hex", "#3772ff");
+    for (const [key, value] of Object.entries(overrides)) formData.set(key, value);
+    return formData;
+  }
+
+  it("rejects an invalid hex before calling the service", async () => {
+    const result = await setThemeColorOverrideAction({}, overrideFormData({ hex: "not-a-hex" }));
+
+    expect(result.error).toBeTruthy();
+    expect(mocks.setThemeColorOverride).not.toHaveBeenCalled();
+  });
+
+  it("passes the actor's role/id and revalidates on success", async () => {
+    mocks.setThemeColorOverride.mockResolvedValue({ ok: true });
+
+    const result = await setThemeColorOverrideAction({}, overrideFormData());
+
+    expect(mocks.setThemeColorOverride).toHaveBeenCalledWith({
+      actorRole: "ADMIN",
+      actorUserId: "actor-1",
+      themeId: "arctic-frost",
+      token: "primary",
+      hex: "#3772ff",
+    });
+    expect(result.success).toBeTruthy();
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("surfaces the service's forbidden result as a permission error", async () => {
+    mocks.setThemeColorOverride.mockResolvedValue({ ok: false, reason: "forbidden" });
+
+    const result = await setThemeColorOverrideAction({}, overrideFormData());
+
+    expect(result.error).toBeTruthy();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("clears an override and revalidates on success", async () => {
+    mocks.clearThemeColorOverride.mockResolvedValue({ ok: true });
+    const formData = new FormData();
+    formData.set("themeId", "arctic-frost");
+    formData.set("token", "accent");
+
+    const result = await clearThemeColorOverrideAction({}, formData);
+
+    expect(mocks.clearThemeColorOverride).toHaveBeenCalledWith({
+      actorRole: "ADMIN",
+      themeId: "arctic-frost",
+      token: "accent",
+    });
+    expect(result.success).toBeTruthy();
+  });
+
+  it("surfaces the service's forbidden result on clear", async () => {
+    mocks.clearThemeColorOverride.mockResolvedValue({ ok: false, reason: "forbidden" });
+    const formData = new FormData();
+    formData.set("themeId", "arctic-frost");
+    formData.set("token", "accent");
+
+    const result = await clearThemeColorOverrideAction({}, formData);
+
+    expect(result.error).toBeTruthy();
   });
 });

@@ -241,6 +241,49 @@
   --sidebar-muted-foreground: #8fc9bd;
 }
 
+/* "Arctic Frost" theme (2026-10-15 design) — the first LIGHT theme. Derived from the 5-hex
+   reference palette (Jet Black #172A32, Alabaster Grey #D6DCD7, Azure Mist #CFDEDC, Vivid
+   Tangerine #FF7F11, Crayola Blue #3772FF) plus the #faf8f2 cream base from the Aura Gradient
+   spec. Same translucent-surface pattern as every other aura theme, just inverted: foreground is
+   dark-on-light instead of light-on-dark, and shadows/border use a lighter alpha (a strong black
+   shadow/border reads wrong on a light backdrop, unlike the 0.3-0.35 scale the dark themes use). */
+[data-app-theme="arctic-frost"] {
+  --radius: 1rem;
+  --background: color-mix(in srgb, #faf8f2 32%, transparent);
+  --foreground: #172a32;
+  --card: color-mix(in srgb, #ffffff 70%, transparent);
+  --card-foreground: #172a32;
+  --card-hover: color-mix(in srgb, #ffffff 85%, transparent);
+  --popover: color-mix(in srgb, #ffffff 92%, transparent);
+  --popover-foreground: #172a32;
+  --primary: #3772ff;
+  --primary-foreground: #faf8f2;
+  --secondary: #cfdedc;
+  --secondary-foreground: #172a32;
+  --muted: color-mix(in srgb, #d6dcd7 60%, transparent);
+  --muted-foreground: #52636a;
+  --accent: #ff7f11;
+  --accent-foreground: #172a32;
+  --destructive: #ef4444;
+  --destructive-foreground: #faf8f2;
+  --border: rgba(23, 42, 50, 0.12);
+  --input: rgba(23, 42, 50, 0.12);
+  --ring: #3772ff;
+  --shadow-sm: 0 1px 2px 0 rgba(23, 42, 50, 0.08);
+  --shadow-md: 0 2px 4px 0 rgba(23, 42, 50, 0.1);
+  --shadow-lg: 0 3px 6px 0 rgba(23, 42, 50, 0.12);
+  --shadow-detail: 0 1px 1px 0 rgba(23, 42, 50, 0.08);
+  --sidebar: color-mix(in srgb, #ffffff 12%, transparent);
+  --sidebar-foreground: #172a32;
+  --sidebar-accent: color-mix(in srgb, #d6dcd7 60%, transparent);
+  --sidebar-accent-foreground: #172a32;
+  --sidebar-border: rgba(23, 42, 50, 0.1);
+  --sidebar-ring: #3772ff;
+  --sidebar-badge: color-mix(in srgb, #ffffff 60%, transparent);
+  --sidebar-muted: #52636a;
+  --sidebar-muted-foreground: #52636a;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -406,6 +449,12 @@
   position: absolute;
   inset: 0;
   background-color: #100e0b;
+}
+/* Arctic Frost is a LIGHT theme — its aura layers (below) use "multiply" blend modes designed to
+   composite against a light backdrop, so this theme needs its own cream base instead of the dark
+   default every other aura theme shares. */
+[data-app-theme="arctic-frost"] .aura-base {
+  background-color: #faf8f2;
 }
 .aura-layer {
   position: absolute;
@@ -578,6 +627,44 @@
   }
   .aura-midnight-layer-4 {
     filter: blur(54px);
+  }
+}
+
+/* "Arctic Frost" — the user-supplied "Arctic Frost" Aura Gradient spec (2026-10-15): a cool
+   atmospheric gradient using layered mix-blend-mode (not screen/soft-light like the dark auras —
+   normal + multiply, since these layers are designed to composite against the light #faf8f2 base
+   set by .aura-base above, not a dark one). */
+.aura-arctic-frost-layer-1 {
+  background: linear-gradient(135deg, rgba(207, 250, 254, 0.9) 0%, rgba(165, 243, 252, 0.4) 50%, rgba(34, 211, 238, 0.3) 100%);
+  mix-blend-mode: normal;
+  opacity: 0.23;
+}
+.aura-arctic-frost-layer-2 {
+  background: radial-gradient(circle at 30% 30%, rgba(6, 182, 212, 0.5) 0%, transparent 40%);
+  mix-blend-mode: multiply;
+  filter: blur(125px);
+  opacity: 0.33;
+}
+.aura-arctic-frost-layer-3 {
+  background: radial-gradient(circle at 70% 70%, rgba(14, 165, 233, 0.4) 0%, transparent 35%);
+  mix-blend-mode: multiply;
+  filter: blur(150px);
+  opacity: 0.3;
+}
+.aura-arctic-frost-layer-4 {
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.4) 100%);
+  mix-blend-mode: multiply;
+  filter: blur(50px);
+}
+@media (min-width: 768px) {
+  .aura-arctic-frost-layer-2 {
+    filter: blur(180px);
+  }
+  .aura-arctic-frost-layer-3 {
+    filter: blur(216px);
+  }
+  .aura-arctic-frost-layer-4 {
+    filter: blur(72px);
   }
 }
 
@@ -755,7 +842,9 @@
 [data-app-theme="aston"] .bg-card,
 [data-app-theme="aston"] .bg-popover,
 [data-app-theme="signature"] .bg-card,
-[data-app-theme="signature"] .bg-popover {
+[data-app-theme="signature"] .bg-popover,
+[data-app-theme="arctic-frost"] .bg-card,
+[data-app-theme="arctic-frost"] .bg-popover {
   backdrop-filter: blur(20px);
 }
 
@@ -769,6 +858,12 @@
 [data-app-theme="signature"] .content-frame,
 [data-app-theme="midnight"] .content-frame {
   border: 1px solid rgba(220, 230, 240, 0.14);
+}
+
+/* Arctic Frost needs its own dark-tinted border — the light-tinted border above was built for a
+   dark background and is nearly invisible against Arctic Frost's light aura. */
+[data-app-theme="arctic-frost"] .content-frame {
+  border: 1px solid rgba(23, 42, 50, 0.14);
 }
 
 /* Rotating accent-colored border for the content frame. A conic-gradient driven by an animated

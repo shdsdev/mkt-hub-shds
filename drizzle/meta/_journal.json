@@ -176,6 +176,20 @@
       "when": 1791994024611,
       "tag": "0024_naive_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792079987829,
+      "tag": "0025_icy_tigra",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792080007016,
+      "tag": "0026_blue_reavers",
+      "breakpoints": true
     }
   ]
 }

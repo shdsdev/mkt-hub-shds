@@ -15,7 +15,7 @@ export {
   type UserRole,
   type UserStatus,
 } from "./service";
-export { THEMES, DEFAULT_THEME_ID, isValidThemeId, type Theme } from "./theme-registry";
+export { THEMES, VISIBLE_THEMES, DEFAULT_THEME_ID, isValidThemeId, type Theme } from "./theme-registry";
 export {
   listManagedUsers,
   changeManagedUserRole,
@@ -27,3 +27,15 @@ export {
   type InviteManagedUserInput,
   type InviteManagedUserResult,
 } from "./management";
+export {
+  getThemeColorOverrides,
+  setThemeColorOverride,
+  clearThemeColorOverride,
+  buildThemeOverrideStyle,
+  type ThemeColorOverrideToken,
+  type ThemeColorOverrides,
+  type SetThemeColorOverrideInput,
+  type SetThemeColorOverrideResult,
+  type ClearThemeColorOverrideInput,
+  type ClearThemeColorOverrideResult,
+} from "./theme-overrides";
