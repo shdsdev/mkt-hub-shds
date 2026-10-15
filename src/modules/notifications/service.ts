@@ -1,9 +1,15 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { env } from "@/lib/env";
-import { notificationLog, notificationSubjectType, notificationType as notificationTypeEnum } from "./db";
+import type { EventEmailContent } from "@/lib/events/event-email-content";
+import {
+  notificationLog,
+  notificationSubjectType,
+  notificationType as notificationTypeEnum,
+} from "./db";
 
-export type NotificationSubjectType = (typeof notificationSubjectType.enumValues)[number];
+export type NotificationSubjectType =
+  (typeof notificationSubjectType.enumValues)[number];
 export type NotificationType = (typeof notificationTypeEnum.enumValues)[number];
 export type NotificationLogRow = typeof notificationLog.$inferSelect;
 
@@ -46,23 +52,41 @@ export async function claimNotification(
   return row;
 }
 
-export async function markNotificationSent(id: string, providerMessageId?: string): Promise<void> {
+export async function markNotificationSent(
+  id: string,
+  providerMessageId?: string,
+): Promise<void> {
   await db
     .update(notificationLog)
     .set({ status: "sent", providerMessageId, sentAt: new Date() })
     .where(eq(notificationLog.id, id));
 }
 
-export async function markNotificationFailed(id: string, error: string): Promise<void> {
-  await db.update(notificationLog).set({ status: "failed", error }).where(eq(notificationLog.id, id));
+export async function markNotificationFailed(
+  id: string,
+  error: string,
+): Promise<void> {
+  await db
+    .update(notificationLog)
+    .set({ status: "failed", error })
+    .where(eq(notificationLog.id, id));
 }
 
-type ResendSendInput = { to: string; subject: string; html: string };
-type ResendSendResult = { ok: true; messageId: string } | { ok: false; error: string };
+type ResendSendInput = {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: Array<{ content: string; filename: string; content_id?: string }>;
+};
+type ResendSendResult =
+  | { ok: true; messageId: string }
+  | { ok: false; error: string };
 
 // Minimal REST client over fetch — no SDK dependency added for this leaf module (design.md
 // "notifications stays a leaf"). Swappable later if a richer client is needed.
-export async function sendViaResend(input: ResendSendInput): Promise<ResendSendResult> {
+export async function sendViaResend(
+  input: ResendSendInput,
+): Promise<ResendSendResult> {
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -75,6 +99,7 @@ export async function sendViaResend(input: ResendSendInput): Promise<ResendSendR
         to: input.to,
         subject: input.subject,
         html: input.html,
+        attachments: input.attachments,
       }),
     });
     if (!response.ok) {
@@ -84,7 +109,10 @@ export async function sendViaResend(input: ResendSendInput): Promise<ResendSendR
     const data = (await response.json()) as { id?: string };
     return { ok: true, messageId: data.id ?? "" };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Unknown Resend error" };
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unknown Resend error",
+    };
   }
 }
 
@@ -107,7 +135,10 @@ export type AttendeeEmailInput = {
   eventStartsAt: Date;
   eventEndsAt: Date | null;
   eventLocation: string | null;
+  eventLocationUrl: string | null;
   manageUrl: string;
+  emailContent: EventEmailContent;
+  agenda: readonly { time: string; title: string; description?: string }[];
   force?: boolean;
 };
 
@@ -132,7 +163,11 @@ export function escapeHtml(value: string): string {
 const BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
 
 function assertBase64(value: string): string {
-  if (value.length === 0 || value.length % 4 !== 0 || !BASE64_PATTERN.test(value)) {
+  if (
+    value.length === 0 ||
+    value.length % 4 !== 0 ||
+    !BASE64_PATTERN.test(value)
+  ) {
     throw new Error("qrPngBase64 is not valid base64 image data.");
   }
   return value;
@@ -170,9 +205,20 @@ export function formatEventTimeRangeEs(start: Date, end: Date | null): string {
   return `${startLabel} a ${timeFormatter.format(end)} h`;
 }
 
-// decision 2: no dedicated maps-link column on `events` — generated from the free-text `location`.
 export function buildGoogleMapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
+
+function getSafeHttpUrl(value: string | null): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : null;
+  } catch {
+    return null;
+  }
 }
 
 // Every admin/user-supplied string (attendeeName, eventName, eventLocation) goes through
@@ -182,24 +228,38 @@ export function buildGoogleMapsUrl(location: string): string {
 // (decision 4: reuses the existing `/events/cancel/[token]` page) is still escaped before going
 // into an `href` attribute, matching this module's existing defense-in-depth posture even though
 // it's built from a UUID-based token, not raw user input.
-function renderEventDetails(input: AttendeeEmailInput): { date: string; time: string; location: string; mapsLinkHtml: string } {
+function renderEventDetails(input: AttendeeEmailInput): {
+  date: string;
+  time: string;
+  location: string;
+  mapsLinkHtml: string;
+} {
   const date = formatEventDateEs(input.eventStartsAt);
   const time = formatEventTimeRangeEs(input.eventStartsAt, input.eventEndsAt);
-  const location = input.eventLocation ? escapeHtml(input.eventLocation) : "Por confirmar";
-  const mapsLinkHtml = input.eventLocation
-    ? `<a href="${escapeHtml(buildGoogleMapsUrl(input.eventLocation))}" target="_blank" style="color:#245d72;font-size:13px;font-weight:700;text-decoration:underline;">VER UBICACIÓN EN GOOGLE MAPS ↗</a>`
+  const location = input.eventLocation
+    ? escapeHtml(input.eventLocation)
+    : "Por confirmar";
+  const mapsUrl =
+    getSafeHttpUrl(input.eventLocationUrl) ||
+    (input.eventLocation ? buildGoogleMapsUrl(input.eventLocation) : null);
+  const mapsLinkHtml = mapsUrl
+    ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" style="color:#245d72;font-size:13px;font-weight:700;text-decoration:underline;">VER UBICACIÓN EN GOOGLE MAPS ↗</a>`
     : "";
   return { date, time, location, mapsLinkHtml };
 }
 
 // BMIGHTY Connect confirmation template (decision 5: shared by both `confirmation` and
 // `waitlist_promotion`, which differ only in `headline`/`introSentence`).
-function confirmationEmailHtml(input: AttendeeEmailInput, headline: string, introSentence: string): string {
+function confirmationEmailHtml(
+  input: AttendeeEmailInput,
+  headline: string,
+  introSentence: string,
+  qrContentId: string,
+): string {
   const name = escapeHtml(input.attendeeName);
   const eventName = escapeHtml(input.eventName);
   const backupCode = escapeHtml(input.backupCode);
   const manageUrl = escapeHtml(input.manageUrl);
-  const qr = assertBase64(input.qrPngBase64);
   const { date, time, location, mapsLinkHtml } = renderEventDetails(input);
 
   return `
@@ -215,7 +275,7 @@ function confirmationEmailHtml(input: AttendeeEmailInput, headline: string, intr
 <tr><td align="center" style="padding:30px 12px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#f7f5ef;">
   <tr><td style="padding:35px 35px 25px;">
-    <div style="font-size:24px;font-weight:800;letter-spacing:-1px;color:#ff0040;">BMIGHTY CONNECT.</div>
+    <div style="font-size:24px;font-weight:800;letter-spacing:-1px;color:#ff0040;">SHADES SPACES.</div>
     <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#66747a;margin-top:8px;">EXPERIENCE LAB / EDICIÓN DRAPERY</div>
   </td></tr>
   <tr><td style="padding:0 35px;"><div style="height:1px;background:#d8d5cd;"></div></td></tr>
@@ -224,7 +284,7 @@ function confirmationEmailHtml(input: AttendeeEmailInput, headline: string, intr
     <h1 style="font-size:42px;line-height:1.12;letter-spacing:-2px;font-weight:400;margin:18px 0;color:#172a32;">¡Tu lugar está confirmado!</h1>
     <p style="font-size:16px;line-height:1.8;">Hola, <strong>${name}</strong>:</p>
     <p style="font-size:15px;line-height:1.8;color:#52636a;">${escapeHtml(introSentence)} <strong>${eventName}</strong>.</p>
-    <p style="font-size:15px;line-height:1.8;color:#52636a;">Nos encantará recibirte en una experiencia diseñada para aprender, descubrir nuevas soluciones de motorización y cortinería, y conectar con otros profesionales de la industria.</p>
+    <p style="font-size:15px;line-height:1.8;color:#52636a;">${escapeHtml(input.emailContent.confirmationIntro)}</p>
   </td></tr>
   <tr><td style="padding:15px 35px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
@@ -243,24 +303,24 @@ function confirmationEmailHtml(input: AttendeeEmailInput, headline: string, intr
       <tr><td align="center" style="padding:35px 20px;">
         <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#66747a;">TU ACCESO PERSONAL</div>
         <h2 style="font-size:27px;font-weight:400;letter-spacing:-1px;color:#172a32;margin:15px 0 8px;">Presenta este QR al llegar.</h2>
-        <p style="font-size:13px;line-height:1.7;color:#66747a;max-width:360px;">Este código es personal y será utilizado para validar tu asistencia al workshop.</p>
-        <img src="data:image/png;base64,${qr}" alt="Código QR personal de acceso al evento" width="230" height="230" style="display:block;width:230px;height:230px;max-width:100%;margin:25px auto 10px;border:0;">
+        <p style="font-size:13px;line-height:1.7;color:#66747a;max-width:360px;">Este código es personal y será utilizado para validar tu asistencia a ${eventName}.</p>
+        <img src="cid:${qrContentId}" alt="Código QR personal de acceso al evento" width="230" height="230" style="display:block;width:230px;height:230px;max-width:100%;margin:25px auto 10px;border:0;">
         <div style="font-size:12px;color:#66747a;margin-top:15px;">CÓDIGO DE REGISTRO</div>
         <div style="font-size:20px;font-weight:700;letter-spacing:1px;margin-top:8px;color:#172a32;">${backupCode}</div>
       </td></tr>
     </table>
   </td></tr>
   <tr><td style="padding:15px 35px 25px;">
-    <h2 style="font-size:22px;font-weight:400;margin:0 0 10px;color:#172a32;">¿Registraste acompañantes?</h2>
-    <p style="font-size:14px;line-height:1.8;color:#52636a;">Cada acompañante cuenta con su propio acceso individual. Podrás consultar los códigos QR desde el enlace de administración de tu inscripción.</p>
-    <a href="${manageUrl}" style="display:inline-block;padding:15px 0;border-bottom:1px solid #172a32;color:#172a32;font-size:12px;font-weight:700;letter-spacing:1px;text-decoration:none;">CONSULTAR MI INSCRIPCIÓN ↗</a>
+    <h2 style="font-size:22px;font-weight:400;margin:0 0 10px;color:#172a32;">¿Necesitas cancelar tu registro?</h2>
+    <p style="font-size:14px;line-height:1.8;color:#52636a;">Si ya no puedes asistir, utiliza este enlace para cancelar tu registro.</p>
+    <a href="${manageUrl}" style="display:inline-block;padding:15px 0;border-bottom:1px solid #172a32;color:#172a32;font-size:12px;font-weight:700;letter-spacing:1px;text-decoration:none;">CANCELAR MI REGISTRO ↗</a>
   </td></tr>
   <tr><td style="padding:25px 35px;background:#c8dee2;">
     <h2 style="font-size:23px;font-weight:400;margin:0 0 12px;color:#172a32;">Prepárate para conectar.</h2>
-    <p style="font-size:14px;line-height:1.8;margin:0;color:#172a32;">Te recomendamos llegar con anticipación, tener a la mano tu código QR y prepararte para una jornada de aprendizaje, demostraciones y nuevas oportunidades.</p>
+    <p style="font-size:14px;line-height:1.8;margin:0;color:#172a32;">${escapeHtml(input.emailContent.logistics)}</p>
   </td></tr>
   <tr><td style="padding:38px 35px;background:#172a32;color:#ffffff;">
-    <div style="font-size:27px;font-weight:800;letter-spacing:-1px;">BMIGHTY CONNECT.</div>
+    <div style="font-size:27px;font-weight:800;letter-spacing:-1px;">SHADES SPACES.</div>
     <p style="font-size:12px;line-height:1.8;color:#cad2d3;">Descubre. Aprende. Conecta.</p>
     <div style="height:1px;background:#41565f;margin:25px 0;"></div>
     <p style="font-size:12px;line-height:1.8;color:#cad2d3;">Una iniciativa respaldada por <strong>Shades de México</strong>.</p>
@@ -276,17 +336,18 @@ function confirmationEmailHtml(input: AttendeeEmailInput, headline: string, intr
 
 // BMIGHTY Connect 48h reminder template (decision 6: fires on the existing single
 // `reminderOffsetMinutes` per event, set to 2880 for this event — no new scheduling mechanism).
-function reminderEmailHtml(input: AttendeeEmailInput): string {
+function reminderEmailHtml(input: AttendeeEmailInput, qrContentId: string): string {
   const name = escapeHtml(input.attendeeName);
   const eventName = escapeHtml(input.eventName);
   const backupCode = escapeHtml(input.backupCode);
   const manageUrl = escapeHtml(input.manageUrl);
-  const qr = assertBase64(input.qrPngBase64);
   const { date, time, location, mapsLinkHtml } = renderEventDetails(input);
   // The "sent two days before" reference date, computed from the real event date rather than a
   // hardcoded day — matches the source template's "MIÉRCOLES 4 DE NOVIEMBRE" eyebrow, but correct
   // for any event's actual start time.
-  const reminderSentDate = formatEventDateEs(new Date(input.eventStartsAt.getTime() - 48 * 60 * 60_000));
+  const reminderSentDate = formatEventDateEs(
+    new Date(input.eventStartsAt.getTime() - 48 * 60 * 60_000),
+  );
 
   return `
 <!doctype html>
@@ -296,19 +357,17 @@ function reminderEmailHtml(input: AttendeeEmailInput): string {
 <div style="display:none;font-size:1px;color:#eeeae2;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Faltan 48 horas para ${eventName}. Revisa tu horario, cómo llegar y tu QR personal.</div>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#eeeae2;"><tr><td align="center" style="padding:28px 12px 48px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;border-collapse:collapse;">
-<tr><td style="padding:0 2px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:12px;font-weight:800;letter-spacing:1.4px;color:#172a32;">BMIGHTY <span style="color:#ff0040;">CONNECT.</span></td><td align="right" style="font-size:10px;letter-spacing:1px;color:#66747a;text-transform:uppercase;">Experience Lab · Edición Drapery</td></tr></table></td></tr>
+<tr><td style="padding:0 2px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:12px;font-weight:800;letter-spacing:1.4px;color:#172a32;">SHADES <span style="color:#ff0040;">SPACES.</span></td><td align="right" style="font-size:10px;letter-spacing:1px;color:#66747a;text-transform:uppercase;">Experience Lab · Edición Drapery</td></tr></table></td></tr>
 <tr><td style="background:#172a32;padding:13px 22px;text-align:center;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1.7px;">¡FALTAN 48 HORAS! &nbsp; ✦</td></tr>
 <tr><td style="background:#f7f5ef;padding:40px 38px 30px;">
 <p style="font-size:12px;font-weight:700;letter-spacing:2px;color:#245d72;margin:0 0 18px;text-transform:uppercase;">${reminderSentDate} · RECORDATORIO</p>
 <h1 style="font-size:42px;line-height:1.08;letter-spacing:-2px;font-weight:400;margin:0 0 20px;color:#172a32;">¡Estamos a solo<br><strong>48 horas!</strong></h1>
 <p style="font-size:17px;line-height:1.7;margin:0 0 14px;">¡Hola, <strong>${name}</strong>!</p>
-<p style="font-size:15px;line-height:1.8;color:#455960;margin:0;">Este viernes te esperamos en <strong>${eventName}</strong>. Prepárate para aprender, descubrir nuevas soluciones y conectar con especialistas de nuestra industria.</p>
+<p style="font-size:15px;line-height:1.8;color:#455960;margin:0;">${escapeHtml(input.emailContent.reminderIntro)}</p>
 </td></tr>
 <tr><td style="background:#f7f5ef;padding:0 38px 30px;">
 <p style="margin:0 0 14px;font-size:11px;font-weight:700;letter-spacing:1.7px;color:#245d72;">ESTO ES LO QUE TE ESPERA</p>
-<p style="font-size:14px;color:#455960;line-height:1.7;margin:0 0 9px;"><strong>01 / BMIGHTY — Motores de batería.</strong> Conoce la instalación y programación de soluciones motorizadas.</p>
-<p style="font-size:14px;color:#455960;line-height:1.7;margin:0 0 9px;"><strong>02 / BMIGHTY — Tecnología Wi-Fi.</strong> Explora sus aplicaciones, conectividad y configuración.</p>
-<p style="font-size:14px;color:#455960;line-height:1.7;margin:0;"><strong>03 / Shades Drapery — Cortineros.</strong> Descubre cómo se arma un cortinero manual y uno motorizado, de principio a fin.</p>
+${input.agenda.map((item, index) => `<p style="font-size:14px;color:#455960;line-height:1.7;margin:0 0 9px;"><strong>${String(index + 1).padStart(2, "0")} / ${escapeHtml(item.title)}.</strong>${item.description ? ` ${escapeHtml(item.description)}` : ""}</p>`).join("")}
 </td></tr>
 <tr><td style="background:#f7f5ef;padding:0 38px 32px;">
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #d8d5cd;border-bottom:1px solid #d8d5cd;">
@@ -320,23 +379,23 @@ function reminderEmailHtml(input: AttendeeEmailInput): string {
 <tr><td style="background:#d6e2e2;padding:32px 30px;text-align:center;">
 <p style="font-size:11px;letter-spacing:1.5px;font-weight:bold;color:#245d72;text-transform:uppercase;margin:0 0 10px;">TU QR PARA EL VIERNES</p>
 <h2 style="font-size:27px;font-weight:400;letter-spacing:-1px;line-height:1.15;margin:0 0 11px;">Guarda tu QR<br>para el acceso</h2>
-<p style="margin:0 0 19px;font-size:13px;color:#455960;line-height:1.6;">Preséntalo el viernes al ingresar. El QR es personal: no lo compartas.</p>
-<table role="presentation" align="center" cellpadding="0" cellspacing="0"><tr><td style="background:#ffffff;border:1px solid #d8d5cd;padding:15px;"><img src="data:image/png;base64,${qr}" width="210" height="210" alt="Código QR personal de acceso al evento." style="display:block;width:210px;height:210px;border:0;outline:none;text-decoration:none;color:#172a32;font-size:12px;"></td></tr></table>
+<p style="margin:0 0 19px;font-size:13px;color:#455960;line-height:1.6;">Preséntalo al ingresar. El QR es personal: no lo compartas.</p>
+<table role="presentation" align="center" cellpadding="0" cellspacing="0"><tr><td style="background:#ffffff;border:1px solid #d8d5cd;padding:15px;"><img src="cid:${qrContentId}" width="210" height="210" alt="Código QR personal de acceso al evento." style="display:block;width:210px;height:210px;border:0;outline:none;text-decoration:none;color:#172a32;font-size:12px;"></td></tr></table>
 <p style="margin:17px 0 6px;font-size:11px;letter-spacing:1.2px;color:#66747a;font-weight:bold;">CÓDIGO DE REGISTRO</p>
 <p style="margin:0 0 23px;font-size:20px;font-weight:bold;letter-spacing:1px;color:#172a32;overflow-wrap:anywhere;">${backupCode}</p>
 </td></tr>
 <tr><td style="background:#f7f5ef;padding:33px 38px;">
-<h2 style="font-weight:400;letter-spacing:-.6px;font-size:24px;margin:0 0 12px;">¿Vendrás con acompañantes?</h2>
-<p style="color:#455960;font-size:14px;line-height:1.75;margin:0 0 18px;">Cada acompañante necesita su propio QR para ingresar. Consulta todos tus accesos individuales desde tu inscripción.</p>
-<p style="margin:0;"><a href="${manageUrl}" style="color:#172a32;text-decoration:underline;font-weight:bold;font-size:12px;letter-spacing:1px;">CONSULTAR MI INSCRIPCIÓN ↗</a></p>
+<h2 style="font-weight:400;letter-spacing:-.6px;font-size:24px;margin:0 0 12px;">¿Necesitas cancelar tu registro?</h2>
+<p style="color:#455960;font-size:14px;line-height:1.75;margin:0 0 18px;">Si ya no puedes asistir, utiliza este enlace para cancelar tu registro.</p>
+<p style="margin:0;"><a href="${manageUrl}" style="color:#172a32;text-decoration:underline;font-weight:bold;font-size:12px;letter-spacing:1px;">CANCELAR MI REGISTRO ↗</a></p>
 </td></tr>
 <tr><td style="background:#172a32;color:#f7f5ef;padding:30px 38px;">
 <p style="margin:0 0 10px;color:#c8dee2;font-size:10px;font-weight:bold;letter-spacing:1.4px;">UN BENEFICIO POR ASISTIR</p>
 <p style="font-size:22px;line-height:1.2;font-weight:400;margin:0 0 12px;">Tu asistencia tiene beneficios.</p>
-<p style="font-size:13px;line-height:1.75;color:#d4dfe0;margin:0;">Valida tu QR al ingresar. Al finalizar el workshop, preséntalo nuevamente en las mesas de venta para consultar y acreditar el descuento especial del <strong>10% al 15%</strong> aplicable a productos participantes, conforme a las condiciones comerciales de la promoción.</p>
+<p style="font-size:13px;line-height:1.75;color:#d4dfe0;margin:0;">${escapeHtml(input.emailContent.benefit)}</p>
 </td></tr>
 <tr><td style="background:#f7f5ef;padding:28px 38px 32px;">
-<p style="font-size:14px;line-height:1.75;color:#455960;margin:0;">Te recomendamos llegar con anticipación para tu registro y revisar desde ahora cómo llegar al hotel. ¡Nos vemos este viernes!</p>
+<p style="font-size:14px;line-height:1.75;color:#455960;margin:0;">${escapeHtml(input.emailContent.logistics)}</p>
 </td></tr>
 <tr><td style="padding:26px 12px 0;text-align:center;">
 <p style="font-weight:bold;font-size:14px;margin:0 0 8px;letter-spacing:.4px;">BMIGHTY <span style="color:#ff0040;">×</span> SHADES DRAPERY</p>
@@ -354,6 +413,7 @@ async function sendAttendeeEmail(
   html: string,
   input: AttendeeEmailInput,
 ): Promise<SendEmailResult> {
+  const qr = assertBase64(input.qrPngBase64);
   const claim = input.force
     ? undefined
     : await claimNotification({
@@ -364,7 +424,12 @@ async function sendAttendeeEmail(
       });
   if (!input.force && !claim) return { sent: false, reason: "already_sent" };
 
-  const result = await sendViaResend({ to: input.to, subject, html });
+  const result = await sendViaResend({
+    to: input.to,
+    subject,
+    html,
+    attachments: [{ content: qr, filename: "event-access-qr.png", content_id: "event-attendee-qr" }],
+  });
   if (!result.ok) {
     if (claim) await markNotificationFailed(claim.id, result.error);
     return { sent: false, reason: "provider_failure", error: result.error };
@@ -375,33 +440,44 @@ async function sendAttendeeEmail(
 
 // spec.md "Confirmation Email Content" — sent per attendee (primary + each companion) on
 // `confirmed` status, carrying that attendee's own QR pass and backup code.
-export async function sendConfirmationEmail(input: AttendeeEmailInput): Promise<SendEmailResult> {
+export async function sendConfirmationEmail(
+  input: AttendeeEmailInput,
+): Promise<SendEmailResult> {
   return sendAttendeeEmail(
     "confirmation",
     `Confirmación: ${input.eventName}`,
-    confirmationEmailHtml(input, "INSCRIPCIÓN CONFIRMADA", "Tu inscripción a"),
+    confirmationEmailHtml(input, "INSCRIPCIÓN CONFIRMADA", "Tu inscripción a", "event-attendee-qr"),
     input,
   );
 }
 
 // spec.md "Waitlist Promotion Email" — identical content shape to the standard confirmation
 // (decision 5), only the eyebrow/intro sentence differs.
-export async function sendWaitlistPromotionEmail(input: AttendeeEmailInput): Promise<SendEmailResult> {
+export async function sendWaitlistPromotionEmail(
+  input: AttendeeEmailInput,
+): Promise<SendEmailResult> {
   return sendAttendeeEmail(
     "waitlist_promotion",
     `¡Tienes lugar! ${input.eventName}`,
-    confirmationEmailHtml(input, "¡TIENES LUGAR!", "Se liberó un lugar y ya estás confirmado para"),
+    confirmationEmailHtml(
+      input,
+      "¡TIENES LUGAR!",
+      "Se liberó un lugar y ya estás confirmado para",
+      "event-attendee-qr",
+    ),
     input,
   );
 }
 
 // spec.md "Configurable Reminder Email" — exactly one reminder per registration per event; the
 // `claimNotification` unique constraint is what makes a second call for the same attendee a no-op.
-export async function sendReminderEmail(input: AttendeeEmailInput): Promise<SendEmailResult> {
+export async function sendReminderEmail(
+  input: AttendeeEmailInput,
+): Promise<SendEmailResult> {
   return sendAttendeeEmail(
     "reminder",
     `Recordatorio: ${input.eventName}`,
-    reminderEmailHtml(input),
+    reminderEmailHtml(input, "event-attendee-qr"),
     input,
   );
 }

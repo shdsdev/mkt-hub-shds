@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { cancelRegistrationByToken, getEvent } from "@/modules/events";
 import { sendWaitlistPromotionEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
+import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 const INVALID_FORM_ERROR = "Formulario inválido.";
 const INVALID_TOKEN_ERROR = "Este enlace de cancelación no es válido.";
@@ -46,9 +47,12 @@ export async function cancelRegistrationAction(
           qrPngBase64: qrPng.toString("base64"),
           eventStartsAt: event?.startsAt ?? new Date(0),
           eventEndsAt: event?.endsAt ?? null,
-          eventLocation: event?.location ?? null,
-          manageUrl,
-        });
+            eventLocation: event?.location ?? null,
+            eventLocationUrl: event?.locationUrl ?? null,
+           manageUrl,
+           emailContent: resolveEventEmailContent(event?.emailContent),
+           agenda: event?.agenda ?? [],
+         });
       }),
     );
   }

@@ -2,22 +2,26 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/checkbox";
-import { Input } from "@/components/ui/input";
 import { createEventAction, type EventFormState } from "./actions";
-import { EventImageUpload } from "./event-image-upload";
-import { AgendaEditor } from "./agenda-editor";
-import { SponsorLogosEditor } from "./sponsor-logos-editor";
+import { EventEmailContentFields } from "./event-email-content-fields";
+import { EventEditorTabPanel, EventEditorTabs } from "./event-editor-tabs";
+import { EventBasicFields } from "./event-basic-fields";
+import { EventLandingFields } from "./event-landing-fields";
+import { EventRegistrationFields } from "./event-registration-fields";
+import { getDefaultEventEmailContent } from "@/lib/events/event-email-content";
+import { getOptionalDateTimeError } from "@/lib/events/event-date-time";
+import type { RegistrationFormConfig } from "@/modules/events";
 
 const initialState: EventFormState = {};
 
-export function EventCreateForm({ organizationId }: { organizationId: string }) {
+export function EventCreateForm({
+  organizationId,
+  initialFormConfig,
+}: {
+  organizationId: string;
+  initialFormConfig: RegistrationFormConfig;
+}) {
   const [state, formAction, pending] = useActionState(createEventAction, initialState);
-  // spec.md "Fixed Optional Field Catalog" — disabled by default, matching the
-  // "Optional field disabled by default" scenario. Hidden-input pairing mirrors
-  // app/(protected)/qr/qr-design-fields.tsx's `saveAsTemplate` convention.
-  const [collectCompany, setCollectCompany] = useState(false);
-  const [collectJobTitle, setCollectJobTitle] = useState(false);
   const [heroImageUrl, setHeroImageUrl] = useState<string>();
 
   return (
@@ -28,82 +32,59 @@ export function EventCreateForm({ organizationId }: { organizationId: string }) 
           El evento se crea en estado borrador y no es visible públicamente hasta publicarlo.
         </p>
       </div>
-      <form action={formAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Nombre
-          <Input name="name" required maxLength={255} />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Slug
-          <Input name="slug" required maxLength={255} pattern="[a-z0-9-]+" />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Inicio
-          <Input name="startsAt" type="datetime-local" required />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Fin (opcional)
-          <Input name="endsAt" type="datetime-local" />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Ubicación (opcional)
-          <Input name="location" maxLength={255} />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Capacidad (opcional, vacío = ilimitada)
-          <Input name="capacity" type="number" min={1} />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
-          Descripción (opcional)
-          <textarea
-            name="description"
-            maxLength={5000}
-            className="min-h-24 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Recordatorio (minutos antes, opcional)
-          <Input name="reminderOffsetMinutes" type="number" min={0} />
-        </label>
-        <div className="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
-          Imagen de portada (opcional)
-          <EventImageUpload
-            organizationId={organizationId}
-            label="Subir imagen"
-            value={heroImageUrl}
-            onUploaded={setHeroImageUrl}
-          />
-          <input type="hidden" name="heroImageUrl" value={heroImageUrl ?? ""} />
-        </div>
-        <div className="sm:col-span-2">
-          <AgendaEditor initial={[]} />
-        </div>
-        <div className="sm:col-span-2">
-          <SponsorLogosEditor organizationId={organizationId} initial={[]} />
-        </div>
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <p className="text-sm font-medium">Campos opcionales del formulario de registro</p>
-          <Checkbox
-            checked={collectCompany}
-            onChange={setCollectCompany}
-            label="Solicitar empresa"
-          />
-          <input type="hidden" name="collectCompany" value={collectCompany ? "true" : ""} />
-          <Checkbox
-            checked={collectJobTitle}
-            onChange={setCollectJobTitle}
-            label="Solicitar puesto"
-          />
-          <input type="hidden" name="collectJobTitle" value={collectJobTitle ? "true" : ""} />
-        </div>
+      <form
+        action={formAction}
+        onSubmit={(event) => {
+          const formData = new FormData(event.currentTarget);
+          if (getOptionalDateTimeError(String(formData.get("endDate") ?? ""), String(formData.get("endTime") ?? ""))) {
+            event.preventDefault();
+          }
+        }}
+        className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+      >
+        <EventEditorTabs
+          tabs={[
+            { id: "event", label: "Datos del evento" },
+            { id: "landing", label: "Landing pública" },
+            { id: "email", label: "Correos" },
+            { id: "registration", label: "Formulario de registro" },
+            { id: "integrations", label: "Integraciones" },
+          ]}
+        >
+          <EventEditorTabPanel id="event" active={false}>
+            <EventBasicFields />
+          </EventEditorTabPanel>
+          <EventEditorTabPanel id="landing" active={false}>
+            <EventLandingFields
+              organizationId={organizationId}
+              agenda={[]}
+              sponsorLogos={[]}
+              heroImageUrl={heroImageUrl}
+              onHeroImageUrlChange={setHeroImageUrl}
+            />
+          </EventEditorTabPanel>
+          <EventEditorTabPanel id="email" active={false}>
+            <EventEmailContentFields initial={getDefaultEventEmailContent()} />
+          </EventEditorTabPanel>
+          <EventEditorTabPanel id="registration" active={false}>
+            <EventRegistrationFields
+              initialFormConfig={initialFormConfig}
+            />
+          </EventEditorTabPanel>
+          <EventEditorTabPanel id="integrations" active={false}>
+            <div className="rounded-md border border-border p-4 text-sm text-muted-foreground">
+              Las integraciones se habilitan después de crear el evento.
+            </div>
+          </EventEditorTabPanel>
+        </EventEditorTabs>
         <div className="flex items-end sm:col-span-2">
           <Button type="submit" disabled={pending}>
             {pending ? "Creando…" : "Crear evento"}
           </Button>
         </div>
-        {state.error ? <p className="text-sm text-destructive sm:col-span-2">{state.error}</p> : null}
+        {state.error ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{state.error}</p> : null}
         {state.success ? (
-          <p className="text-sm text-muted-foreground sm:col-span-2">{state.success}</p>
+          <p role="status" aria-live="polite" className="text-sm text-muted-foreground sm:col-span-2">{state.success}</p>
         ) : null}
       </form>
     </section>

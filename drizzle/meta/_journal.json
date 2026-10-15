@@ -190,6 +190,20 @@
       "when": 1792080007016,
       "tag": "0026_blue_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792090208406,
+      "tag": "0027_reflective_doctor_faustus",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792092385001,
+      "tag": "0028_eminent_sinister_six",
+      "breakpoints": true
     }
   ]
 }

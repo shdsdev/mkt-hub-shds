@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { DEFAULT_EVENT_REMINDER_OFFSET_MINUTES } from "@/lib/events/event-reminder";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
+import { eventEmailContentSchema } from "@/lib/events/event-email-content";
 import {
   createEvent,
   updateEvent,
@@ -72,6 +74,19 @@ const registrationFormConfigField = z
   })
   .pipe(registrationFormConfigSchema);
 
+const eventEmailContentField = z
+  .string()
+  .min(1)
+  .transform((value, ctx) => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Configuración inválida." });
+      return z.NEVER;
+    }
+  })
+  .pipe(eventEmailContentSchema);
+
 const agendaItemSchema = z.object({
   time: z.string().trim().min(1).max(50),
   title: z.string().trim().min(1).max(255),
@@ -93,6 +108,21 @@ const eventFieldsSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "El slug solo admite minúsculas, números y guiones."),
   description: z.string().trim().max(5000).optional().or(z.literal("")),
   location: z.string().trim().max(255).optional().or(z.literal("")),
+  locationUrl: z
+    .string()
+    .trim()
+    .url()
+    .max(2000)
+    .refine((value) => {
+      try {
+        const protocol = new URL(value).protocol;
+        return protocol === "http:" || protocol === "https:";
+      } catch {
+        return false;
+      }
+    }, "La URL debe usar http o https.")
+    .optional()
+    .or(z.literal("")),
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date().optional(),
   capacity: optionalInt,
@@ -106,6 +136,7 @@ const eventFieldsSchema = z.object({
   agenda: jsonArrayField(agendaItemSchema),
   sponsorLogos: jsonArrayField(sponsorLogoSchema),
   registrationFormConfig: registrationFormConfigField.optional(),
+  emailContent: eventEmailContentField.optional(),
 });
 
 export type EventFormState = { error?: string; success?: string; eventId?: string };
@@ -124,11 +155,12 @@ function readEventFields(formData: FormData) {
     // "field submitted empty, clear it" (`""`) apart from "field key absent" (`undefined`).
     description: formData.get("description") ?? undefined,
     location: formData.get("location") ?? undefined,
+    locationUrl: formData.get("locationUrl") ?? undefined,
     startsAt: formData.get("startsAt") ?? undefined,
-    // endsAt/capacity/reminderOffsetMinutes keep `||`: an empty string here means "no value", not
-    // "clear" (there is no clearable-null contract for them in the edit form, and
-    // `z.coerce.date()` would reject an empty string as an invalid date).
-    endsAt: formData.get("endsAt") || undefined,
+    // Normalize an empty optional end timestamp before schema parsing. updateEventAction checks
+    // the raw FormData separately when an existing value must be cleared.
+    endsAt: formData.get("endsAt") === "" ? undefined : formData.get("endsAt") ?? undefined,
+    // Empty optional numeric fields mean "no value" rather than a clearable null.
     capacity: formData.get("capacity") || undefined,
     reminderOffsetMinutes: formData.get("reminderOffsetMinutes") || undefined,
     checkInConfirmationRequired: formData.get("checkInConfirmationRequired"),
@@ -138,6 +170,7 @@ function readEventFields(formData: FormData) {
     agenda: formData.get("agenda") ?? undefined,
     sponsorLogos: formData.get("sponsorLogos") ?? undefined,
     registrationFormConfig: formData.get("registrationFormConfig") ?? undefined,
+    emailContent: formData.get("emailContent") ?? undefined,
   };
 }
 
@@ -158,15 +191,18 @@ export async function createEventAction(
     slug: parsed.data.slug,
     description: parsed.data.description || undefined,
     location: parsed.data.location || undefined,
+    locationUrl: parsed.data.locationUrl || undefined,
     startsAt: parsed.data.startsAt,
-    endsAt: parsed.data.endsAt,
+    endsAt: parsed.data.endsAt || undefined,
     capacity: parsed.data.capacity,
-    reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
+    reminderOffsetMinutes: parsed.data.reminderOffsetMinutes ?? DEFAULT_EVENT_REMINDER_OFFSET_MINUTES,
     collectCompany: parsed.data.collectCompany,
     collectJobTitle: parsed.data.collectJobTitle,
     heroImageUrl: parsed.data.heroImageUrl || undefined,
     agenda: parsed.data.agenda,
     sponsorLogos: parsed.data.sponsorLogos,
+    registrationFormConfig: parsed.data.registrationFormConfig,
+    emailContent: parsed.data.emailContent,
   });
   if (!result.ok) return { error: PERMISSION_ERROR };
 
@@ -201,10 +237,13 @@ export async function updateEventAction(
       description:
         parsed.data.description === undefined ? undefined : parsed.data.description || null,
       location: parsed.data.location === undefined ? undefined : parsed.data.location || null,
+      locationUrl: parsed.data.locationUrl === undefined ? undefined : parsed.data.locationUrl || null,
       startsAt: parsed.data.startsAt,
-      endsAt: parsed.data.endsAt,
+      endsAt: formData.get("endsAt") === "" ? null : parsed.data.endsAt,
       capacity: parsed.data.capacity,
-      reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
+      reminderOffsetMinutes: formData.has("reminderOffsetMinutes")
+        ? parsed.data.reminderOffsetMinutes
+        : undefined,
       checkInConfirmationRequired: parsed.data.checkInConfirmationRequired,
       collectCompany: parsed.data.collectCompany,
       collectJobTitle: parsed.data.collectJobTitle,
@@ -212,6 +251,7 @@ export async function updateEventAction(
         parsed.data.heroImageUrl === undefined ? undefined : parsed.data.heroImageUrl || null,
       agenda: parsed.data.agenda,
       sponsorLogos: parsed.data.sponsorLogos,
+      emailContent: parsed.data.emailContent,
       registrationFormConfig: parsed.data.registrationFormConfig,
     },
   });

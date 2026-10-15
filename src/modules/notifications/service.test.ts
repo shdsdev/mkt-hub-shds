@@ -61,7 +61,16 @@ const attendeeEmailInput = {
   eventStartsAt: new Date("2026-11-06T15:00:00Z"),
   eventEndsAt: new Date("2026-11-06T21:00:00Z") as Date | null,
   eventLocation: "Hotel Victoria Ejecutivo Guadalajara" as string | null,
+  eventLocationUrl: null as string | null,
   manageUrl: "https://shmx.men/events/cancel/cancel-token-1",
+  emailContent: {
+    version: 1 as const,
+    confirmationIntro: "Tu acceso personalizado está listo.",
+    reminderIntro: "Mañana nos encontramos en el evento.",
+    logistics: "Llega 15 minutos antes y lleva tu identificación.",
+    benefit: "Accede a beneficios exclusivos para asistentes.",
+  },
+  agenda: [{ time: "10:00", title: "Apertura", description: "Bienvenida" }],
 };
 
 describe("notifications service — claimNotification idempotency (design.md 'Reminder idempotency')", () => {
@@ -170,7 +179,81 @@ describe("notifications service — send functions (spec.md 'notifications-email
         headers: expect.objectContaining({ Authorization: "Bearer test-resend-key" }),
       }),
     );
+    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse((requestInit as RequestInit).body as string);
+    expect(body.html).toContain("cid:event-attendee-qr");
+    expect(body.html).toContain("Tu acceso personalizado está listo.");
+    expect(body.html).toContain("CANCELAR MI REGISTRO");
+    expect(body.attachments).toEqual([
+      expect.objectContaining({
+        content: attendeeEmailInput.qrPngBase64,
+        filename: "event-access-qr.png",
+        content_id: "event-attendee-qr",
+      }),
+    ]);
   });
+
+  it("prefers the direct Maps URL and escapes it in the email link", async () => {
+    insertMock.mockReturnValue(insertChain([{ id: "log-direct" }]));
+    updateMock.mockReturnValue(updateChain());
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: async () => ({ id: "resend-direct" }) });
+
+    await sendConfirmationEmail({
+      ...attendeeEmailInput,
+      eventLocationUrl: "https://maps.example.test/place?a=1&b=2",
+    });
+
+    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse((requestInit as RequestInit).body as string);
+    expect(body.html).toContain('href="https://maps.example.test/place?a=1&amp;b=2"');
+    expect(body.html).not.toContain("google.com/maps/search");
+    expect(body.html).toContain("Hotel Victoria Ejecutivo Guadalajara");
+  });
+
+  it("falls back to a generated Maps search URL for legacy events", async () => {
+    insertMock.mockReturnValue(insertChain([{ id: "log-fallback" }]));
+    updateMock.mockReturnValue(updateChain());
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: async () => ({ id: "resend-fallback" }) });
+
+    await sendConfirmationEmail(attendeeEmailInput);
+
+    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse((requestInit as RequestInit).body as string);
+    expect(body.html).toContain('href="https://www.google.com/maps/search/?api=1&amp;query=Hotel%20Victoria%20Ejecutivo%20Guadalajara"');
+  });
+
+  it("falls back to a generated Maps search URL when the direct URL is blank", async () => {
+    insertMock.mockReturnValue(insertChain([{ id: "log-blank-url" }]));
+    updateMock.mockReturnValue(updateChain());
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: async () => ({ id: "resend-blank-url" }) });
+
+    await sendConfirmationEmail({ ...attendeeEmailInput, eventLocationUrl: "  \t" });
+
+    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse((requestInit as RequestInit).body as string);
+    expect(body.html).toContain('href="https://www.google.com/maps/search/?api=1&amp;query=Hotel%20Victoria%20Ejecutivo%20Guadalajara"');
+  });
+
+  it.each(["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"])(
+    "falls back to a generated Maps search URL for persisted unsafe URL %s",
+    async (eventLocationUrl) => {
+      insertMock.mockReturnValue(insertChain([{ id: "log-unsafe-url" }]));
+      updateMock.mockReturnValue(updateChain());
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: "resend-unsafe-url" }),
+      });
+
+      await sendConfirmationEmail({ ...attendeeEmailInput, eventLocationUrl });
+
+      const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse((requestInit as RequestInit).body as string);
+      expect(body.html).toContain(
+        'href="https://www.google.com/maps/search/?api=1&amp;query=Hotel%20Victoria%20Ejecutivo%20Guadalajara"',
+      );
+      expect(body.html).not.toContain(eventLocationUrl);
+    },
+  );
 
   it("marks the notification failed and does not throw when the provider rejects the send", async () => {
     insertMock.mockReturnValue(insertChain([{ id: "log-1" }]));
@@ -273,6 +356,8 @@ describe("notifications service — send functions (spec.md 'notifications-email
       "https://www.google.com/maps/search/?api=1&amp;query=Hotel%20Victoria%20Ejecutivo%20Guadalajara",
     );
     expect(body.html).toContain(attendeeEmailInput.manageUrl);
+    expect(body.html).toContain("Mañana nos encontramos en el evento.");
+    expect(body.html).toContain("Accede a beneficios exclusivos para asistentes.");
   });
 
   it("rejects a qrPngBase64 payload that is not valid base64 instead of embedding it raw", async () => {

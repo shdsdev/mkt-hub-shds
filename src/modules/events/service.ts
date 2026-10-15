@@ -15,6 +15,8 @@ import {
 } from "./db";
 import { getEffectiveRegistrationStatus } from "./registration-status";
 import { getCheckInResultKind, type CheckInResultKind } from "./check-in-result";
+import type { EventEmailContent } from "@/lib/events/event-email-content";
+import { DEFAULT_EVENT_REMINDER_OFFSET_MINUTES } from "@/lib/events/event-reminder";
 
 export type { AgendaItem, SponsorLogo };
 
@@ -63,6 +65,7 @@ export type CreateEventInput = {
   slug: string;
   description?: string;
   location?: string;
+  locationUrl?: string | null;
   startsAt: Date;
   endsAt?: Date;
   capacity?: number | null;
@@ -76,6 +79,7 @@ export type CreateEventInput = {
   agenda?: AgendaItem[];
   sponsorLogos?: SponsorLogo[];
   registrationFormConfig?: EventRow["registrationFormConfig"];
+  emailContent?: EventEmailContent | null;
 };
 
 // spec.md "ADMIN-Only Event Authoring": only ADMIN may create, edit, publish, or close events;
@@ -94,13 +98,15 @@ export async function createEvent(input: CreateEventInput): Promise<EventMutatio
       startsAt: input.startsAt,
       endsAt: input.endsAt,
       capacity: input.capacity,
-      reminderOffsetMinutes: input.reminderOffsetMinutes,
+      reminderOffsetMinutes: input.reminderOffsetMinutes ?? DEFAULT_EVENT_REMINDER_OFFSET_MINUTES,
+      locationUrl: input.locationUrl,
       checkInConfirmationRequired: input.checkInConfirmationRequired,
       collectCompany: input.collectCompany,
       collectJobTitle: input.collectJobTitle,
       heroImageUrl: input.heroImageUrl,
       agenda: input.agenda,
       sponsorLogos: input.sponsorLogos,
+      emailContent: input.emailContent,
     })
     .returning();
   return { ok: true, event };
@@ -110,6 +116,7 @@ export type UpdateEventChanges = Partial<{
   name: string;
   description: string | null;
   location: string | null;
+  locationUrl: string | null;
   startsAt: Date;
   endsAt: Date | null;
   capacity: number | null;
@@ -121,6 +128,7 @@ export type UpdateEventChanges = Partial<{
   agenda: AgendaItem[];
   sponsorLogos: SponsorLogo[];
   registrationFormConfig: EventRow["registrationFormConfig"];
+  emailContent: EventEmailContent | null;
 }>;
 
 export async function updateEvent(input: {

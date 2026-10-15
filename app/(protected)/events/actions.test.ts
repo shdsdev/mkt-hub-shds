@@ -120,9 +120,81 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
         actorRole: "ADMIN",
         name: "Launch Day",
         slug: "launch-day",
+        reminderOffsetMinutes: 2880,
       }),
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/events");
+  });
+
+  it("passes a valid direct Maps URL and the 48-hour reminder when creating", async () => {
+    mocks.createEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await createEventAction({}, createFormData({
+      ...validCreateFields,
+      location: "Hotel Victoria",
+      locationUrl: "https://maps.google.com/?q=hotel",
+    }));
+
+    expect(mocks.createEvent).toHaveBeenCalledWith(expect.objectContaining({
+      location: "Hotel Victoria",
+      locationUrl: "https://maps.google.com/?q=hotel",
+      reminderOffsetMinutes: 2880,
+    }));
+  });
+
+  it("rejects an invalid direct Maps URL", async () => {
+    const result = await createEventAction({}, createFormData({
+      ...validCreateFields,
+      locationUrl: "not-a-url",
+    }));
+
+    expect(result).toEqual({ error: "Revisa los datos del evento." });
+    expect(mocks.createEvent).not.toHaveBeenCalled();
+  });
+
+  it.each(["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"]) (
+    "rejects an unsafe direct Maps URL scheme: %s",
+    async (locationUrl) => {
+      const result = await createEventAction({}, createFormData({
+        ...validCreateFields,
+        locationUrl,
+      }));
+
+      expect(result).toEqual({ error: "Revisa los datos del evento." });
+      expect(mocks.createEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  it("passes combined start and populated end timestamps to createEvent", async () => {
+    mocks.createEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await createEventAction(
+      {},
+      createFormData({
+        ...validCreateFields,
+        startsAt: "2026-11-01T18:00",
+        endsAt: "2026-11-01T20:30",
+      }),
+    );
+
+    expect(mocks.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startsAt: new Date("2026-11-01T18:00"),
+        endsAt: new Date("2026-11-01T20:30"),
+      }),
+    );
+  });
+
+  it("keeps an omitted end timestamp valid when creating an event", async () => {
+    mocks.createEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    const result = await createEventAction(
+      {},
+      createFormData({ ...validCreateFields, endsAt: "" }),
+    );
+
+    expect(result).toEqual({ success: "Evento creado.", eventId: "event-1" });
+    expect(mocks.createEvent).toHaveBeenCalledWith(expect.objectContaining({ endsAt: undefined }));
   });
 
   it("passes the fixed optional-field catalog toggles through to createEvent (spec.md 'Fixed Optional Field Catalog')", async () => {
@@ -192,6 +264,113 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
         changes: expect.objectContaining({ description: null, location: null }),
       }),
     );
+  });
+
+  it("clears a previously-set direct Maps URL while preserving a submitted edit reminder", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "event-1", locationUrl: null } });
+
+    await updateEventAction({}, createFormData({
+      id: "11111111-1111-4111-8111-111111111111",
+      locationUrl: "",
+      reminderOffsetMinutes: "2880",
+    }));
+
+    expect(mocks.updateEvent).toHaveBeenCalledWith(expect.objectContaining({
+      changes: expect.objectContaining({ locationUrl: null, reminderOffsetMinutes: 2880 }),
+    }));
+  });
+
+  it.each(["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"]) (
+    "rejects an unsafe edit URL scheme: %s",
+    async (locationUrl) => {
+      const result = await updateEventAction({}, createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        locationUrl,
+      }));
+
+      expect(result).toEqual({ error: "Revisa los datos del evento." });
+      expect(mocks.updateEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  it("passes combined start and populated end timestamps to updateEvent", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await updateEventAction(
+      {},
+      createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        startsAt: "2026-11-01T18:00",
+        endsAt: "2026-11-01T20:30",
+      }),
+    );
+
+    expect(mocks.updateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changes: expect.objectContaining({
+          startsAt: new Date("2026-11-01T18:00"),
+          endsAt: new Date("2026-11-01T20:30"),
+        }),
+      }),
+    );
+  });
+
+  it("maps an explicitly empty end timestamp to null when updating an event", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await updateEventAction(
+      {},
+      createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        startsAt: "2026-11-01T18:00",
+        endsAt: "",
+      }),
+    );
+
+    expect(mocks.updateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ changes: expect.objectContaining({ endsAt: null }) }),
+    );
+  });
+
+  it("leaves an omitted end timestamp undefined when updating an event", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await updateEventAction(
+      {},
+      createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        startsAt: "2026-11-01T18:00",
+      }),
+    );
+
+    expect(mocks.updateEvent.mock.calls[0][0].changes.endsAt).toBeUndefined();
+  });
+
+  it("leaves an omitted reminder offset undefined when updating an event", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
+
+    await updateEventAction(
+      {},
+      createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        startsAt: "2026-11-01T18:00",
+      }),
+    );
+
+    expect(mocks.updateEvent.mock.calls[0][0].changes.reminderOffsetMinutes).toBeUndefined();
+  });
+
+  it("rejects an edit with an empty required start timestamp", async () => {
+    const result = await updateEventAction(
+      {},
+      createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        startsAt: "",
+      }),
+    );
+
+    expect(result).toEqual({ error: "Revisa los datos del evento." });
+    expect(mocks.updateEvent).not.toHaveBeenCalled();
   });
 
   it("leaves description/location untouched (undefined) when the field key is not submitted at all", async () => {

@@ -12,6 +12,7 @@ import {
 } from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
+import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 const EVENT_UNAVAILABLE_ERROR = "Este evento ya no está disponible.";
 const INVALID_FORM_ERROR = "Revisa tus datos de contacto.";
@@ -256,9 +257,12 @@ export async function registerForEventAction(
           qrPngBase64: qrPng.toString("base64"),
           eventStartsAt: event.startsAt,
           eventEndsAt: event.endsAt,
-          eventLocation: event.location,
-          manageUrl,
-        });
+            eventLocation: event.location,
+            eventLocationUrl: event.locationUrl,
+           manageUrl,
+           emailContent: resolveEventEmailContent(event.emailContent),
+           agenda: event.agenda,
+         });
       }),
     );
   }
