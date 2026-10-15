@@ -3,8 +3,7 @@
 /**
  * The project's one checkbox — pure CSS "Spin" checkbox (styling + the spin-on-check animation
  * live in app/globals.css under `.check`/`.ck-10`). `tabIndex={-1}` on the input is part of the
- * exact given markup: the wrapping <label> is the click target (native label-click still toggles
- * it), but it means the control is NOT reachable via Tab — keyboard users can't focus it directly.
+ * The wrapping <label> remains the click target while the native input stays reachable by keyboard.
  * Flagged, not silently fixed, since the markup was specified exactly.
  */
 export function Checkbox({
@@ -26,7 +25,7 @@ export function Checkbox({
     <label className="check ck-10">
       <input
         type="checkbox"
-        tabIndex={-1}
+        tabIndex={0}
         name={name}
         value={value}
         disabled={disabled}

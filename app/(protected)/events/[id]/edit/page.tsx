@@ -6,7 +6,6 @@ import { env } from "@/lib/env";
 import { EventEditForm } from "./event-edit-form";
 import { EventSubNav } from "../../event-sub-nav";
 import { LandingLink } from "./landing-link";
-import { ReceptionTeam } from "./reception-team";
 
 // ADMIN-only, same gate as app/(protected)/events/page.tsx.
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -40,11 +39,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
           formConfig={resolveRegistrationFormConfig(event)}
           embedUrl={embedUrl}
           embedSnippet={embedSnippet}
-        />
-        <ReceptionTeam
-          eventId={event.id}
-          users={managedUsers.filter((managedUser) => managedUser.role === "RECEPTION")}
-          assignedIds={assignedReceptionistIds}
+          receptionUsers={managedUsers.filter((managedUser) => managedUser.role === "RECEPTION")}
+          assignedReceptionistIds={assignedReceptionistIds}
         />
       </div>
     </div>

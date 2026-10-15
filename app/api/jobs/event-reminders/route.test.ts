@@ -67,6 +67,7 @@ describe("POST /api/jobs/event-reminders", () => {
           startsAt: new Date("2026-11-06T15:00:00Z"),
           endsAt: new Date("2026-11-06T21:00:00Z"),
           location: "Hotel Victoria Ejecutivo Guadalajara",
+          locationUrl: "https://maps.google.com/?q=hotel",
         },
         attendee: {
           id: "att-1",
@@ -96,6 +97,7 @@ describe("POST /api/jobs/event-reminders", () => {
         eventStartsAt: new Date("2026-11-06T15:00:00Z"),
         eventEndsAt: new Date("2026-11-06T21:00:00Z"),
         eventLocation: "Hotel Victoria Ejecutivo Guadalajara",
+        eventLocationUrl: "https://maps.google.com/?q=hotel",
         manageUrl: "https://hub.example.com/events/cancel/cancel-token-1",
       }),
     );

@@ -15,6 +15,7 @@ import {
 } from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
+import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar registros.";
 const INVALID_FORM_ERROR = "Revisa los datos del acompañante.";
@@ -103,9 +104,12 @@ export async function addCompanionAction(
       qrPngBase64: qrPng.toString("base64"),
       eventStartsAt: event?.startsAt ?? new Date(0),
       eventEndsAt: event?.endsAt ?? null,
-      eventLocation: event?.location ?? null,
-      manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.cancelToken}`,
-    });
+        eventLocation: event?.location ?? null,
+        eventLocationUrl: event?.locationUrl ?? null,
+       manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.cancelToken}`,
+       emailContent: resolveEventEmailContent(event?.emailContent),
+       agenda: event?.agenda ?? [],
+      });
   }
 
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
@@ -156,7 +160,10 @@ export async function resendInvitationAction(
     eventStartsAt: event.startsAt,
     eventEndsAt: event.endsAt,
     eventLocation: event.location,
+    eventLocationUrl: event.locationUrl,
     manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${registration.cancelToken}`,
+    emailContent: resolveEventEmailContent(event.emailContent),
+    agenda: event.agenda,
     force: true,
   });
 

@@ -151,7 +151,8 @@ describe("events service — ADMIN-only authoring (design.md 'event-management')
   });
 
   it("creates an event for ADMIN with status defaulting through the schema", async () => {
-    insertMock.mockReturnValue(insertChain([baseEvent]));
+    const chain = insertChain([baseEvent]);
+    insertMock.mockReturnValue(chain);
 
     const result = await createEvent({
       organizationId: "org-1",
@@ -164,6 +165,7 @@ describe("events service — ADMIN-only authoring (design.md 'event-management')
 
     expect(result).toEqual({ ok: true, event: baseEvent });
     expect(insertMock).toHaveBeenCalledOnce();
+    expect(chain.values).toHaveBeenCalledWith(expect.objectContaining({ reminderOffsetMinutes: 2880 }));
   });
 
   it("denies event edits for a non-admin and persists no change", async () => {
