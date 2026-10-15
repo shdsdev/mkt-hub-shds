@@ -249,12 +249,12 @@
    shadow/border reads wrong on a light backdrop, unlike the 0.3-0.35 scale the dark themes use). */
 [data-app-theme="arctic-frost"] {
   --radius: 1rem;
-  --background: color-mix(in srgb, #faf8f2 32%, transparent);
+  --background: color-mix(in srgb, #faf8f2 48%, transparent);
   --foreground: #172a32;
-  --card: color-mix(in srgb, #ffffff 70%, transparent);
+  --card: color-mix(in srgb, #d6dcd7 80%, transparent);
   --card-foreground: #172a32;
-  --card-hover: color-mix(in srgb, #ffffff 85%, transparent);
-  --popover: color-mix(in srgb, #ffffff 92%, transparent);
+  --card-hover: color-mix(in srgb, #cfdedc 85%, transparent);
+  --popover: color-mix(in srgb, #d6dcd7 94%, transparent);
   --popover-foreground: #172a32;
   --primary: #3772ff;
   --primary-foreground: #faf8f2;
@@ -916,4 +916,20 @@
    animation/opacity, and leaves .content-frame's plain border (above) as the fallback look. */
 [data-gradient-border="off"] .gradient-border-frame::before {
   content: none;
+}
+
+/* Arctic Frost's accent is a saturated orange meant to pop against a near-black dark theme's
+   content-frame; at full intensity against this theme's own light background it reads as a loud
+   scorch mark in the corner instead of a subtle rotating highlight. Tone down both the gradient
+   stop and the glow specifically for this theme rather than softening the shared mechanism for
+   every dark theme that already looks right. */
+[data-app-theme="arctic-frost"] .gradient-border-frame::before {
+  background: conic-gradient(
+    from var(--gradient-border-angle),
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 55%, transparent) 10%,
+    color-mix(in srgb, var(--accent) 55%, transparent) 15%,
+    transparent 35%
+  );
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 35%, transparent));
 }
