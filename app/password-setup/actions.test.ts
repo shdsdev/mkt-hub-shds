@@ -29,7 +29,7 @@ describe("setInvitationPassword", () => {
 
     await expect(
       setInvitationPassword({}, passwordFormData("correct horse battery staple")),
-    ).resolves.toEqual({ error: "La invitación no es válida o expiró." });
+    ).resolves.toEqual({ error: "El enlace para crear tu contraseña no es válido o expiró." });
 
     expect(mocks.updateUser).not.toHaveBeenCalled();
     expect(mocks.redirect).not.toHaveBeenCalled();

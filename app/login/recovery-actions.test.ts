@@ -36,7 +36,7 @@ describe("requestPasswordRecovery", () => {
     });
 
     expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith("target@example.com", {
-      redirectTo: "https://shmx.men/auth/callback?next=%2Fpassword-setup",
+      redirectTo: "https://shmx.men/auth/confirm?next=%2Fpassword-setup",
     });
   });
 

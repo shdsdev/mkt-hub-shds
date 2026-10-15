@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const tokenHash = requestUrl.searchParams.get("token_hash");
+  const tokenType = requestUrl.searchParams.get("type");
   const requestedNext = requestUrl.searchParams.get("next");
   // Open-redirect guard: `startsWith("/") && !startsWith("//")` alone still lets
   // `next=/\evil.com` through — some browsers resolve a leading `/\` as protocol-relative,
@@ -18,12 +20,14 @@ export async function GET(request: Request) {
       next = resolved.pathname + resolved.search;
     }
   }
-  if (!code) {
+  if (!code && !(tokenHash && (tokenType === "invite" || tokenType === "recovery"))) {
     return NextResponse.redirect(new URL("/login?error=invitation", request.url));
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { error } = code
+    ? await supabase.auth.exchangeCodeForSession(code)
+    : await supabase.auth.verifyOtp({ type: tokenType!, token_hash: tokenHash! });
   if (error) {
     return NextResponse.redirect(new URL("/login?error=invitation", request.url));
   }
