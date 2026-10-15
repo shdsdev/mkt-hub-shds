@@ -251,23 +251,31 @@
   --radius: 1rem;
   --background: color-mix(in srgb, #faf8f2 48%, transparent);
   --foreground: #172a32;
-  --card: color-mix(in srgb, #d6dcd7 80%, transparent);
+  /* Crisp near-white surfaces, not a grey/sage tint — this UI builds most of its "boxes" from
+     border-only shapes and low-opacity (10-40%) primary/accent/emerald tints layered on top of
+     --card/--popover (registration-detail-sheet.tsx, check-in). Those tints read clearly against
+     a near-black dark-theme surface but nearly vanish against an already-pale grey-green one — the
+     fix is headroom: keep the surface itself bright and let the tints do the work, same as every
+     dark theme already does against its own near-black surface. */
+  --card: color-mix(in srgb, #ffffff 90%, transparent);
   --card-foreground: #172a32;
-  --card-hover: color-mix(in srgb, #cfdedc 85%, transparent);
-  --popover: color-mix(in srgb, #d6dcd7 94%, transparent);
+  --card-hover: color-mix(in srgb, #ffffff 97%, transparent);
+  --popover: color-mix(in srgb, #ffffff 97%, transparent);
   --popover-foreground: #172a32;
   --primary: #3772ff;
   --primary-foreground: #faf8f2;
   --secondary: #cfdedc;
   --secondary-foreground: #172a32;
-  --muted: color-mix(in srgb, #d6dcd7 60%, transparent);
-  --muted-foreground: #52636a;
+  --muted: color-mix(in srgb, #cfdedc 55%, transparent);
+  --muted-foreground: #3d4f58;
   --accent: #ff7f11;
   --accent-foreground: #172a32;
   --destructive: #ef4444;
   --destructive-foreground: #faf8f2;
-  --border: rgba(23, 42, 50, 0.12);
-  --input: rgba(23, 42, 50, 0.12);
+  /* Bumped from 0.12 to 0.18 — border-only field boxes (no fill of their own) need a border this
+     app can actually see against a near-white surface; 0.12 all but disappeared. */
+  --border: rgba(23, 42, 50, 0.18);
+  --input: rgba(23, 42, 50, 0.18);
   --ring: #3772ff;
   --shadow-sm: 0 1px 2px 0 rgba(23, 42, 50, 0.08);
   --shadow-md: 0 2px 4px 0 rgba(23, 42, 50, 0.1);
@@ -275,13 +283,13 @@
   --shadow-detail: 0 1px 1px 0 rgba(23, 42, 50, 0.08);
   --sidebar: color-mix(in srgb, #ffffff 12%, transparent);
   --sidebar-foreground: #172a32;
-  --sidebar-accent: color-mix(in srgb, #d6dcd7 60%, transparent);
+  --sidebar-accent: color-mix(in srgb, #cfdedc 55%, transparent);
   --sidebar-accent-foreground: #172a32;
-  --sidebar-border: rgba(23, 42, 50, 0.1);
+  --sidebar-border: rgba(23, 42, 50, 0.14);
   --sidebar-ring: #3772ff;
-  --sidebar-badge: color-mix(in srgb, #ffffff 60%, transparent);
-  --sidebar-muted: #52636a;
-  --sidebar-muted-foreground: #52636a;
+  --sidebar-badge: color-mix(in srgb, #ffffff 80%, transparent);
+  --sidebar-muted: #3d4f58;
+  --sidebar-muted-foreground: #3d4f58;
 }
 
 @theme inline {
