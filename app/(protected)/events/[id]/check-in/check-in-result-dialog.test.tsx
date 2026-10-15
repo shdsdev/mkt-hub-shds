@@ -18,6 +18,7 @@ const attendee = {
   phone: "+54 11 5555-5555",
   company: "Acme Studio",
   occupation: "architect",
+  passToken: "pass-token-1",
   backupCode: "ABC12345",
   checkedInAt: null,
 } as unknown as EventAttendeeRow;
@@ -54,11 +55,11 @@ function renderCard(card: ReactNode) {
 
 describe("CheckInResultDialog", () => {
   it("maps every supported occupation to a visible label and color", () => {
-    expect(categoryPresentation.distributor).toEqual({ label: "Distribuidor/a", className: "bg-orange-500 text-orange-950", surfaceClassName: "border-orange-500/40 bg-orange-500/10" });
-    expect(categoryPresentation.manufacturer).toEqual({ label: "Fabricante", className: "bg-blue-500 text-blue-950", surfaceClassName: "border-blue-500/40 bg-blue-500/10" });
-    expect(categoryPresentation.architect).toEqual({ label: "Arquitecto/a", className: "bg-green-500 text-green-950", surfaceClassName: "border-green-500/40 bg-green-500/10" });
-    expect(categoryPresentation.decorator).toEqual({ label: "Decorador/a", className: "bg-yellow-400 text-yellow-950", surfaceClassName: "border-yellow-400/40 bg-yellow-400/10" });
-    expect(categoryPresentation["installer-technician"]).toEqual({ label: "Instalador/a o técnico/a", className: "bg-red-500 text-red-950", surfaceClassName: "border-red-500/40 bg-red-500/10" });
+    expect(categoryPresentation.distributor).toEqual({ label: "Distribuidor", className: "bg-orange-600 text-white", surfaceClassName: "border-orange-500/40 bg-orange-500/10" });
+    expect(categoryPresentation.manufacturer).toEqual({ label: "Fabricante", className: "bg-blue-600 text-white", surfaceClassName: "border-blue-500/40 bg-blue-500/10" });
+    expect(categoryPresentation.architect).toEqual({ label: "Arquitecto", className: "bg-green-600 text-white", surfaceClassName: "border-green-500/40 bg-green-500/10" });
+    expect(categoryPresentation.decorator).toEqual({ label: "Decorador", className: "bg-yellow-700 text-white", surfaceClassName: "border-yellow-400/40 bg-yellow-400/10" });
+    expect(categoryPresentation["installer-technician"]).toEqual({ label: "Instalador o técnico", className: "bg-red-600 text-white", surfaceClassName: "border-red-500/40 bg-red-500/10" });
   });
 
   it("renders attendee facts and the eligible confirmation action", () => {
@@ -68,12 +69,13 @@ describe("CheckInResultDialog", () => {
     expect(html).toContain("+54 11 5555-5555");
     expect(html).toContain("Acme Studio");
     expect(html).toContain("ana@example.com");
-    expect(html).toContain("Arquitecto/a");
+    expect(html).toContain("Arquitecto");
     expect(html).toContain("Acceso correcto");
     expect(html).toContain("Confirmar entrada");
     expect(html).toContain("Registrar entrada");
     expect(html).toContain("Cerrar");
-    expect(html).toContain("border-green-500/40 bg-green-500/10");
+    expect(html).toContain("Pase digital");
+    expect(html).toContain("bg-green-600 text-white");
   });
 
   it("renders confirmation errors and retry guidance inside the result dialog", () => {

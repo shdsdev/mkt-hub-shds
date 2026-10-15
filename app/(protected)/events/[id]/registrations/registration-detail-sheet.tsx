@@ -9,7 +9,8 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import type { RegistrationWithAttendees } from "@/modules/events";
-import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, XCircle } from "lucide-react";
+import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
+import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, Tag, XCircle } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
 import { resendInvitationAction, type ResendInvitationState } from "./actions";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
@@ -32,13 +33,6 @@ const OPTION_LABELS: Record<string, string> = {
   "wifi-automation": "Motores WiFi y automatización",
   curtains: "Cortinería",
   "manual-and-motorized-rods": "Cortineros manuales y motorizados",
-};
-const OCCUPATION_LABELS: Record<string, string> = {
-  distributor: "Distribuidor/a",
-  manufacturer: "Fabricante",
-  architect: "Arquitecto/a",
-  decorator: "Decorador/a",
-  "installer-technician": "Instalador/a o técnico/a",
 };
 const initialResendState: ResendInvitationState = {};
 
@@ -116,7 +110,7 @@ export function RegistrationDetailSheet({
               </div>
               <div className="rounded-md border border-border p-3 sm:col-span-2">
                 <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actividad profesional</p>
-                <p className="text-sm font-medium">{OCCUPATION_LABELS[registration.attendees[0]?.occupation ?? ""] ?? registration.attendees[0]?.occupation ?? "—"}</p>
+                <OccupationPill occupation={registration.attendees[0]?.occupation} />
               </div>
             </div>
           </section>
@@ -167,7 +161,7 @@ export function RegistrationDetailSheet({
             {registration.attendees.map((attendee) => (
               <div key={attendee.id} className={`flex flex-col gap-2 rounded-lg border p-4 ${attendee.checkedInAt ? "border-emerald-500/40 bg-emerald-500/10" : "border-border"}`}>
                 <div className="flex items-start justify-between gap-3">
-                  <div><p className="text-base font-semibold">{attendee.fullName}</p><p className="text-sm text-muted-foreground">{attendee.email}</p></div>
+                  <div><p className="text-base font-semibold">{attendee.fullName}</p><p className="text-sm text-muted-foreground">{attendee.email}</p><OccupationPill occupation={attendee.occupation} /></div>
                   {attendee.checkedInAt ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300"><CheckCircle2 className="size-3.5" /> Dentro</span> : <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"><Clock3 className="size-3.5" /> Pendiente</span>}
                 </div>
                 {attendee.phone ? <p className="text-sm text-muted-foreground">Tel: {attendee.phone}</p> : null}
@@ -178,7 +172,7 @@ export function RegistrationDetailSheet({
                   <p className="text-muted-foreground">Puesto: {attendee.jobTitle}</p>
                 ) : null}
                 {attendee.occupation ? (
-                  <p className="text-muted-foreground">Actividad: {OCCUPATION_LABELS[attendee.occupation] ?? attendee.occupation}</p>
+                  <p className="text-muted-foreground">Actividad: {getOccupationPresentation(attendee.occupation).label}</p>
                 ) : null}
                 <div className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2"><p className="text-[11px] font-medium uppercase tracking-wide text-primary/80">Folio de acceso</p><p className="mt-1 font-mono text-lg font-bold tracking-wider text-primary">{attendee.backupCode}</p></div>
                 <p className={`text-xs font-medium ${attendee.checkedInAt ? "text-emerald-300" : "text-muted-foreground"}`}>
@@ -217,5 +211,15 @@ export function RegistrationDetailSheet({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function OccupationPill({ occupation }: { occupation?: string | null }) {
+  const presentation = getOccupationPresentation(occupation);
+  return (
+    <span className={`mt-2 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}>
+      <Tag className="size-3.5" aria-hidden="true" />
+      {presentation.label}
+    </span>
   );
 }

@@ -5,15 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { RegistrationWithAttendees } from "@/modules/events";
+import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
+import { Tag } from "lucide-react";
 import { CompanionAddedDialog, type AddedCompanion } from "../../companion-added-dialog";
 import { addInternalCompanionAction, searchInternalRegistrationAction, updatePrimaryAttendeeAction } from "./actions";
 
 const occupations = [
-  ["distributor", "Distribuidor/a"],
+  ["distributor", "Distribuidor"],
   ["manufacturer", "Fabricante"],
-  ["architect", "Arquitecto/a"],
-  ["decorator", "Decorador/a"],
-  ["installer-technician", "Instalador/a o técnico/a"],
+  ["architect", "Arquitecto"],
+  ["decorator", "Decorador"],
+  ["installer-technician", "Instalador o técnico"],
 ] as const;
 
 export function InternalRegistrationForm({ eventId }: { eventId: string }) {
@@ -68,6 +70,7 @@ export function InternalRegistrationForm({ eventId }: { eventId: string }) {
             <section className="rounded-xl border border-border bg-card p-4 xl:col-span-2">
               <h2 className="font-heading font-medium">Registro encontrado</h2>
               <p className="mt-1 text-sm text-muted-foreground">{registration.attendees.length} asistente(s) · Estado: {registration.status}</p>
+              {primary.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation); return <span className={`mt-2 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : null}
               <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); void mutate(updatePrimaryAttendeeAction, event.currentTarget); }}>
                 <input type="hidden" name="eventId" value={eventId} />
                 <input type="hidden" name="registrationId" value={registration.id} />
@@ -103,7 +106,7 @@ export function InternalRegistrationForm({ eventId }: { eventId: string }) {
             </section>
             <section className="rounded-xl border border-border bg-card p-4">
               <h2 className="font-heading font-medium">Acompañantes actuales</h2>
-              <ul className="mt-3 flex flex-col gap-2 text-sm">{registration.attendees.slice(1).map((attendee) => <li key={attendee.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2"><span>{attendee.fullName}</span><span className="font-mono text-xs text-muted-foreground">{attendee.backupCode}</span></li>)}</ul>
+              <ul className="mt-3 flex flex-col gap-2 text-sm">{registration.attendees.slice(1).map((attendee) => { const presentation = getOccupationPresentation(attendee.occupation); return <li key={attendee.id} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"><span className="flex min-w-0 flex-wrap items-center gap-2"><span>{attendee.fullName}</span><span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${presentation.className}`}><Tag className="size-3" aria-hidden="true" />{presentation.label}</span></span><span className="shrink-0 font-mono text-xs text-muted-foreground">{attendee.backupCode}</span></li>; })}</ul>
             </section>
           </div>
         </section>

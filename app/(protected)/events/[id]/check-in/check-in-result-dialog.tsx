@@ -1,16 +1,17 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Ban, Building2, CheckCircle2, Info, Mail, Phone, Tag } from "lucide-react";
+import { Ban, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CheckInLookupResult } from "@/modules/events";
 
 export const categoryPresentation = {
-  distributor: { label: "Distribuidor/a", className: "bg-orange-500 text-orange-950", surfaceClassName: "border-orange-500/40 bg-orange-500/10" },
-  manufacturer: { label: "Fabricante", className: "bg-blue-500 text-blue-950", surfaceClassName: "border-blue-500/40 bg-blue-500/10" },
-  architect: { label: "Arquitecto/a", className: "bg-green-500 text-green-950", surfaceClassName: "border-green-500/40 bg-green-500/10" },
-  decorator: { label: "Decorador/a", className: "bg-yellow-400 text-yellow-950", surfaceClassName: "border-yellow-400/40 bg-yellow-400/10" },
-  "installer-technician": { label: "Instalador/a o técnico/a", className: "bg-red-500 text-red-950", surfaceClassName: "border-red-500/40 bg-red-500/10" },
+  distributor: { label: "Distribuidor", className: "bg-orange-600 text-white", surfaceClassName: "border-orange-500/40 bg-orange-500/10" },
+  manufacturer: { label: "Fabricante", className: "bg-blue-600 text-white", surfaceClassName: "border-blue-500/40 bg-blue-500/10" },
+  architect: { label: "Arquitecto", className: "bg-green-600 text-white", surfaceClassName: "border-green-500/40 bg-green-500/10" },
+  decorator: { label: "Decorador", className: "bg-yellow-700 text-white", surfaceClassName: "border-yellow-400/40 bg-yellow-400/10" },
+  "installer-technician": { label: "Instalador o técnico", className: "bg-red-600 text-white", surfaceClassName: "border-red-500/40 bg-red-500/10" },
   unknown: { label: "Categoría no especificada", className: "bg-muted text-muted-foreground", surfaceClassName: "border-border bg-muted/30" },
 } as const;
 
@@ -49,6 +50,76 @@ function getStatus(result: CardProps["result"]) {
   return result.reason === "cancelled" ? statusPresentation.cancelled : statusPresentation.waitlisted;
 }
 
+function PassQr({ value }: { value: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const container = containerRef.current;
+
+    void import("qr-code-styling").then(({ default: QRCodeStyling }) => {
+      if (cancelled || !container) return;
+      const qr = new QRCodeStyling({
+        width: 176,
+        height: 176,
+        type: "svg",
+        data: value,
+        qrOptions: { errorCorrectionLevel: "M" },
+        dotsOptions: { type: "square", color: "#111111" },
+        cornersSquareOptions: { type: "square", color: "#111111" },
+        cornersDotOptions: { type: "square", color: "#111111" },
+        backgroundOptions: { color: "#ffffff" },
+      });
+      qr.append(container);
+    });
+
+    return () => {
+      cancelled = true;
+      container?.replaceChildren();
+    };
+  }, [value]);
+
+  return <div ref={containerRef} className="flex min-h-48 min-w-48 items-center justify-center" aria-label="Código QR del pase" />;
+}
+
+function DigitalPass({ attendee, category }: { attendee: CardProps["result"]["attendee"]; category: (typeof categoryPresentation)[keyof typeof categoryPresentation] }) {
+  return (
+    <section className={`relative mt-5 overflow-hidden rounded-[1.25rem] p-5 shadow-xl sm:p-7 ${category.className}`} aria-label="Pase digital del asistente">
+      <div className="relative z-10 flex items-start justify-between gap-4 border-b border-white/35 pb-5">
+        <div>
+          <p className="font-heading text-2xl font-black uppercase leading-none tracking-tight">Shades</p>
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/80">Pase digital</p>
+        </div>
+        <div className="text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
+          <p>Check-in</p>
+          <p className="mt-1 text-white">Acceso autorizado</p>
+        </div>
+      </div>
+
+      <div className="relative z-10 mt-6 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/75">Asistente</p>
+          <h3 className="mt-1 break-words text-3xl font-black uppercase leading-[0.95] tracking-tight sm:text-4xl">{attendee.fullName}</h3>
+          <div className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
+            <div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">Teléfono</p><p className="mt-1 break-all font-medium">{attendee.phone || "No disponible"}</p></div>
+            <div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">Empresa</p><p className="mt-1 break-words font-medium">{attendee.company || "No disponible"}</p></div>
+            <div className="sm:col-span-2"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">Email</p><p className="mt-1 break-all font-medium">{attendee.email}</p></div>
+          </div>
+        </div>
+        <div className="w-fit rounded-xl bg-white p-2 text-black shadow-lg">
+          <PassQr value={attendee.passToken} />
+          <p className="px-1 pb-1 text-center text-[10px] font-semibold uppercase tracking-wide">Escaneá para validar</p>
+        </div>
+      </div>
+
+      <div className="relative z-10 mt-6 flex flex-wrap items-end justify-between gap-4 border-t border-white/35 pt-4">
+        <div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">Categoría</p><p className="mt-1 text-sm font-bold">{category.label}</p></div>
+        <div className="text-right"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">Folio</p><p className="mt-1 font-mono text-lg font-bold tracking-[0.16em]">{attendee.backupCode}</p></div>
+      </div>
+    </section>
+  );
+}
+
 export function NotFoundResultCard({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
   const status = statusPresentation.not_found;
 
@@ -74,15 +145,10 @@ export function CheckInResultCard({ result, confirmationRequired, confirming, er
       <StatusIcon kind={result.kind === "blocked" ? (result.reason === "cancelled" ? "cancelled" : "waitlisted") : result.kind} />
       <span>{status.label}</span>
     </div>
-    <DialogPrimitive.Title className="mt-5 min-w-0 break-all [overflow-wrap:anywhere] text-2xl font-semibold tracking-tight">{attendee.fullName}</DialogPrimitive.Title>
-    <p className="mt-1 text-sm text-muted-foreground">{status.label}</p>
+    <DialogPrimitive.Title className="sr-only">{attendee.fullName}</DialogPrimitive.Title>
+    <p className="sr-only">{status.label}</p>
 
-    <dl className={`mt-6 grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2 ${category.surfaceClassName}`}>
-      <div className="min-w-0"><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Teléfono</dt><dd className="mt-1 flex min-w-0 items-center gap-2 break-all [overflow-wrap:anywhere]"><Phone className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />{attendee.phone || "No disponible"}</dd></div>
-      <div className="min-w-0"><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Empresa</dt><dd className="mt-1 flex min-w-0 items-center gap-2 break-all [overflow-wrap:anywhere]"><Building2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />{attendee.company || "No disponible"}</dd></div>
-      <div className="min-w-0 sm:col-span-2"><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</dt><dd className="mt-1 flex min-w-0 items-center gap-2 break-all [overflow-wrap:anywhere]"><Mail className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />{attendee.email}</dd></div>
-      <div className="sm:col-span-2"><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categoría</dt><dd className="mt-2"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${category.className}`}><Tag className="size-3.5" aria-hidden="true" />{category.label}</span></dd></div>
-    </dl>
+    <DigitalPass attendee={attendee} category={category} />
 
     {companions.length > 0 ? <section className="mt-4 rounded-xl border border-border p-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Acompañantes</h3>

@@ -98,6 +98,6 @@ describe("buildRegistrationsCsv", () => {
       ] as never,
     })]);
 
-    expect(csv).toContain("Arquitecto/a,Instalador/a o técnico/a");
+    expect(csv).toContain("Arquitecto,Instalador o técnico");
   });
 });

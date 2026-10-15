@@ -7,11 +7,11 @@ import { registerForEventAction, type RegisterFormState } from "./actions";
 
 const initialState: RegisterFormState = {};
 const occupationOptions = [
-  ["distributor", "Distribuidor/a"],
+  ["distributor", "Distribuidor"],
   ["manufacturer", "Fabricante"],
-  ["architect", "Arquitecto/a"],
-  ["decorator", "Decorador/a"],
-  ["installer-technician", "Instalador/a o técnico/a"],
+  ["architect", "Arquitecto"],
+  ["decorator", "Decorador"],
+  ["installer-technician", "Instalador o técnico"],
 ] as const;
 
 // Matches the reference's clean white-card world (rounded-card, ring-1 black/5) instead of the

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
+import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
+import { Tag } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
 import { getPrimaryAttendee, getRegistrationTableValues } from "./registrations-table-model";
 import { RegistrationDetailSheet } from "./registration-detail-sheet";
@@ -40,12 +42,13 @@ export function RegistrationsTable({
   return (
     <>
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="min-w-[1120px] w-full text-left text-sm">
+          <table className="min-w-[1240px] w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border text-xs text-muted-foreground">
               <th className="px-4 py-3 font-medium">Nombre</th>
               <th className="px-4 py-3 font-medium">Empresa</th>
               <th className="px-4 py-3 font-medium">Fecha</th>
+              <th className="px-4 py-3 font-medium">Tipo de cliente</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Marca</th>
               <th className="px-4 py-3 font-medium">Seguimiento</th>
@@ -82,6 +85,9 @@ export function RegistrationsTable({
                   <td className="max-w-48 truncate px-4 py-3">{primary?.company ?? "—"}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                     {formatRegistrationDate(registration.createdAt)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {primary?.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation); return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">{displayStatus}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{values.isClient ? "Cliente" : "No cliente"}</td>

@@ -10,11 +10,11 @@ const INTEREST_LABELS: Record<string, string> = {
   "manual-and-motorized-rods": "Cortineros manuales y motorizados",
 };
 const OCCUPATION_LABELS: Record<string, string> = {
-  distributor: "Distribuidor/a",
+  distributor: "Distribuidor",
   manufacturer: "Fabricante",
-  architect: "Arquitecto/a",
-  decorator: "Decorador/a",
-  "installer-technician": "Instalador/a o técnico/a",
+  architect: "Arquitecto",
+  decorator: "Decorador",
+  "installer-technician": "Instalador o técnico",
 };
 
 function escapeCsvField(value: string): string {
