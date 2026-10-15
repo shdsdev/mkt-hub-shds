@@ -1,25 +1,28 @@
 // Atmospheric gradient backdrops for aura-based themes (src/modules/users/theme-registry.ts:
-// "nightfall", "greydlu", "aston", "signature", "midnight"). Fixed behind the whole app (see
-// .aura-bg in app/globals.css) — every layer here is decorative, so it's a static server
-// component with no state.
-export type AuraThemeId = "nightfall" | "greydlu" | "aston" | "signature" | "midnight";
+// "nightfall", "greydlu", "aston", "signature", "midnight", "arctic-frost"). Fixed behind the
+// whole app (see .aura-bg in app/globals.css) — every layer here is decorative, so it's a static
+// server component with no state.
+export type AuraThemeId = "nightfall" | "greydlu" | "aston" | "signature" | "midnight" | "arctic-frost";
 
-const AURA_LAYER_COUNT: Record<AuraThemeId, number> = {
+export const AURA_LAYER_COUNT: Record<AuraThemeId, number> = {
   nightfall: 3,
   greydlu: 2,
   aston: 3,
   signature: 4,
   midnight: 4,
+  "arctic-frost": 4,
 };
 
 // "Nebula Flow" (signature) and "Smoke Signal" (midnight) are grain-free per their own design
-// specs — every other aura theme's spec calls for the film-grain overlay.
-const AURA_HAS_GRAIN: Record<AuraThemeId, boolean> = {
+// specs — every other aura theme's spec (including Arctic Frost's, 2026-10-15) calls for the
+// film-grain overlay.
+export const AURA_HAS_GRAIN: Record<AuraThemeId, boolean> = {
   nightfall: true,
   greydlu: true,
   aston: true,
   signature: false,
   midnight: false,
+  "arctic-frost": true,
 };
 
 function GrainOverlay() {

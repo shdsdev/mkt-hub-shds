@@ -1,5 +1,7 @@
 // Fixed, developer-curated list — themes are not user-created content, so this is plain data,
-// not a DB table (2026-09-09 Settings + Themes design).
+// not a DB table (2026-09-09 Settings + Themes design). The 3 swatch colors can be retuned via an
+// ADMIN-only DB override layer (2026-10-15 Arctic Frost design) without becoming user-generated
+// content themselves — see src/modules/users/theme-overrides.ts.
 export type Theme = {
   id: string;
   label: string;
@@ -12,9 +14,18 @@ export const THEMES: Theme[] = [
   { id: "nightfall", label: "Nightfall", swatch: ["#5da9e0", "#7fd9c4", "#100e0b"] },
   { id: "greydlu", label: "Greydlu", swatch: ["#d4d4d8", "#d0f23c", "#100e0b"] },
   { id: "aston", label: "Aston", swatch: ["#2dd4bf", "#d0f23c", "#100e0b"] },
+  { id: "arctic-frost", label: "Arctic Frost", swatch: ["#3772FF", "#FF7F11", "#faf8f2"] },
 ];
 
 export const DEFAULT_THEME_ID = "midnight";
+
+// 2026-10-15: hidden from the settings picker, but still fully defined in CSS/aura-background and
+// still a valid stored preference — a user who already has one of these set sees no change.
+export const HIDDEN_THEME_IDS = ["signature", "aston"] as const;
+
+export const VISIBLE_THEMES: Theme[] = THEMES.filter(
+  (theme) => !(HIDDEN_THEME_IDS as readonly string[]).includes(theme.id),
+);
 
 export function isValidThemeId(id: string): boolean {
   return THEMES.some((theme) => theme.id === id);
