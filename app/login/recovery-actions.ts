@@ -22,7 +22,7 @@ export async function requestPasswordRecovery(
   const host = headerStore.get("host");
   const proto = headerStore.get("x-forwarded-proto") ?? "http";
   const origin = host ? `${proto}://${host}` : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const redirectTo = new URL("/auth/callback", origin);
+  const redirectTo = new URL("/auth/confirm", origin);
   redirectTo.searchParams.set("next", "/password-setup");
 
   await (await createClient()).auth.resetPasswordForEmail(parsed.data, {

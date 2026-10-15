@@ -191,7 +191,7 @@ describe("user-management server actions", () => {
     });
 
     expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith("target@example.com", {
-      redirectTo: "http://localhost:3000/auth/callback?next=%2Fpassword-setup",
+      redirectTo: "http://localhost:3000/auth/confirm?next=%2Fpassword-setup",
     });
   });
 

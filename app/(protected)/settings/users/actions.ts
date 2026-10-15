@@ -124,7 +124,7 @@ export async function sendPasswordSetupLinkAction(
   );
   if (!target) return { error: TARGET_UNAVAILABLE_ERROR };
 
-  const redirectTo = new URL("/auth/callback", await callbackOrigin());
+  const redirectTo = new URL("/auth/confirm", await callbackOrigin());
   redirectTo.searchParams.set("next", "/password-setup");
   const { error } = await (await createClient()).auth.resetPasswordForEmail(target.email, {
     redirectTo: redirectTo.toString(),

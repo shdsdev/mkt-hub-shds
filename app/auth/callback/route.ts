@@ -6,16 +6,28 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const tokenHash = requestUrl.searchParams.get("token_hash");
+  const tokenType = requestUrl.searchParams.get("type");
   const requestedNext = requestUrl.searchParams.get("next");
-  const next = requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
-    ? requestedNext
-    : "/password-setup";
-  if (!code) {
+  // Open-redirect guard: `startsWith("/") && !startsWith("//")` alone still lets
+  // `next=/\evil.com` through — some browsers resolve a leading `/\` as protocol-relative,
+  // sending the recipient off this origin. Resolve against the request's own origin and verify
+  // the result actually stayed on it, rather than pattern-matching the raw string.
+  let next = "/password-setup";
+  if (requestedNext?.startsWith("/") && !requestedNext.startsWith("//") && !requestedNext.includes("\\")) {
+    const resolved = new URL(requestedNext, requestUrl);
+    if (resolved.origin === requestUrl.origin) {
+      next = resolved.pathname + resolved.search;
+    }
+  }
+  if (!code && !(tokenHash && (tokenType === "invite" || tokenType === "recovery"))) {
     return NextResponse.redirect(new URL("/login?error=invitation", request.url));
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { error } = code
+    ? await supabase.auth.exchangeCodeForSession(code)
+    : await supabase.auth.verifyOtp({ type: tokenType!, token_hash: tokenHash! });
   if (error) {
     return NextResponse.redirect(new URL("/login?error=invitation", request.url));
   }

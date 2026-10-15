@@ -33,7 +33,9 @@ export default function LoginPage() {
   );
   const [showRecovery, setShowRecovery] = useState(false);
   const searchParams = useSearchParams();
-  const invitationError = searchParams.get("error") === "invitation";
+  const authError = searchParams.get("error");
+  const invitationError = authError === "invitation";
+  const recoveryError = authError === "recovery";
   const googleTooltipId = useId();
 
   return (
@@ -74,9 +76,11 @@ export default function LoginPage() {
             <p className="text-base text-muted-foreground">Ingresá con tu correo y contraseña.</p>
           </div>
 
-          {invitationError && (
+          {(invitationError || recoveryError) && (
             <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive">
-              La invitación expiró o ya fue utilizada. Solicita un nuevo enlace para crear tu contraseña.
+              {invitationError
+                ? "La invitación expiró o ya fue utilizada. Solicita un nuevo enlace para crear tu contraseña."
+                : "El enlace para crear tu contraseña no es válido o expiró. Solicita uno nuevo."}
             </p>
           )}
 
