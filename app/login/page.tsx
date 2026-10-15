@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useId, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AtSign, Lock, QrCode } from "lucide-react";
 import { login, type LoginFormState } from "./actions";
+import { requestPasswordRecovery, type PasswordRecoveryFormState } from "./recovery-actions";
 import { BinaryLoader } from "@/components/binary-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +13,7 @@ import { GoogleIcon } from "@/components/icons/google-icon";
 import { FlutedGlassBackground } from "./fluted-glass-background";
 
 const initialState: LoginFormState = {};
+const initialRecoveryState: PasswordRecoveryFormState = {};
 
 // Matches the reference design's own button look exactly — a fixed neutral light pill at the
 // original's "lg" dimensions (h-11 px-8), not our app's theme-tinted --primary/size scale. Scoped
@@ -24,6 +27,13 @@ const authInputClassName = "peer ps-9 focus-visible:border-white focus-visible:r
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, initialState);
+  const [recoveryState, recoveryAction, recoveryPending] = useActionState(
+    requestPasswordRecovery,
+    initialRecoveryState,
+  );
+  const [showRecovery, setShowRecovery] = useState(false);
+  const searchParams = useSearchParams();
+  const invitationError = searchParams.get("error") === "invitation";
   const googleTooltipId = useId();
 
   return (
@@ -63,6 +73,12 @@ export default function LoginPage() {
             <h1 className="font-heading text-2xl font-bold tracking-wide">Bienvenido de vuelta</h1>
             <p className="text-base text-muted-foreground">Ingresá con tu correo y contraseña.</p>
           </div>
+
+          {invitationError && (
+            <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive">
+              La invitación expiró o ya fue utilizada. Solicita un nuevo enlace para crear tu contraseña.
+            </p>
+          )}
 
           {/* Disabled until the Google OAuth provider is configured — kept visible as a preview of
               what's coming rather than removed outright. Tooltip markup written directly (not the
@@ -127,6 +143,60 @@ export default function LoginPage() {
               {pending ? <BinaryLoader /> : "Iniciar sesión"}
             </Button>
           </form>
+
+          {!showRecovery ? (
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto w-full px-0 text-sm text-muted-foreground"
+              onClick={() => setShowRecovery(true)}
+            >
+              Crear o restablecer contraseña
+            </Button>
+          ) : (
+            <form
+              action={recoveryAction}
+              data-recovery-form
+              className="space-y-3 rounded-md border border-border/70 bg-background/60 p-4"
+            >
+              <div className="space-y-1">
+                <h2 className="text-sm font-medium">Crea tu contraseña</h2>
+                <p className="text-xs text-muted-foreground">
+                  Te enviaremos un enlace para configurar o restablecer el acceso.
+                </p>
+              </div>
+              <Input
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="tu.correo@shadesdemexico.com"
+              />
+              {recoveryState.error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {recoveryState.error}
+                </p>
+              )}
+              {recoveryState.success && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {recoveryState.success}
+                </p>
+              )}
+              <div className="flex items-center gap-2">
+                <Button type="submit" size="sm" className="flex-1" disabled={recoveryPending}>
+                  {recoveryPending ? <BinaryLoader /> : "Enviar enlace"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRecovery(false)}
+                >
+                  Volver
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </main>
