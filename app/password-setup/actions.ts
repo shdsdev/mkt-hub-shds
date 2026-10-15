@@ -32,7 +32,7 @@ export async function setInvitationPassword(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { error: "La invitación no es válida o expiró." };
+    return { error: "El enlace para crear tu contraseña no es válido o expiró." };
   }
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
