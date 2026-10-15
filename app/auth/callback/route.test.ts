@@ -43,6 +43,17 @@ describe("auth callback", () => {
     expect(res.headers.get("location")).toBe("https://app.example.com/password-setup");
   });
 
+  it("ignores a next destination that disguises a protocol-relative redirect with a backslash", async () => {
+    mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const res = await GET(
+      new Request("https://app.example.com/auth/callback?code=code-1&next=/%5Cevil.example"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://app.example.com/password-setup");
+  });
+
+
   it("redirects to login with error when the code is missing", async () => {
     const res = await GET(new Request("https://app.example.com/auth/callback"));
 

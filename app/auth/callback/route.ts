@@ -7,9 +7,17 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const requestedNext = requestUrl.searchParams.get("next");
-  const next = requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
-    ? requestedNext
-    : "/password-setup";
+  // Open-redirect guard: `startsWith("/") && !startsWith("//")` alone still lets
+  // `next=/\evil.com` through — some browsers resolve a leading `/\` as protocol-relative,
+  // sending the recipient off this origin. Resolve against the request's own origin and verify
+  // the result actually stayed on it, rather than pattern-matching the raw string.
+  let next = "/password-setup";
+  if (requestedNext?.startsWith("/") && !requestedNext.startsWith("//") && !requestedNext.includes("\\")) {
+    const resolved = new URL(requestedNext, requestUrl);
+    if (resolved.origin === requestUrl.origin) {
+      next = resolved.pathname + resolved.search;
+    }
+  }
   if (!code) {
     return NextResponse.redirect(new URL("/login?error=invitation", request.url));
   }
