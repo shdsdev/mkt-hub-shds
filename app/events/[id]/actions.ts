@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { env } from "@/lib/env";
 import {
   getPublishedEventBySlugPublic,
   registerForEvent,
@@ -241,6 +242,7 @@ export async function registerForEventAction(
   // `confirmed` status; a waitlisted registration gets its email later, on promotion (PR3's
   // cancelRegistrationByToken / a future admin cancel path), not here.
   if (result.registration.status === "confirmed") {
+    const manageUrl = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.registration.cancelToken}`;
     await Promise.all(
       result.attendees.map(async (attendee) => {
         const qrPng = await exportQrPng(attendee.passToken, {});
@@ -252,6 +254,10 @@ export async function registerForEventAction(
           eventName: event.name,
           backupCode: attendee.backupCode,
           qrPngBase64: qrPng.toString("base64"),
+          eventStartsAt: event.startsAt,
+          eventEndsAt: event.endsAt,
+          eventLocation: event.location,
+          manageUrl,
         });
       }),
     );

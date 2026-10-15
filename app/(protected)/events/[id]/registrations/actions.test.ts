@@ -26,6 +26,7 @@ vi.mock("@/modules/events", () => ({
 vi.mock("@/modules/notifications", () => ({ sendConfirmationEmail: mocks.sendConfirmationEmail }));
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com" } }));
 
 import { addCompanionAction, resendInvitationAction } from "./actions";
 
@@ -57,7 +58,13 @@ describe("addCompanionAction", () => {
     mocks.isAdmin.mockReturnValue(true);
     mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
     mocks.sendConfirmationEmail.mockResolvedValue({ sent: true, notificationId: "n1" });
-    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop" });
+    mocks.getEvent.mockResolvedValue({
+      id: EVENT_ID,
+      name: "Workshop",
+      startsAt: new Date("2026-11-06T15:00:00Z"),
+      endsAt: new Date("2026-11-06T21:00:00Z"),
+      location: "Hotel Victoria Ejecutivo Guadalajara",
+    });
     mocks.notifyEventWebhook.mockResolvedValue(undefined);
   });
 
@@ -81,6 +88,7 @@ describe("addCompanionAction", () => {
     mocks.addAttendeeToRegistration.mockResolvedValue({
       ok: true,
       registrationStatus: "confirmed",
+      cancelToken: "cancel-token-1",
       attendee: {
         id: "33333333-3333-4333-8333-333333333333",
         organizationId: "org-1",
@@ -90,7 +98,13 @@ describe("addCompanionAction", () => {
         backupCode: "WXYZ5678",
       },
     });
-    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop" });
+    mocks.getEvent.mockResolvedValue({
+      id: EVENT_ID,
+      name: "Workshop",
+      startsAt: new Date("2026-11-06T15:00:00Z"),
+      endsAt: new Date("2026-11-06T21:00:00Z"),
+      location: "Hotel Victoria Ejecutivo Guadalajara",
+    });
 
     const result = await addCompanionAction({}, formData());
 
@@ -101,10 +115,17 @@ describe("addCompanionAction", () => {
       attendee: expect.objectContaining({ fullName: "Alan Turing", email: "alan@example.com" }),
     });
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "alan@example.com", eventName: "Workshop" }),
+      expect.objectContaining({
+        to: "alan@example.com",
+        eventName: "Workshop",
+        eventStartsAt: new Date("2026-11-06T15:00:00Z"),
+        eventEndsAt: new Date("2026-11-06T21:00:00Z"),
+        eventLocation: "Hotel Victoria Ejecutivo Guadalajara",
+        manageUrl: "https://hub.example.com/events/cancel/cancel-token-1",
+      }),
     );
     expect(mocks.notifyEventWebhook).toHaveBeenCalledWith(
-      { id: EVENT_ID, name: "Workshop" },
+      expect.objectContaining({ id: EVENT_ID, name: "Workshop" }),
       "registration.created",
       expect.objectContaining({ status: "confirmed" }),
     );
@@ -147,6 +168,7 @@ describe("addCompanionAction", () => {
 
   it("resends the invitation email for an existing attendee", async () => {
     mocks.listRegistrations.mockResolvedValue([{
+      cancelToken: "cancel-token-1",
       attendees: [{
         id: "33333333-3333-4333-8333-333333333333",
         organizationId: "org-1",
@@ -156,7 +178,13 @@ describe("addCompanionAction", () => {
         backupCode: "WXYZ5678",
       }],
     }]);
-    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop" });
+    mocks.getEvent.mockResolvedValue({
+      id: EVENT_ID,
+      name: "Workshop",
+      startsAt: new Date("2026-11-06T15:00:00Z"),
+      endsAt: new Date("2026-11-06T21:00:00Z"),
+      location: "Hotel Victoria Ejecutivo Guadalajara",
+    });
     mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
     mocks.sendConfirmationEmail.mockResolvedValue({ sent: true, notificationId: "resend" });
 
@@ -167,6 +195,7 @@ describe("addCompanionAction", () => {
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({
       attendeeId: "33333333-3333-4333-8333-333333333333",
       force: true,
+      manageUrl: "https://hub.example.com/events/cancel/cancel-token-1",
     }));
   });
 });

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   const due = await listDueReminderAttendees();
   await Promise.all(
-    due.map(async ({ event, attendee }) => {
+    due.map(async ({ event, attendee, cancelToken }) => {
       const qrPng = await exportQrPng(attendee.passToken, {});
       await sendReminderEmail({
         organizationId: attendee.organizationId,
@@ -35,6 +35,10 @@ export async function POST(request: NextRequest) {
         eventName: event.name,
         backupCode: attendee.backupCode,
         qrPngBase64: qrPng.toString("base64"),
+        eventStartsAt: event.startsAt,
+        eventEndsAt: event.endsAt,
+        eventLocation: event.location,
+        manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${cancelToken}`,
       });
     }),
   );

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { env } from "@/lib/env";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
 import {
@@ -100,6 +101,10 @@ export async function addCompanionAction(
       eventName: event?.name ?? "",
       backupCode: result.attendee.backupCode,
       qrPngBase64: qrPng.toString("base64"),
+      eventStartsAt: event?.startsAt ?? new Date(0),
+      eventEndsAt: event?.endsAt ?? null,
+      eventLocation: event?.location ?? null,
+      manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.cancelToken}`,
     });
   }
 
@@ -135,8 +140,9 @@ export async function resendInvitationAction(
   if (!event) return { error: "No se encontró el evento." };
 
   const registrations = await listRegistrations(parsed.data.eventId, user.profile.organizationId);
-  const attendee = registrations.flatMap((registration) => registration.attendees).find(({ id }) => id === parsed.data.attendeeId);
-  if (!attendee) return { error: "No se encontró al asistente." };
+  const registration = registrations.find((reg) => reg.attendees.some(({ id }) => id === parsed.data.attendeeId));
+  const attendee = registration?.attendees.find(({ id }) => id === parsed.data.attendeeId);
+  if (!attendee || !registration) return { error: "No se encontró al asistente." };
 
   const qrPng = await exportQrPng(attendee.passToken, {});
   const result = await sendConfirmationEmail({
@@ -147,6 +153,10 @@ export async function resendInvitationAction(
     eventName: event.name,
     backupCode: attendee.backupCode,
     qrPngBase64: qrPng.toString("base64"),
+    eventStartsAt: event.startsAt,
+    eventEndsAt: event.endsAt,
+    eventLocation: event.location,
+    manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${registration.cancelToken}`,
     force: true,
   });
 

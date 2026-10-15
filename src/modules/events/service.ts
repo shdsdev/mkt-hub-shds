@@ -400,7 +400,7 @@ export type AddAttendeeToRegistrationInput = {
 };
 
 export type AddAttendeeToRegistrationResult =
-  | { ok: true; attendee: EventAttendeeRow; registrationStatus: "confirmed" | "waitlisted" }
+  | { ok: true; attendee: EventAttendeeRow; registrationStatus: "confirmed" | "waitlisted"; cancelToken: string }
   | { ok: false; reason: "registration_not_found" | "cancelled" | "at_capacity" | "duplicate_email" };
 
 // Admin feedback round: a "master form" to add more companions to a registration AFTER it was
@@ -460,6 +460,7 @@ export async function addAttendeeToRegistration(
         ok: true,
         attendee: row,
         registrationStatus: registration.status === "waitlisted" ? "waitlisted" : "confirmed",
+        cancelToken: registration.cancelToken,
       };
     });
   } catch (error) {
@@ -700,7 +701,7 @@ export function isReminderDue(now: Date, startsAt: Date, reminderOffsetMinutes: 
   return now.getTime() >= reminderOpensAt && now.getTime() < startsAt.getTime();
 }
 
-export type DueReminderAttendee = { event: EventRow; attendee: EventAttendeeRow };
+export type DueReminderAttendee = { event: EventRow; attendee: EventAttendeeRow; cancelToken: string };
 
 // spec.md "Webhook-Driven Reminder Trigger" — one query joining confirmed/active attendees of
 // published events to their event, then filtering by `isReminderDue` in application code rather
@@ -710,7 +711,7 @@ export type DueReminderAttendee = { event: EventRow; attendee: EventAttendeeRow 
 // to call every time this list includes the same attendee across repeated webhook invocations.
 export async function listDueReminderAttendees(now: Date = new Date()): Promise<DueReminderAttendee[]> {
   const rows = await db
-    .select({ event: events, attendee: eventAttendees })
+    .select({ event: events, attendee: eventAttendees, cancelToken: eventRegistrations.cancelToken })
     .from(eventAttendees)
     .innerJoin(eventRegistrations, eq(eventAttendees.registrationId, eventRegistrations.id))
     .innerJoin(events, eq(eventAttendees.eventId, events.id))

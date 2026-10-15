@@ -38,6 +38,9 @@ vi.mock("@/modules/notifications", () => ({
 vi.mock("@/modules/qr", () => ({
   exportQrPng: mocks.exportQrPng,
 }));
+vi.mock("@/lib/env", () => ({
+  env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com" },
+}));
 
 import { registerForEventAction } from "./actions";
 
@@ -47,6 +50,9 @@ const event = {
   name: "Workshop de Marketing",
   slug: "workshop-marketing",
   status: "published" as const,
+  startsAt: new Date("2026-11-06T15:00:00Z"),
+  endsAt: new Date("2026-11-06T21:00:00Z"),
+  location: "Hotel Victoria Ejecutivo Guadalajara",
 };
 
 function baseFormData(overrides: Record<string, string> = {}) {
@@ -99,7 +105,7 @@ describe("registerForEventAction", () => {
   it("registers the primary attendee and sends a confirmation email when confirmed", async () => {
     mocks.registerForEvent.mockResolvedValue({
       ok: true,
-      registration: { status: "confirmed" },
+      registration: { status: "confirmed", cancelToken: "cancel-token-1" },
       attendees: [
         {
           id: "att-1",
@@ -136,6 +142,10 @@ describe("registerForEventAction", () => {
         eventName: "Workshop de Marketing",
         backupCode: "ABCD1234",
         qrPngBase64: Buffer.from("fake-png").toString("base64"),
+        eventStartsAt: event.startsAt,
+        eventEndsAt: event.endsAt,
+        eventLocation: event.location,
+        manageUrl: "https://hub.example.com/events/cancel/cancel-token-1",
       }),
     );
     expect(result).toEqual({ success: true, status: "confirmed" });
@@ -182,7 +192,7 @@ describe("registerForEventAction", () => {
 
     mocks.registerForEvent.mockResolvedValue({
       ok: true,
-      registration: { status: "confirmed" },
+      registration: { status: "confirmed", cancelToken: "cancel-token-1" },
       attendees: [
         {
           id: "att-1",

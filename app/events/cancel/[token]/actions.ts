@@ -1,5 +1,6 @@
 "use server";
 
+import { env } from "@/lib/env";
 import { cancelRegistrationByToken, getEvent } from "@/modules/events";
 import { sendWaitlistPromotionEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
@@ -31,6 +32,7 @@ export async function cancelRegistrationAction(
   if (result.promoted) {
     const { registration: promotedRegistration, attendees } = result.promoted;
     const event = await getEvent(promotedRegistration.eventId, promotedRegistration.organizationId);
+    const manageUrl = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${promotedRegistration.cancelToken}`;
     await Promise.all(
       attendees.map(async (attendee) => {
         const qrPng = await exportQrPng(attendee.passToken, {});
@@ -42,6 +44,10 @@ export async function cancelRegistrationAction(
           eventName: event?.name ?? "",
           backupCode: attendee.backupCode,
           qrPngBase64: qrPng.toString("base64"),
+          eventStartsAt: event?.startsAt ?? new Date(0),
+          eventEndsAt: event?.endsAt ?? null,
+          eventLocation: event?.location ?? null,
+          manageUrl,
         });
       }),
     );
