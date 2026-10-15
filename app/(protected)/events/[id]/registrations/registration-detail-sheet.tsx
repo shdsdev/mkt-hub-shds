@@ -1,16 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import type { RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
-import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, Tag, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, Tag, X, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { AddCompanionRow } from "./add-companion-row";
 import { resendInvitationAction, type ResendInvitationState } from "./actions";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
@@ -49,9 +44,8 @@ function ConsentStatus({ label, accepted, date }: { label: string; accepted: boo
   );
 }
 
-// Admin feedback round: "prefiero... abrir un side panel al presionar la fila" — every field the
-// table's columns couldn't fit (phone/company/job title per attendee, backup code, check-in
-// timestamp, full UTM set, source) without the table itself going unreadably wide.
+// The detail view keeps the table readable while presenting the full registration in a centered,
+// wide modal that works better for scanning contact, preference, and attendee data together.
 export function RegistrationDetailSheet({
   registration,
   statusLabel,
@@ -77,16 +71,33 @@ export function RegistrationDetailSheet({
     .filter(([, value]) => Boolean(value));
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full max-w-none overflow-y-auto sm:w-[760px] sm:max-w-[760px]">
-        <SheetHeader>
-          <SheetTitle className="pr-8 text-xl font-semibold tracking-tight">{registration.attendees[0]?.fullName ?? "Registro"}</SheetTitle>
-          <SheetDescription className="text-xs">
-            {statusLabel} · {formatRegistrationDate(registration.createdAt)} · {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
-          </SheetDescription>
-        </SheetHeader>
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      {open ? <DialogPrimitive.Portal>
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md" />
+        <DialogPrimitive.Popup className="fixed inset-0 z-50 m-auto flex h-fit max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-6xl flex-col overflow-y-auto rounded-2xl border border-border bg-popover px-5 py-8 text-popover-foreground shadow-2xl sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+          <div className="flex items-start justify-between gap-6">
+            <div className="min-w-0">
+              <DialogPrimitive.Title className="pr-2 text-xl font-semibold tracking-tight">{registration.attendees[0]?.fullName ?? "Registro"}</DialogPrimitive.Title>
+              <DialogPrimitive.Description className="mt-1 text-xs text-muted-foreground">
+                {statusLabel} · {formatRegistrationDate(registration.createdAt)} · {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
+              </DialogPrimitive.Description>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {registration.status !== "cancelled" ? (
+                <AddCompanionRow
+                  registrationId={registration.id}
+                  eventId={eventId}
+                  collectCompany={collectCompany}
+                  collectJobTitle={collectJobTitle}
+                />
+              ) : null}
+              <Button type="button" variant="ghost" size="icon-sm" onClick={() => onOpenChange(false)} aria-label="Cerrar detalle">
+                <X data-icon="inline-start" />
+              </Button>
+            </div>
+          </div>
 
-        <div className="flex flex-col gap-6 px-4 pb-4 text-sm">
+          <div className="mt-6 flex flex-col gap-6 pb-4 text-sm">
           <section className="flex flex-col gap-3">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Contacto</h3>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -197,20 +208,10 @@ export function RegistrationDetailSheet({
             {resendState.success ? <p className="text-xs text-muted-foreground">{resendState.success}</p> : null}
           </section>
 
-          {registration.status !== "cancelled" ? (
-            <section className="flex flex-col gap-3 border-t border-border pt-4">
-              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Acciones</h3>
-              <AddCompanionRow
-                registrationId={registration.id}
-                eventId={eventId}
-                collectCompany={collectCompany}
-                collectJobTitle={collectJobTitle}
-              />
-            </section>
-          ) : null}
-        </div>
-      </SheetContent>
-    </Sheet>
+          </div>
+        </DialogPrimitive.Popup>
+      </DialogPrimitive.Portal> : null}
+    </DialogPrimitive.Root>
   );
 }
 

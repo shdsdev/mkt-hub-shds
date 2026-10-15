@@ -24,7 +24,19 @@ export const statusPresentation = {
 } as const;
 
 export const resultDialogPopupClassName =
-  "fixed inset-0 z-50 m-auto flex min-h-[100dvh] w-full min-w-0 flex-col overflow-x-hidden overflow-y-auto border border-border bg-popover pt-[calc(1.25rem+env(safe-area-inset-top))] pr-[calc(1.25rem+env(safe-area-inset-right))] pb-[calc(1.25rem+env(safe-area-inset-bottom))] pl-[calc(1.25rem+env(safe-area-inset-left))] text-popover-foreground shadow-2xl lg:h-fit lg:max-h-[calc(100dvh-2rem)] lg:min-h-0 lg:w-[calc(100%-2rem)] lg:max-w-2xl lg:overflow-y-auto lg:rounded-2xl lg:p-7";
+  "fixed inset-0 z-50 m-auto flex min-h-[100dvh] w-full min-w-0 flex-col overflow-x-hidden overflow-y-auto bg-popover pt-[calc(1.25rem+env(safe-area-inset-top))] pr-[calc(1.25rem+env(safe-area-inset-right))] pb-[calc(1.25rem+env(safe-area-inset-bottom))] pl-[calc(1.25rem+env(safe-area-inset-left))] text-popover-foreground shadow-2xl lg:h-fit lg:max-h-[calc(100dvh-2rem)] lg:min-h-0 lg:w-[calc(100%-2rem)] lg:max-w-2xl lg:overflow-y-auto lg:rounded-2xl lg:p-7";
+
+const resultDialogStatusClassName = {
+  eligible: "border-2 border-emerald-400/80",
+  already_checked_in: "border-2 border-amber-400/80",
+  blocked: "border-2 border-red-400/80",
+  not_found: "border-2 border-red-400/80",
+} as const;
+
+export function getResultDialogClassName(result: CheckInLookupResult | null) {
+  if (!result || result.kind === "not_found") return `${resultDialogPopupClassName} ${resultDialogStatusClassName.not_found}`;
+  return `${resultDialogPopupClassName} ${resultDialogStatusClassName[result.kind]}`;
+}
 
 type CheckInResultDialogProps = {
   result: CheckInLookupResult | null;
@@ -171,7 +183,7 @@ export function CheckInResultDialog({ result, open, confirmationRequired, confir
   return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
     {open ? <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/70" />
-      <DialogPrimitive.Popup className={resultDialogPopupClassName}>
+      <DialogPrimitive.Popup className={getResultDialogClassName(result)}>
         {result?.kind === "not_found" || !result ? <NotFoundResultCard onOpenChange={onOpenChange} /> : <CheckInResultCard result={result} confirmationRequired={confirmationRequired} confirming={confirming} error={error} onOpenChange={onOpenChange} onConfirm={onConfirm} onConfirmCompanion={onConfirmCompanion} />}
       </DialogPrimitive.Popup>
     </DialogPrimitive.Portal> : null}

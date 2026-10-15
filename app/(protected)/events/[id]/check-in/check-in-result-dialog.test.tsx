@@ -7,6 +7,7 @@ import {
   CheckInResultCard,
   NotFoundResultCard,
   categoryPresentation,
+  getResultDialogClassName,
   resultDialogPopupClassName,
   statusPresentation,
 } from "./check-in-result-dialog";
@@ -60,6 +61,13 @@ describe("CheckInResultDialog", () => {
     expect(categoryPresentation.architect).toEqual({ label: "Arquitecto", className: "bg-green-600 text-white", surfaceClassName: "border-green-500/40 bg-green-500/10" });
     expect(categoryPresentation.decorator).toEqual({ label: "Decorador", className: "bg-yellow-700 text-white", surfaceClassName: "border-yellow-400/40 bg-yellow-400/10" });
     expect(categoryPresentation["installer-technician"]).toEqual({ label: "Instalador o técnico", className: "bg-red-600 text-white", surfaceClassName: "border-red-500/40 bg-red-500/10" });
+  });
+
+  it("tints the modal shell by access status", () => {
+    expect(getResultDialogClassName(eligibleResult())).toContain("border-2 border-emerald-400/80");
+    expect(getResultDialogClassName(eligibleResult("already_checked_in"))).toContain("border-2 border-amber-400/80");
+    expect(getResultDialogClassName(eligibleResult("blocked"))).toContain("border-2 border-red-400/80");
+    expect(getResultDialogClassName({ kind: "not_found" })).toContain("border-2 border-red-400/80");
   });
 
   it("renders attendee facts and the eligible confirmation action", () => {

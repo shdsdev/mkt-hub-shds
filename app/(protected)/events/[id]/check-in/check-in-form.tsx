@@ -98,7 +98,7 @@ export function CheckInForm({ eventId, confirmationRequired }: { eventId: string
     if (!response.confirmationRequired && response.result.kind === "eligible") await confirm(response.result.attendee.id);
   }
 
-  async function confirm(attendeeId: string) {
+  async function confirm(attendeeId: string, closeResultOnSuccess = false) {
     dispatch({ type: "confirmation-started" });
     const formData = new FormData();
     formData.set("eventId", eventId);
@@ -106,6 +106,7 @@ export function CheckInForm({ eventId, confirmationRequired }: { eventId: string
     const response = await confirmCheckInAction(formData);
     if (response.error) { dispatch({ type: "confirmation-failed", error: response.error }); return; }
     dispatch({ type: "confirmation-succeeded" });
+    if (closeResultOnSuccess) dispatch({ type: "close-result" });
   }
 
   function openScanner() {
@@ -165,7 +166,7 @@ export function CheckInForm({ eventId, confirmationRequired }: { eventId: string
         ) : null}
       </DialogPrimitive.Root>
       <ManualFolioDialog open={state.mode === "manual"} onOpenChange={(open) => { if (!open) closeCapture(); }} pending={state.pending} error={state.error} onSubmit={lookup} />
-      <CheckInResultDialog result={state.result} open={state.resultOpen} confirmationRequired={confirmationRequired} confirming={state.pending} error={state.error} onOpenChange={(open) => { if (!open) dispatch({ type: "close-result" }); }} onConfirm={confirm} onConfirmCompanion={confirm} />
+      <CheckInResultDialog result={state.result} open={state.resultOpen} confirmationRequired={confirmationRequired} confirming={state.pending} error={state.error} onOpenChange={(open) => { if (!open) dispatch({ type: "close-result" }); }} onConfirm={(attendeeId) => { void confirm(attendeeId, true); }} onConfirmCompanion={confirm} />
     </section>
   );
 }
