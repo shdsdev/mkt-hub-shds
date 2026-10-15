@@ -17,6 +17,7 @@ import {
   disableUserAction,
   inviteUserAction,
   reactivateUserAction,
+  sendPasswordSetupLinkAction,
   type UserManagementFormState,
 } from "./actions";
 
@@ -34,6 +35,10 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
   const [disableState, disableAction, disablePending] = useActionState(disableUserAction, initialState);
   const [reactivateState, reactivateAction, reactivatePending] = useActionState(
     reactivateUserAction,
+    initialState,
+  );
+  const [passwordLinkState, passwordLinkAction, passwordLinkPending] = useActionState(
+    sendPasswordSetupLinkAction,
     initialState,
   );
   const managedUsers = users.filter((user) => roleLabel(user.role));
@@ -133,6 +138,14 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
                       </Button>
                     </form>
                   )}
+                  {user.status === "active" && (
+                    <form action={passwordLinkAction}>
+                      <input type="hidden" name="targetUserId" value={user.id} />
+                      <Button type="submit" variant="outline" size="sm" disabled={passwordLinkPending}>
+                        {passwordLinkPending ? "Enviando…" : "Enviar enlace de acceso"}
+                      </Button>
+                    </form>
+                  )}
                 </div>
               </li>
             );
@@ -154,6 +167,11 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
         {(reactivateState.error || reactivateState.success) && (
           <p role={reactivateState.error ? "alert" : "status"} className="text-sm text-muted-foreground">
             {reactivateState.error ?? reactivateState.success}
+          </p>
+        )}
+        {(passwordLinkState.error || passwordLinkState.success) && (
+          <p role={passwordLinkState.error ? "alert" : "status"} className="text-sm text-muted-foreground">
+            {passwordLinkState.error ?? passwordLinkState.success}
           </p>
         )}
       </section>
