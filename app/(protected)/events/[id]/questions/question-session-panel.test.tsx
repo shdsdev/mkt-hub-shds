@@ -61,6 +61,33 @@ describe("QuestionSessionPanel", () => {
     expect(container.querySelector('button[type="submit"]')?.textContent).toContain("Regenerar código");
   });
 
+  it("makes a closed session explicit without rendering its inactive access code or QR", () => {
+    const session = {
+      id: "session-1",
+      eventId: "event-1",
+      organizationId: "org-1",
+      codeHash: "hash",
+      displayCode: "ABC123",
+      status: "closed" as const,
+      codeCreatedAt: new Date("2026-01-01T00:00:00Z"),
+      closedAt: new Date("2026-01-02T00:00:00Z"),
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      updatedAt: new Date("2026-01-02T00:00:00Z"),
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => root?.render(<QuestionSessionPanel eventId="event-1" session={session} publicUrl="https://example.com/questions/ABC123" />));
+
+    expect(container.textContent).toContain("La sesión está cerrada.");
+    expect(container.textContent).not.toContain("ABC123");
+    expect(container.textContent).not.toContain("https://example.com/questions/ABC123");
+    expect(container.querySelector('img[alt="Código QR para preguntas"]')).toBeNull();
+    expect(container.querySelector('button[type="submit"]')?.textContent).toContain("Generar código");
+  });
+
   it("refreshes every three seconds and clears polling on unmount", () => {
     vi.useFakeTimers();
     container = document.createElement("div");

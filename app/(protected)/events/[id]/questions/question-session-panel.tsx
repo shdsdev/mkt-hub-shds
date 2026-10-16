@@ -7,8 +7,9 @@ import { closeQuestionSessionAction, createQuestionSessionAction } from "./actio
 
 export function QuestionSessionPanel({ eventId, session, publicUrl }: { eventId: string; session?: QuestionSessionRow; publicUrl?: string }) {
   const [state, formAction, pending] = useActionState(createQuestionSessionAction, {});
-  const code = state.code ?? session?.displayCode;
-  const resolvedPublicUrl = state.publicUrl ?? publicUrl;
+  const isOpen = session?.status === "open";
+  const code = state.code ?? (isOpen ? session.displayCode : undefined);
+  const resolvedPublicUrl = state.publicUrl ?? (isOpen ? publicUrl : undefined);
 
   return (
     <section className="space-y-4 rounded-lg border border-border bg-card p-5">
@@ -16,13 +17,13 @@ export function QuestionSessionPanel({ eventId, session, publicUrl }: { eventId:
         <div>
           <h2 className="font-heading text-lg font-semibold">Acceso público</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {session?.status === "open" ? "La sesión está abierta." : "Generá un código para abrir la sesión."}
+            {isOpen ? "La sesión está abierta." : session ? "La sesión está cerrada." : "Generá un código para abrir la sesión."}
           </p>
         </div>
         <form action={formAction}>
           <input type="hidden" name="eventId" value={eventId} />
-          <button type="submit" disabled={pending} className={session ? "rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60" : "rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"}>
-            {pending ? "Generando…" : session ? "Regenerar código" : "Generar código"}
+          <button type="submit" disabled={pending} className={isOpen ? "rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60" : "rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"}>
+            {pending ? "Generando…" : isOpen ? "Regenerar código" : "Generar código"}
           </button>
         </form>
       </div>

@@ -149,4 +149,32 @@ describe("PublicQuestionList", () => {
     expect(container.querySelector('button[aria-label="Votar pregunta"]')?.textContent).toContain("2");
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("No pudimos actualizar");
   });
+
+  it("wraps long question and answer content on narrow screens", () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => root?.render(
+      <PublicQuestionList
+        code="ABC123"
+        questions={[{
+          id: "question-1",
+          text: "PreguntaConUnaCadenaLargaSinEspaciosQueDebePoderPartirse",
+          status: "approved",
+          answerText: "RespuestaConUnaCadenaLargaSinEspaciosQueDebePoderPartirse",
+          publishedAt: new Date(),
+          createdAt: new Date(),
+          voteCount: 0,
+          hasVoted: false,
+        }]}
+      />,
+    ));
+
+    const content = Array.from(container.querySelectorAll("p")).filter((paragraph) =>
+      paragraph.textContent?.includes("CadenaLarga"),
+    );
+    expect(content).toHaveLength(2);
+    expect(content.every((paragraph) => paragraph.className.includes("break-words"))).toBe(true);
+  });
 });
