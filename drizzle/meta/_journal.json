@@ -260,6 +260,13 @@
       "when": 1792170452961,
       "tag": "0036_unique_proudstar",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792179000000,
+      "tag": "0037_tracking_events_partitions",
+      "breakpoints": true
     }
   ]
 }
