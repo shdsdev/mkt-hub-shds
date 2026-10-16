@@ -40,7 +40,7 @@ export function WebsiteQrForm({
   const [state, formAction, pending] = useActionState(createWebsiteQrCodeAction, initialState);
   const [step, setStep] = useState<Step>("detail");
   const [destinationUrl, setDestinationUrl] = useState("");
-  const [detail, setDetail] = useState<QrDetailFieldsState>({ name: "", grouping: {} });
+  const [detail, setDetail] = useState<QrDetailFieldsState>({ name: "", description: "", grouping: {} });
   const [design, setDesign] = useState<QrDesignFieldsState>({
     backgroundColor: "#1c1213",
     foregroundColor: "#f7edee",

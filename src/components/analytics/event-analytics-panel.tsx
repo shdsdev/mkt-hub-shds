@@ -128,14 +128,20 @@ export function EventAnalyticsPanel({
     let cancelled = false;
     const params = dateParams(range, granularity);
 
-    fetch(`${dataUrl}?${params}`)
-      .then((response) => (response.ok ? response.json() : undefined))
-      .then((json: PanelData | undefined) => {
-        if (!cancelled && json) setData(json);
-      });
+    function loadData() {
+      fetch(`${dataUrl}?${params}`)
+        .then((response) => (response.ok ? response.json() : undefined))
+        .then((json: PanelData | undefined) => {
+          if (!cancelled && json) setData(json);
+        });
+    }
+
+    loadData();
+    const refreshTimer = window.setInterval(loadData, 30000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(refreshTimer);
     };
   }, [dataUrl, granularity, range]);
 
