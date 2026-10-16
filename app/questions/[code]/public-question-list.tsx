@@ -34,6 +34,14 @@ export function PublicQuestionList({ code, questions }: { code: string; question
         </div>
         {state.error ? <p role="alert" className="text-sm text-destructive">{state.error}</p> : null}
         {state.success ? <p role="status" className="text-sm text-emerald-600">{state.success}</p> : null}
+        {state.similarQuestions?.length ? (
+          <div className="rounded-md border border-accent/40 bg-accent/10 p-3 text-sm">
+            <p className="font-medium">Encontramos preguntas parecidas:</p>
+            <ul className="mt-1 list-disc pl-5 text-muted-foreground">
+              {state.similarQuestions.map((question) => <li key={question.id}>{question.text}</li>)}
+            </ul>
+          </div>
+        ) : null}
       </form>
 
       <section className="space-y-3" aria-label="Preguntas publicadas">

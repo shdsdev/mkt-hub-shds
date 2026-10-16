@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, count, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { getEvent } from "@/modules/events";
 import {
@@ -258,7 +258,7 @@ export async function listPublicQuestions(sessionId: string): Promise<PublicQues
   }));
 }
 
-export async function listModeratorQuestions(sessionId: string): Promise<ModeratorQuestion[]> {
+export async function listModeratorQuestions(sessionId: string, filters?: { status?: QuestionStatus; search?: string }): Promise<ModeratorQuestion[]> {
   const rows = await db
     .select({
       question: questions,
@@ -269,7 +269,11 @@ export async function listModeratorQuestions(sessionId: string): Promise<Moderat
     .from(questions)
     .innerJoin(questionParticipants, eq(questionParticipants.id, questions.participantId))
     .leftJoin(questionVotes, eq(questionVotes.questionId, questions.id))
-    .where(eq(questions.sessionId, sessionId))
+    .where(and(
+      eq(questions.sessionId, sessionId),
+      filters?.status ? eq(questions.status, filters.status) : undefined,
+      filters?.search ? ilike(questions.text, `%${filters.search}%`) : undefined,
+    ))
     .groupBy(questions.id, questionParticipants.id)
     .orderBy(desc(questions.createdAt));
 

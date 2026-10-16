@@ -6,6 +6,7 @@ import {
   createQuestion,
   getParticipantByToken,
   getQuestionSessionByCode,
+  listSimilarQuestions,
   registerQuestionParticipant,
   voteForQuestion,
   questionParticipantSchema,
@@ -13,7 +14,7 @@ import {
   checkPublicQuestionRateLimit,
 } from "@/modules/questions";
 
-export type PublicQuestionActionState = { error?: string; success?: string; registered?: boolean };
+export type PublicQuestionActionState = { error?: string; success?: string; registered?: boolean; similarQuestions?: { id: string; text: string }[] };
 
 function cookieName(sessionId: string) {
   return `questions_participant_${sessionId}`;
@@ -67,8 +68,9 @@ export async function submitQuestionAction(
     return { error: "Hiciste demasiadas preguntas. Intentá nuevamente en un minuto." };
   }
 
+  const similarQuestions = await listSimilarQuestions({ sessionId: context.session.id, text: text.data });
   await createQuestion({ sessionId: context.session.id, participantId: context.participant.id, text: text.data });
-  return { success: "Tu pregunta fue enviada para moderación." };
+  return { success: "Tu pregunta fue enviada para moderación.", similarQuestions: similarQuestions.map(({ id, text: questionText }) => ({ id, text: questionText })) };
 }
 
 export async function voteQuestionAction(formData: FormData): Promise<PublicQuestionActionState> {
