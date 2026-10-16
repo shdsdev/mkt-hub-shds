@@ -2,6 +2,15 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@keyframes raffle-reveal {
+  from { opacity: 0; transform: translateY(0.35em) rotate(2deg); }
+  to { opacity: 1; transform: translateY(0) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal="winner"] * { animation: none !important; }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* Locked palette (docs/SPEC.md §29, docs/superpowers/specs/2026-09-09-glassmorphism-palette-design.md).

@@ -7,7 +7,8 @@ const settingsNav = [
   { label: "Logotipo", href: "/settings/logo" },
   { label: "Dominios", href: "/settings/domains" },
   { label: "Plantillas UTM", href: "/settings/utm" },
-  { label: "Usuarios", href: "/settings/users" },
+  { label: "Usuarios", href: "/settings/users", adminOnly: true },
+  { label: "Integraciones", href: "/settings/integrations", adminOnly: true },
 ];
 
 export function SettingsLayout({
@@ -17,9 +18,7 @@ export function SettingsLayout({
   children: React.ReactNode;
   isAdmin: boolean;
 }) {
-  const visibleNav = isAdmin
-    ? settingsNav
-    : settingsNav.filter((item) => item.href !== "/settings/users");
+  const visibleNav = settingsNav.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-start">

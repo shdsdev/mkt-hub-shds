@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { env } from "@/lib/env";
 import type { EventEmailContent } from "@/lib/events/event-email-content";
@@ -82,6 +82,8 @@ type ResendSendResult =
   | { ok: true; messageId: string }
   | { ok: false; error: string };
 
+type NotificationClient = Pick<typeof db, "select" | "insert" | "update">;
+
 // Minimal REST client over fetch — no SDK dependency added for this leaf module (design.md
 // "notifications stays a leaf"). Swappable later if a richer client is needed.
 export async function sendViaResend(
@@ -114,6 +116,68 @@ export async function sendViaResend(
       error: error instanceof Error ? error.message : "Unknown Resend error",
     };
   }
+}
+
+export type RaffleWinnerEmailInput = {
+  organizationId: string;
+  drawId: string;
+  to: string;
+  winnerName: string;
+  eventName: string;
+  prizeName: string;
+  reason: string | null;
+  client?: NotificationClient;
+};
+
+export type RaffleWinnerEmailResult = {
+  status: "sent" | "resent";
+  sentAt: Date;
+};
+
+export async function sendRaffleWinnerEmail(input: RaffleWinnerEmailInput): Promise<RaffleWinnerEmailResult> {
+  const client = input.client ?? db;
+  const [existing] = await client
+    .select()
+    .from(notificationLog)
+    .where(and(eq(notificationLog.subjectId, input.drawId), eq(notificationLog.notificationType, "winner_email")))
+    .limit(1);
+  const previousStatus = existing?.status;
+  let notificationId = existing?.id;
+  const initialStatus = existing ? "unknown" : "unknown";
+
+  if (existing) {
+    await client.update(notificationLog).set({ status: initialStatus, error: null }).where(eq(notificationLog.id, existing.id));
+  } else {
+    const [created] = await client.insert(notificationLog).values({
+      organizationId: input.organizationId,
+      subjectType: "raffle_draw",
+      subjectId: input.drawId,
+      notificationType: "winner_email",
+      status: initialStatus,
+    }).returning({ id: notificationLog.id });
+    notificationId = created?.id;
+  }
+  if (!notificationId) throw new Error("Notification could not be recorded");
+
+  const html = `<!doctype html><html><body><h1>Congratulations, ${escapeHtml(input.winnerName)}!</h1><p>You won <strong>${escapeHtml(input.prizeName)}</strong> at ${escapeHtml(input.eventName)}.</p>${input.reason ? `<p>${escapeHtml(input.reason)}</p>` : ""}</body></html>`;
+  const result = await sendViaResend({
+    to: input.to,
+    subject: `Winner notification: ${input.prizeName}`,
+    html,
+  });
+  if (!result.ok) {
+    await client.update(notificationLog).set({ status: "failed", error: result.error }).where(eq(notificationLog.id, notificationId));
+    throw new Error("Winner email provider failed");
+  }
+
+  const sentAt = new Date();
+  await client.update(notificationLog).set({
+    status: previousStatus === "sent" || previousStatus === "resent" || previousStatus === "failed" || previousStatus === "unknown" ? "resent" : "sent",
+    providerMessageId: result.messageId,
+    error: null,
+    sentAt,
+  }).where(eq(notificationLog.id, notificationId));
+  return { status: previousStatus ? "resent" : "sent", sentAt };
 }
 
 export type SendEmailResult =

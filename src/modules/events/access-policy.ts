@@ -1,6 +1,6 @@
 import type { UserRole } from "@/modules/users";
 
-export type EventCapability = "registrations" | "check-in" | "internal-form" | "edit";
+export type EventCapability = "registrations" | "check-in" | "internal-form" | "edit" | "raffle";
 
 export function canRoleAccessCapability(role: UserRole, capability: EventCapability): boolean {
   if (role === "ADMIN") return true;

@@ -18,3 +18,18 @@ describe("env — events reminder job secret", () => {
     expect(env.EVENTS_REMINDER_JOB_SECRET).toBe("a-shared-secret");
   });
 });
+
+describe("env — Marketing Hub server token", () => {
+  const original = process.env.MARKETING_HUB_SERVER_TOKEN;
+  afterEach(() => {
+    if (original === undefined) delete process.env.MARKETING_HUB_SERVER_TOKEN;
+    else process.env.MARKETING_HUB_SERVER_TOKEN = original;
+  });
+
+  it("exposes the configured server token and fails when unset", () => {
+    process.env.MARKETING_HUB_SERVER_TOKEN = "hcs-secret";
+    expect(env.MARKETING_HUB_SERVER_TOKEN).toBe("hcs-secret");
+    delete process.env.MARKETING_HUB_SERVER_TOKEN;
+    expect(() => env.MARKETING_HUB_SERVER_TOKEN).toThrow(/MARKETING_HUB_SERVER_TOKEN/);
+  });
+});

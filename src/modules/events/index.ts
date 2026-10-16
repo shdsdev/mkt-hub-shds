@@ -4,6 +4,7 @@
 export { generateBackupCode, generateOpaqueToken, normalizeEmail } from "./service";
 export { canAccessEvent, canRoleAccessCapability, type EventCapability } from "./access";
 export { getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl } from "./embed";
+export { eventAttendees, eventRegistrations, events } from "./db";
 export {
   CLIENT_BRAND_OPTIONS,
   INTEREST_OPTIONS,

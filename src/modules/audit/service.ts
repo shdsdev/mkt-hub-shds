@@ -45,7 +45,12 @@ export async function listAuditLogs(organizationId: string): Promise<AuditLog[]>
 // Single shared limiter instance — reused across every mutating server action (design doc
 // §Rate_Limiting). In-memory state, valid because the deployment is one persistent container.
 const mutationRateLimiter = createRateLimiter({ maxActions: 30, windowMs: 60_000 });
+const hcsRaffleResendRateLimiter = createRateLimiter({ maxActions: 5, windowMs: 60_000 });
 
 export function checkRateLimit(userId: string): boolean {
   return mutationRateLimiter.check(userId);
+}
+
+export function checkHcsRaffleResendRateLimit(connectionId: string, actorId: string): boolean {
+  return hcsRaffleResendRateLimiter.check(`hcs-raffle-resend:${connectionId}:${actorId}`);
 }

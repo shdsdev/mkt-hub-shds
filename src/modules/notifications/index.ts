@@ -7,10 +7,13 @@ export {
   sendConfirmationEmail,
   sendWaitlistPromotionEmail,
   sendReminderEmail,
+  sendRaffleWinnerEmail,
   type NotificationSubjectType,
   type NotificationType,
   type NotificationLogRow,
   type ClaimNotificationInput,
   type SendEmailResult,
   type AttendeeEmailInput,
+  type RaffleWinnerEmailInput,
+  type RaffleWinnerEmailResult,
 } from "./service";

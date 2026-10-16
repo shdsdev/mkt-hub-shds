@@ -4,13 +4,14 @@ import { organizations } from "@/modules/users/db";
 // Leaf module (design.md "Architecture Decisions" — notifications stays a leaf): no FK into
 // `events`. The subject is identified generically (`subject_type`/`subject_id`) so this module
 // never depends on the events schema, matching the public interface in design.md "Interfaces".
-export const notificationSubjectType = pgEnum("notification_subject_type", ["event_attendee"]);
+export const notificationSubjectType = pgEnum("notification_subject_type", ["event_attendee", "raffle_draw"]);
 export const notificationType = pgEnum("notification_type", [
   "confirmation",
   "reminder",
   "waitlist_promotion",
+  "winner_email",
 ]);
-export const notificationStatus = pgEnum("notification_status", ["pending", "sent", "failed"]);
+export const notificationStatus = pgEnum("notification_status", ["pending", "sent", "failed", "resent", "unknown"]);
 
 // UNIQUE(subject_id, notification_type) is the idempotency guard (design.md "Reminder
 // idempotency"): `claimNotification` claims work with INSERT ... ON CONFLICT DO NOTHING RETURNING

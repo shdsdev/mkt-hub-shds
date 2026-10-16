@@ -7,6 +7,7 @@ describe("event access capabilities", () => {
     expect(canRoleAccessCapability("RECEPTION", "check-in")).toBe(true);
     expect(canRoleAccessCapability("RECEPTION", "internal-form")).toBe(false);
     expect(canRoleAccessCapability("RECEPTION", "edit")).toBe(false);
+    expect(canRoleAccessCapability("RECEPTION", "raffle")).toBe(false);
   });
 
   it("allows Admin all event capabilities", () => {
@@ -14,5 +15,6 @@ describe("event access capabilities", () => {
     expect(canRoleAccessCapability("ADMIN", "check-in")).toBe(true);
     expect(canRoleAccessCapability("ADMIN", "internal-form")).toBe(true);
     expect(canRoleAccessCapability("ADMIN", "edit")).toBe(true);
+    expect(canRoleAccessCapability("ADMIN", "raffle")).toBe(true);
   });
 });
