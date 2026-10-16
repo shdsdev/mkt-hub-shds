@@ -1,10 +1,13 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { getEvent } from "@/modules/events";
 import {
   questionParticipants,
+  questionDuplicates,
+  questionQuestionTopics,
   questionSessions,
+  questionTopics,
   questions,
   questionVotes,
   type QuestionParticipantRow,
@@ -14,6 +17,7 @@ import {
 import { canTransitionQuestionStatus, type QuestionStatus } from "./state";
 import { hashQuestionToken, normalizeQuestionText } from "./tokens";
 import { questionParticipantSchema, questionTextSchema, type QuestionParticipantInput } from "./validation";
+import { calculateQuestionMetrics, type QuestionMetrics } from "./metrics";
 
 export type QuestionSessionWithCode = { session: QuestionSessionRow; code: string };
 export type ParticipantWithToken = { participant: QuestionParticipantRow; token: string };
@@ -275,4 +279,62 @@ export async function listModeratorQuestions(sessionId: string): Promise<Moderat
     participantCompany,
     voteCount: Number(voteCount),
   }));
+}
+
+export async function listSimilarQuestions(input: {
+  sessionId: string;
+  text: string;
+  excludeQuestionId?: string;
+}): Promise<QuestionRow[]> {
+  const normalizedText = normalizeQuestionText(input.text);
+  return db
+    .select()
+    .from(questions)
+    .where(
+      and(
+        eq(questions.sessionId, input.sessionId),
+        eq(questions.normalizedText, normalizedText),
+        input.excludeQuestionId ? ne(questions.id, input.excludeQuestionId) : undefined,
+      ),
+    )
+    .orderBy(desc(questions.createdAt))
+    .limit(5);
+}
+
+export async function createQuestionTopic(input: { sessionId: string; name: string }): Promise<typeof questionTopics.$inferSelect> {
+  const name = input.name.trim();
+  if (!name || name.length > 100) throw new Error("Invalid question topic");
+  const [topic] = await db.insert(questionTopics).values({ sessionId: input.sessionId, name }).returning();
+  return topic;
+}
+
+export async function listQuestionTopics(sessionId: string) {
+  return db.select().from(questionTopics).where(eq(questionTopics.sessionId, sessionId)).orderBy(asc(questionTopics.name));
+}
+
+export async function assignQuestionTopic(input: { questionId: string; topicId: string }): Promise<void> {
+  await db.insert(questionQuestionTopics).values(input).onConflictDoNothing();
+}
+
+export async function recordQuestionDuplicate(input: { sourceQuestionId: string; targetQuestionId: string; createdBy: string }): Promise<void> {
+  if (input.sourceQuestionId === input.targetQuestionId) throw new Error("A question cannot duplicate itself");
+  await db.insert(questionDuplicates).values(input).onConflictDoNothing();
+}
+
+export async function getQuestionMetrics(sessionId: string): Promise<QuestionMetrics> {
+  const [participants, authors, received, answered, votes] = await Promise.all([
+    db.select({ id: questionParticipants.id }).from(questionParticipants).where(eq(questionParticipants.sessionId, sessionId)),
+    db.select({ participantId: questions.participantId }).from(questions).where(eq(questions.sessionId, sessionId)),
+    db.select({ total: count() }).from(questions).where(eq(questions.sessionId, sessionId)),
+    db.select({ total: count() }).from(questions).where(and(eq(questions.sessionId, sessionId), eq(questions.status, "answered"))),
+    db.select({ total: count() }).from(questionVotes).innerJoin(questions, eq(questions.id, questionVotes.questionId)).where(eq(questions.sessionId, sessionId)),
+  ]);
+
+  return calculateQuestionMetrics({
+    participantIds: participants.map(({ id }) => id),
+    questionAuthors: authors.map(({ participantId }) => participantId),
+    receivedQuestions: Number(received[0]?.total ?? 0),
+    answeredQuestions: Number(answered[0]?.total ?? 0),
+    votes: Number(votes[0]?.total ?? 0),
+  });
 }

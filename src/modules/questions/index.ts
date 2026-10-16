@@ -6,9 +6,15 @@ export {
   getParticipantByToken,
   getQuestionSession,
   getQuestionSessionByCode,
+  getQuestionMetrics,
+  assignQuestionTopic,
+  createQuestionTopic,
   listModeratorQuestions,
+  listQuestionTopics,
+  listSimilarQuestions,
   listPublicQuestions,
   publishQuestionAnswer,
+  recordQuestionDuplicate,
   registerQuestionParticipant,
   transitionQuestionStatus,
   voteForQuestion,
@@ -22,6 +28,7 @@ export {
 export { canTransitionQuestionStatus, QUESTION_STATUSES, type QuestionStatus } from "./state";
 export { hashQuestionToken, normalizeQuestionText } from "./tokens";
 export { checkPublicQuestionRateLimit, createQuestionRateLimiter } from "./rate-limit";
+export { calculateQuestionMetrics, type QuestionMetricInput, type QuestionMetrics } from "./metrics";
 export type {
   ModeratorQuestion,
   ParticipantWithToken,
