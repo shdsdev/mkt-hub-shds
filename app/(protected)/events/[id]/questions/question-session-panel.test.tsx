@@ -88,6 +88,50 @@ describe("QuestionSessionPanel", () => {
     expect(container.querySelector('button[type="submit"]')?.textContent).toContain("Generar código");
   });
 
+  it("clears action-generated access artifacts when polling observes a closed session", async () => {
+    const openSession = {
+      id: "session-1",
+      eventId: "event-1",
+      organizationId: "org-1",
+      codeHash: "hash",
+      displayCode: "ABC123",
+      status: "open" as const,
+      codeCreatedAt: new Date("2026-01-01T00:00:00Z"),
+      closedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
+    };
+    const closedSession = {
+      ...openSession,
+      status: "closed" as const,
+      closedAt: new Date("2026-01-02T00:00:00Z"),
+      updatedAt: new Date("2026-01-02T00:00:00Z"),
+    };
+    createQuestionSessionAction.mockResolvedValue({
+      success: "Código generado.",
+      code: "NEW456",
+      publicUrl: "https://example.com/questions/NEW456",
+    });
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => root?.render(<QuestionSessionPanel eventId="event-1" session={openSession} publicUrl="https://example.com/questions/ABC123" />));
+    await act(async () => {
+      container?.querySelector("form")?.requestSubmit();
+    });
+
+    expect(container.textContent).toContain("NEW456");
+    expect(container.textContent).toContain("https://example.com/questions/NEW456");
+
+    act(() => root?.render(<QuestionSessionPanel eventId="event-1" session={closedSession} publicUrl="https://example.com/questions/ABC123" />));
+
+    expect(container.textContent).not.toContain("NEW456");
+    expect(container.textContent).not.toContain("https://example.com/questions/NEW456");
+    expect(container.querySelector('img[alt="Código QR para preguntas"]')).toBeNull();
+  });
+
   it("refreshes every three seconds and clears polling on unmount", () => {
     vi.useFakeTimers();
     container = document.createElement("div");
