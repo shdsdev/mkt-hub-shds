@@ -39,8 +39,9 @@ describe("events schema (additive events-module migration, PR1)", () => {
     expect(events.capacity.notNull).toBe(false);
   });
 
-  it("stores reminder timing as nullable integer minutes, not an interval", () => {
+  it("stores reminder timing as nullable integer minutes with a 48-hour default", () => {
     expect(events.reminderOffsetMinutes.notNull).toBe(false);
+    expect(events.reminderOffsetMinutes.default).toBe(2880);
   });
 
   it("persists the full UTM column set on events and registrations", () => {

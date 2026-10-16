@@ -1,19 +1,30 @@
 "use server";
 
 import { z } from "zod";
+import { env } from "@/lib/env";
 import {
   getPublishedEventBySlugPublic,
   registerForEvent,
   notifyEventWebhook,
+  OCCUPATION_OPTIONS,
+  resolveRegistrationFormConfig,
   type AttendeeInput,
 } from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
+import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 const EVENT_UNAVAILABLE_ERROR = "Este evento ya no está disponible.";
 const INVALID_FORM_ERROR = "Revisa tus datos de contacto.";
 const INVALID_COMPANION_ERROR = "Revisa los datos de tus acompañantes.";
 const DUPLICATE_EMAIL_ERROR = "Ya existe un registro activo con este correo para este evento.";
+const INVALID_CONSENT_ERROR = "Acepta la política de privacidad y los términos para continuar.";
+const INVALID_BRANDS_ERROR = "Revisa las marcas seleccionadas.";
+const INVALID_INTERESTS_ERROR = "Revisa tus intereses seleccionados.";
+const TOO_MANY_COMPANIONS_ERROR = "Solo puedes registrar un acompañante.";
+const INVALID_OCCUPATION_ERROR = "Seleccioná tu actividad profesional para continuar.";
+const INVALID_COMPANION_OCCUPATION_ERROR = "Seleccioná la actividad del acompañante para continuar.";
+const INVALID_BRAND_COMBINATION_ERROR = "Seleccioná una sola opción: Ninguno o una marca.";
 
 const attendeeSchema = z.object({
   fullName: z.string().trim().min(1).max(255),
@@ -21,6 +32,7 @@ const attendeeSchema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   company: z.string().trim().max(255).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
+  occupation: z.enum(OCCUPATION_OPTIONS),
 });
 
 export type RegisterFormState = { error?: string; success?: boolean; status?: "confirmed" | "waitlisted" };
@@ -35,6 +47,45 @@ function normalizeAttendee(parsed: z.infer<typeof attendeeSchema>): AttendeeInpu
   };
 }
 
+function isAccepted(formData: FormData, name: string): boolean {
+  const value = formData.get(name);
+  return value === "true" || value === "on";
+}
+
+function readSelectedOptions(formData: FormData, name: string): string[] {
+  return formData.getAll(name).map(String).filter(Boolean);
+}
+
+function validateConfiguredFields(
+  attendee: z.infer<typeof attendeeSchema>,
+  fields: { phone: { visible: boolean; required: boolean }; company: { visible: boolean; required: boolean }; jobTitle: { visible: boolean; required: boolean } },
+): string | undefined {
+  const requiredFields = [
+    ["phone", attendee.phone, fields.phone, "El teléfono"],
+    ["company", attendee.company, fields.company, "La empresa"],
+    ["jobTitle", attendee.jobTitle, fields.jobTitle, "El puesto"],
+  ] as const;
+
+  for (const [, value, field, label] of requiredFields) {
+    if (field.required && !value?.trim()) return `${label} es obligatorio.`;
+  }
+  return undefined;
+}
+
+function normalizeConfiguredAttendee(
+  parsed: z.infer<typeof attendeeSchema>,
+  fields: { phone: { visible: boolean; required: boolean }; company: { visible: boolean; required: boolean }; jobTitle: { visible: boolean; required: boolean } },
+): AttendeeInput {
+  const normalized = normalizeAttendee(parsed);
+  return {
+    ...normalized,
+    phone: fields.phone.visible ? normalized.phone : undefined,
+    company: fields.company.visible ? normalized.company : undefined,
+    jobTitle: fields.jobTitle.visible ? normalized.jobTitle : undefined,
+    occupation: parsed.occupation,
+  };
+}
+
 // Companions are submitted as same-name repeated inputs (register-form.tsx renders one row per
 // companion) — `FormData.getAll` preserves submission order, so zipping by index pairs each
 // companion's fields back together. A row with neither name nor email filled in is treated as an
@@ -45,14 +96,16 @@ function readCompanions(formData: FormData): unknown[] {
   const phones = formData.getAll("companionPhone").map(String);
   const companies = formData.getAll("companionCompany").map(String);
   const jobTitles = formData.getAll("companionJobTitle").map(String);
+  const occupations = formData.getAll("companionOccupation").map(String);
 
-  return fullNames
-    .map((fullName, index) => ({
-      fullName,
+  const rowCount = Math.max(fullNames.length, emails.length, phones.length, companies.length, jobTitles.length, occupations.length);
+  return Array.from({ length: rowCount }, (_, index) => ({
+      fullName: fullNames[index] ?? "",
       email: emails[index] ?? "",
       phone: phones[index] ?? "",
       company: companies[index] ?? "",
       jobTitle: jobTitles[index] ?? "",
+      occupation: occupations[index] ?? "",
     }))
     .filter((companion) => companion.fullName.trim() || companion.email.trim());
 }
@@ -86,24 +139,90 @@ export async function registerForEventAction(
 
   const event = await getPublishedEventBySlugPublic(slug);
   if (!event) return { error: EVENT_UNAVAILABLE_ERROR };
+  const formConfig = resolveRegistrationFormConfig(event);
+  const occupation = formData.get("occupation");
+  if (typeof occupation !== "string" || !OCCUPATION_OPTIONS.includes(occupation as never)) {
+    return { error: INVALID_OCCUPATION_ERROR };
+  }
 
+  const primaryCompany = z.string().trim().max(255).optional().safeParse(formData.get("company") || undefined);
+  if (!primaryCompany.success) return { error: "Revisa los datos de la empresa." };
   const primaryParsed = attendeeSchema.safeParse({
     fullName: formData.get("fullName") ?? "",
     email: formData.get("email") ?? "",
     phone: formData.get("phone") ?? undefined,
-    company: formData.get("company") ?? undefined,
+    company: primaryCompany.data,
     jobTitle: formData.get("jobTitle") ?? undefined,
+    occupation: formData.get("occupation") ?? "",
   });
   if (!primaryParsed.success) return { error: INVALID_FORM_ERROR };
+  const primaryFieldError = validateConfiguredFields(primaryParsed.data, formConfig.fields);
+  if (primaryFieldError) return { error: primaryFieldError };
 
-  const companionsParsed = z.array(attendeeSchema).safeParse(readCompanions(formData));
+  const companionInputs = readCompanions(formData);
+  if (companionInputs.length > 1) return { error: TOO_MANY_COMPANIONS_ERROR };
+  if (companionInputs.length > 0 && !formConfig.companion.enabled) return { error: INVALID_COMPANION_ERROR };
+  const firstCompanion = companionInputs[0] as { occupation?: unknown } | undefined;
+  if (firstCompanion && !OCCUPATION_OPTIONS.includes(String(firstCompanion.occupation) as never)) {
+    return { error: INVALID_COMPANION_OCCUPATION_ERROR };
+  }
+  const companionsParsed = z.array(attendeeSchema).safeParse(companionInputs);
   if (!companionsParsed.success) return { error: INVALID_COMPANION_ERROR };
+  let companionsData = companionsParsed.data;
+  let resolvedCompanionCompany: string | undefined;
+  if (companionsData[0] && formConfig.fields.company.visible) {
+    const companionCompanyMode = z.enum(["same", "other"]).safeParse(formData.get("companionCompanyMode"));
+    if (!companionCompanyMode.success) return { error: "Revisa la empresa del acompañante." };
+    const rawCompanionCompany = z.string().trim().max(255).safeParse(formData.get("companionCompany") ?? "");
+    if (!rawCompanionCompany.success) return { error: "Revisa la empresa del acompañante." };
+    resolvedCompanionCompany = companionCompanyMode.data === "same"
+      ? primaryCompany.data
+      : rawCompanionCompany.data;
+    if (!resolvedCompanionCompany) return { error: "Revisa la empresa del acompañante." };
+
+    companionsData = [{ ...companionsData[0], company: resolvedCompanionCompany }, ...companionsData.slice(1)];
+  }
+  const companionFieldError = companionsData[0] && validateConfiguredFields(companionsData[0], formConfig.fields);
+  if (companionFieldError) return { error: companionFieldError.replace(/^El |^La /, "El acompañante: ") };
+
+  if (!isAccepted(formData, "privacyAccepted") || !isAccepted(formData, "termsAccepted")) {
+    return { error: INVALID_CONSENT_ERROR };
+  }
+
+  const clientBrands = readSelectedOptions(formData, "clientBrands");
+  if (clientBrands.includes("none") && clientBrands.length > 1) return { error: INVALID_BRAND_COMBINATION_ERROR };
+  if (!formConfig.clientBrands.enabled && clientBrands.length > 0) return { error: INVALID_BRANDS_ERROR };
+  if (clientBrands.some((option) => !formConfig.clientBrands.options.some((allowed) => allowed === option))) {
+    return { error: INVALID_BRANDS_ERROR };
+  }
+
+  const interests = readSelectedOptions(formData, "interests");
+  if (!formConfig.interests.enabled && interests.length > 0) return { error: INVALID_INTERESTS_ERROR };
+  if (interests.some((option) => !formConfig.interests.options.some((allowed) => allowed === option))) {
+    return { error: INVALID_INTERESTS_ERROR };
+  }
+
+  const now = new Date();
+  const marketingAccepted = isAccepted(formData, "marketingAccepted");
+
+  const companions = companionsData.map((companion, index) => ({
+    ...normalizeConfiguredAttendee(companion, formConfig.fields),
+    ...(index === 0 && resolvedCompanionCompany ? { company: resolvedCompanionCompany } : {}),
+  }));
 
   const result = await registerForEvent({
     eventId: event.id,
     source: "public",
-    primary: normalizeAttendee(primaryParsed.data),
-    companions: companionsParsed.data.map(normalizeAttendee),
+    primary: normalizeConfiguredAttendee(primaryParsed.data, formConfig.fields),
+    companions,
+    clientBrands,
+    interests,
+    requestedMoreCompanions: isAccepted(formData, "requestMoreCompanions"),
+    consents: {
+      privacyAcceptedAt: now,
+      termsAcceptedAt: now,
+      ...(formConfig.consent.marketing.enabled && marketingAccepted ? { marketingAcceptedAt: now } : {}),
+    },
     utm: readUtm(formData),
   });
 
@@ -124,6 +243,7 @@ export async function registerForEventAction(
   // `confirmed` status; a waitlisted registration gets its email later, on promotion (PR3's
   // cancelRegistrationByToken / a future admin cancel path), not here.
   if (result.registration.status === "confirmed") {
+    const manageUrl = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.registration.cancelToken}`;
     await Promise.all(
       result.attendees.map(async (attendee) => {
         const qrPng = await exportQrPng(attendee.passToken, {});
@@ -135,7 +255,14 @@ export async function registerForEventAction(
           eventName: event.name,
           backupCode: attendee.backupCode,
           qrPngBase64: qrPng.toString("base64"),
-        });
+          eventStartsAt: event.startsAt,
+          eventEndsAt: event.endsAt,
+            eventLocation: event.location,
+            eventLocationUrl: event.locationUrl,
+           manageUrl,
+           emailContent: resolveEventEmailContent(event.emailContent),
+           agenda: event.agenda,
+         });
       }),
     );
   }

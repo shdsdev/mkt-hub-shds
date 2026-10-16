@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, recordAudit } from "@/modules/audit";
 import { getCurrentUser } from "@/modules/auth";
 import {
   changeManagedUserRole,
   inviteManagedUser,
+  listManagedUsers,
   isActive,
   isAdmin,
   setManagedUserStatus,
@@ -25,10 +27,10 @@ const LAST_ACTIVE_ADMIN_ERROR = "Debe permanecer al menos un administrador activ
 
 const inviteSchema = z.object({
   email: z.string().trim().email().max(254),
-  role: z.enum(["ADMIN", "User"]),
+  role: z.enum(["ADMIN", "User", "Reception"]),
 });
 const targetSchema = z.object({ targetUserId: z.string().uuid() });
-const roleChangeSchema = targetSchema.extend({ role: z.enum(["ADMIN", "User"]) });
+const roleChangeSchema = targetSchema.extend({ role: z.enum(["ADMIN", "User", "Reception"]) });
 
 export type UserManagementFormState = { error?: string; success?: string };
 
@@ -58,19 +60,20 @@ function revalidateUserManagement() {
 // The invitation link must point at the origin the ADMIN is actually using — in local development
 // that is localhost:3000, in Vercel it is the deployed host. Deriving it from the request headers
 // keeps it correct in every environment without depending on an env var that may be missing.
-async function invitationCallbackUrl(): Promise<string> {
+async function callbackOrigin(): Promise<string> {
   const headerStore = await headers();
   const host = headerStore.get("host");
   if (host) {
     // Vercel terminates TLS and forwards the original scheme; trust it so production invite
     // links are https.
     const proto = headerStore.get("x-forwarded-proto") ?? "http";
-    return new URL(`/auth/callback`, `${proto}://${host}`).toString();
+    return `${proto}://${host}`;
   }
-  return new URL(
-    "/auth/callback",
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-  ).toString();
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+}
+
+async function invitationCallbackUrl(): Promise<string> {
+  return new URL("/auth/callback", await callbackOrigin()).toString();
 }
 
 export async function inviteUserAction(
@@ -84,7 +87,7 @@ export async function inviteUserAction(
   const parsed = inviteSchema.safeParse({ email: formData.get("email"), role: formData.get("role") });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
-  const role: ManagedRole = parsed.data.role === "User" ? "MARKETING_USER" : "ADMIN";
+  const role: ManagedRole = parsed.data.role === "User" ? "MARKETING_USER" : parsed.data.role === "Reception" ? "RECEPTION" : "ADMIN";
   const result = await inviteManagedUser({
     organizationId: user.profile.organizationId,
     email: parsed.data.email,
@@ -105,6 +108,32 @@ export async function inviteUserAction(
   return { success: "Invitación enviada." };
 }
 
+export async function sendPasswordSetupLinkAction(
+  _state: UserManagementFormState,
+  formData: FormData,
+): Promise<UserManagementFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+  if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
+
+  const parsed = targetSchema.safeParse({ targetUserId: formData.get("targetUserId") });
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const target = (await listManagedUsers(user.profile.organizationId)).find(
+    (managedUser) => managedUser.id === parsed.data.targetUserId && managedUser.status === "active",
+  );
+  if (!target) return { error: TARGET_UNAVAILABLE_ERROR };
+
+  const redirectTo = new URL("/auth/confirm", await callbackOrigin());
+  redirectTo.searchParams.set("next", "/password-setup");
+  const { error } = await (await createClient()).auth.resetPasswordForEmail(target.email, {
+    redirectTo: redirectTo.toString(),
+  });
+  if (error) return { error: "No se pudo enviar el enlace de acceso." };
+
+  return { success: "Enlace de acceso enviado." };
+}
+
 export async function changeUserRoleAction(
   _state: UserManagementFormState,
   formData: FormData,
@@ -119,7 +148,7 @@ export async function changeUserRoleAction(
   });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
-  const role: ManagedRole = parsed.data.role === "User" ? "MARKETING_USER" : "ADMIN";
+  const role: ManagedRole = parsed.data.role === "User" ? "MARKETING_USER" : parsed.data.role === "Reception" ? "RECEPTION" : "ADMIN";
   const result = await changeManagedUserRole({
     organizationId: user.profile.organizationId,
     actorId: user.id,

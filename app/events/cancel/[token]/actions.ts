@@ -1,8 +1,10 @@
 "use server";
 
+import { env } from "@/lib/env";
 import { cancelRegistrationByToken, getEvent } from "@/modules/events";
 import { sendWaitlistPromotionEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
+import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 const INVALID_FORM_ERROR = "Formulario inválido.";
 const INVALID_TOKEN_ERROR = "Este enlace de cancelación no es válido.";
@@ -31,6 +33,7 @@ export async function cancelRegistrationAction(
   if (result.promoted) {
     const { registration: promotedRegistration, attendees } = result.promoted;
     const event = await getEvent(promotedRegistration.eventId, promotedRegistration.organizationId);
+    const manageUrl = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${promotedRegistration.cancelToken}`;
     await Promise.all(
       attendees.map(async (attendee) => {
         const qrPng = await exportQrPng(attendee.passToken, {});
@@ -42,7 +45,14 @@ export async function cancelRegistrationAction(
           eventName: event?.name ?? "",
           backupCode: attendee.backupCode,
           qrPngBase64: qrPng.toString("base64"),
-        });
+          eventStartsAt: event?.startsAt ?? new Date(0),
+          eventEndsAt: event?.endsAt ?? null,
+            eventLocation: event?.location ?? null,
+            eventLocationUrl: event?.locationUrl ?? null,
+           manageUrl,
+           emailContent: resolveEventEmailContent(event?.emailContent),
+           agenda: event?.agenda ?? [],
+         });
       }),
     );
   }

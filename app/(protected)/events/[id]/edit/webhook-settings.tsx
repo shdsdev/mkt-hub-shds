@@ -65,11 +65,11 @@ export function WebhookSettings({
         </div>
       ) : null}
 
-      {urlState.error ? <p className="text-sm text-destructive">{urlState.error}</p> : null}
-      {urlState.success ? <p className="text-sm text-muted-foreground">{urlState.success}</p> : null}
-      {secretState.error ? <p className="text-sm text-destructive">{secretState.error}</p> : null}
+      {urlState.error ? <p role="alert" className="text-sm text-destructive">{urlState.error}</p> : null}
+      {urlState.success ? <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{urlState.success}</p> : null}
+      {secretState.error ? <p role="alert" className="text-sm text-destructive">{secretState.error}</p> : null}
       {secretState.success ? (
-        <p className="text-sm text-muted-foreground">{secretState.success}</p>
+        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{secretState.success}</p>
       ) : null}
     </section>
   );

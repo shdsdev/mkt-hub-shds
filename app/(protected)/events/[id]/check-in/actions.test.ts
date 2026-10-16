@@ -6,14 +6,23 @@ const mocks = vi.hoisted(() => ({
   checkInAttendee: vi.fn(),
   getEvent: vi.fn(),
   notifyEventWebhook: vi.fn(),
+  canAccessEvent: vi.fn(),
+  confirmAttendeeCheckIn: vi.fn(),
+  lookupAttendeeForCheckIn: vi.fn(),
+  checkRateLimit: vi.fn(),
+  recordAudit: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive }));
+vi.mock("@/modules/audit", () => ({ checkRateLimit: mocks.checkRateLimit, recordAudit: mocks.recordAudit }));
 vi.mock("@/modules/events", () => ({
   checkInAttendee: mocks.checkInAttendee,
   getEvent: mocks.getEvent,
   notifyEventWebhook: mocks.notifyEventWebhook,
+  canAccessEvent: mocks.canAccessEvent,
+  confirmAttendeeCheckIn: mocks.confirmAttendeeCheckIn,
+  lookupAttendeeForCheckIn: mocks.lookupAttendeeForCheckIn,
 }));
 
 import { checkInAction } from "./actions";
@@ -44,6 +53,8 @@ describe("checkInAction", () => {
     vi.resetAllMocks();
     mocks.getCurrentUser.mockResolvedValue(activeUser);
     mocks.isActive.mockReturnValue(true);
+    mocks.checkRateLimit.mockReturnValue(true);
+    mocks.canAccessEvent.mockResolvedValue(true);
     mocks.getEvent.mockResolvedValue({ id: EVENT_ID, webhookUrl: null, webhookSecret: null });
     mocks.notifyEventWebhook.mockResolvedValue(undefined);
   });

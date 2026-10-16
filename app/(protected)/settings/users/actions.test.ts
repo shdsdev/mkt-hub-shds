@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   inviteManagedUser: vi.fn(),
   changeManagedUserRole: vi.fn(),
   setManagedUserStatus: vi.fn(),
+  listManagedUsers: vi.fn(),
+  createClient: vi.fn(),
+  resetPasswordForEmail: vi.fn(),
   revalidatePath: vi.fn(),
   redirect: vi.fn(),
   headers: vi.fn(),
@@ -21,7 +24,9 @@ vi.mock("@/modules/users", () => ({
   inviteManagedUser: mocks.inviteManagedUser,
   changeManagedUserRole: mocks.changeManagedUserRole,
   setManagedUserStatus: mocks.setManagedUserStatus,
+  listManagedUsers: mocks.listManagedUsers,
 }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.createClient }));
 vi.mock("@/modules/audit", () => ({
   checkRateLimit: mocks.checkRateLimit,
   recordAudit: mocks.recordAudit,
@@ -96,6 +101,11 @@ describe("user-management server actions", () => {
       user: target,
       before: { role: "MARKETING_USER", status: "disabled" },
     });
+    mocks.listManagedUsers.mockResolvedValue([target]);
+    mocks.createClient.mockResolvedValue({
+      auth: { resetPasswordForEmail: mocks.resetPasswordForEmail },
+    });
+    mocks.resetPasswordForEmail.mockResolvedValue({ error: null });
     mocks.headers.mockResolvedValue(new Headers({ host: "localhost:3000" }));
   });
 
@@ -171,6 +181,38 @@ describe("user-management server actions", () => {
     expect(mocks.inviteManagedUser).toHaveBeenCalledWith(
       expect.objectContaining({ emailRedirectTo: "https://shmx.men/auth/callback" }),
     );
+  });
+
+  it("sends a password setup link only for a scoped managed user", async () => {
+    const { sendPasswordSetupLinkAction } = await import("./actions");
+
+    await expect(sendPasswordSetupLinkAction({}, targetFormData())).resolves.toEqual({
+      success: "Enlace de acceso enviado.",
+    });
+
+    expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith("target@example.com", {
+      redirectTo: "http://localhost:3000/auth/confirm?next=%2Fpassword-setup",
+    });
+  });
+
+  it("does not send a password setup link for an unavailable target", async () => {
+    const { sendPasswordSetupLinkAction } = await import("./actions");
+    mocks.listManagedUsers.mockResolvedValue([]);
+
+    await expect(sendPasswordSetupLinkAction({}, targetFormData())).resolves.toEqual({
+      error: "El usuario no está disponible.",
+    });
+
+    expect(mocks.resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it("reports a provider failure to the administrator", async () => {
+    const { sendPasswordSetupLinkAction } = await import("./actions");
+    mocks.resetPasswordForEmail.mockResolvedValue({ error: { message: "rate limited" } });
+
+    await expect(sendPasswordSetupLinkAction({}, targetFormData())).resolves.toEqual({
+      error: "No se pudo enviar el enlace de acceso.",
+    });
   });
 
   it("revalidates both Settings paths only after a successful role update", async () => {

@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { listDueReminderAttendees } from "@/modules/events";
 import { sendReminderEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
+import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 // design.md "Reminder trigger": external cron-job.org POSTs here (Vercel Hobby plan cannot cron
 // more than daily, but hour-level reminderOffsetMinutes needs finer granularity). Safe to call
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   const due = await listDueReminderAttendees();
   await Promise.all(
-    due.map(async ({ event, attendee }) => {
+    due.map(async ({ event, attendee, cancelToken }) => {
       const qrPng = await exportQrPng(attendee.passToken, {});
       await sendReminderEmail({
         organizationId: attendee.organizationId,
@@ -35,7 +36,14 @@ export async function POST(request: NextRequest) {
         eventName: event.name,
         backupCode: attendee.backupCode,
         qrPngBase64: qrPng.toString("base64"),
-      });
+        eventStartsAt: event.startsAt,
+        eventEndsAt: event.endsAt,
+          eventLocation: event.location,
+          eventLocationUrl: event.locationUrl,
+         manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${cancelToken}`,
+         emailContent: resolveEventEmailContent(event.emailContent),
+         agenda: event.agenda,
+       });
     }),
   );
 

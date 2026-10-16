@@ -68,6 +68,7 @@ import {
   listRegistrations,
   getEventInsights,
   addAttendeeToRegistration,
+  updatePrimaryAttendee,
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
   notifyEventWebhook,
@@ -150,7 +151,8 @@ describe("events service — ADMIN-only authoring (design.md 'event-management')
   });
 
   it("creates an event for ADMIN with status defaulting through the schema", async () => {
-    insertMock.mockReturnValue(insertChain([baseEvent]));
+    const chain = insertChain([baseEvent]);
+    insertMock.mockReturnValue(chain);
 
     const result = await createEvent({
       organizationId: "org-1",
@@ -163,6 +165,7 @@ describe("events service — ADMIN-only authoring (design.md 'event-management')
 
     expect(result).toEqual({ ok: true, event: baseEvent });
     expect(insertMock).toHaveBeenCalledOnce();
+    expect(chain.values).toHaveBeenCalledWith(expect.objectContaining({ reminderOffsetMinutes: 2880 }));
   });
 
   it("denies event edits for a non-admin and persists no change", async () => {
@@ -639,7 +642,7 @@ describe("events service — registerForEvent", () => {
 // registration — the new attendee joins that registration's existing status rather than deciding
 // a fresh confirmed/waitlisted split.
 describe("events service — addAttendeeToRegistration", () => {
-  const confirmedRegistration = { id: "reg-1", eventId: "event-1", organizationId: "org-1", status: "confirmed" as const };
+  const confirmedRegistration = { id: "reg-1", eventId: "event-1", organizationId: "org-1", status: "confirmed" as const, cancelToken: "cancel-token-1" };
   const waitlistedRegistration = { ...confirmedRegistration, status: "waitlisted" as const };
   const cancelledRegistration = { ...confirmedRegistration, status: "cancelled" as const };
 
@@ -690,7 +693,12 @@ describe("events service — addAttendeeToRegistration", () => {
       attendee: { fullName: "Alan Turing", email: "alan@example.com" },
     });
 
-    expect(result).toEqual({ ok: true, attendee: newAttendee, registrationStatus: "confirmed" });
+    expect(result).toEqual({
+      ok: true,
+      attendee: newAttendee,
+      registrationStatus: "confirmed",
+      cancelToken: "cancel-token-1",
+    });
   });
 
   it("rejects adding to a confirmed registration when the event is at capacity", async () => {
@@ -722,7 +730,12 @@ describe("events service — addAttendeeToRegistration", () => {
       attendee: { fullName: "Alan Turing", email: "alan@example.com" },
     });
 
-    expect(result).toEqual({ ok: true, attendee: newAttendee, registrationStatus: "waitlisted" });
+    expect(result).toEqual({
+      ok: true,
+      attendee: newAttendee,
+      registrationStatus: "waitlisted",
+      cancelToken: "cancel-token-1",
+    });
   });
 
   it("maps a duplicate-email violation to duplicate_email", async () => {
@@ -737,6 +750,29 @@ describe("events service — addAttendeeToRegistration", () => {
       registrationId: "reg-1",
       organizationId: "org-1",
       attendee: { fullName: "Alan Turing", email: "alan@example.com" },
+    });
+
+    expect(result).toEqual({ ok: false, reason: "duplicate_email" });
+  });
+});
+
+describe("events service — updatePrimaryAttendee", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("maps a duplicate email violation to duplicate_email", async () => {
+    selectMock.mockReturnValueOnce(selectChain([{ id: "att-1" }]));
+    const update = updateChain([]);
+    update.returning.mockRejectedValue({
+      cause: { code: "23505", constraint_name: "event_attendees_event_email_active_unique" },
+    });
+    updateMock.mockReturnValue(update);
+
+    const result = await updatePrimaryAttendee({
+      registrationId: "reg-1",
+      organizationId: "org-1",
+      attendee: { fullName: "Alonso Cabrera", email: "existing@example.com" },
     });
 
     expect(result).toEqual({ ok: false, reason: "duplicate_email" });
@@ -990,6 +1026,27 @@ describe("events service — isReminderDue", () => {
     const afterStart = new Date("2026-11-01T18:00:00Z");
     expect(isReminderDue(afterStart, startsAt, 60)).toBe(false);
   });
+
+  // Direct coverage for the BMIGHTY 48h reminder's exact offset (reminderOffsetMinutes = 2880),
+  // not just a generic offset — pinned per user request to prove the 48h cron path works.
+  describe("48h offset (reminderOffsetMinutes = 2880)", () => {
+    const REMINDER_OFFSET_48H_MINUTES = 2880;
+
+    it("is due exactly 48h before the start time (inclusive boundary)", () => {
+      const exactly48hBefore = new Date(startsAt.getTime() - 48 * 60 * 60_000);
+      expect(isReminderDue(exactly48hBefore, startsAt, REMINDER_OFFSET_48H_MINUTES)).toBe(true);
+    });
+
+    it("is not due one minute before the 48h mark", () => {
+      const oneMinuteBeforeWindow = new Date(startsAt.getTime() - 48 * 60 * 60_000 - 60_000);
+      expect(isReminderDue(oneMinuteBeforeWindow, startsAt, REMINDER_OFFSET_48H_MINUTES)).toBe(false);
+    });
+
+    it("is not due one minute after the event has started", () => {
+      const oneMinuteAfterStart = new Date(startsAt.getTime() + 60_000);
+      expect(isReminderDue(oneMinuteAfterStart, startsAt, REMINDER_OFFSET_48H_MINUTES)).toBe(false);
+    });
+  });
 });
 
 // tasks.md 4.3 — the reminder webhook's data source: confirmed, active attendees of a published
@@ -1007,14 +1064,35 @@ describe("events service — listDueReminderAttendees", () => {
     const attendeeNotDue = { id: "att-2", eventId: "event-not-due" };
     selectMock.mockReturnValue(
       selectChain([
-        { event: dueEvent, attendee: attendeeDue },
-        { event: notYetDueEvent, attendee: attendeeNotDue },
+        { event: dueEvent, attendee: attendeeDue, cancelToken: "cancel-token-due" },
+        { event: notYetDueEvent, attendee: attendeeNotDue, cancelToken: "cancel-token-not-due" },
       ]),
     );
 
     const result = await listDueReminderAttendees(now);
 
-    expect(result).toEqual([{ event: dueEvent, attendee: attendeeDue }]);
+    expect(result).toEqual([{ event: dueEvent, attendee: attendeeDue, cancelToken: "cancel-token-due" }]);
+  });
+
+  // Direct coverage for the BMIGHTY 48h reminder offset end-to-end at the query level, and that
+  // the registration's cancelToken (needed to build the email's manageUrl) rides along on the row.
+  it("includes a 48h-due attendee and its registration cancelToken", async () => {
+    const now = new Date("2026-11-04T18:00:00Z"); // exactly 48h before startsAt
+    const dueEvent = {
+      ...baseEvent,
+      id: "event-48h",
+      status: "published" as const,
+      startsAt: new Date("2026-11-06T18:00:00Z"),
+      reminderOffsetMinutes: 2880,
+    };
+    const attendeeDue = { id: "att-48h", eventId: "event-48h" };
+    selectMock.mockReturnValue(
+      selectChain([{ event: dueEvent, attendee: attendeeDue, cancelToken: "cancel-token-48h" }]),
+    );
+
+    const result = await listDueReminderAttendees(now);
+
+    expect(result).toEqual([{ event: dueEvent, attendee: attendeeDue, cancelToken: "cancel-token-48h" }]);
   });
 
   it("excludes events with no reminder configured", async () => {

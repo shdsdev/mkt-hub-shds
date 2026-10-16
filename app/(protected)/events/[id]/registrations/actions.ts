@@ -2,16 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { env } from "@/lib/env";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
 import {
   addAttendeeToRegistration,
   getEvent,
+  listRegistrations,
   notifyEventWebhook,
+  OCCUPATION_OPTIONS,
   type AddAttendeeToRegistrationResult,
 } from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
+import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar registros.";
 const INVALID_FORM_ERROR = "Revisa los datos del acompañante.";
@@ -31,9 +35,13 @@ const schema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   company: z.string().trim().max(255).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
+  occupation: z.enum(OCCUPATION_OPTIONS),
 });
 
-export type AddCompanionFormState = { error?: string; success?: boolean };
+export type AddedCompanion = { fullName: string; backupCode: string };
+export type AddCompanionFormState = { error?: string; success?: boolean; addedCompanion?: AddedCompanion };
+
+export type ResendInvitationState = { error?: string; success?: string };
 
 // Admin feedback round: a "master form" to add more companions to a registration that was
 // already submitted (not the public registration form — that stays scoped to the person
@@ -53,18 +61,21 @@ export async function addCompanionAction(
     phone: formData.get("phone") ?? undefined,
     company: formData.get("company") ?? undefined,
     jobTitle: formData.get("jobTitle") ?? undefined,
+    occupation: formData.get("occupation"),
   });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
   const result = await addAttendeeToRegistration({
     registrationId: parsed.data.registrationId,
     organizationId: user.profile.organizationId,
+    ignoreCapacity: true,
     attendee: {
       fullName: parsed.data.fullName,
       email: parsed.data.email,
       phone: parsed.data.phone || undefined,
       company: parsed.data.company || undefined,
       jobTitle: parsed.data.jobTitle || undefined,
+      occupation: parsed.data.occupation,
     },
   });
 
@@ -91,9 +102,73 @@ export async function addCompanionAction(
       eventName: event?.name ?? "",
       backupCode: result.attendee.backupCode,
       qrPngBase64: qrPng.toString("base64"),
-    });
+      eventStartsAt: event?.startsAt ?? new Date(0),
+      eventEndsAt: event?.endsAt ?? null,
+        eventLocation: event?.location ?? null,
+        eventLocationUrl: event?.locationUrl ?? null,
+       manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.cancelToken}`,
+       emailContent: resolveEventEmailContent(event?.emailContent),
+       agenda: event?.agenda ?? [],
+      });
   }
 
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
-  return { success: true };
+  return {
+    success: true,
+    addedCompanion: {
+      fullName: result.attendee.fullName,
+      backupCode: result.attendee.backupCode,
+    },
+  };
+}
+
+const resendInvitationSchema = z.object({
+  eventId: z.string().uuid(),
+  attendeeId: z.string().uuid(),
+});
+
+export async function resendInvitationAction(
+  _prevState: ResendInvitationState,
+  formData: FormData,
+): Promise<ResendInvitationState> {
+  const user = await getCurrentUser();
+  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) return { error: PERMISSION_ERROR };
+
+  const parsed = resendInvitationSchema.safeParse({
+    eventId: formData.get("eventId"),
+    attendeeId: formData.get("attendeeId"),
+  });
+  if (!parsed.success) return { error: "No se pudo identificar al asistente." };
+
+  const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+  if (!event) return { error: "No se encontró el evento." };
+
+  const registrations = await listRegistrations(parsed.data.eventId, user.profile.organizationId);
+  const registration = registrations.find((reg) => reg.attendees.some(({ id }) => id === parsed.data.attendeeId));
+  const attendee = registration?.attendees.find(({ id }) => id === parsed.data.attendeeId);
+  if (!attendee || !registration) return { error: "No se encontró al asistente." };
+
+  const qrPng = await exportQrPng(attendee.passToken, {});
+  const result = await sendConfirmationEmail({
+    organizationId: attendee.organizationId,
+    attendeeId: attendee.id,
+    to: attendee.email,
+    attendeeName: attendee.fullName,
+    eventName: event.name,
+    backupCode: attendee.backupCode,
+    qrPngBase64: qrPng.toString("base64"),
+    eventStartsAt: event.startsAt,
+    eventEndsAt: event.endsAt,
+    eventLocation: event.location,
+    eventLocationUrl: event.locationUrl,
+    manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${registration.cancelToken}`,
+    emailContent: resolveEventEmailContent(event.emailContent),
+    agenda: event.agenda,
+    force: true,
+  });
+
+  if (!result.sent) return { error: result.reason === "provider_failure" ? "No se pudo enviar el correo." : "No se pudo reenviar la invitación." };
+
+  revalidatePath(`/events/${parsed.data.eventId}/registrations`);
+  return { success: "Invitación reenviada por correo." };
 }

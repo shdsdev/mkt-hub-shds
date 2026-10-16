@@ -2,7 +2,9 @@ schema: spec-driven
 
 project: mkt-hub-shds
 execution_mode: interactive
-artifact_store: openspec
+artifact_store: both
+delivery_strategy: auto-chain
+review_budget_lines: 800
 strict_tdd: true
 
 context: |

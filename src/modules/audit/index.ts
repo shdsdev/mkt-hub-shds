@@ -3,6 +3,7 @@ export {
   recordAudit,
   listAuditLogs,
   checkRateLimit,
+  checkHcsRaffleResendRateLimit,
   type AuditLog,
   type AuditAction,
   type RecordAuditInput,

@@ -74,6 +74,10 @@ export function isAdmin(profile: Pick<Profile, "role">): boolean {
   return profile.role === "ADMIN";
 }
 
+export function isReception(profile: Pick<Profile, "role">): boolean {
+  return profile.role === "RECEPTION";
+}
+
 export function isActive(profile: Pick<Profile, "status">): boolean {
   return profile.status === "active";
 }

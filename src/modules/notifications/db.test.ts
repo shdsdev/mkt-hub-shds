@@ -5,9 +5,9 @@ import { notificationLog, notificationType, notificationStatus, notificationSubj
 // Leaf-module schema contract (design.md "notifications" — generic subject, no FK into events).
 describe("notifications schema (additive events-module migration, PR1)", () => {
   it("defines the notification type and status enums", () => {
-    expect(notificationType.enumValues).toEqual(["confirmation", "reminder", "waitlist_promotion"]);
-    expect(notificationStatus.enumValues).toEqual(["pending", "sent", "failed"]);
-    expect(notificationSubjectType.enumValues).toEqual(["event_attendee"]);
+    expect(notificationType.enumValues).toEqual(["confirmation", "reminder", "waitlist_promotion", "winner_email"]);
+    expect(notificationStatus.enumValues).toEqual(["pending", "sent", "failed", "resent", "unknown"]);
+    expect(notificationSubjectType.enumValues).toEqual(["event_attendee", "raffle_draw"]);
   });
 
   it("scopes notification_log to an organization", () => {

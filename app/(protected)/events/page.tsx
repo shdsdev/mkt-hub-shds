@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
-import { listEvents } from "@/modules/events";
+import { getDefaultRegistrationFormConfig, listEvents } from "@/modules/events";
 import { EventCreateForm } from "./event-create-form";
 
 // ADMIN-only (spec.md "ADMIN-Only Event Authoring") — same notFound gate as
@@ -22,7 +22,10 @@ export default async function EventsPage() {
         </p>
       </div>
 
-      <EventCreateForm organizationId={user.profile.organizationId} />
+      <EventCreateForm
+        organizationId={user.profile.organizationId}
+        initialFormConfig={getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false })}
+      />
 
       <div className="flex flex-col gap-2">
         {events.length === 0 ? (

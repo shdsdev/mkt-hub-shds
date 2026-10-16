@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
-import { updateTheme, isValidThemeId, updateDefaultLogo } from "@/modules/users";
+import {
+  updateTheme,
+  isValidThemeId,
+  updateDefaultLogo,
+  setThemeColorOverride,
+  clearThemeColorOverride,
+  type ThemeColorOverrideToken,
+} from "@/modules/users";
 import {
   createDomain,
   updateDomain,
@@ -33,6 +40,71 @@ export async function updateUserThemeAction(formData: FormData): Promise<void> {
 
   await updateTheme(user.id, themeId);
   revalidatePath("/", "layout");
+}
+
+const themeColorOverrideTokenSchema = z.enum(["primary", "accent", "background"]);
+const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Ingresa un color hexadecimal válido (#rrggbb).");
+
+export type ThemeColorOverrideFormState = { error?: string; success?: string };
+
+// ADMIN-only (2026-10-15 Arctic Frost design) — the service layer re-checks isAdmin itself, this
+// gate is only what lets the form render a useful error instead of a generic failure.
+export async function setThemeColorOverrideAction(
+  _prevState: ThemeColorOverrideFormState,
+  formData: FormData,
+): Promise<ThemeColorOverrideFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const themeId = z.string().min(1).safeParse(formData.get("themeId"));
+  const token = themeColorOverrideTokenSchema.safeParse(formData.get("token"));
+  const hex = hexColorSchema.safeParse(formData.get("hex"));
+  if (!themeId.success || !token.success) {
+    return { error: "Tema o color inválido." };
+  }
+  if (!hex.success) {
+    return { error: hex.error.issues[0]?.message ?? "Color inválido." };
+  }
+
+  const result = await setThemeColorOverride({
+    actorRole: user.profile.role,
+    actorUserId: user.id,
+    themeId: themeId.data,
+    token: token.data as ThemeColorOverrideToken,
+    hex: hex.data,
+  });
+  if (!result.ok) {
+    return { error: result.reason === "forbidden" ? "No tenés permiso para editar temas." : "Color inválido." };
+  }
+
+  revalidatePath("/", "layout");
+  return { success: "Color actualizado." };
+}
+
+export async function clearThemeColorOverrideAction(
+  _prevState: ThemeColorOverrideFormState,
+  formData: FormData,
+): Promise<ThemeColorOverrideFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const themeId = z.string().min(1).safeParse(formData.get("themeId"));
+  const token = themeColorOverrideTokenSchema.safeParse(formData.get("token"));
+  if (!themeId.success || !token.success) {
+    return { error: "Tema o color inválido." };
+  }
+
+  const result = await clearThemeColorOverride({
+    actorRole: user.profile.role,
+    themeId: themeId.data,
+    token: token.data as ThemeColorOverrideToken,
+  });
+  if (!result.ok) {
+    return { error: "No tenés permiso para editar temas." };
+  }
+
+  revalidatePath("/", "layout");
+  return { success: "Color restablecido." };
 }
 
 // Org-wide (not per-user) — pre-fills into every new QR code's logo step (create-qr-modal.tsx).

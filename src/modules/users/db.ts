@@ -1,8 +1,9 @@
-import { pgTable, pgEnum, uuid, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid, text, timestamp, integer, unique } from "drizzle-orm/pg-core";
 import { authUsers } from "@/db/auth-schema-ref";
 
 export const userRole = pgEnum("user_role", [
   "ADMIN",
+  "RECEPTION",
   "MARKETING_MANAGER",
   "MARKETING_USER",
   "VIEWER",
@@ -41,9 +42,36 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ADMIN-only retune of a theme's 3 swatch colors (2026-10-15 Arctic Frost design) — a narrow
+// per-token delta layered on top of the fixed theme-registry.ts/globals.css values, not a
+// migration of the theme system itself into the DB (that stays plain/code-defined data by design).
+// Global, not per-organization: at most one row per (theme_id, token) pair, platform-wide.
+export const themeColorOverrideToken = pgEnum("theme_color_override_token", [
+  "primary",
+  "accent",
+  "background",
+]);
+
+export const themeColorOverrides = pgTable(
+  "theme_color_overrides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    themeId: text("theme_id").notNull(),
+    token: themeColorOverrideToken("token").notNull(),
+    hex: text("hex").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: uuid("updated_by")
+      .notNull()
+      .references(() => users.id),
+  },
+  (table) => [unique("theme_color_overrides_theme_token_unique").on(table.themeId, table.token)],
+);
+
 export const usersTables = {
   organizations,
   users,
   userRole,
   userStatus,
+  themeColorOverrideToken,
+  themeColorOverrides,
 } as const;

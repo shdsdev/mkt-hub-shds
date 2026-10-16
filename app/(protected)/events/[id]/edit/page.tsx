@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import { isActive, isAdmin } from "@/modules/users";
-import { getEvent, getEventEmbedSnippet, getEventEmbedUrl } from "@/modules/events";
+import { isActive, isAdmin, listManagedUsers } from "@/modules/users";
+import { getEvent, getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl, listEventReceptionistIds, resolveRegistrationFormConfig } from "@/modules/events";
 import { env } from "@/lib/env";
 import { EventEditForm } from "./event-edit-form";
 import { EventSubNav } from "../../event-sub-nav";
+import { LandingLink } from "./landing-link";
 
 // ADMIN-only, same gate as app/(protected)/events/page.tsx.
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,30 +15,34 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const event = await getEvent(id, user.profile.organizationId);
   if (!event) notFound();
+  const [managedUsers, assignedReceptionistIds] = await Promise.all([
+    listManagedUsers(user.profile.organizationId),
+    listEventReceptionistIds(event.id, user.profile.organizationId),
+  ]);
   const embedUrl = getEventEmbedUrl(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
   const embedSnippet = getEventEmbedSnippet(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
+  const landingUrl = getEventLandingUrl(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8">
-      <div>
-        <h1 className="font-heading text-xl font-semibold">{event.name}</h1>
-        <p className="text-sm text-muted-foreground">Estado actual: {event.status}</p>
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
+      <EventSubNav eventId={event.id} current="edit" role={user.profile.role} />
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+        <div>
+          <h1 className="font-heading text-xl font-semibold">{event.name}</h1>
+          <p className="text-sm text-muted-foreground">Estado actual: {event.status}</p>
+        </div>
+
+        <LandingLink landingUrl={landingUrl} />
+
+        <EventEditForm
+          event={event}
+          formConfig={resolveRegistrationFormConfig(event)}
+          embedUrl={embedUrl}
+          embedSnippet={embedSnippet}
+          receptionUsers={managedUsers.filter((managedUser) => managedUser.role === "RECEPTION")}
+          assignedReceptionistIds={assignedReceptionistIds}
+        />
       </div>
-
-      <EventSubNav eventId={event.id} current="edit" />
-
-      {/* Keyed by updatedAt: after a save, revalidatePath re-fetches a fresh `event` object and
-          re-renders this same mounted form with new defaultValue props on its (uncontrolled)
-          inputs — Base UI warns ("changing the default value state of an uncontrolled
-          FieldControl after being initialized") because that's ambiguous once a field has its
-          own uncontrolled state. The key forces React to treat a genuinely changed event as a new
-          form instance (remount), instead of re-initializing already-mounted inputs. */}
-      <EventEditForm
-        key={`${event.id}:${event.updatedAt.getTime()}`}
-        event={event}
-        embedUrl={embedUrl}
-        embedSnippet={embedSnippet}
-      />
     </div>
   );
 }

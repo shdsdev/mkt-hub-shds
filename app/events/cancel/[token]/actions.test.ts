@@ -17,6 +17,7 @@ vi.mock("@/modules/notifications", () => ({
 vi.mock("@/modules/qr", () => ({
   exportQrPng: mocks.exportQrPng,
 }));
+vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com" } }));
 
 import { cancelRegistrationAction } from "./actions";
 
@@ -75,7 +76,7 @@ describe("cancelRegistrationAction", () => {
       ok: true,
       registration: { id: "reg-1" },
       promoted: {
-        registration: { id: "reg-2", eventId: "event-1", organizationId: "org-1" },
+        registration: { id: "reg-2", eventId: "event-1", organizationId: "org-1", cancelToken: "cancel-token-2" },
         attendees: [
           {
             id: "att-2",
@@ -88,7 +89,13 @@ describe("cancelRegistrationAction", () => {
         ],
       },
     });
-    mocks.getEvent.mockResolvedValue({ id: "event-1", name: "Workshop de Marketing" });
+    mocks.getEvent.mockResolvedValue({
+      id: "event-1",
+      name: "Workshop de Marketing",
+      startsAt: new Date("2026-11-06T15:00:00Z"),
+      endsAt: new Date("2026-11-06T21:00:00Z"),
+      location: "Hotel Victoria Ejecutivo Guadalajara",
+    });
 
     const result = await cancelRegistrationAction({}, formDataWithToken("cancel-token-1"));
 
@@ -103,6 +110,10 @@ describe("cancelRegistrationAction", () => {
         eventName: "Workshop de Marketing",
         backupCode: "WXYZ5678",
         qrPngBase64: Buffer.from("fake-png").toString("base64"),
+        eventStartsAt: new Date("2026-11-06T15:00:00Z"),
+        eventEndsAt: new Date("2026-11-06T21:00:00Z"),
+        eventLocation: "Hotel Victoria Ejecutivo Guadalajara",
+        manageUrl: "https://hub.example.com/events/cancel/cancel-token-2",
       }),
     );
     expect(result.success).toBe(true);
