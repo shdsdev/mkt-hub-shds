@@ -208,8 +208,8 @@ async function getRawHumanBuckets(
     WHERE ${trackingEvents.linkId} = ${linkId}
       AND ${trackingEvents.sourceType} = ${eventType}
       AND ${trackingEvents.isBot} = false
-      AND ${trackingEvents.createdAt} >= ${from}
-      AND ${trackingEvents.createdAt} <= ${to}
+      AND ${trackingEvents.createdAt} >= ${from.toISOString()}
+      AND ${trackingEvents.createdAt} <= ${to.toISOString()}
     GROUP BY bucket
     ORDER BY bucket ASC
   `);
