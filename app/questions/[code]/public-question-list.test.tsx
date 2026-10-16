@@ -83,6 +83,45 @@ describe("PublicQuestionList", () => {
     expect(container.querySelector('button[aria-label="Quitar voto"]')?.textContent).toContain("3");
   });
 
+  it("reconciles the latest polling snapshot after a pending vote completes", async () => {
+    let resolveVote: (state: { voted: boolean }) => void = () => undefined;
+    const pendingVote = new Promise<{ voted: boolean }>((resolve) => {
+      resolveVote = resolve;
+    });
+    voteQuestionAction.mockReturnValue(pendingVote);
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    const question = {
+      id: "question-1",
+      text: "¿Cuál es la pregunta?",
+      status: "approved" as const,
+      answerText: null,
+      publishedAt: null,
+      createdAt: new Date(),
+      voteCount: 2,
+      hasVoted: false,
+    };
+
+    act(() => root?.render(<PublicQuestionList code="ABC123" questions={[question]} />));
+    await act(async () => {
+      container?.querySelector<HTMLButtonElement>('button[aria-label="Votar pregunta"]')?.click();
+    });
+
+    act(() => root?.render(
+      <PublicQuestionList
+        code="ABC123"
+        questions={[{ ...question, voteCount: 4, hasVoted: true }]}
+      />,
+    ));
+    resolveVote({ voted: true });
+    await act(async () => pendingVote);
+
+    const button = container?.querySelector<HTMLButtonElement>('button[aria-label="Quitar voto"]');
+    expect(button?.textContent).toContain("4");
+  });
+
   it("rolls back the optimistic like and reports a server error", async () => {
     voteQuestionAction.mockResolvedValue({ error: "No pudimos actualizar tu voto." });
     container = document.createElement("div");

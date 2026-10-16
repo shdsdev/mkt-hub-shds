@@ -12,6 +12,7 @@ export function QuestionLikeButton({ code, question }: { code: string; question:
   const [voteCount, setVoteCount] = useState(question.voteCount);
   const previous = useRef<VoteSnapshot | undefined>(undefined);
   const serverState = useRef({ voted: question.hasVoted, voteCount: question.voteCount });
+  const refreshedWhilePending = useRef(false);
   const [state, action, pending] = useActionState(
     async (_previous: PublicQuestionActionState, formData: FormData) => {
       try {
@@ -25,12 +26,14 @@ export function QuestionLikeButton({ code, question }: { code: string; question:
 
   useEffect(() => {
     const next = { voted: question.hasVoted, voteCount: question.voteCount };
-    if (next.voted !== serverState.current.voted || next.voteCount !== serverState.current.voteCount) {
-      serverState.current = next;
-      if (!pending) {
-        setVoted(next.voted);
-        setVoteCount(next.voteCount);
-      }
+    const changed = next.voted !== serverState.current.voted || next.voteCount !== serverState.current.voteCount;
+    serverState.current = next;
+    if (pending) {
+      if (changed) refreshedWhilePending.current = true;
+    } else if (changed || refreshedWhilePending.current) {
+      setVoted(next.voted);
+      setVoteCount(next.voteCount);
+      refreshedWhilePending.current = false;
     }
   }, [pending, question.hasVoted, question.voteCount]);
 
