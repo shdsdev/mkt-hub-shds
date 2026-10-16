@@ -5,10 +5,10 @@ import Image from "next/image";
 import type { QuestionSessionRow } from "@/modules/questions";
 import { closeQuestionSessionAction, createQuestionSessionAction } from "./actions";
 
-export function QuestionSessionPanel({ eventId, session }: { eventId: string; session?: QuestionSessionRow }) {
+export function QuestionSessionPanel({ eventId, session, publicUrl }: { eventId: string; session?: QuestionSessionRow; publicUrl?: string }) {
   const [state, formAction, pending] = useActionState(createQuestionSessionAction, {});
   const code = state.code ?? session?.displayCode;
-  const publicUrl = state.publicUrl ?? (code ? `${process.env.NEXT_PUBLIC_APP_ORIGIN}/questions/${code}` : undefined);
+  const resolvedPublicUrl = state.publicUrl ?? publicUrl;
 
   return (
     <section className="space-y-4 rounded-lg border border-border bg-card p-5">
@@ -34,9 +34,9 @@ export function QuestionSessionPanel({ eventId, session }: { eventId: string; se
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Código actual</p>
             <p className="mt-1 font-mono text-2xl font-semibold tracking-[0.3em]">{code}</p>
-            <p className="mt-2 break-all text-sm text-muted-foreground">{publicUrl}</p>
+            <p className="mt-2 break-all text-sm text-muted-foreground">{resolvedPublicUrl}</p>
           </div>
-          {publicUrl ? <Image src={`/questions/${code}/qr`} alt="Código QR para preguntas" width={128} height={128} className="h-32 w-32 rounded-md bg-white p-2" /> : null}
+          {resolvedPublicUrl ? <Image src={`/questions/${code}/qr`} alt="Código QR para preguntas" width={128} height={128} className="h-32 w-32 rounded-md bg-white p-2" /> : null}
         </div>
       ) : null}
 

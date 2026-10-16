@@ -58,10 +58,11 @@ export async function createQuestionSessionAction(
     const { session, code } = await createOrRegenerateQuestionSession({ eventId: eventId.data, organizationId: user.profile.organizationId });
     await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "question_regenerate_code", resourceType: "question_session", resourceId: session.id, after: { codeIssued: true } });
     revalidatePath(route(eventId.data));
+    const appOrigin = env.NEXT_PUBLIC_APP_ORIGIN.replace(/\/+$/, "");
     return {
       success: "Código generado. El código anterior dejó de funcionar.",
       code,
-      publicUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/questions/${code}`,
+      publicUrl: `${appOrigin}/questions/${code}`,
     };
   } catch {
     return { error: "No se pudo generar el código de preguntas." };

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { env } from "@/lib/env";
 import { getCurrentUser } from "@/modules/auth";
 import { canAccessEvent, getEvent } from "@/modules/events";
 import { isActive } from "@/modules/users";
@@ -17,6 +18,8 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   if (!(await canAccessEvent({ userId: user.id, organizationId: user.profile.organizationId, role: user.profile.role, eventId: event.id, capability: "questions" }))) notFound();
 
   const session = await getQuestionSession(event.id, user.profile.organizationId);
+  const appOrigin = env.NEXT_PUBLIC_APP_ORIGIN.replace(/\/+$/, "");
+  const publicUrl = session?.displayCode ? `${appOrigin}/questions/${session.displayCode}` : undefined;
   const query = await searchParams;
   const status = ["pending", "approved", "rejected", "answered", "archived"].includes(query.status ?? "") ? query.status as QuestionStatus : undefined;
   const [questions, topics] = session ? await Promise.all([listModeratorQuestions(session.id, { status, search: query.search?.trim() || undefined }), listQuestionTopics(session.id)]) : [[], []];
@@ -30,7 +33,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Preguntas: {event.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Moderá las preguntas del público y publicá respuestas durante la presentación.</p>
         </div>
-        <QuestionSessionPanel eventId={event.id} session={session} />
+        <QuestionSessionPanel eventId={event.id} session={session} publicUrl={publicUrl} />
         {metrics ? (
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Metric label="Participantes" value={metrics.uniqueParticipants} />
