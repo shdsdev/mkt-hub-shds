@@ -6,7 +6,7 @@ import { db as applicationDb } from "@/db/client";
 import { events } from "@/modules/events/db";
 import { organizations } from "@/modules/users/db";
 import { questionParticipants, questionSessions, questionVotes, questions } from "./db";
-import { listPublicQuestions, toggleVoteForQuestion } from "./service";
+import { listPublicQuestions, toggleVoteForQuestion, voteForQuestion } from "./service";
 
 vi.mock("@/modules/events", () => ({ getEvent: vi.fn() }));
 
@@ -121,5 +121,123 @@ describe("questions service likes", () => {
     expect(results.map((result) => result.voted).sort()).toEqual([false, true]);
     expect(await applicationDb.select().from(questionVotes).where(eq(questionVotes.questionId, ids.questionId))).toHaveLength(0);
     await cleanup({ ...ids, participantIds: [ids.participantId] });
+  });
+
+  it("keeps an already-existing vote when the non-toggle vote operation repeats", async () => {
+    const ids = {
+      organizationId: randomUUID(),
+      eventId: randomUUID(),
+      sessionId: randomUUID(),
+      questionId: randomUUID(),
+      participantId: randomUUID(),
+    };
+
+    await applicationDb.insert(organizations).values({ id: ids.organizationId, name: `Duplicate test ${ids.organizationId}` });
+    await applicationDb.insert(events).values({
+      id: ids.eventId,
+      organizationId: ids.organizationId,
+      name: "Duplicate test event",
+      slug: `duplicate-test-${ids.eventId}`,
+      startsAt: new Date("2030-01-01T00:00:00Z"),
+    });
+    await applicationDb.execute(sql`
+      insert into question_sessions (id, organization_id, event_id, code_hash)
+      values (${ids.sessionId}, ${ids.organizationId}, ${ids.eventId}, ${`duplicate-test-${ids.sessionId}`})
+    `);
+    await applicationDb.insert(questionParticipants).values({
+      id: ids.participantId,
+      sessionId: ids.sessionId,
+      fullName: "Participant",
+      company: "Test",
+      tokenHash: `token-${ids.sessionId}`,
+      consentAcceptedAt: new Date(),
+    });
+    await applicationDb.insert(questions).values({
+      id: ids.questionId,
+      sessionId: ids.sessionId,
+      participantId: ids.participantId,
+      text: "Already voted?",
+      normalizedText: "already voted",
+      status: "approved",
+    });
+    await applicationDb.insert(questionVotes).values({ questionId: ids.questionId, participantId: ids.participantId });
+
+    await expect(voteForQuestion({ questionId: ids.questionId, participantId: ids.participantId })).resolves.toBeUndefined();
+    expect(await applicationDb.select().from(questionVotes).where(eq(questionVotes.questionId, ids.questionId))).toHaveLength(1);
+    await cleanup({ ...ids, participantIds: [ids.participantId] });
+  });
+
+  it("rejects a participant from another session without creating a vote", async () => {
+    const ids = {
+      organizationId: randomUUID(),
+      eventId: randomUUID(),
+      participantEventId: randomUUID(),
+      questionSessionId: randomUUID(),
+      participantSessionId: randomUUID(),
+      questionId: randomUUID(),
+      questionParticipantId: randomUUID(),
+      participantId: randomUUID(),
+    };
+
+    await applicationDb.insert(organizations).values({ id: ids.organizationId, name: `Session scope test ${ids.organizationId}` });
+    await applicationDb.insert(events).values({
+      id: ids.eventId,
+      organizationId: ids.organizationId,
+      name: "Session scope test event",
+      slug: `session-scope-test-${ids.eventId}`,
+      startsAt: new Date("2030-01-01T00:00:00Z"),
+    });
+    await applicationDb.insert(events).values({
+      id: ids.participantEventId,
+      organizationId: ids.organizationId,
+      name: "Other session event",
+      slug: `other-session-event-${ids.participantEventId}`,
+      startsAt: new Date("2030-01-02T00:00:00Z"),
+    });
+    await applicationDb.execute(sql`
+      insert into question_sessions (id, organization_id, event_id, code_hash)
+      values
+        (${ids.questionSessionId}, ${ids.organizationId}, ${ids.eventId}, ${`question-session-${ids.questionSessionId}`}),
+        (${ids.participantSessionId}, ${ids.organizationId}, ${ids.participantEventId}, ${`participant-session-${ids.participantSessionId}`})
+    `);
+    await applicationDb.insert(questionParticipants).values([
+      {
+        id: ids.questionParticipantId,
+        sessionId: ids.questionSessionId,
+        fullName: "Question participant",
+        company: "Test",
+        tokenHash: `question-token-${ids.questionSessionId}`,
+        consentAcceptedAt: new Date(),
+      },
+      {
+        id: ids.participantId,
+        sessionId: ids.participantSessionId,
+        fullName: "Other participant",
+        company: "Test",
+        tokenHash: `participant-token-${ids.participantSessionId}`,
+        consentAcceptedAt: new Date(),
+      },
+    ]);
+    await applicationDb.insert(questions).values({
+      id: ids.questionId,
+      sessionId: ids.questionSessionId,
+      participantId: ids.questionParticipantId,
+      text: "Wrong session?",
+      normalizedText: "wrong session",
+      status: "approved",
+    });
+
+    await expect(toggleVoteForQuestion({ questionId: ids.questionId, participantId: ids.participantId })).rejects.toThrow("Participant cannot vote for this question");
+    expect(await applicationDb.select().from(questionVotes).where(eq(questionVotes.questionId, ids.questionId))).toHaveLength(0);
+    await applicationDb.delete(questionParticipants).where(eq(questionParticipants.id, ids.participantId));
+    await applicationDb.delete(questionSessions).where(eq(questionSessions.id, ids.participantSessionId));
+    await applicationDb.delete(events).where(eq(events.id, ids.participantEventId));
+    await cleanup({
+      organizationId: ids.organizationId,
+      eventId: ids.eventId,
+      sessionId: ids.questionSessionId,
+      questionId: ids.questionId,
+      participantIds: [ids.questionParticipantId],
+    });
   });
 });
