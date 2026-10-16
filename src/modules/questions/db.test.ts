@@ -22,6 +22,12 @@ describe("questions schema", () => {
     expect(questions.text.notNull).toBe(true);
   });
 
+  it("stores a display code separately from the verification hash", () => {
+    const columns = getTableConfig(questionSessions).columns;
+    expect(columns.some((column) => column.name === "display_code")).toBe(true);
+    expect(columns.some((column) => column.name === "code_hash")).toBe(true);
+  });
+
   it("prevents duplicate sessions and votes", () => {
     const sessionIndexes = getTableConfig(questionSessions).indexes;
     const votePrimaryKeys = getTableConfig(questionVotes).primaryKeys;

@@ -33,6 +33,7 @@ export const questionSessions = pgTable(
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
     codeHash: text("code_hash").notNull(),
+    displayCode: text("display_code"),
     status: questionSessionStatus("status").notNull().default("open"),
     codeCreatedAt: timestamp("code_created_at", { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp("closed_at", { withTimezone: true }),

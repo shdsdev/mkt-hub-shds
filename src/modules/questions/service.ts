@@ -77,7 +77,7 @@ export async function createOrRegenerateQuestionSession(input: {
   if (existing) {
     const [session] = await db
       .update(questionSessions)
-      .set({ codeHash, status: "open", closedAt: null, codeCreatedAt: new Date(), updatedAt: new Date() })
+      .set({ codeHash, displayCode: code, status: "open", closedAt: null, codeCreatedAt: new Date(), updatedAt: new Date() })
       .where(eq(questionSessions.id, existing.id))
       .returning();
     return { session, code };
@@ -85,7 +85,7 @@ export async function createOrRegenerateQuestionSession(input: {
 
   const [session] = await db
     .insert(questionSessions)
-    .values({ eventId: input.eventId, organizationId: input.organizationId, codeHash })
+    .values({ eventId: input.eventId, organizationId: input.organizationId, codeHash, displayCode: code })
     .returning();
   return { session, code };
 }
