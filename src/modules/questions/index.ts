@@ -29,6 +29,7 @@ export { canTransitionQuestionStatus, QUESTION_STATUSES, type QuestionStatus } f
 export { hashQuestionToken, normalizeQuestionText } from "./tokens";
 export { checkPublicQuestionRateLimit, createQuestionRateLimiter } from "./rate-limit";
 export { calculateQuestionMetrics, type QuestionMetricInput, type QuestionMetrics } from "./metrics";
+export { buildQuestionsCsv, buildQuestionsPdf, type QuestionExportRow } from "./export";
 export type {
   ModeratorQuestion,
   ParticipantWithToken,

@@ -27,6 +27,14 @@ export default async function QuestionsPage({ params }: { params: Promise<{ id: 
           <p className="mt-1 text-sm text-muted-foreground">Moderá las preguntas del público y publicá respuestas durante la presentación.</p>
         </div>
         <QuestionSessionPanel eventId={event.id} session={session} />
+        {session ? (
+          <div className="flex flex-wrap gap-2 text-sm">
+            <a href={`/events/${event.id}/questions/export?format=csv`} className="rounded-full border border-border px-3 py-1.5 hover:bg-muted">CSV anónimo</a>
+            <a href={`/events/${event.id}/questions/export?format=pdf`} className="rounded-full border border-border px-3 py-1.5 hover:bg-muted">PDF anónimo</a>
+            <a href={`/events/${event.id}/questions/export?format=csv&scope=internal`} className="rounded-full border border-border px-3 py-1.5 hover:bg-muted">CSV interno</a>
+            <a href={`/events/${event.id}/questions/export?format=pdf&scope=internal`} className="rounded-full border border-border px-3 py-1.5 hover:bg-muted">PDF interno</a>
+          </div>
+        ) : null}
         {session ? <QuestionList eventId={event.id} sessionId={session.id} questions={questions} /> : null}
       </div>
     </div>
