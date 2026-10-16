@@ -1,16 +1,18 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { PublicQuestion } from "@/modules/questions";
 import { submitQuestionAction, voteQuestionAction } from "./actions";
 
 export function PublicQuestionList({ code, questions }: { code: string; questions: PublicQuestion[] }) {
   const [state, action, pending] = useActionState(submitQuestionAction, {});
+  const router = useRouter();
 
   useEffect(() => {
-    const interval = window.setInterval(() => window.location.reload(), 15000);
+    const interval = window.setInterval(() => router.refresh(), 15000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [router]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-8">

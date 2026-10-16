@@ -241,7 +241,7 @@ export async function publishQuestionAnswer(input: {
 
 export async function voteForQuestion(input: { questionId: string; participantId: string }): Promise<void> {
   const [question] = await db
-    .select({ sessionId: questions.sessionId })
+    .select({ sessionId: questions.sessionId, status: questions.status })
     .from(questions)
     .where(eq(questions.id, input.questionId))
     .limit(1);
@@ -250,7 +250,9 @@ export async function voteForQuestion(input: { questionId: string; participantId
     .from(questionParticipants)
     .where(eq(questionParticipants.id, input.participantId))
     .limit(1);
-  if (!question || !participant || question.sessionId !== participant.sessionId) throw new Error("Participant cannot vote in this session");
+  if (!question || !participant || question.sessionId !== participant.sessionId || !["approved", "answered"].includes(question.status)) {
+    throw new Error("Participant cannot vote for this question");
+  }
   await db.insert(questionVotes).values(input).onConflictDoNothing();
 }
 
