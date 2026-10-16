@@ -8,7 +8,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   const session = await getQuestionSessionByCode(code);
   if (!session || session.status !== "open") return new NextResponse(null, { status: 404 });
 
-  const encodedValue = `${env.NEXT_PUBLIC_APP_ORIGIN}/questions/${encodeURIComponent(code)}`;
+  const appOrigin = env.NEXT_PUBLIC_APP_ORIGIN.replace(/\/+$/, "");
+  const encodedValue = `${appOrigin}/questions/${encodeURIComponent(code)}`;
   const png = await exportQrPng(encodedValue, {
     backgroundColor: "#ffffff",
     foregroundColor: "#111111",
