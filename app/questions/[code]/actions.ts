@@ -10,6 +10,7 @@ import {
   voteForQuestion,
   questionParticipantSchema,
   questionTextSchema,
+  checkPublicQuestionRateLimit,
 } from "@/modules/questions";
 
 export type PublicQuestionActionState = { error?: string; success?: string; registered?: boolean };
@@ -62,6 +63,9 @@ export async function submitQuestionAction(
   if (!text.success) return { error: text.error.issues[0]?.message ?? "Revisá la pregunta." };
   const context = await getParticipant(code);
   if (!context) return { error: "Completá tus datos para participar." };
+  if (!checkPublicQuestionRateLimit(`questions:${context.session.id}:${context.participant.id}`)) {
+    return { error: "Hiciste demasiadas preguntas. Intentá nuevamente en un minuto." };
+  }
 
   await createQuestion({ sessionId: context.session.id, participantId: context.participant.id, text: text.data });
   return { success: "Tu pregunta fue enviada para moderación." };
