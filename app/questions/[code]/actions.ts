@@ -12,6 +12,7 @@ import {
   questionParticipantSchema,
   questionTextSchema,
   checkPublicQuestionRateLimit,
+  checkPublicQuestionRegistrationRateLimit,
 } from "@/modules/questions";
 
 export type PublicQuestionActionState = { error?: string; success?: string; registered?: boolean; similarQuestions?: { id: string; text: string }[] };
@@ -36,6 +37,7 @@ export async function registerParticipantAction(
   const code = String(formData.get("code") ?? "");
   const session = await getQuestionSessionByCode(code);
   if (!session || session.status !== "open") return { error: "Este portal ya no está disponible." };
+  if (!checkPublicQuestionRegistrationRateLimit(code)) return { error: "Demasiados intentos. Intentá nuevamente en un minuto." };
 
   const parsed = questionParticipantSchema.safeParse({
     fullName: formData.get("fullName"),

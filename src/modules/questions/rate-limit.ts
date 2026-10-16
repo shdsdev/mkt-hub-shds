@@ -20,7 +20,12 @@ export function createQuestionRateLimiter(options: RateLimitOptions) {
 }
 
 const publicQuestionLimiter = createQuestionRateLimiter({ maxActions: 5, windowMs: 60_000 });
+const publicRegistrationLimiter = createQuestionRateLimiter({ maxActions: 10, windowMs: 60_000 });
 
 export function checkPublicQuestionRateLimit(key: string): boolean {
   return publicQuestionLimiter.check(key);
+}
+
+export function checkPublicQuestionRegistrationRateLimit(code: string): boolean {
+  return publicRegistrationLimiter.check(`registration:${code}`);
 }

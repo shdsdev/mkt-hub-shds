@@ -2,10 +2,11 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { canAccessEvent, getEvent } from "@/modules/events";
 import { isActive } from "@/modules/users";
-import { getQuestionMetrics, getQuestionSession, listModeratorQuestions, type QuestionStatus } from "@/modules/questions";
+import { getQuestionMetrics, getQuestionSession, listModeratorQuestions, listQuestionTopics, type QuestionStatus } from "@/modules/questions";
 import { EventSubNav } from "../../event-sub-nav";
 import { QuestionList } from "./question-list";
 import { QuestionSessionPanel } from "./question-session-panel";
+import { createQuestionTopicAction } from "./actions";
 
 export default async function QuestionsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ status?: string; search?: string }> }) {
   const user = await getCurrentUser();
@@ -18,7 +19,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const session = await getQuestionSession(event.id, user.profile.organizationId);
   const query = await searchParams;
   const status = ["pending", "approved", "rejected", "answered", "archived"].includes(query.status ?? "") ? query.status as QuestionStatus : undefined;
-  const questions = session ? await listModeratorQuestions(session.id, { status, search: query.search?.trim() || undefined }) : [];
+  const [questions, topics] = session ? await Promise.all([listModeratorQuestions(session.id, { status, search: query.search?.trim() || undefined }), listQuestionTopics(session.id)]) : [[], []];
   const metrics = session ? await getQuestionMetrics(session.id) : undefined;
 
   return (
@@ -37,6 +38,12 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
             <Metric label="Preguntas" value={metrics.receivedQuestions} />
             <Metric label="Respondidas" value={`${metrics.answeredQuestions} (${Math.round(metrics.responseRate * 100)}%)`} />
           </dl>
+        ) : null}
+        {session ? (
+          <form action={createQuestionTopicAction} className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4">
+            <input type="hidden" name="eventId" value={event.id} /><input type="hidden" name="sessionId" value={session.id} />
+            <label htmlFor="new-topic" className="text-sm font-medium">Nuevo tema</label><input id="new-topic" name="name" required maxLength={100} placeholder="Ej. Producto" className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm" /><button type="submit" className="rounded-full border border-border px-4 py-2 text-sm hover:bg-muted">Agregar</button>
+          </form>
         ) : null}
         {session ? (
           <div className="flex flex-wrap gap-2 text-sm">
@@ -60,7 +67,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
             <button type="submit" className="rounded-full border border-border px-4 py-2 text-sm hover:bg-muted">Filtrar</button>
           </form>
         ) : null}
-        {session ? <QuestionList eventId={event.id} sessionId={session.id} questions={questions} /> : null}
+        {session ? <QuestionList eventId={event.id} sessionId={session.id} questions={questions} topics={topics} /> : null}
       </div>
     </div>
   );

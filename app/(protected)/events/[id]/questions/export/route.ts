@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     question: row.text,
     answer: row.answerText,
     votes: row.voteCount,
-    topic: null,
+    topic: row.topics.join("; ") || null,
     fullName: row.participantName,
     company: row.participantCompany,
   }));

@@ -30,6 +30,8 @@ export type ModeratorQuestion = QuestionRow & {
   participantName: string;
   participantCompany: string;
   voteCount: number;
+  topics: string[];
+  similarQuestions: { id: string; text: string }[];
 };
 
 function createAccessCode(): string {
@@ -205,15 +207,15 @@ export async function answerQuestion(input: {
   actorUserId: string;
 }): Promise<QuestionRow> {
   const answerText = questionTextSchema.parse(input.answerText);
-  const question = await transitionQuestionStatus({
-    questionId: input.questionId,
-    sessionId: input.sessionId,
-    status: "answered",
-    actorUserId: input.actorUserId,
-  });
+  const [question] = await db
+    .select()
+    .from(questions)
+    .where(and(eq(questions.id, input.questionId), eq(questions.sessionId, input.sessionId)))
+    .limit(1);
+  if (!question || !canTransitionQuestionStatus(question.status, "answered")) throw new Error("Question cannot be answered");
   const [updated] = await db
     .update(questions)
-    .set({ answerText, answeredBy: input.actorUserId, answeredAt: new Date(), updatedAt: new Date() })
+    .set({ status: "answered", answerText, answeredBy: input.actorUserId, answeredAt: new Date(), updatedAt: new Date() })
     .where(eq(questions.id, question.id))
     .returning();
   return updated;
@@ -294,11 +296,33 @@ export async function listModeratorQuestions(sessionId: string, filters?: { stat
     .groupBy(questions.id, questionParticipants.id)
     .orderBy(desc(questions.createdAt));
 
+  const questionIds = rows.map(({ question }) => question.id);
+  const topicRows = questionIds.length === 0
+    ? []
+    : await db
+      .select({ questionId: questionQuestionTopics.questionId, name: questionTopics.name })
+      .from(questionQuestionTopics)
+      .innerJoin(questionTopics, eq(questionTopics.id, questionQuestionTopics.topicId))
+      .where(inArray(questionQuestionTopics.questionId, questionIds));
+  const topicsByQuestion = new Map<string, string[]>();
+  for (const topic of topicRows) topicsByQuestion.set(topic.questionId, [...(topicsByQuestion.get(topic.questionId) ?? []), topic.name]);
+  const sessionQuestions = await db
+    .select({ id: questions.id, text: questions.text, normalizedText: questions.normalizedText })
+    .from(questions)
+    .where(eq(questions.sessionId, sessionId));
+  const similarByQuestion = new Map<string, { id: string; text: string }[]>();
+  for (const question of sessionQuestions) {
+    const similar = sessionQuestions.filter((candidate) => candidate.id !== question.id && candidate.normalizedText === question.normalizedText).map(({ id, text }) => ({ id, text }));
+    if (similar.length > 0) similarByQuestion.set(question.id, similar);
+  }
+
   return rows.map(({ question, participantName, participantCompany, voteCount }) => ({
     ...question,
     participantName,
     participantCompany,
     voteCount: Number(voteCount),
+    topics: topicsByQuestion.get(question.id) ?? [],
+    similarQuestions: similarByQuestion.get(question.id) ?? [],
   }));
 }
 
@@ -333,13 +357,21 @@ export async function listQuestionTopics(sessionId: string) {
   return db.select().from(questionTopics).where(eq(questionTopics.sessionId, sessionId)).orderBy(asc(questionTopics.name));
 }
 
-export async function assignQuestionTopic(input: { questionId: string; topicId: string }): Promise<void> {
+export async function assignQuestionTopic(input: { sessionId: string; questionId: string; topicId: string }): Promise<void> {
+  const [question] = await db.select({ id: questions.id }).from(questions).where(and(eq(questions.id, input.questionId), eq(questions.sessionId, input.sessionId))).limit(1);
+  const [topic] = await db.select({ id: questionTopics.id }).from(questionTopics).where(and(eq(questionTopics.id, input.topicId), eq(questionTopics.sessionId, input.sessionId))).limit(1);
+  if (!question || !topic) throw new Error("Question topic is outside the session");
   await db.insert(questionQuestionTopics).values(input).onConflictDoNothing();
 }
 
-export async function recordQuestionDuplicate(input: { sourceQuestionId: string; targetQuestionId: string; createdBy: string }): Promise<void> {
+export async function recordQuestionDuplicate(input: { sessionId: string; sourceQuestionId: string; targetQuestionId: string; createdBy: string }): Promise<void> {
   if (input.sourceQuestionId === input.targetQuestionId) throw new Error("A question cannot duplicate itself");
-  await db.insert(questionDuplicates).values(input).onConflictDoNothing();
+  const scopedQuestions = await db
+    .select({ id: questions.id })
+    .from(questions)
+    .where(and(eq(questions.sessionId, input.sessionId), inArray(questions.id, [input.sourceQuestionId, input.targetQuestionId])));
+  if (scopedQuestions.length !== 2) throw new Error("Duplicate questions must share a session");
+  await db.insert(questionDuplicates).values({ sourceQuestionId: input.sourceQuestionId, targetQuestionId: input.targetQuestionId, createdBy: input.createdBy }).onConflictDoNothing();
 }
 
 export async function getQuestionMetrics(sessionId: string): Promise<QuestionMetrics> {

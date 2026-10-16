@@ -9,9 +9,13 @@ import { isActive } from "@/modules/users";
 import { recordAudit } from "@/modules/audit";
 import {
   answerQuestion,
+  assignQuestionTopic,
   closeQuestionSession,
   createOrRegenerateQuestionSession,
+  createQuestionTopic,
+  getQuestionSession,
   publishQuestionAnswer,
+  recordQuestionDuplicate,
   transitionQuestionStatus,
 } from "@/modules/questions";
 
@@ -30,6 +34,11 @@ async function requireQuestionsUser(eventId: string) {
   if (!user || !isActive(user.profile)) return undefined;
   if (!(await canAccessEvent({ userId: user.id, organizationId: user.profile.organizationId, role: user.profile.role, eventId, capability: "questions" }))) return undefined;
   return user;
+}
+
+async function requireQuestionSession(eventId: string, organizationId: string, sessionId: string) {
+  const session = await getQuestionSession(eventId, organizationId);
+  return session?.id === sessionId ? session : undefined;
 }
 
 function route(eventId: string) {
@@ -80,6 +89,7 @@ export async function moderateQuestionAction(formData: FormData): Promise<void> 
   if (!parsed.success) return;
   const user = await requireQuestionsUser(parsed.data.eventId);
   if (!user) return;
+  if (!(await requireQuestionSession(parsed.data.eventId, user.profile.organizationId, parsed.data.sessionId))) return;
 
   try {
     await transitionQuestionStatus({ questionId: parsed.data.questionId, sessionId: parsed.data.sessionId, status: parsed.data.status, actorUserId: user.id });
@@ -102,6 +112,7 @@ export async function answerQuestionAction(formData: FormData): Promise<void> {
   if (!parsed.success) return;
   const user = await requireQuestionsUser(parsed.data.eventId);
   if (!user) return;
+  if (!(await requireQuestionSession(parsed.data.eventId, user.profile.organizationId, parsed.data.sessionId))) return;
 
   try {
     await answerQuestion({ questionId: parsed.data.questionId, sessionId: parsed.data.sessionId, answerText: parsed.data.answerText, actorUserId: user.id });
@@ -122,6 +133,7 @@ export async function publishQuestionAnswerAction(formData: FormData): Promise<v
   if (!parsed.success) return;
   const user = await requireQuestionsUser(parsed.data.eventId);
   if (!user) return;
+  if (!(await requireQuestionSession(parsed.data.eventId, user.profile.organizationId, parsed.data.sessionId))) return;
 
   try {
     await publishQuestionAnswer({ questionId: parsed.data.questionId, sessionId: parsed.data.sessionId, actorUserId: user.id });
@@ -131,4 +143,37 @@ export async function publishQuestionAnswerAction(formData: FormData): Promise<v
   } catch {
     return;
   }
+}
+
+export async function createQuestionTopicAction(formData: FormData): Promise<void> {
+  const parsed = z.object({ eventId: eventIdSchema, sessionId: z.string().uuid(), name: z.string().trim().min(1).max(100) }).safeParse({
+    eventId: formData.get("eventId"), sessionId: formData.get("sessionId"), name: formData.get("name"),
+  });
+  if (!parsed.success) return;
+  const user = await requireQuestionsUser(parsed.data.eventId);
+  if (!user || !(await requireQuestionSession(parsed.data.eventId, user.profile.organizationId, parsed.data.sessionId))) return;
+  await createQuestionTopic({ sessionId: parsed.data.sessionId, name: parsed.data.name });
+  revalidatePath(route(parsed.data.eventId));
+}
+
+export async function assignQuestionTopicAction(formData: FormData): Promise<void> {
+  const parsed = z.object({ eventId: eventIdSchema, sessionId: z.string().uuid(), questionId: z.string().uuid(), topicId: z.string().uuid() }).safeParse({
+    eventId: formData.get("eventId"), sessionId: formData.get("sessionId"), questionId: formData.get("questionId"), topicId: formData.get("topicId"),
+  });
+  if (!parsed.success) return;
+  const user = await requireQuestionsUser(parsed.data.eventId);
+  if (!user || !(await requireQuestionSession(parsed.data.eventId, user.profile.organizationId, parsed.data.sessionId))) return;
+  await assignQuestionTopic({ ...parsed.data, sessionId: parsed.data.sessionId });
+  revalidatePath(route(parsed.data.eventId));
+}
+
+export async function recordQuestionDuplicateAction(formData: FormData): Promise<void> {
+  const parsed = z.object({ eventId: eventIdSchema, sessionId: z.string().uuid(), sourceQuestionId: z.string().uuid(), targetQuestionId: z.string().uuid() }).safeParse({
+    eventId: formData.get("eventId"), sessionId: formData.get("sessionId"), sourceQuestionId: formData.get("sourceQuestionId"), targetQuestionId: formData.get("targetQuestionId"),
+  });
+  if (!parsed.success) return;
+  const user = await requireQuestionsUser(parsed.data.eventId);
+  if (!user || !(await requireQuestionSession(parsed.data.eventId, user.profile.organizationId, parsed.data.sessionId))) return;
+  await recordQuestionDuplicate({ ...parsed.data, createdBy: user.id });
+  revalidatePath(route(parsed.data.eventId));
 }
