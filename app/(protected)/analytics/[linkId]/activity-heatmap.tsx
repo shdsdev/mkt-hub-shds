@@ -1,5 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Tooltip } from "@/components/tooltip";
 import type { HeatmapCell } from "./heatmap";
+import { buildHeatmapWeeks } from "./heatmap";
+
+const HEATMAP_WEEKS = 20;
 
 const LEVEL_CLASS: Record<HeatmapCell["level"], string> = {
   0: "bg-muted",
@@ -16,7 +22,48 @@ function monthLabel(dateKey: string): string {
   });
 }
 
-export function ActivityHeatmap({ weeks, total }: { weeks: HeatmapCell[][]; total: number }) {
+export function ActivityHeatmap({
+  linkId,
+  from,
+  to,
+  weeks: initialWeeks,
+  total: initialTotal,
+}: {
+  linkId: string;
+  from: string;
+  to: string;
+  weeks: HeatmapCell[][];
+  total: number;
+}) {
+  const [weeks, setWeeks] = useState(initialWeeks);
+  const [total, setTotal] = useState(initialTotal);
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({ granularity: "day", from, to });
+
+    async function loadHeatmap() {
+      const response = await fetch(`/analytics/${linkId}/data?${params}`, { cache: "no-store" });
+      if (!response.ok || cancelled) return;
+
+      const data: { buckets?: Array<{ bucket: string; count: number }> } = await response.json();
+      if (cancelled) return;
+
+      const buckets = data.buckets ?? [];
+      const counts = new Map(buckets.map((row) => [row.bucket, row.count]));
+      setWeeks(buildHeatmapWeeks(counts, HEATMAP_WEEKS, new Date(`${to}T00:00:00Z`)));
+      setTotal(buckets.reduce((sum, row) => sum + row.count, 0));
+    }
+
+    void loadHeatmap();
+    const refreshTimer = window.setInterval(() => void loadHeatmap(), 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshTimer);
+    };
+  }, [from, linkId, to]);
+
   return (
     <div className="rounded-lg border border-border bg-card p-6">
       <div className="mb-1 flex items-center gap-2">
