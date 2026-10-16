@@ -1,6 +1,6 @@
 {
-  "id": "b98e947e-1cf0-47b0-887c-5490d0edbc11",
-  "prevId": "44156e0f-d671-4deb-8d2f-88adfb111f95",
+  "id": "44156e0f-d671-4deb-8d2f-88adfb111f95",
+  "prevId": "ae77078d-792d-44ef-a7cc-e2858e2888eb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3724,17 +3724,14 @@
       "values": [
         "pending",
         "sent",
-        "failed",
-        "resent",
-        "unknown"
+        "failed"
       ]
     },
     "public.notification_subject_type": {
       "name": "notification_subject_type",
       "schema": "public",
       "values": [
-        "event_attendee",
-        "raffle_draw"
+        "event_attendee"
       ]
     },
     "public.notification_type": {
@@ -3743,8 +3740,7 @@
       "values": [
         "confirmation",
         "reminder",
-        "waitlist_promotion",
-        "winner_email"
+        "waitlist_promotion"
       ]
     },
     "public.raffle_audit_action": {

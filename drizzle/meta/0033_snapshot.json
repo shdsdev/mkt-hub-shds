@@ -1,6 +1,6 @@
 {
-  "id": "44156e0f-d671-4deb-8d2f-88adfb111f95",
-  "prevId": "ae77078d-792d-44ef-a7cc-e2858e2888eb",
+  "id": "ae77078d-792d-44ef-a7cc-e2858e2888eb",
+  "prevId": "8faeabe3-2a12-4842-aa93-c53b2fc13854",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3751,7 +3751,6 @@
         "reveal",
         "claim",
         "invalidate",
-        "validate",
         "resend_request",
         "prize_change",
         "status_change"

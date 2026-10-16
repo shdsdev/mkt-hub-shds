@@ -1,6 +1,6 @@
 {
-  "id": "ea515267-41a0-4211-b79b-30d4f6eaf0e2",
-  "prevId": "b98e947e-1cf0-47b0-887c-5490d0edbc11",
+  "id": "b98e947e-1cf0-47b0-887c-5490d0edbc11",
+  "prevId": "44156e0f-d671-4deb-8d2f-88adfb111f95",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -710,12 +710,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "link_id": {
           "name": "link_id",

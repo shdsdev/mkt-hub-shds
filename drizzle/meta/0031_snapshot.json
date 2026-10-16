@@ -1,6 +1,6 @@
 {
-  "id": "8faeabe3-2a12-4842-aa93-c53b2fc13854",
-  "prevId": "72c0291f-fa65-4e6c-919f-5d9f80e75049",
+  "id": "72c0291f-fa65-4e6c-919f-5d9f80e75049",
+  "prevId": "30c0f748-a2e4-4347-b5d5-8301147f6ca3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1704,18 +1704,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "hcs_requested_by_user_id": {
-          "name": "hcs_requested_by_user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "hcs_requested_by_email": {
-          "name": "hcs_requested_by_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "access_token_hash": {
           "name": "access_token_hash",

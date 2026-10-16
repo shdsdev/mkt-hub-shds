@@ -10,4 +10,9 @@ describe("EventAnalyticsPanel chart renderer", () => {
     expect(panelSource).toMatch(/<Line\b[\s\S]*?dataKey="count"[\s\S]*?name=\{pluralLabel\}/);
     expect(panelSource).not.toMatch(/\b(?:Bar|BarChart)\b/);
   });
+
+  it("refreshes the current analytics range every 30 seconds", () => {
+    expect(panelSource).toContain("setInterval");
+    expect(panelSource).toContain("30000");
+  });
 });

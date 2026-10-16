@@ -7,6 +7,7 @@ import type { Campaign } from "@/modules/campaigns";
 
 export type QrDetailFieldsState = {
   name: string;
+  description: string;
   grouping: { folderId?: string; campaignId?: string };
   placementImageUrl?: string;
 };
@@ -42,6 +43,23 @@ export function QrDetailFields({
           placeholder="Ej. Flyer lanzamiento invierno"
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="description" className="text-sm text-muted-foreground">
+          Contexto o descripcion <span className="text-xs">(opcional)</span>
+        </label>
+        <textarea
+          id="description"
+          name="description"
+          value={state.description}
+          maxLength={160}
+          onChange={(event) => onChange({ description: event.target.value })}
+          placeholder="Agrega indicaciones o contexto para este QR"
+          rows={3}
+          className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+        <p className="text-right text-xs text-muted-foreground">{state.description.length}/160</p>
       </div>
 
       <div className="space-y-1">

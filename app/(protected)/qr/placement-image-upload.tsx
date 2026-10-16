@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { BinaryLoader } from "@/components/binary-loader";
 
@@ -9,13 +9,18 @@ import { BinaryLoader } from "@/components/binary-loader";
 // page), not the logo embedded inside the QR image itself.
 export function PlacementImageUpload({
   organizationId,
+  value,
+  label = "Adjuntar referencia",
   onUploaded,
 }: {
   organizationId: string;
+  value?: string;
+  label?: string;
   onUploaded: (url: string | undefined) => void;
 }) {
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [fileName, setFileName] = useState<string>();
+  const inputId = useId();
 
   async function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -44,20 +49,29 @@ export function PlacementImageUpload({
 
   return (
     <div className="space-y-1">
-      <label htmlFor="placementImage" className="text-xs text-muted-foreground">
+      <label htmlFor={inputId} className="text-xs text-muted-foreground">
         Dónde se usará este QR: flyer, revista, catálogo…
       </label>
       <div className="flex items-center gap-2">
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value} alt="Referencia visual adjunta" className="size-12 rounded-md border border-border object-cover" />
+        ) : null}
         <label
-          htmlFor="placementImage"
+          htmlFor={inputId}
           className="cursor-pointer rounded-md border border-input bg-black/25 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-black/35"
         >
-          Adjuntar referencia
+          {value ? "Cambiar referencia" : label}
         </label>
         {fileName && <span className="truncate text-xs text-muted-foreground">{fileName}</span>}
+        {value ? (
+          <button type="button" onClick={() => { setFileName(undefined); onUploaded(undefined); }} className="text-xs text-muted-foreground underline">
+            Quitar
+          </button>
+        ) : null}
       </div>
       <input
-        id="placementImage"
+        id={inputId}
         type="file"
         accept="image/png,image/jpeg,image/webp"
         onChange={handleChange}
