@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { getQuestionSessionByCode } from "@/modules/questions";
-import { exportQrSvg } from "@/modules/qr";
+import { exportQrPng } from "@/modules/qr";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -9,15 +9,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   if (!session || session.status !== "open") return new NextResponse(null, { status: 404 });
 
   const encodedValue = `${env.NEXT_PUBLIC_APP_ORIGIN}/questions/${encodeURIComponent(code)}`;
-  const svg = await exportQrSvg(encodedValue, {
+  const png = await exportQrPng(encodedValue, {
     backgroundColor: "#ffffff",
     foregroundColor: "#111111",
     errorCorrectionLevel: "M",
   });
 
-  return new NextResponse(svg, {
+  return new NextResponse(new Uint8Array(png), {
     headers: {
-      "Content-Type": "image/svg+xml",
+      "Content-Type": "image/png",
       "Cache-Control": "private, no-store",
     },
   });

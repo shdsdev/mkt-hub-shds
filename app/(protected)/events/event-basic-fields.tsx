@@ -51,7 +51,7 @@ export function EventBasicFields({
       {!editing ? (
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           Slug
-          <Input name="slug" required maxLength={255} pattern="[a-z0-9-]+" />
+          <Input name="slug" required maxLength={255} pattern="[a-z0-9\-]+" />
         </label>
       ) : null}
       {onCheckInConfirmationRequiredChange ? (

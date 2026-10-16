@@ -60,7 +60,7 @@ export async function getQuestionSessionByCode(code: string): Promise<QuestionSe
   const session = rows[0];
   if (!session) return undefined;
   const event = await getEvent(session.eventId, session.organizationId);
-  if (!event || event.status !== "published") return undefined;
+  if (!event || event.status === "closed") return undefined;
   return session;
 }
 
