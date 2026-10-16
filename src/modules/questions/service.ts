@@ -260,34 +260,37 @@ export async function voteForQuestion(input: { questionId: string; participantId
 }
 
 export async function toggleVoteForQuestion(input: { questionId: string; participantId: string }): Promise<{ voted: boolean }> {
-  const [question] = await db
-    .select({ sessionId: questions.sessionId, status: questions.status })
-    .from(questions)
-    .where(eq(questions.id, input.questionId))
-    .limit(1);
-  const [participant] = await db
-    .select({ sessionId: questionParticipants.sessionId })
-    .from(questionParticipants)
-    .where(eq(questionParticipants.id, input.participantId))
-    .limit(1);
-  if (!question || !participant || question.sessionId !== participant.sessionId || !["approved", "answered"].includes(question.status)) {
-    throw new Error("Participant cannot vote for this question");
-  }
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select id from ${questions} where ${questions.id} = ${input.questionId} for update`);
+    const [question] = await tx
+      .select({ sessionId: questions.sessionId, status: questions.status })
+      .from(questions)
+      .where(eq(questions.id, input.questionId))
+      .limit(1);
+    const [participant] = await tx
+      .select({ sessionId: questionParticipants.sessionId })
+      .from(questionParticipants)
+      .where(eq(questionParticipants.id, input.participantId))
+      .limit(1);
+    if (!question || !participant || question.sessionId !== participant.sessionId || !["approved", "answered"].includes(question.status)) {
+      throw new Error("Participant cannot vote for this question");
+    }
 
-  const [vote] = await db
-    .select({ questionId: questionVotes.questionId })
-    .from(questionVotes)
-    .where(and(eq(questionVotes.questionId, input.questionId), eq(questionVotes.participantId, input.participantId)))
-    .limit(1);
-  if (vote) {
-    await db
-      .delete(questionVotes)
-      .where(and(eq(questionVotes.questionId, input.questionId), eq(questionVotes.participantId, input.participantId)));
-    return { voted: false };
-  }
+    const [vote] = await tx
+      .select({ questionId: questionVotes.questionId })
+      .from(questionVotes)
+      .where(and(eq(questionVotes.questionId, input.questionId), eq(questionVotes.participantId, input.participantId)))
+      .limit(1);
+    if (vote) {
+      await tx
+        .delete(questionVotes)
+        .where(and(eq(questionVotes.questionId, input.questionId), eq(questionVotes.participantId, input.participantId)));
+      return { voted: false };
+    }
 
-  await db.insert(questionVotes).values(input).onConflictDoNothing();
-  return { voted: true };
+    await tx.insert(questionVotes).values(input);
+    return { voted: true };
+  });
 }
 
 export async function listPublicQuestions(sessionId: string, participantId: string): Promise<PublicQuestion[]> {

@@ -1,143 +1,125 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { deleteMock, insertMock, selectMock } = vi.hoisted(() => ({
-  deleteMock: vi.fn(),
-  insertMock: vi.fn(),
-  selectMock: vi.fn(),
-}));
-
-vi.mock("@/db/client", () => ({
-  db: {
-    delete: deleteMock,
-    insert: insertMock,
-    select: selectMock,
-  },
-}));
-
-vi.mock("@/modules/events", () => ({
-  getEvent: vi.fn(),
-}));
-
+import "dotenv/config";
+import { randomUUID } from "node:crypto";
+import { eq, inArray, sql } from "drizzle-orm";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { db as applicationDb } from "@/db/client";
+import { events } from "@/modules/events/db";
+import { organizations } from "@/modules/users/db";
+import { questionParticipants, questionSessions, questionVotes, questions } from "./db";
 import { listPublicQuestions, toggleVoteForQuestion } from "./service";
 
-function selectChain<T>(rows: T[]) {
-  const chain = {
-    from: vi.fn(),
-    groupBy: vi.fn(),
-    leftJoin: vi.fn(),
-    orderBy: vi.fn(),
-    where: vi.fn(),
-    limit: vi.fn(),
-    then: (resolve: (value: T[]) => unknown) => Promise.resolve(rows).then(resolve),
-  };
-  chain.from.mockReturnValue(chain);
-  chain.groupBy.mockReturnValue(chain);
-  chain.leftJoin.mockReturnValue(chain);
-  chain.orderBy.mockReturnValue(chain);
-  chain.where.mockReturnValue(chain);
-  chain.limit.mockReturnValue(chain);
-  return chain;
-}
+vi.mock("@/modules/events", () => ({ getEvent: vi.fn() }));
 
-function insertChain() {
-  const chain = { values: vi.fn(), onConflictDoNothing: vi.fn() };
-  chain.values.mockReturnValue(chain);
-  chain.onConflictDoNothing.mockResolvedValue(undefined);
-  return chain;
-}
-
-function deleteChain() {
-  const chain = { where: vi.fn() };
-  chain.where.mockResolvedValue(undefined);
-  return chain;
-}
-
-const approvedQuestion = { sessionId: "session-1", status: "approved" as const };
-const participant = { sessionId: "session-1" };
-
-function prepareToggle({
-  vote = [],
-  question = approvedQuestion,
-  participantRow = participant,
-}: {
-  vote?: { questionId: string; participantId: string }[];
-  question?: typeof approvedQuestion;
-  participantRow?: typeof participant;
-} = {}) {
-  selectMock
-    .mockReturnValueOnce(selectChain([question]))
-    .mockReturnValueOnce(selectChain([participantRow]))
-    .mockReturnValueOnce(selectChain(vote));
+async function cleanup(ids: { organizationId: string; eventId: string; sessionId: string; questionId: string; participantIds: string[] }) {
+  await applicationDb.delete(questionVotes).where(eq(questionVotes.questionId, ids.questionId));
+  await applicationDb.delete(questions).where(eq(questions.id, ids.questionId));
+  await applicationDb.delete(questionParticipants).where(inArray(questionParticipants.id, ids.participantIds));
+  await applicationDb.delete(questionSessions).where(eq(questionSessions.id, ids.sessionId));
+  await applicationDb.delete(events).where(eq(events.id, ids.eventId));
+  await applicationDb.delete(organizations).where(eq(organizations.id, ids.organizationId));
 }
 
 describe("questions service likes", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
+  beforeAll(() => {
+    if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for database tests");
   });
 
-  it("adds a participant vote on the first toggle", async () => {
-    prepareToggle();
-    const chain = insertChain();
-    insertMock.mockReturnValue(chain);
+  it("toggles a vote atomically and isolates participants", async () => {
+    const ids = {
+      organizationId: randomUUID(),
+      eventId: randomUUID(),
+      sessionId: randomUUID(),
+      questionId: randomUUID(),
+      participantAId: randomUUID(),
+      participantBId: randomUUID(),
+    };
 
-    await expect(toggleVoteForQuestion({ questionId: "question-1", participantId: "participant-1" })).resolves.toEqual({ voted: true });
-
-    expect(chain.values as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({ questionId: "question-1", participantId: "participant-1" });
-    expect(chain.onConflictDoNothing).toHaveBeenCalledOnce();
-  });
-
-  it("removes the participant vote on the second toggle", async () => {
-    prepareToggle({ vote: [{ questionId: "question-1", participantId: "participant-1" }] });
-    const chain = deleteChain();
-    deleteMock.mockReturnValue(chain);
-
-    await expect(toggleVoteForQuestion({ questionId: "question-1", participantId: "participant-1" })).resolves.toEqual({ voted: false });
-
-    expect(chain.where).toHaveBeenCalledOnce();
-    expect(insertMock).not.toHaveBeenCalled();
-  });
-
-  it("protects the composite vote key when adding a vote", async () => {
-    prepareToggle();
-    const chain = insertChain();
-    insertMock.mockReturnValue(chain);
-
-    await toggleVoteForQuestion({ questionId: "question-1", participantId: "participant-1" });
-
-    expect(chain.onConflictDoNothing).toHaveBeenCalledWith();
-  });
-
-  it("isolates votes between participants", async () => {
-    prepareToggle();
-    const chain = insertChain();
-    insertMock.mockReturnValue(chain);
-
-    await expect(toggleVoteForQuestion({ questionId: "question-1", participantId: "participant-1" })).resolves.toEqual({ voted: true });
-    expect(chain.values as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({ questionId: "question-1", participantId: "participant-1" });
-  });
-
-  it("rejects votes across question sessions", async () => {
-    prepareToggle({ participantRow: { sessionId: "session-2" } });
-
-    await expect(toggleVoteForQuestion({ questionId: "question-1", participantId: "participant-1" })).rejects.toThrow(
-      "Participant cannot vote for this question",
-    );
-    expect(insertMock).not.toHaveBeenCalled();
-    expect(deleteMock).not.toHaveBeenCalled();
-  });
-
-  it("returns total votes and the current participant state", async () => {
-    const chain = selectChain([
-      {
-        question: { id: "question-1", text: "Question", status: "approved", answerText: null, publishedAt: null, createdAt: new Date() },
-        voteCount: 2,
-        hasVoted: true,
-      },
+    await applicationDb.insert(organizations).values({ id: ids.organizationId, name: `Questions test ${ids.organizationId}` });
+    await applicationDb.insert(events).values({
+        id: ids.eventId,
+        organizationId: ids.organizationId,
+        name: "Questions test event",
+        slug: `questions-test-${ids.eventId}`,
+        startsAt: new Date("2030-01-01T00:00:00Z"),
+    });
+    await applicationDb.execute(sql`
+      insert into question_sessions (id, organization_id, event_id, code_hash)
+      values (${ids.sessionId}, ${ids.organizationId}, ${ids.eventId}, ${`questions-test-${ids.sessionId}`})
+    `);
+    await applicationDb.insert(questionParticipants).values([
+        {
+          id: ids.participantAId,
+          sessionId: ids.sessionId,
+          fullName: "Participant A",
+          company: "Test",
+          tokenHash: `token-a-${ids.sessionId}`,
+          consentAcceptedAt: new Date(),
+        },
+        {
+          id: ids.participantBId,
+          sessionId: ids.sessionId,
+          fullName: "Participant B",
+          company: "Test",
+          tokenHash: `token-b-${ids.sessionId}`,
+          consentAcceptedAt: new Date(),
+        },
     ]);
-    selectMock.mockReturnValue(chain);
+    await applicationDb.insert(questions).values({
+        id: ids.questionId,
+        sessionId: ids.sessionId,
+        participantId: ids.participantAId,
+        text: "How does this work?",
+        normalizedText: "how does this work",
+        status: "approved",
+    });
 
-    await expect(listPublicQuestions("session-1", "participant-1")).resolves.toEqual([
-      expect.objectContaining({ id: "question-1", voteCount: 2, hasVoted: true }),
+    const first = await toggleVoteForQuestion({ questionId: ids.questionId, participantId: ids.participantAId });
+    expect(first).toEqual({ voted: true });
+    expect(await listPublicQuestions(ids.sessionId, ids.participantAId)).toEqual([
+      expect.objectContaining({ id: ids.questionId, voteCount: 1, hasVoted: true }),
     ]);
+    expect(await listPublicQuestions(ids.sessionId, ids.participantBId)).toEqual([
+      expect.objectContaining({ id: ids.questionId, voteCount: 1, hasVoted: false }),
+    ]);
+
+    const second = await toggleVoteForQuestion({ questionId: ids.questionId, participantId: ids.participantAId });
+    expect(second).toEqual({ voted: false });
+    expect(await listPublicQuestions(ids.sessionId, ids.participantAId)).toEqual([
+      expect.objectContaining({ id: ids.questionId, voteCount: 0, hasVoted: false }),
+    ]);
+    await cleanup({ ...ids, participantIds: [ids.participantAId, ids.participantBId] });
+  });
+
+  it("serializes concurrent toggles and returns each transaction's final state", async () => {
+    const ids = {
+      organizationId: randomUUID(),
+      eventId: randomUUID(),
+      sessionId: randomUUID(),
+      questionId: randomUUID(),
+      participantId: randomUUID(),
+    };
+
+    await applicationDb.insert(organizations).values({ id: ids.organizationId, name: `Concurrency test ${ids.organizationId}` });
+    await applicationDb.insert(events).values({
+        id: ids.eventId,
+        organizationId: ids.organizationId,
+        name: "Concurrency test event",
+        slug: `concurrency-test-${ids.eventId}`,
+        startsAt: new Date("2030-01-01T00:00:00Z"),
+    });
+    await applicationDb.execute(sql`
+      insert into question_sessions (id, organization_id, event_id, code_hash)
+      values (${ids.sessionId}, ${ids.organizationId}, ${ids.eventId}, ${`concurrency-test-${ids.sessionId}`})
+    `);
+    await applicationDb.insert(questionParticipants).values({ id: ids.participantId, sessionId: ids.sessionId, fullName: "Participant", company: "Test", tokenHash: `token-${ids.sessionId}`, consentAcceptedAt: new Date() });
+    await applicationDb.insert(questions).values({ id: ids.questionId, sessionId: ids.sessionId, participantId: ids.participantId, text: "Concurrent?", normalizedText: "concurrent", status: "approved" });
+
+    const results = await Promise.all([
+      toggleVoteForQuestion({ questionId: ids.questionId, participantId: ids.participantId }),
+      toggleVoteForQuestion({ questionId: ids.questionId, participantId: ids.participantId }),
+    ]);
+    expect(results.map((result) => result.voted).sort()).toEqual([false, true]);
+    expect(await applicationDb.select().from(questionVotes).where(eq(questionVotes.questionId, ids.questionId))).toHaveLength(0);
+    await cleanup({ ...ids, participantIds: [ids.participantId] });
   });
 });
