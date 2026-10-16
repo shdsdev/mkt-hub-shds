@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { getCurrentUser } from "@/modules/auth";
 import { canAccessEvent } from "@/modules/events";
 import { isActive } from "@/modules/users";
+import { recordAudit } from "@/modules/audit";
 import {
   answerQuestion,
   closeQuestionSession,
@@ -45,7 +46,8 @@ export async function createQuestionSessionAction(
   if (!user) return { error: "No tienes permiso para administrar preguntas." };
 
   try {
-    const { code } = await createOrRegenerateQuestionSession({ eventId: eventId.data, organizationId: user.profile.organizationId });
+    const { session, code } = await createOrRegenerateQuestionSession({ eventId: eventId.data, organizationId: user.profile.organizationId });
+    await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "question_regenerate_code", resourceType: "question_session", resourceId: session.id, after: { codeIssued: true } });
     revalidatePath(route(eventId.data));
     return {
       success: "Código generado. El código anterior dejó de funcionar.",
@@ -63,7 +65,8 @@ export async function closeQuestionSessionAction(formData: FormData): Promise<vo
   const user = await requireQuestionsUser(eventId.data);
   if (!user) return;
 
-  await closeQuestionSession({ eventId: eventId.data, organizationId: user.profile.organizationId });
+  const session = await closeQuestionSession({ eventId: eventId.data, organizationId: user.profile.organizationId });
+  if (session) await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "question_close_session", resourceType: "question_session", resourceId: session.id });
   revalidatePath(route(eventId.data));
 }
 
@@ -80,6 +83,8 @@ export async function moderateQuestionAction(formData: FormData): Promise<void> 
 
   try {
     await transitionQuestionStatus({ questionId: parsed.data.questionId, sessionId: parsed.data.sessionId, status: parsed.data.status, actorUserId: user.id });
+    const action = parsed.data.status === "approved" ? "question_approve" : parsed.data.status === "rejected" ? "question_reject" : "question_archive";
+    await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action, resourceType: "question", resourceId: parsed.data.questionId, after: { status: parsed.data.status } });
     revalidatePath(route(parsed.data.eventId));
     return;
   } catch {
@@ -100,6 +105,7 @@ export async function answerQuestionAction(formData: FormData): Promise<void> {
 
   try {
     await answerQuestion({ questionId: parsed.data.questionId, sessionId: parsed.data.sessionId, answerText: parsed.data.answerText, actorUserId: user.id });
+    await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "question_answer", resourceType: "question", resourceId: parsed.data.questionId, after: { answered: true } });
     revalidatePath(route(parsed.data.eventId));
     return;
   } catch {
@@ -119,6 +125,7 @@ export async function publishQuestionAnswerAction(formData: FormData): Promise<v
 
   try {
     await publishQuestionAnswer({ questionId: parsed.data.questionId, sessionId: parsed.data.sessionId, actorUserId: user.id });
+    await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "question_publish", resourceType: "question", resourceId: parsed.data.questionId, after: { published: true } });
     revalidatePath(route(parsed.data.eventId));
     return;
   } catch {
