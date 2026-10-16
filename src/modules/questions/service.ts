@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, count, desc, eq, ilike, inArray, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { getEvent } from "@/modules/events";
 import {
@@ -24,6 +24,7 @@ export type ParticipantWithToken = { participant: QuestionParticipantRow; token:
 
 export type PublicQuestion = Pick<QuestionRow, "id" | "text" | "status" | "answerText" | "publishedAt" | "createdAt"> & {
   voteCount: number;
+  hasVoted: boolean;
 };
 
 export type ModeratorQuestion = QuestionRow & {
@@ -258,11 +259,43 @@ export async function voteForQuestion(input: { questionId: string; participantId
   await db.insert(questionVotes).values(input).onConflictDoNothing();
 }
 
-export async function listPublicQuestions(sessionId: string): Promise<PublicQuestion[]> {
+export async function toggleVoteForQuestion(input: { questionId: string; participantId: string }): Promise<{ voted: boolean }> {
+  const [question] = await db
+    .select({ sessionId: questions.sessionId, status: questions.status })
+    .from(questions)
+    .where(eq(questions.id, input.questionId))
+    .limit(1);
+  const [participant] = await db
+    .select({ sessionId: questionParticipants.sessionId })
+    .from(questionParticipants)
+    .where(eq(questionParticipants.id, input.participantId))
+    .limit(1);
+  if (!question || !participant || question.sessionId !== participant.sessionId || !["approved", "answered"].includes(question.status)) {
+    throw new Error("Participant cannot vote for this question");
+  }
+
+  const [vote] = await db
+    .select({ questionId: questionVotes.questionId })
+    .from(questionVotes)
+    .where(and(eq(questionVotes.questionId, input.questionId), eq(questionVotes.participantId, input.participantId)))
+    .limit(1);
+  if (vote) {
+    await db
+      .delete(questionVotes)
+      .where(and(eq(questionVotes.questionId, input.questionId), eq(questionVotes.participantId, input.participantId)));
+    return { voted: false };
+  }
+
+  await db.insert(questionVotes).values(input).onConflictDoNothing();
+  return { voted: true };
+}
+
+export async function listPublicQuestions(sessionId: string, participantId: string): Promise<PublicQuestion[]> {
   const rows = await db
     .select({
       question: questions,
       voteCount: count(questionVotes.questionId),
+      hasVoted: sql<boolean>`coalesce(bool_or(${questionVotes.participantId} = ${participantId}), false)`,
     })
     .from(questions)
     .leftJoin(questionVotes, eq(questionVotes.questionId, questions.id))
@@ -270,10 +303,11 @@ export async function listPublicQuestions(sessionId: string): Promise<PublicQues
     .groupBy(questions.id)
     .orderBy(desc(count(questionVotes.questionId)), asc(questions.createdAt));
 
-  return rows.map(({ question, voteCount }) => ({
+  return rows.map(({ question, voteCount, hasVoted }) => ({
     ...question,
     answerText: question.publishedAt ? question.answerText : null,
     voteCount: Number(voteCount),
+    hasVoted: Boolean(hasVoted),
   }));
 }
 

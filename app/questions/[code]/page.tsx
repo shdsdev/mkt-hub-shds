@@ -20,6 +20,6 @@ export default async function PublicQuestionsPage({ params }: { params: Promise<
     return <main className="flex min-h-screen items-center justify-center bg-background p-6"><ParticipantForm code={code} /></main>;
   }
 
-  const questions = await listPublicQuestions(session.id);
+  const questions = await listPublicQuestions(session.id, participant.id);
   return <PublicQuestionList code={code} questions={questions} />;
 }

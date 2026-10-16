@@ -17,6 +17,7 @@ export {
   recordQuestionDuplicate,
   registerQuestionParticipant,
   transitionQuestionStatus,
+  toggleVoteForQuestion,
   voteForQuestion,
 } from "./service";
 export {

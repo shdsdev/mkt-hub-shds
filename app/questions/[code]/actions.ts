@@ -8,14 +8,14 @@ import {
   getQuestionSessionByCode,
   listSimilarQuestions,
   registerQuestionParticipant,
-  voteForQuestion,
+  toggleVoteForQuestion,
   questionParticipantSchema,
   questionTextSchema,
   checkPublicQuestionRateLimit,
   checkPublicQuestionRegistrationRateLimit,
 } from "@/modules/questions";
 
-export type PublicQuestionActionState = { error?: string; success?: string; registered?: boolean; similarQuestions?: { id: string; text: string }[] };
+export type PublicQuestionActionState = { error?: string; success?: string; registered?: boolean; voted?: boolean; similarQuestions?: { id: string; text: string }[] };
 
 function cookieName(sessionId: string) {
   return `questions_participant_${sessionId}`;
@@ -82,6 +82,6 @@ export async function voteQuestionAction(formData: FormData): Promise<PublicQues
   const context = await getParticipant(code);
   if (!context) return { error: "Completá tus datos para participar." };
 
-  await voteForQuestion({ questionId: questionId.data, participantId: context.participant.id });
-  return { success: "Voto registrado." };
+  const { voted } = await toggleVoteForQuestion({ questionId: questionId.data, participantId: context.participant.id });
+  return { success: voted ? "Voto registrado." : "Voto retirado.", voted };
 }
