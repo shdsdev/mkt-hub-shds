@@ -27,8 +27,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { BorderBeam } from "border-beam";
 import { CreateQrModal } from "./create-qr-modal";
-import { archiveQrCodeAction, updateDynamicQrUtmAction, updateQrNameAction } from "./actions";
+import { archiveQrCodeAction, updateDynamicQrUtmAction, updateQrMetadataAction, updateQrNameAction } from "./actions";
 import { updateDestinationAction } from "../links/actions";
+import { PlacementImageUpload } from "./placement-image-upload";
 import { BinaryLoader } from "@/components/binary-loader";
 import { CopyButton } from "@/components/copy-button";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
@@ -62,6 +63,7 @@ export type QrListRow = {
   status: "active" | "archived" | "disabled";
   createdAt: Date;
   logoUrl: string | null;
+  placementImageUrl?: string | null;
   scanCount: number;
   destinationUrl?: string;
   shortUrl?: string;
@@ -73,6 +75,7 @@ export type QrListRow = {
   utmContent?: string | null;
   payload?: string;
   name: string;
+  description?: string | null;
   staticKind?: "text" | "vcard" | "email" | "sms" | "wifi";
   groupName?: string;
   folderId: string | null;
@@ -470,8 +473,11 @@ export function QrList({
       {editingRow && (
         <EditQrModal
           qrId={editingRow.id}
+          organizationId={organizationId}
           linkId={editingRow.linkId!}
           name={editingRow.name}
+          description={editingRow.description}
+          placementImageUrl={editingRow.placementImageUrl}
           destinationUrl={editingRow.destinationUrl!}
           utmSource={editingRow.utmSource}
           utmMedium={editingRow.utmMedium}
@@ -489,6 +495,42 @@ function QrThumbnail({ id, className }: { id: string; className: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={`/qr/${id}/download?format=png`} alt="QR code" className={className} />
+  );
+}
+
+function ImagePreview({ src, alt }: { src: string; alt: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="block overflow-hidden rounded-md border border-border"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen(true);
+        }}
+        aria-label="Ampliar referencia visual"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={alt} className="h-20 w-28 object-cover transition-transform hover:scale-105" />
+      </button>
+      {open
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6"
+              onClick={() => setOpen(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label={alt}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={alt} className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain" />
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -529,6 +571,7 @@ function QrHeading({ row }: { row: QrListRow }) {
         <StatusBadge status={row.status} />
         {row.groupName && <span className="text-accent">{row.groupName}</span>}
       </p>
+      {row.description ? <p className="line-clamp-2 text-xs text-muted-foreground">{row.description}</p> : null}
       {row.mode === "dynamic" && row.shortUrl && (
         <p className="flex min-w-0 items-center gap-1.5 font-mono text-sm text-accent">
           <span className="truncate">{row.shortUrl}</span>
@@ -642,6 +685,7 @@ function QrRow({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => voi
       <div className="min-w-0 flex-1">
         <QrHeading row={row} />
       </div>
+      {row.placementImageUrl ? <ImagePreview src={row.placementImageUrl} alt="Referencia visual del QR" /> : null}
       <QrScanCount scanCount={row.scanCount} />
       <QrActions row={row} onEdit={onEdit} />
     </li>
@@ -661,6 +705,7 @@ function QrCard({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => vo
         <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
         <QrHeading row={row} />
       </div>
+      {row.placementImageUrl ? <ImagePreview src={row.placementImageUrl} alt="Referencia visual del QR" /> : null}
       <div className="flex items-center justify-between border-t border-border pt-3">
         <QrScanCount scanCount={row.scanCount} />
         <QrActions row={row} onEdit={onEdit} />
@@ -671,8 +716,11 @@ function QrCard({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => vo
 
 function EditQrModal({
   qrId,
+  organizationId,
   linkId,
   name,
+  description,
+  placementImageUrl,
   destinationUrl,
   utmSource,
   utmMedium,
@@ -682,8 +730,11 @@ function EditQrModal({
   onClose,
 }: {
   qrId: string;
+  organizationId: string;
   linkId: string;
   name: string;
+  description?: string | null;
+  placementImageUrl?: string | null;
   destinationUrl: string;
   utmSource?: string | null;
   utmMedium?: string | null;
@@ -695,6 +746,8 @@ function EditQrModal({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentDescription, setCurrentDescription] = useState(description ?? "");
+  const [currentPlacementImageUrl, setCurrentPlacementImageUrl] = useState(placementImageUrl ?? undefined);
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
@@ -705,6 +758,13 @@ function EditQrModal({
       const nameResult = await updateQrNameAction({}, formData);
       if (nameResult?.error) {
         setError(nameResult.error);
+        setPending(false);
+        return;
+      }
+
+      const metadataResult = await updateQrMetadataAction({}, formData);
+      if (metadataResult?.error) {
+        setError(metadataResult.error);
         setPending(false);
         return;
       }
@@ -770,6 +830,28 @@ function EditQrModal({
               required
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground uppercase">Contexto o descripcion</label>
+            <textarea
+              name="description"
+              value={currentDescription}
+              onChange={(event) => setCurrentDescription(event.target.value)}
+              maxLength={160}
+              rows={3}
+              className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">Maximo 160 caracteres.</p>
+          </div>
+          <div>
+            <p className="mb-1 block text-xs text-muted-foreground uppercase">Referencia visual</p>
+            <PlacementImageUpload
+              organizationId={organizationId}
+              value={currentPlacementImageUrl}
+              onUploaded={setCurrentPlacementImageUrl}
+              label="Adjuntar o cambiar referencia"
+            />
+            <input type="hidden" name="placementImageUrl" value={currentPlacementImageUrl ?? ""} readOnly />
           </div>
           <div>
             <label className="mb-1 block text-xs text-muted-foreground uppercase">URL de destino</label>

@@ -12,6 +12,7 @@ import { db } from "@/db/client";
 import { links, shortLinks } from "@/modules/links";
 import { qrCodes, qrDesignTemplates } from "./db";
 import { LOGO_SAFE_ZONE_RATIO, resolveErrorCorrectionLevel, type ErrorCorrectionLevel } from "./logo";
+import { normalizeQrDescription } from "./metadata";
 
 export type QrCodeRow = typeof qrCodes.$inferSelect;
 export type QrDesignTemplateRow = typeof qrDesignTemplates.$inferSelect;
@@ -43,6 +44,7 @@ export type QrCustomization = {
 // the encoded QR content (name, placement photo), or is itself encoded (folder/campaign).
 export type QrGrouping = {
   name: string;
+  description?: string;
   folderId?: string;
   campaignId?: string;
   placementImageUrl?: string;
@@ -187,6 +189,24 @@ export async function archiveQrCode(id: string): Promise<QrCodeRow> {
 
 export async function updateQrCodeName(id: string, name: string): Promise<QrCodeRow> {
   const [qr] = await db.update(qrCodes).set({ name }).where(eq(qrCodes.id, id)).returning();
+  return qr;
+}
+
+export async function updateQrDescription(id: string, description: string | undefined): Promise<QrCodeRow> {
+  const [qr] = await db
+    .update(qrCodes)
+    .set({ description: normalizeQrDescription(description) ?? null })
+    .where(eq(qrCodes.id, id))
+    .returning();
+  return qr;
+}
+
+export async function updateQrPlacementImage(id: string, placementImageUrl: string | undefined): Promise<QrCodeRow> {
+  const [qr] = await db
+    .update(qrCodes)
+    .set({ placementImageUrl: placementImageUrl || null })
+    .where(eq(qrCodes.id, id))
+    .returning();
   return qr;
 }
 

@@ -81,7 +81,6 @@ type ResendSendInput = {
 type ResendSendResult =
   | { ok: true; messageId: string }
   | { ok: false; error: string };
-
 type NotificationClient = Pick<typeof db, "select" | "insert" | "update">;
 
 // Minimal REST client over fetch — no SDK dependency added for this leaf module (design.md
