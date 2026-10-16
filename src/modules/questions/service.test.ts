@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { db as applicationDb } from "@/db/client";
-import { events } from "@/modules/events/db";
-import { organizations } from "@/modules/users/db";
+import { events, organizations } from "@/db/schema";
 import { questionParticipants, questionSessions, questionVotes, questions } from "./db";
 import { listPublicQuestions, toggleVoteForQuestion, voteForQuestion } from "./service";
 
