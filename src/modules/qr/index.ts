@@ -9,6 +9,8 @@ export {
   countActiveQrCodes,
   archiveQrCode,
   updateQrCodeName,
+  updateQrDescription,
+  updateQrPlacementImage,
   exportQrPng,
   exportQrSvg,
   exportQrPdf,
@@ -22,6 +24,7 @@ export {
   type QrCornerType,
   type QrDesignTemplateRow,
 } from "./service";
+export { normalizeQrDescription, QR_DESCRIPTION_MAX_LENGTH } from "./metadata";
 export { type ErrorCorrectionLevel } from "./logo";
 export { buildStaticPayload, type StaticPayloadInput } from "./static-payload";
 export { qrDownloadFilename } from "./filename";

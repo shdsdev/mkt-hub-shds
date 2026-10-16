@@ -11,6 +11,8 @@ import {
   archiveQrCode,
   getQrCode,
   updateQrCodeName,
+  updateQrDescription,
+  updateQrPlacementImage,
   buildStaticPayload,
 } from "@/modules/qr";
 import {
@@ -66,6 +68,7 @@ const templateSchema = z.object({
 // placement photo. See docs/superpowers/specs/2026-09-10-qr-creation-wizard-design.md.
 const groupingSchema = z.object({
   name: z.string().trim().min(1).max(255),
+  description: z.string().trim().max(160).optional().or(z.literal("")),
   folderId: z.string().uuid().optional().or(z.literal("")),
   campaignId: z.string().uuid().optional().or(z.literal("")),
   placementImageUrl: z.string().url().optional().or(z.literal("")),
@@ -121,6 +124,7 @@ export async function createWebsiteQrCodeAction(
     cornersSquareType: formData.get("cornersSquareType"),
     cornersDotType: formData.get("cornersDotType"),
     name: formData.get("name"),
+    description: formData.get("description") || undefined,
     folderId: formData.get("folderId") || undefined,
     campaignId: formData.get("campaignId") || undefined,
     placementImageUrl: formData.get("placementImageUrl") || undefined,
@@ -165,6 +169,7 @@ export async function createWebsiteQrCodeAction(
       cornersSquareType: parsed.data.cornersSquareType,
       cornersDotType: parsed.data.cornersDotType,
       name: parsed.data.name,
+      description: parsed.data.description || undefined,
       folderId: parsed.data.folderId || undefined,
       campaignId: parsed.data.campaignId || undefined,
       placementImageUrl: parsed.data.placementImageUrl || undefined,
@@ -287,6 +292,7 @@ const STATIC_FIELD_KEYS = [
   "cornersSquareType",
   "cornersDotType",
   "name",
+  "description",
   "folderId",
   "campaignId",
   "placementImageUrl",
@@ -319,6 +325,7 @@ export async function createStaticQrCodeAction(
 
   const {
     name,
+    description,
     folderId,
     campaignId,
     placementImageUrl,
@@ -340,6 +347,7 @@ export async function createStaticQrCodeAction(
     payload,
     staticKind: kindFields.kind,
     name,
+    description: description || undefined,
     folderId: folderId || undefined,
     campaignId: campaignId || undefined,
     placementImageUrl: placementImageUrl || undefined,
@@ -469,6 +477,41 @@ export async function updateQrNameAction(
   });
 
   revalidatePath("/qr");
+  return {};
+}
+
+const updateQrMetadataSchema = z.object({
+  qrId: z.string().uuid(),
+  description: z.string().trim().max(160).optional().or(z.literal("")),
+  placementImageUrl: z.string().url().optional().or(z.literal("")),
+});
+
+export async function updateQrMetadataAction(
+  _prevState: { error?: string },
+  formData: FormData,
+): Promise<{ error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
+
+  const parsed = updateQrMetadataSchema.safeParse({
+    qrId: formData.get("qrId"),
+    description: formData.get("description") || undefined,
+    placementImageUrl: formData.get("placementImageUrl") || undefined,
+  });
+  if (!parsed.success) return { error: "Revisa la descripcion y la imagen de referencia." };
+
+  const qr = await getQrCode(parsed.data.qrId);
+  if (!qr || qr.organizationId !== user.profile.organizationId) {
+    return { error: "El codigo QR no esta disponible." };
+  }
+
+  await Promise.all([
+    updateQrDescription(qr.id, parsed.data.description || undefined),
+    updateQrPlacementImage(qr.id, parsed.data.placementImageUrl || undefined),
+  ]);
+  revalidatePath("/qr");
+  revalidatePath(`/analytics/${qr.linkId ?? ""}`);
   return {};
 }
 

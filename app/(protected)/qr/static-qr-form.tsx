@@ -111,7 +111,7 @@ export function StaticQrForm({
   const [state, formAction, pending] = useActionState(createStaticQrCodeAction, initialState);
   const [step, setStep] = useState<Step>("detail");
   const [fields, setFields] = useState<Fields>(EMPTY_FIELDS);
-  const [detail, setDetail] = useState<QrDetailFieldsState>({ name: "", grouping: {} });
+  const [detail, setDetail] = useState<QrDetailFieldsState>({ name: "", description: "", grouping: {} });
   const [design, setDesign] = useState<QrDesignFieldsState>({
     backgroundColor: "#1c1213",
     foregroundColor: "#f7edee",

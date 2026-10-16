@@ -46,6 +46,7 @@ export const qrCodes = pgTable(
     // Organizational label, not encoded in the QR itself — required (backfilled for pre-existing
     // rows by the migration that adds this column, see drizzle/ for the exact UPDATE).
     name: text("name").notNull(),
+    description: text("description"),
     // Dynamic: both set, trackable, editable after print. Static: both null, untrackable by
     // design (DATABASE.md CHECK, mirrored below).
     linkId: uuid("link_id").references(() => links.id),

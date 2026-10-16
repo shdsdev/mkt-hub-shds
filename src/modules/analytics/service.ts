@@ -67,6 +67,10 @@ export function trackRedirect(input: {
   });
 }
 
+export async function flushTrackingEvents(): Promise<void> {
+  await buffer.flush();
+}
+
 // Includes buffered-but-not-yet-flushed events? No — only what's persisted. Acceptable: scan_rate
 // is a reporting figure, not the redirect hot path, and the buffer flushes within ~1s (I-5).
 export async function countEventsForShortLink(shortLinkId: string): Promise<number> {
@@ -190,6 +194,28 @@ async function getLiveTodayCount(linkId: string, eventType: AnalyticsEventType):
   return row?.count ?? 0;
 }
 
+async function getRawHumanBuckets(
+  linkId: string,
+  eventType: AnalyticsEventType,
+  granularity: AnalyticsGranularity,
+  from: Date,
+  to: Date,
+): Promise<AnalyticsBucket[]> {
+  const bucket = granularity === "day" ? sql`created_at::date` : sql`date_trunc(${granularity === "week" ? "week" : "month"}, created_at)::date`;
+  const rows = await db.execute<{ bucket: string; count: number }>(sql`
+    SELECT ${bucket}::text AS bucket, count(*)::int AS count
+    FROM ${trackingEvents}
+    WHERE ${trackingEvents.linkId} = ${linkId}
+      AND ${trackingEvents.sourceType} = ${eventType}
+      AND ${trackingEvents.isBot} = false
+      AND ${trackingEvents.createdAt} >= ${from}
+      AND ${trackingEvents.createdAt} <= ${to}
+    GROUP BY bucket
+    ORDER BY bucket ASC
+  `);
+  return rows;
+}
+
 export async function getAnalyticsTotalsForLink(
   linkId: string,
   eventType: AnalyticsEventType,
@@ -209,7 +235,22 @@ export async function getAnalyticsTotalsForLink(
     );
   const unique = await countUniqueEventsForLink(linkId, eventType, from, to);
   const liveToday = rangeIncludesToday(from, to) ? await getLiveTodayCount(linkId, eventType) : 0;
-  return { total: Number(totalRow?.total ?? 0) + liveToday, unique };
+  const rollupTotal = Number(totalRow?.total ?? 0) + liveToday;
+  if (rollupTotal > 0 || unique === 0) return { total: rollupTotal, unique };
+
+  const rawRows = await db
+    .select({ total: count() })
+    .from(trackingEvents)
+    .where(
+      and(
+        eq(trackingEvents.linkId, linkId),
+        eq(trackingEvents.sourceType, eventType),
+        eq(trackingEvents.isBot, false),
+        gte(trackingEvents.createdAt, from),
+        lte(trackingEvents.createdAt, to),
+      ),
+    );
+  return { total: rawRows[0]?.total ?? 0, unique };
 }
 
 // One atomic upsert-from-aggregate — idempotent (safe to re-run), covers any past day not yet
@@ -299,6 +340,7 @@ export async function getAnalyticsForLinkGrouped(
         ),
       )
       .orderBy(asc(trackingRollupDaily.date));
+    if (rows.length === 0) return getRawHumanBuckets(linkId, eventType, granularity, from, to);
     return includesToday ? mergeLiveTodayIntoBuckets(rows, todayDateKey(), liveToday) : rows;
   }
 
@@ -313,6 +355,7 @@ export async function getAnalyticsForLinkGrouped(
     GROUP BY bucket
     ORDER BY bucket ASC
   `);
+  if (rows.length === 0) return getRawHumanBuckets(linkId, eventType, granularity, from, to);
   if (!includesToday) return rows;
   return mergeLiveTodayIntoBuckets(rows, await todayBucketKey(granularity), liveToday);
 }

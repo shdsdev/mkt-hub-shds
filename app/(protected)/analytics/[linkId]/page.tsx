@@ -69,6 +69,7 @@ export default async function AnalyticsPage({
           {qr?.name && (
             <p className="truncate font-mono text-sm text-muted-foreground">{link.destinationUrl}</p>
           )}
+          {qr?.description ? <p className="max-w-xl text-sm text-muted-foreground">{qr.description}</p> : null}
           <p className="text-xs text-muted-foreground">
             Creado el {link.createdAt.toLocaleDateString()}
           </p>
@@ -104,6 +105,12 @@ export default async function AnalyticsPage({
                 <CopyButton value={shortUrl} />
               </p>
             )}
+            {qr.placementImageUrl ? (
+              <a href={qr.placementImageUrl} target="_blank" rel="noreferrer" className="mt-2 overflow-hidden rounded-md border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qr.placementImageUrl} alt="Referencia visual del QR" className="h-20 w-28 object-cover" />
+              </a>
+            ) : null}
           </div>
         )}
       </div>
