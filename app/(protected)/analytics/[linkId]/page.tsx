@@ -8,6 +8,7 @@ import { ScansPanel } from "./scans-panel";
 import { ActivityHeatmap } from "./activity-heatmap";
 import { buildHeatmapWeeks } from "./heatmap";
 import { EditDestinationButton } from "./edit-destination-button";
+import { PlacementImagePreview } from "@/components/placement-image-preview";
 
 const HEATMAP_WEEKS = 20;
 
@@ -85,6 +86,7 @@ export default async function AnalyticsPage({
                 qrId={qr.id}
                 linkId={linkId}
                 name={qr.name}
+                description={qr.description}
                 destinationUrl={link.destinationUrl}
               />
             </div>
@@ -105,12 +107,7 @@ export default async function AnalyticsPage({
                 <CopyButton value={shortUrl} />
               </p>
             )}
-            {qr.placementImageUrl ? (
-              <a href={qr.placementImageUrl} target="_blank" rel="noreferrer" className="mt-2 overflow-hidden rounded-md border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qr.placementImageUrl} alt="Referencia visual del QR" className="h-20 w-28 object-cover" />
-              </a>
-            ) : null}
+            {qr.placementImageUrl ? <PlacementImagePreview src={qr.placementImageUrl} /> : null}
           </div>
         )}
       </div>

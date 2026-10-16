@@ -33,6 +33,7 @@ import { PlacementImageUpload } from "./placement-image-upload";
 import { BinaryLoader } from "@/components/binary-loader";
 import { CopyButton } from "@/components/copy-button";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
+import { PlacementImagePreview } from "@/components/placement-image-preview";
 import {
   Select,
   SelectContent,
@@ -498,42 +499,6 @@ function QrThumbnail({ id, className }: { id: string; className: string }) {
   );
 }
 
-function ImagePreview({ src, alt }: { src: string; alt: string }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <button
-        type="button"
-        className="block overflow-hidden rounded-md border border-border"
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen(true);
-        }}
-        aria-label="Ampliar referencia visual"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="h-20 w-28 object-cover transition-transform hover:scale-105" />
-      </button>
-      {open
-        ? createPortal(
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6"
-              onClick={() => setOpen(false)}
-              role="dialog"
-              aria-modal="true"
-              aria-label={alt}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={alt} className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain" />
-            </div>,
-            document.body,
-          )
-        : null}
-    </>
-  );
-}
-
 function StatusBadge({ status }: { status: QrListRow["status"] }) {
   return (
     <span
@@ -685,7 +650,7 @@ function QrRow({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => voi
       <div className="min-w-0 flex-1">
         <QrHeading row={row} />
       </div>
-      {row.placementImageUrl ? <ImagePreview src={row.placementImageUrl} alt="Referencia visual del QR" /> : null}
+      {row.placementImageUrl ? <PlacementImagePreview src={row.placementImageUrl} /> : null}
       <QrScanCount scanCount={row.scanCount} />
       <QrActions row={row} onEdit={onEdit} />
     </li>
@@ -705,7 +670,7 @@ function QrCard({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => vo
         <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
         <QrHeading row={row} />
       </div>
-      {row.placementImageUrl ? <ImagePreview src={row.placementImageUrl} alt="Referencia visual del QR" /> : null}
+      {row.placementImageUrl ? <PlacementImagePreview src={row.placementImageUrl} /> : null}
       <div className="flex items-center justify-between border-t border-border pt-3">
         <QrScanCount scanCount={row.scanCount} />
         <QrActions row={row} onEdit={onEdit} />

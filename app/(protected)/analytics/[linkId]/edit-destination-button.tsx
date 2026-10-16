@@ -5,18 +5,20 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Pencil, X } from "lucide-react";
 import { updateDestinationAction } from "../../links/actions";
-import { updateQrNameAction } from "../../qr/actions";
+import { updateQrMetadataAction, updateQrNameAction } from "../../qr/actions";
 import { BinaryLoader } from "@/components/binary-loader";
 
 export function EditDestinationButton({
   qrId,
   linkId,
   name,
+  description,
   destinationUrl,
 }: {
   qrId: string;
   linkId: string;
   name: string;
+  description?: string | null;
   destinationUrl: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -39,6 +41,7 @@ export function EditDestinationButton({
       qrId={qrId}
       linkId={linkId}
       name={name}
+      description={description}
       destinationUrl={destinationUrl}
       onClose={() => setOpen(false)}
     />
@@ -49,18 +52,21 @@ function EditModal({
   qrId,
   linkId,
   name,
+  description,
   destinationUrl,
   onClose,
 }: {
   qrId: string;
   linkId: string;
   name: string;
+  description?: string | null;
   destinationUrl: string;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentDescription, setCurrentDescription] = useState(description ?? "");
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
@@ -70,6 +76,13 @@ function EditModal({
       const nameResult = await updateQrNameAction({}, formData);
       if (nameResult?.error) {
         setError(nameResult.error);
+        setPending(false);
+        return;
+      }
+
+      const metadataResult = await updateQrMetadataAction({}, formData);
+      if (metadataResult?.error) {
+        setError(metadataResult.error);
         setPending(false);
         return;
       }
@@ -117,6 +130,21 @@ function EditModal({
               required
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
+          </div>
+          <div>
+            <label htmlFor="analytics-description" className="mb-1 block text-xs text-muted-foreground uppercase">
+              Contexto o descripción
+            </label>
+            <textarea
+              id="analytics-description"
+              name="description"
+              value={currentDescription}
+              onChange={(event) => setCurrentDescription(event.target.value)}
+              maxLength={160}
+              rows={3}
+              className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-right text-xs text-muted-foreground">{currentDescription.length}/160</p>
           </div>
           <div>
             <label className="mb-1 block text-xs text-muted-foreground uppercase">URL de destino</label>
