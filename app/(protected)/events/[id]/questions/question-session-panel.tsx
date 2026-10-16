@@ -21,7 +21,7 @@ export function QuestionSessionPanel({ eventId, session, publicUrl }: { eventId:
         </div>
         <form action={formAction}>
           <input type="hidden" name="eventId" value={eventId} />
-          <button type="submit" disabled={pending} className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60">
+          <button type="submit" disabled={pending} className={session ? "rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60" : "rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"}>
             {pending ? "Generando…" : session ? "Regenerar código" : "Generar código"}
           </button>
         </form>

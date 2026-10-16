@@ -7,6 +7,7 @@ import { getQuestionMetrics, getQuestionSession, listModeratorQuestions, listQue
 import { EventSubNav } from "../../event-sub-nav";
 import { QuestionList } from "./question-list";
 import { QuestionSessionPanel } from "./question-session-panel";
+import { QuestionLiveRefresh } from "./question-live-refresh";
 import { createQuestionTopicAction } from "./actions";
 
 export default async function QuestionsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ status?: string; search?: string }> }) {
@@ -26,9 +27,10 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const metrics = session ? await getQuestionMetrics(session.id) : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
-      <EventSubNav eventId={event.id} current="questions" role={user.profile.role} />
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pb-10">
+    <QuestionLiveRefresh>
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
+        <EventSubNav eventId={event.id} current="questions" role={user.profile.role} />
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pb-10">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Preguntas: {event.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Moderá las preguntas del público y publicá respuestas durante la presentación.</p>
@@ -71,8 +73,9 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
           </form>
         ) : null}
         {session ? <QuestionList eventId={event.id} sessionId={session.id} questions={questions} topics={topics} /> : null}
+        </div>
       </div>
-    </div>
+    </QuestionLiveRefresh>
   );
 }
 
