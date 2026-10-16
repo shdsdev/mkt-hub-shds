@@ -1,10 +1,22 @@
 import { randomBytes } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIPv4, isIPv6 } from "node:net";
-import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { isAdmin, type UserRole } from "@/modules/users";
-import { events, eventRegistrations, eventAttendees, type AgendaItem, type SponsorLogo } from "./db";
+import {
+  events,
+  eventRegistrations,
+  eventAttendees,
+  eventReceptionists,
+  type AgendaItem,
+  type RegistrationConsents,
+  type SponsorLogo,
+} from "./db";
+import { getEffectiveRegistrationStatus } from "./registration-status";
+import { getCheckInResultKind, type CheckInResultKind } from "./check-in-result";
+import type { EventEmailContent } from "@/lib/events/event-email-content";
+import { DEFAULT_EVENT_REMINDER_OFFSET_MINUTES } from "@/lib/events/event-reminder";
 
 export type { AgendaItem, SponsorLogo };
 
@@ -53,10 +65,12 @@ export type CreateEventInput = {
   slug: string;
   description?: string;
   location?: string;
+  locationUrl?: string | null;
   startsAt: Date;
   endsAt?: Date;
   capacity?: number | null;
   reminderOffsetMinutes?: number | null;
+  checkInConfirmationRequired?: boolean;
   // spec.md "Fixed Optional Field Catalog" — omitted on create means the schema default (false).
   collectCompany?: boolean;
   collectJobTitle?: boolean;
@@ -64,6 +78,8 @@ export type CreateEventInput = {
   heroImageUrl?: string | null;
   agenda?: AgendaItem[];
   sponsorLogos?: SponsorLogo[];
+  registrationFormConfig?: EventRow["registrationFormConfig"];
+  emailContent?: EventEmailContent | null;
 };
 
 // spec.md "ADMIN-Only Event Authoring": only ADMIN may create, edit, publish, or close events;
@@ -82,12 +98,15 @@ export async function createEvent(input: CreateEventInput): Promise<EventMutatio
       startsAt: input.startsAt,
       endsAt: input.endsAt,
       capacity: input.capacity,
-      reminderOffsetMinutes: input.reminderOffsetMinutes,
+      reminderOffsetMinutes: input.reminderOffsetMinutes ?? DEFAULT_EVENT_REMINDER_OFFSET_MINUTES,
+      locationUrl: input.locationUrl,
+      checkInConfirmationRequired: input.checkInConfirmationRequired,
       collectCompany: input.collectCompany,
       collectJobTitle: input.collectJobTitle,
       heroImageUrl: input.heroImageUrl,
       agenda: input.agenda,
       sponsorLogos: input.sponsorLogos,
+      emailContent: input.emailContent,
     })
     .returning();
   return { ok: true, event };
@@ -97,15 +116,19 @@ export type UpdateEventChanges = Partial<{
   name: string;
   description: string | null;
   location: string | null;
+  locationUrl: string | null;
   startsAt: Date;
   endsAt: Date | null;
   capacity: number | null;
   reminderOffsetMinutes: number | null;
+  checkInConfirmationRequired: boolean;
   collectCompany: boolean;
   collectJobTitle: boolean;
   heroImageUrl: string | null;
   agenda: AgendaItem[];
   sponsorLogos: SponsorLogo[];
+  registrationFormConfig: EventRow["registrationFormConfig"];
+  emailContent: EventEmailContent | null;
 }>;
 
 export async function updateEvent(input: {
@@ -208,6 +231,7 @@ export type AttendeeInput = {
   phone?: string;
   company?: string;
   jobTitle?: string;
+  occupation?: string;
 };
 
 export type UtmFields = Partial<{
@@ -225,6 +249,14 @@ export type RegisterForEventInput = {
   source?: "public" | "admin_added";
   primary: AttendeeInput;
   companions?: AttendeeInput[];
+  clientBrands?: string[];
+  interests?: string[];
+  requestedMoreCompanions?: boolean;
+  consents?: {
+    privacyAcceptedAt: Date;
+    termsAcceptedAt: Date;
+    marketingAcceptedAt?: Date;
+  };
   utm?: UtmFields;
 };
 
@@ -322,6 +354,18 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
           utmTerm: input.utm?.utmTerm,
           utmContent: input.utm?.utmContent,
           utmId: input.utm?.utmId,
+          clientBrands: input.clientBrands ?? [],
+          interests: input.interests ?? [],
+          requestedMoreCompanions: input.requestedMoreCompanions ?? false,
+          consents: input.consents
+            ? ({
+                privacyAcceptedAt: input.consents.privacyAcceptedAt.toISOString(),
+                termsAcceptedAt: input.consents.termsAcceptedAt.toISOString(),
+                ...(input.consents.marketingAcceptedAt
+                  ? { marketingAcceptedAt: input.consents.marketingAcceptedAt.toISOString() }
+                  : {}),
+              } satisfies RegistrationConsents)
+            : null,
         })
         .returning();
 
@@ -339,6 +383,7 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
             phone: attendee.phone,
             company: attendee.company,
             jobTitle: attendee.jobTitle,
+            occupation: attendee.occupation,
             passToken: generateOpaqueToken(),
             backupCode: generateBackupCode(),
             isActive: true,
@@ -358,11 +403,12 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
 export type AddAttendeeToRegistrationInput = {
   registrationId: string;
   organizationId: string;
+  ignoreCapacity?: boolean;
   attendee: AttendeeInput;
 };
 
 export type AddAttendeeToRegistrationResult =
-  | { ok: true; attendee: EventAttendeeRow; registrationStatus: "confirmed" | "waitlisted" }
+  | { ok: true; attendee: EventAttendeeRow; registrationStatus: "confirmed" | "waitlisted"; cancelToken: string }
   | { ok: false; reason: "registration_not_found" | "cancelled" | "at_capacity" | "duplicate_email" };
 
 // Admin feedback round: a "master form" to add more companions to a registration AFTER it was
@@ -394,7 +440,7 @@ export async function addAttendeeToRegistration(
       const [event] = await tx.select().from(events).where(eq(events.id, registration.eventId)).limit(1);
       if (!event) return { ok: false, reason: "registration_not_found" };
 
-      if (registration.status !== "waitlisted" && event.capacity !== null) {
+      if (!input.ignoreCapacity && registration.status !== "waitlisted" && event.capacity !== null) {
         const seatsUsed = await countConfirmedSeats(tx, registration.eventId);
         if (seatsUsed + 1 > event.capacity) return { ok: false, reason: "at_capacity" };
       }
@@ -409,8 +455,9 @@ export async function addAttendeeToRegistration(
           email: input.attendee.email,
           emailNormalized: normalizeEmail(input.attendee.email),
           phone: input.attendee.phone,
-          company: input.attendee.company,
-          jobTitle: input.attendee.jobTitle,
+           company: input.attendee.company,
+           jobTitle: input.attendee.jobTitle,
+           occupation: input.attendee.occupation,
           passToken: generateOpaqueToken(),
           backupCode: generateBackupCode(),
           isActive: true,
@@ -421,6 +468,7 @@ export async function addAttendeeToRegistration(
         ok: true,
         attendee: row,
         registrationStatus: registration.status === "waitlisted" ? "waitlisted" : "confirmed",
+        cancelToken: registration.cancelToken,
       };
     });
   } catch (error) {
@@ -528,6 +576,94 @@ export type CheckInResult =
   | { ok: true; attendee: EventAttendeeRow; alreadyCheckedIn: boolean }
   | { ok: false; reason: "not_found" };
 
+export type CheckInLookupResult =
+  | { kind: "not_found" }
+  | { kind: "already_checked_in" | "eligible" | "blocked"; attendee: EventAttendeeRow; registration: RegistrationWithAttendees; reason?: "cancelled" | "waitlisted" };
+
+export async function lookupAttendeeForCheckIn(input: { eventId: string; code: string }): Promise<CheckInLookupResult> {
+  const code = input.code.trim();
+  if (!code) return { kind: "not_found" };
+
+  const [attendee] = await db
+    .select()
+    .from(eventAttendees)
+    .where(
+      and(
+        eq(eventAttendees.eventId, input.eventId),
+        or(eq(eventAttendees.backupCode, code.toUpperCase()), eq(eventAttendees.passToken, code)),
+      ),
+    )
+    .limit(1);
+  if (!attendee) return { kind: "not_found" };
+
+  const [registration] = await db
+    .select()
+    .from(eventRegistrations)
+    .where(and(eq(eventRegistrations.id, attendee.registrationId), eq(eventRegistrations.eventId, input.eventId)))
+    .limit(1);
+  if (!registration) return { kind: "not_found" };
+
+  const attendees = await db.select().from(eventAttendees).where(eq(eventAttendees.registrationId, registration.id));
+  const registrationWithAttendees = { ...registration, attendees };
+  const kind: CheckInResultKind = getCheckInResultKind({ registrationStatus: registration.status, checkedInAt: attendee.checkedInAt });
+  if (kind === "blocked") return { kind, attendee, registration: registrationWithAttendees, reason: registration.status as "cancelled" | "waitlisted" };
+  return { kind, attendee, registration: registrationWithAttendees };
+}
+
+export type UpdatePrimaryAttendeeResult =
+  | { ok: true; attendee: EventAttendeeRow }
+  | { ok: false; reason: "not_found" | "duplicate_email" };
+
+export async function updatePrimaryAttendee(input: {
+  registrationId: string;
+  organizationId: string;
+  attendee: Partial<Pick<AttendeeInput, "fullName" | "email" | "phone" | "company" | "jobTitle" | "occupation">>;
+}): Promise<UpdatePrimaryAttendeeResult> {
+  const [primary] = await db
+    .select({ id: eventAttendees.id })
+    .from(eventAttendees)
+    .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
+    .where(and(eq(eventAttendees.registrationId, input.registrationId), eq(eventRegistrations.organizationId, input.organizationId)))
+    .orderBy(asc(eventAttendees.createdAt))
+    .limit(1);
+  if (!primary) return { ok: false, reason: "not_found" };
+
+  try {
+    const [updated] = await db
+      .update(eventAttendees)
+      .set({
+        fullName: input.attendee.fullName,
+        email: input.attendee.email,
+        emailNormalized: input.attendee.email ? normalizeEmail(input.attendee.email) : undefined,
+        phone: input.attendee.phone,
+        company: input.attendee.company,
+        jobTitle: input.attendee.jobTitle,
+        occupation: input.attendee.occupation,
+        updatedAt: new Date(),
+      })
+      .where(eq(eventAttendees.id, primary.id))
+      .returning();
+    return updated ? { ok: true, attendee: updated } : { ok: false, reason: "not_found" };
+  } catch (error) {
+    if (isDuplicateEmailViolation(error)) return { ok: false, reason: "duplicate_email" };
+    throw error;
+  }
+}
+
+export async function confirmAttendeeCheckIn(input: { eventId: string; attendeeId: string; checkedInBy: string }): Promise<CheckInResult> {
+  const [updated] = await db
+    .update(eventAttendees)
+    .set({ checkedInAt: new Date(), checkedInBy: input.checkedInBy })
+    .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId), isNull(eventAttendees.checkedInAt)))
+    .returning();
+  if (!updated) {
+    const [existing] = await db.select().from(eventAttendees).where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId))).limit(1);
+    return existing ? { ok: true, attendee: existing, alreadyCheckedIn: true } : { ok: false, reason: "not_found" };
+  }
+  await db.update(eventRegistrations).set({ status: "checked_in" }).where(eq(eventRegistrations.id, updated.registrationId));
+  return { ok: true, attendee: updated, alreadyCheckedIn: false };
+}
+
 // spec.md "Individual Attendee Passes" / "Backup Code Manual Check-In" / "Duplicate Check-In
 // Prevention". Both lookups are scoped to `eventId` — the staff member checking people in is
 // always doing so for one specific event (design.md's check-in route is per-event), and
@@ -573,7 +709,7 @@ export function isReminderDue(now: Date, startsAt: Date, reminderOffsetMinutes: 
   return now.getTime() >= reminderOpensAt && now.getTime() < startsAt.getTime();
 }
 
-export type DueReminderAttendee = { event: EventRow; attendee: EventAttendeeRow };
+export type DueReminderAttendee = { event: EventRow; attendee: EventAttendeeRow; cancelToken: string };
 
 // spec.md "Webhook-Driven Reminder Trigger" — one query joining confirmed/active attendees of
 // published events to their event, then filtering by `isReminderDue` in application code rather
@@ -583,7 +719,7 @@ export type DueReminderAttendee = { event: EventRow; attendee: EventAttendeeRow 
 // to call every time this list includes the same attendee across repeated webhook invocations.
 export async function listDueReminderAttendees(now: Date = new Date()): Promise<DueReminderAttendee[]> {
   const rows = await db
-    .select({ event: events, attendee: eventAttendees })
+    .select({ event: events, attendee: eventAttendees, cancelToken: eventRegistrations.cancelToken })
     .from(eventAttendees)
     .innerJoin(eventRegistrations, eq(eventAttendees.registrationId, eventRegistrations.id))
     .innerJoin(events, eq(eventAttendees.eventId, events.id))
@@ -616,6 +752,31 @@ export async function recordEventVisit(slug: string): Promise<void> {
 
 export type RegistrationWithAttendees = EventRegistrationRow & { attendees: EventAttendeeRow[] };
 
+export async function listEventReceptionistIds(eventId: string, organizationId: string): Promise<string[]> {
+  const rows = await db
+    .select({ userId: eventReceptionists.userId })
+    .from(eventReceptionists)
+    .innerJoin(events, eq(events.id, eventReceptionists.eventId))
+    .where(and(eq(eventReceptionists.eventId, eventId), eq(events.organizationId, organizationId)));
+  return rows.map((row) => row.userId);
+}
+
+export async function assignEventReceptionist(eventId: string, userId: string, organizationId: string): Promise<boolean> {
+  const event = await getEvent(eventId, organizationId);
+  if (!event) return false;
+  await db.insert(eventReceptionists).values({ eventId, userId }).onConflictDoNothing();
+  return true;
+}
+
+export async function removeEventReceptionist(eventId: string, userId: string, organizationId: string): Promise<boolean> {
+  const event = await getEvent(eventId, organizationId);
+  if (!event) return false;
+  await db
+    .delete(eventReceptionists)
+    .where(and(eq(eventReceptionists.eventId, eventId), eq(eventReceptionists.userId, userId)));
+  return true;
+}
+
 // spec.md "Registrations Admin Search and Filter" — scoped to one event+organization, with an
 // optional status filter; each registration carries its own attendees (companions/contact/pass
 // status) joined back on, one extra query rather than N+1 per registration.
@@ -624,7 +785,8 @@ export async function listRegistrations(
   organizationId: string,
   filter?: { status?: EventRegistrationRow["status"]; q?: string },
 ): Promise<RegistrationWithAttendees[]> {
-  const scope = filter?.status
+  const statusRequiresAttendees = filter?.status === "confirmed" || filter?.status === "checked_in";
+  const scope = filter?.status && !statusRequiresAttendees
     ? and(
         eq(eventRegistrations.eventId, eventId),
         eq(eventRegistrations.organizationId, organizationId),
@@ -657,13 +819,19 @@ export async function listRegistrations(
     attendees: attendeesByRegistration.get(registration.id) ?? [],
   }));
 
+  const statusFiltered = statusRequiresAttendees
+    ? withAttendees.filter(
+        (registration) => getEffectiveRegistrationStatus(registration.status, registration.attendees) === filter.status,
+      )
+    : withAttendees;
+
   // Free-text search against the already-joined attendees rather than a second DB round-trip —
   // matches the spec's "search" half of "Registrations Admin Search and Filter" without a
   // separate full-text query path for what's at most a few hundred rows per event.
-  if (!filter?.q) return withAttendees;
+  if (!filter?.q) return statusFiltered;
   const needle = filter.q.trim().toLowerCase();
-  if (!needle) return withAttendees;
-  return withAttendees.filter((registration) =>
+  if (!needle) return statusFiltered;
+  return statusFiltered.filter((registration) =>
     registration.attendees.some(
       (attendee) =>
         attendee.fullName.toLowerCase().includes(needle) || attendee.email.toLowerCase().includes(needle),

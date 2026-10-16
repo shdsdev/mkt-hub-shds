@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getEventEmbedSnippet, getEventEmbedUrl } from "./embed";
+import { getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl } from "./embed";
 
 describe("event embed helpers", () => {
   it("builds the public embed URL without a duplicate slash", () => {
@@ -9,14 +9,28 @@ describe("event embed helpers", () => {
   });
 
   it("builds a copyable iframe snippet with safe defaults", () => {
-    expect(getEventEmbedSnippet("https://hub.example.com", "workshop-mayo")).toBe(
-      `<iframe src="https://hub.example.com/events/embed/workshop-mayo" style="width:100%;min-height:760px;border:0" loading="lazy" title="Formulario de registro"></iframe>`,
-    );
+    const snippet = getEventEmbedSnippet("https://hub.example.com", "workshop-mayo");
+    expect(snippet).toContain("data-event-registration-embed");
+    expect(snippet).toContain("https://hub.example.com/events/embed/workshop-mayo");
+    expect(snippet).toContain("event-registration:resize");
+    expect(snippet).toContain("event.source!==frame.contentWindow");
   });
 
   it("encodes a slug before placing it in the URL", () => {
     expect(getEventEmbedUrl("https://hub.example.com", "workshop mayo")).toBe(
       "https://hub.example.com/events/embed/workshop%20mayo",
+    );
+  });
+
+  it("builds the public landing URL without a duplicate slash", () => {
+    expect(getEventLandingUrl("https://hub.example.com/", "workshop-mayo")).toBe(
+      "https://hub.example.com/events/workshop-mayo",
+    );
+  });
+
+  it("encodes the event slug before placing it in the landing URL", () => {
+    expect(getEventLandingUrl("https://hub.example.com", "workshop mayo")).toBe(
+      "https://hub.example.com/events/workshop%20mayo",
     );
   });
 });

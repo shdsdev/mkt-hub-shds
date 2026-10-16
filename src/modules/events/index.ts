@@ -2,7 +2,21 @@
 // (ARCHITECTURE.md I-4). Registration and check-in service functions land in PR3/PR4
 // (tasks.md Phase 3-5); this PR adds ADMIN-only event CRUD (tasks.md Phase 2).
 export { generateBackupCode, generateOpaqueToken, normalizeEmail } from "./service";
-export { getEventEmbedSnippet, getEventEmbedUrl } from "./embed";
+export { canAccessEvent, canRoleAccessCapability, type EventCapability } from "./access";
+export { getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl } from "./embed";
+export { eventAttendees, eventRegistrations, events } from "./db";
+export {
+  CLIENT_BRAND_OPTIONS,
+  INTEREST_OPTIONS,
+  OCCUPATION_OPTIONS,
+  getDefaultRegistrationFormConfig,
+  registrationFormConfigSchema,
+  resolveRegistrationFormConfig,
+  type ClientBrandOption,
+  type InterestOption,
+  type OccupationOption,
+  type RegistrationFormConfig,
+} from "./registration-form-config";
 export {
   createEvent,
   updateEvent,
@@ -14,12 +28,18 @@ export {
   getRegistrationByCancelToken,
   registerForEvent,
   addAttendeeToRegistration,
+  updatePrimaryAttendee,
   cancelRegistrationByToken,
   checkInAttendee,
+  lookupAttendeeForCheckIn,
+  confirmAttendeeCheckIn,
   isReminderDue,
   listDueReminderAttendees,
   recordEventVisit,
   listRegistrations,
+  listEventReceptionistIds,
+  assignEventReceptionist,
+  removeEventReceptionist,
   getEventInsights,
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
@@ -39,6 +59,7 @@ export {
   type CancelRegistrationResult,
   type CheckInInput,
   type CheckInResult,
+  type CheckInLookupResult,
   type DueReminderAttendee,
   type RegistrationWithAttendees,
   type EventInsights,

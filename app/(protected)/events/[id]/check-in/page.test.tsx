@@ -4,19 +4,20 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   isActive: vi.fn(),
   isAdmin: vi.fn(),
+  canAccessEvent: vi.fn(),
   getEvent: vi.fn(),
   notFound: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
-vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent }));
+vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, canAccessEvent: mocks.canAccessEvent }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("./check-in-form", () => ({
   CheckInForm: ({ eventId }: { eventId: string }) => <div data-event-id={eventId} />,
 }));
 vi.mock("../../event-sub-nav", () => ({
-  EventSubNav: ({ eventId }: { eventId: string }) => <div data-sub-nav-event-id={eventId} />,
+  EventSubNav: ({ eventId, current }: { eventId: string; current: string }) => <div data-sub-nav-event-id={eventId} data-current={current} />,
 }));
 
 import EventCheckInPage from "./page";
@@ -37,6 +38,7 @@ describe("EventCheckInPage", () => {
     mocks.getCurrentUser.mockResolvedValue(activeUser);
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(false);
+    mocks.canAccessEvent.mockResolvedValue(true);
     mocks.notFound.mockImplementation(() => {
       throw new Error("NEXT_NOT_FOUND");
     });
@@ -55,14 +57,17 @@ describe("EventCheckInPage", () => {
     await expect(EventCheckInPage({ params: makeParams("event-1") })).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
-  it("renders the event name and the check-in form for a non-admin active user", async () => {
+  it("renders the event name and the check-in form for an assigned Reception user", async () => {
     mocks.getEvent.mockResolvedValue({ id: "event-1", name: "Workshop de Marketing" });
 
     const result = await EventCheckInPage({ params: makeParams("event-1") });
 
     expect(mocks.getEvent).toHaveBeenCalledWith("event-1", "org-1");
     expect(JSON.stringify(result)).toContain("Workshop de Marketing");
-    expect(JSON.stringify(result)).not.toContain('"current":"check-in"');
+    expect(JSON.stringify(result)).toContain("max-w-[1440px]");
+    expect(JSON.stringify(result)).toContain("mx-auto flex w-full max-w-4xl flex-col gap-6");
+    expect(mocks.canAccessEvent).toHaveBeenCalledWith(expect.objectContaining({ capability: "check-in" }));
+    expect(JSON.stringify(result)).toContain('"current":"check-in"');
   });
 
   it("renders the cross-event sub-nav for an ADMIN", async () => {

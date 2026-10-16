@@ -2,10 +2,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getPublishedEventBySlugPublic: vi.fn(),
+  resolveRegistrationFormConfig: vi.fn(() => ({
+    version: 1,
+    fields: {
+      phone: { visible: false, required: false },
+      company: { visible: true, required: false },
+      jobTitle: { visible: false, required: false },
+    },
+    companion: { enabled: true },
+    clientBrands: { enabled: false, options: [] },
+    interests: { enabled: false, options: [] },
+    consent: {
+      privacy: { url: "/privacy", text: "Privacidad" },
+      terms: { url: "/terms", text: "Términos" },
+      marketing: { enabled: false, text: "Marketing" },
+    },
+  })),
 }));
 
 vi.mock("@/modules/events", () => ({
   getPublishedEventBySlugPublic: mocks.getPublishedEventBySlugPublic,
+  resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
 }));
 vi.mock("../../[id]/register-form", () => ({
   RegisterForm: ({ slug, utm }: { slug: string; utm: Record<string, string | undefined> }) => (

@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD COLUMN "email_content" jsonb;

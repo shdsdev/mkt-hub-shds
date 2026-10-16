@@ -2,8 +2,8 @@
 // user is created by an ADMIN from inside the app once this one exists.
 //
 // Usage: pnpm db:seed -- --email you@example.com --password "at-least-12-chars" --org "My Org"
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createOrganization, createProfile } from "@/modules/users";
+import { createAdminClient } from "@/lib/supabase/admin-client";
+import { createOrganization, createProfile } from "@/modules/users/service";
 
 function readArg(name: string): string {
   const index = process.argv.indexOf(`--${name}`);

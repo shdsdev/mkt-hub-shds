@@ -14,7 +14,7 @@ export type ManagedUser = Pick<Profile, "id" | "organizationId" | "role" | "stat
   email: string;
 };
 
-export type ManagedRole = "ADMIN" | "MARKETING_USER";
+export type ManagedRole = "ADMIN" | "MARKETING_USER" | "RECEPTION";
 
 export type ManagementMutationResult =
   | { ok: true; user: ManagedUser; before: { role: ManagedRole; status: UserStatus } }

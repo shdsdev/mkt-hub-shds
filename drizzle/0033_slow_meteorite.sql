@@ -1,0 +1,1 @@
+ALTER TYPE "public"."raffle_audit_action" ADD VALUE 'validate' BEFORE 'resend_request';

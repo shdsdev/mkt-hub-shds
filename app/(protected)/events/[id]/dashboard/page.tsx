@@ -32,14 +32,16 @@ export default async function EventDashboardPage({ params }: { params: Promise<{
   if (!event || !insights) notFound();
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <EventSubNav eventId={id} current="dashboard" />
-      <h1 className="font-heading text-xl font-semibold">Resultados: {event.name}</h1>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatTile label="Visitas" value={insights.visits} />
-        <StatTile label="Registros" value={insights.registrations} />
-        <StatTile label="Asistencia" value={insights.attendance} />
-        <StatTile label="Conversión" value={formatConversion(insights.conversion)} />
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
+      <EventSubNav eventId={id} current="dashboard" role={user.profile.role} />
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <h1 className="font-heading text-xl font-semibold">Resultados: {event.name}</h1>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <StatTile label="Visitas" value={insights.visits} />
+          <StatTile label="Registros" value={insights.registrations} />
+          <StatTile label="Asistencia" value={insights.attendance} />
+          <StatTile label="Conversión" value={formatConversion(insights.conversion)} />
+        </div>
       </div>
     </div>
   );

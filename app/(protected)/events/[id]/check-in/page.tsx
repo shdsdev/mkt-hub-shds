@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import { isActive, isAdmin } from "@/modules/users";
-import { getEvent } from "@/modules/events";
+import { isActive } from "@/modules/users";
+import { canAccessEvent, getEvent } from "@/modules/events";
 import { CheckInForm } from "./check-in-form";
 import { EventSubNav } from "../../event-sub-nav";
 
@@ -14,19 +14,22 @@ export default async function EventCheckInPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const event = await getEvent(id, user.profile.organizationId);
   if (!event) notFound();
+  if (!(await canAccessEvent({ userId: user.id, organizationId: user.profile.organizationId, role: user.profile.role, eventId: event.id, capability: "check-in" }))) notFound();
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
       {/* Only ADMIN sees the cross-links (Editar/Registros/Resultados are ADMIN-only pages) —
           door staff on a plain active session would just hit notFound() on those. */}
-      {isAdmin(user.profile) ? <EventSubNav eventId={event.id} current="check-in" /> : null}
-      <div>
-        <h1 className="font-heading text-xl font-semibold">Check-in: {event.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Escanea el pase del asistente o escribe su código de respaldo.
-        </p>
+      <EventSubNav eventId={event.id} current="check-in" role={user.profile.role} />
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        <div>
+          <h1 className="font-heading text-xl font-semibold">Check-in: {event.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Escanea el pase del asistente o escribe su código de respaldo.
+          </p>
+        </div>
+        <CheckInForm eventId={event.id} confirmationRequired={event.checkInConfirmationRequired} />
       </div>
-      <CheckInForm eventId={event.id} />
     </div>
   );
 }

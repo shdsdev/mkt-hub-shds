@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   isActive: vi.fn(),
   isAdmin: vi.fn(),
+  canAccessEvent: vi.fn(),
   getEvent: vi.fn(),
   listRegistrations: vi.fn(),
   notFound: vi.fn(),
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
-vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, listRegistrations: mocks.listRegistrations }));
+vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, listRegistrations: mocks.listRegistrations, canAccessEvent: mocks.canAccessEvent }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("./add-companion-row", () => ({
   AddCompanionRow: ({ registrationId }: { registrationId: string }) => (
@@ -20,6 +21,11 @@ vi.mock("./add-companion-row", () => ({
 }));
 vi.mock("./registration-detail-sheet", () => ({
   RegistrationDetailSheet: () => <div data-registration-detail-sheet="" />,
+}));
+vi.mock("./registrations-table", () => ({
+  RegistrationsTable: ({ registrations, eventId }: { registrations: unknown[]; eventId: string }) => (
+    <div data-testid="registrations-table">{eventId}:{registrations.length}</div>
+  ),
 }));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -49,6 +55,7 @@ describe("RegistrationsPage", () => {
     mocks.getCurrentUser.mockResolvedValue(adminUser);
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(true);
+    mocks.canAccessEvent.mockResolvedValue(true);
     mocks.getEvent.mockResolvedValue({ id: "event-1", name: "Workshop de Marketing" });
     mocks.listRegistrations.mockResolvedValue([]);
     mocks.notFound.mockImplementation(() => {
@@ -56,8 +63,9 @@ describe("RegistrationsPage", () => {
     });
   });
 
-  it("returns notFound for a non-ADMIN user", async () => {
+  it("returns notFound for a Reception user without event assignment", async () => {
     mocks.isAdmin.mockReturnValue(false);
+    mocks.canAccessEvent.mockResolvedValue(false);
 
     await expect(
       RegistrationsPage({ params: params("event-1"), searchParams: searchParams() }),
@@ -94,7 +102,18 @@ describe("RegistrationsPage", () => {
     });
   });
 
-  it("renders the event name and each registration's primary contact", async () => {
+  it("preserves status and search in filter and export links", async () => {
+    const result = await RegistrationsPage({
+      params: params("event-1"),
+      searchParams: searchParams({ status: "confirmed", q: "ada" }),
+    });
+    const serialized = JSON.stringify(result);
+
+    expect(serialized).toContain("/events/event-1/registrations?status=confirmed&q=ada");
+    expect(serialized).toContain("/events/event-1/registrations/export?status=confirmed&q=ada");
+  });
+
+  it("passes filtered registrations to the interactive table", async () => {
     mocks.listRegistrations.mockResolvedValue([
       {
         id: "reg-1",
@@ -108,6 +127,7 @@ describe("RegistrationsPage", () => {
     const result = await RegistrationsPage({ params: params("event-1"), searchParams: searchParams() });
 
     expect(JSON.stringify(result)).toContain("Workshop de Marketing");
-    expect(JSON.stringify(result)).toContain("Ada Lovelace");
+     expect(JSON.stringify(result)).toContain('"registrations"');
+     expect(JSON.stringify(result)).toContain('"eventId":"event-1"');
   });
 });

@@ -7,3 +7,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## UI Rules
+
+- Preserve the existing checkbox animations and visual states when extending forms.
+- Preserve premium dropdown components and their transitions; do not replace them with native selects without an explicit reason.
+- Pair semantic colors with visible text or an accessible icon; never communicate status by color alone.
+- Check overflow, keyboard focus, disabled/loading/error states, and responsive composition for every UI change.
+- Fix layout distribution before reducing typography when text is clipped despite available space.

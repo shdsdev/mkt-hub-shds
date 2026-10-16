@@ -11,7 +11,9 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { organizations } from "@/modules/users/db";
+import { organizations, users } from "@/modules/users/db";
+import type { RegistrationFormConfig } from "./registration-form-config";
+import type { EventEmailContent } from "@/lib/events/event-email-content";
 
 // Agenda is a short, admin-ordered list of time blocks — not a scheduling system (no per-item
 // speakers/rooms by the original module's non-goals). `time` is free text ("10:00 AM", "Welcome")
@@ -51,6 +53,7 @@ export const events = pgTable("events", {
   status: eventStatus("status").notNull().default("draft"),
   description: text("description"),
   location: text("location"),
+  locationUrl: text("location_url"),
   startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
   endsAt: timestamp("ends_at", { withTimezone: true }),
   // Nullable = unlimited capacity (design.md "Nullable Capacity" requirement).
@@ -58,7 +61,8 @@ export const events = pgTable("events", {
   // Integer minutes before `startsAt` to send the reminder (design.md "Open Questions" —
   // integer minutes resolved over `interval`, trivially comparable in Drizzle/Postgres without an
   // interval driver mapping). Null = no reminder configured for this event.
-  reminderOffsetMinutes: integer("reminder_offset_minutes"),
+  reminderOffsetMinutes: integer("reminder_offset_minutes").default(2880),
+  checkInConfirmationRequired: boolean("check_in_confirmation_required").notNull().default(true),
   // spec.md "Fixed Optional Field Catalog" — a small FIXED, predefined set of optional
   // registration-form fields an ADMIN can toggle per event. No free-form field builder: adding a
   // new optional field means adding a new column here, never a user-defined schema. Both default
@@ -66,6 +70,8 @@ export const events = pgTable("events", {
   // (PR1) are the data sinks these toggles control; PR3 wires the public form to read them.
   collectCompany: boolean("collect_company").notNull().default(false),
   collectJobTitle: boolean("collect_job_title").notNull().default(false),
+  registrationFormConfig: jsonb("registration_form_config").$type<RegistrationFormConfig | null>(),
+  emailContent: jsonb("email_content").$type<EventEmailContent | null>(),
   // Acquisition source capture — column set and naming reused exactly from
   // `src/modules/links/db.ts` (design.md "Interfaces"), read/validated via `@/modules/utm`.
   utmSource: text("utm_source"),
@@ -123,9 +129,19 @@ export const eventRegistrations = pgTable("event_registrations", {
   utmTerm: text("utm_term"),
   utmContent: text("utm_content"),
   utmId: text("utm_id"),
+  clientBrands: jsonb("client_brands").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  interests: jsonb("interests").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  requestedMoreCompanions: boolean("requested_more_companions").notNull().default(false),
+  consents: jsonb("consents").$type<RegistrationConsents | null>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type RegistrationConsents = {
+  privacyAcceptedAt: string;
+  termsAcceptedAt: string;
+  marketingAcceptedAt?: string;
+};
 
 // Person-level identity (design.md "Contact identity" — the key decision): full_name/email/phone
 // live here exactly once, never copied onto events/event_registrations, so a future CRM can
@@ -152,6 +168,7 @@ export const eventAttendees = pgTable(
     phone: text("phone"),
     company: text("company"),
     jobTitle: text("job_title"),
+    occupation: text("occupation"),
     // Opaque per-attendee pass token (QR payload) — same token family as `cancelToken`.
     passToken: text("pass_token").notNull(),
     // 8-char Crockford base32 (no I/L/O/U), unique per event, human-typeable at the door.
@@ -175,6 +192,20 @@ export const eventAttendees = pgTable(
   ],
 );
 
+export const eventReceptionists = pgTable(
+  "event_receptionists",
+  {
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("event_receptionists_event_user_unique").on(table.eventId, table.userId)],
+);
+
 export const eventsTables = {
   eventStatus,
   eventRegistrationStatus,
@@ -182,4 +213,5 @@ export const eventsTables = {
   events,
   eventRegistrations,
   eventAttendees,
+  eventReceptionists,
 } as const;
