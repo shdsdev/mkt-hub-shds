@@ -55,7 +55,11 @@ export async function getQuestionSessionByCode(code: string): Promise<QuestionSe
     .from(questionSessions)
     .where(eq(questionSessions.codeHash, hashQuestionToken(code.trim().toUpperCase())))
     .limit(1);
-  return rows[0];
+  const session = rows[0];
+  if (!session) return undefined;
+  const event = await getEvent(session.eventId, session.organizationId);
+  if (!event || event.status !== "published") return undefined;
+  return session;
 }
 
 export async function createOrRegenerateQuestionSession(input: {
@@ -236,6 +240,17 @@ export async function publishQuestionAnswer(input: {
 }
 
 export async function voteForQuestion(input: { questionId: string; participantId: string }): Promise<void> {
+  const [question] = await db
+    .select({ sessionId: questions.sessionId })
+    .from(questions)
+    .where(eq(questions.id, input.questionId))
+    .limit(1);
+  const [participant] = await db
+    .select({ sessionId: questionParticipants.sessionId })
+    .from(questionParticipants)
+    .where(eq(questionParticipants.id, input.participantId))
+    .limit(1);
+  if (!question || !participant || question.sessionId !== participant.sessionId) throw new Error("Participant cannot vote in this session");
   await db.insert(questionVotes).values(input).onConflictDoNothing();
 }
 
