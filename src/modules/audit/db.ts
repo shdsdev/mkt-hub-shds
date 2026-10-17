@@ -12,6 +12,16 @@ export const auditAction = pgEnum("audit_action", [
   "change_user_role",
   "disable_user",
   "reactivate_user",
+  "question_approve",
+  "question_reject",
+  "question_answer",
+  "question_publish",
+  "question_archive",
+  "question_restore",
+  "question_regenerate_code",
+  "question_close_session",
+  "question_export",
+  "question_merge_duplicate",
 ]);
 
 // Append-only (no update/delete function anywhere in this module) — matches the print_runs
