@@ -21,13 +21,16 @@ export {
   voteForQuestion,
 } from "./service";
 export {
+  QUESTION_ACCESS_CODE_ALPHABET,
+  QUESTION_ACCESS_CODE_LENGTH,
   QUESTION_MAX_LENGTH,
+  questionAccessCodeSchema,
   questionParticipantSchema,
   questionTextSchema,
   type QuestionParticipantInput,
 } from "./validation";
 export { canTransitionQuestionStatus, QUESTION_STATUSES, type QuestionStatus } from "./state";
-export { hashQuestionToken, normalizeQuestionText } from "./tokens";
+export { createQuestionPublicToken, hashQuestionToken, normalizeQuestionText } from "./tokens";
 export { checkPublicQuestionRateLimit, checkPublicQuestionRegistrationRateLimit, createQuestionRateLimiter } from "./rate-limit";
 export { calculateQuestionMetrics, type QuestionMetricInput, type QuestionMetrics } from "./metrics";
 export { buildQuestionsCsv, buildQuestionsPdf, type QuestionExportRow } from "./export";

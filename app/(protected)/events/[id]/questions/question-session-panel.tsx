@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import Image from "next/image";
+import { CopyButton } from "@/components/copy-button";
 import type { QuestionSessionRow } from "@/modules/questions";
 import { closeQuestionSessionAction, createQuestionSessionAction } from "./actions";
 
@@ -10,6 +11,7 @@ export function QuestionSessionPanel({ eventId, session, publicUrl }: { eventId:
   const isOpen = session?.status === "open";
   const canShowActionArtifacts = !session || isOpen;
   const code = canShowActionArtifacts ? state.code ?? session?.displayCode : undefined;
+  const publicToken = canShowActionArtifacts ? state.publicToken ?? session?.publicToken : undefined;
   const resolvedPublicUrl = canShowActionArtifacts ? state.publicUrl ?? publicUrl : undefined;
 
   return (
@@ -36,17 +38,30 @@ export function QuestionSessionPanel({ eventId, session, publicUrl }: { eventId:
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Código actual</p>
             <p className="mt-1 font-mono text-2xl font-semibold tracking-[0.3em]">{code}</p>
-            <p className="mt-2 break-all text-sm text-muted-foreground">{resolvedPublicUrl}</p>
+            <div className="mt-2 flex min-w-0 items-center gap-2">
+              <p className="min-w-0 break-all text-sm text-muted-foreground">{resolvedPublicUrl}</p>
+              {resolvedPublicUrl ? <CopyButton value={resolvedPublicUrl} /> : null}
+            </div>
           </div>
-          {resolvedPublicUrl ? <Image src={`/questions/${code}/qr`} alt="Código QR para preguntas" width={128} height={128} className="h-32 w-32 rounded-md bg-white p-2" /> : null}
+          {resolvedPublicUrl && publicToken ? (
+            <a
+              href={`/questions/${publicToken}/qr`}
+              download={`question-qr-${code}.png`}
+              title="Descargar código QR"
+              aria-label="Descargar código QR"
+              className="group shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              <Image src={`/questions/${publicToken}/qr`} alt="Código QR para preguntas" width={128} height={128} className="h-32 w-32 rounded-md bg-white p-2 transition-transform group-hover:scale-[1.02]" />
+            </a>
+          ) : null}
         </div>
       ) : null}
 
       {session?.status === "open" ? (
-        <form action={closeQuestionSessionAction}>
+        <form action={closeQuestionSessionAction} className="flex justify-end">
           <input type="hidden" name="eventId" value={eventId} />
-          <button type="submit" className="rounded-full border border-destructive/50 px-4 py-2 text-sm text-destructive hover:bg-destructive/10">
-            Cerrar portal público
+          <button type="submit" className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2">
+            Cerrar portal
           </button>
         </form>
       ) : null}

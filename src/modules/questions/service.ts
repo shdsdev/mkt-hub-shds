@@ -15,14 +15,15 @@ import {
   type QuestionSessionRow,
 } from "./db";
 import { canTransitionQuestionStatus, type QuestionStatus } from "./state";
-import { hashQuestionToken, normalizeQuestionText } from "./tokens";
-import { questionParticipantSchema, questionTextSchema, type QuestionParticipantInput } from "./validation";
+import { createQuestionPublicToken, hashQuestionToken, normalizeQuestionText } from "./tokens";
+import { QUESTION_ACCESS_CODE_ALPHABET, QUESTION_ACCESS_CODE_LENGTH, questionParticipantSchema, questionTextSchema, type QuestionParticipantInput } from "./validation";
 import { calculateQuestionMetrics, type QuestionMetrics } from "./metrics";
 
-export type QuestionSessionWithCode = { session: QuestionSessionRow; code: string };
+export type QuestionSessionWithCode = { session: QuestionSessionRow; code: string; publicToken: string };
 export type ParticipantWithToken = { participant: QuestionParticipantRow; token: string };
 
 export type PublicQuestion = Pick<QuestionRow, "id" | "text" | "status" | "answerText" | "publishedAt" | "createdAt"> & {
+  participantName: string;
   voteCount: number;
   hasVoted: boolean;
 };
@@ -36,7 +37,8 @@ export type ModeratorQuestion = QuestionRow & {
 };
 
 function createAccessCode(): string {
-  return randomBytes(6).toString("hex").toUpperCase();
+  const bytes = randomBytes(QUESTION_ACCESS_CODE_LENGTH);
+  return Array.from(bytes, (byte) => QUESTION_ACCESS_CODE_ALPHABET[byte % QUESTION_ACCESS_CODE_ALPHABET.length]).join("");
 }
 
 function createParticipantToken(): string {
@@ -53,10 +55,12 @@ export async function getQuestionSession(eventId: string, organizationId: string
 }
 
 export async function getQuestionSessionByCode(code: string): Promise<QuestionSessionRow | undefined> {
+  const normalizedCode = code.trim();
+  const hashes = [hashQuestionToken(normalizedCode), hashQuestionToken(normalizedCode.toUpperCase())];
   const rows = await db
     .select()
     .from(questionSessions)
-    .where(eq(questionSessions.codeHash, hashQuestionToken(code.trim().toUpperCase())))
+    .where(inArray(questionSessions.codeHash, hashes))
     .limit(1);
   const session = rows[0];
   if (!session) return undefined;
@@ -73,22 +77,24 @@ export async function createOrRegenerateQuestionSession(input: {
   if (!event) throw new Error("Event not found");
 
   const code = createAccessCode();
-  const codeHash = hashQuestionToken(code);
+  const publicToken = createQuestionPublicToken();
+  const codeHash = hashQuestionToken(publicToken);
+  const accessCodeHash = hashQuestionToken(code);
   const existing = await getQuestionSession(input.eventId, input.organizationId);
   if (existing) {
     const [session] = await db
       .update(questionSessions)
-      .set({ codeHash, displayCode: code, status: "open", closedAt: null, codeCreatedAt: new Date(), updatedAt: new Date() })
+      .set({ codeHash, displayCode: code, publicToken, accessCodeHash, status: "open", closedAt: null, codeCreatedAt: new Date(), updatedAt: new Date() })
       .where(eq(questionSessions.id, existing.id))
       .returning();
-    return { session, code };
+    return { session, code, publicToken };
   }
 
   const [session] = await db
     .insert(questionSessions)
-    .values({ eventId: input.eventId, organizationId: input.organizationId, codeHash, displayCode: code })
+    .values({ eventId: input.eventId, organizationId: input.organizationId, codeHash, displayCode: code, publicToken, accessCodeHash })
     .returning();
-  return { session, code };
+  return { session, code, publicToken };
 }
 
 export async function closeQuestionSession(input: {
@@ -297,17 +303,20 @@ export async function listPublicQuestions(sessionId: string, participantId: stri
   const rows = await db
     .select({
       question: questions,
+      participantName: questionParticipants.fullName,
       voteCount: count(questionVotes.questionId),
       hasVoted: sql<boolean>`coalesce(bool_or(${questionVotes.participantId} = ${participantId}), false)`,
     })
     .from(questions)
+    .innerJoin(questionParticipants, eq(questionParticipants.id, questions.participantId))
     .leftJoin(questionVotes, eq(questionVotes.questionId, questions.id))
     .where(and(eq(questions.sessionId, sessionId), inArray(questions.status, ["approved", "answered"])))
-    .groupBy(questions.id)
+    .groupBy(questions.id, questionParticipants.id)
     .orderBy(desc(count(questionVotes.questionId)), asc(questions.createdAt));
 
-  return rows.map(({ question, voteCount, hasVoted }) => ({
+  return rows.map(({ question, participantName, voteCount, hasVoted }) => ({
     ...question,
+    participantName,
     answerText: question.publishedAt ? question.answerText : null,
     voteCount: Number(voteCount),
     hasVoted: Boolean(hasVoted),

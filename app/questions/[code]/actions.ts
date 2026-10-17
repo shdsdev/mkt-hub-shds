@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { z } from "zod";
 import {
   createQuestion,
@@ -9,6 +9,8 @@ import {
   listSimilarQuestions,
   registerQuestionParticipant,
   toggleVoteForQuestion,
+  hashQuestionToken,
+  questionAccessCodeSchema,
   questionParticipantSchema,
   questionTextSchema,
   checkPublicQuestionRateLimit,
@@ -30,6 +32,13 @@ async function getParticipant(code: string) {
   return participant ? { session, participant } : undefined;
 }
 
+async function getClientKey() {
+  const requestHeaders = await headers();
+  return requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? requestHeaders.get("x-real-ip")
+    ?? "unknown";
+}
+
 export async function registerParticipantAction(
   _previous: PublicQuestionActionState,
   formData: FormData,
@@ -37,7 +46,12 @@ export async function registerParticipantAction(
   const code = String(formData.get("code") ?? "");
   const session = await getQuestionSessionByCode(code);
   if (!session || session.status !== "open") return { error: "Este portal ya no está disponible." };
-  if (!checkPublicQuestionRegistrationRateLimit(code)) return { error: "Demasiados intentos. Intentá nuevamente en un minuto." };
+  const clientKey = await getClientKey();
+  if (!checkPublicQuestionRegistrationRateLimit(code, clientKey)) return { error: "Demasiados intentos. Intentá nuevamente en un minuto." };
+  const accessCode = questionAccessCodeSchema.safeParse(formData.get("accessCode"));
+  if (!accessCode.success || !session.accessCodeHash || hashQuestionToken(accessCode.data) !== session.accessCodeHash) {
+    return { error: "El código de acceso no coincide." };
+  }
 
   const parsed = questionParticipantSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -66,7 +80,8 @@ export async function submitQuestionAction(
   if (!text.success) return { error: text.error.issues[0]?.message ?? "Revisá la pregunta." };
   const context = await getParticipant(code);
   if (!context) return { error: "Completá tus datos para participar." };
-  if (!checkPublicQuestionRateLimit(`questions:${context.session.id}:${context.participant.id}`)) {
+  const clientKey = await getClientKey();
+  if (!checkPublicQuestionRateLimit(context.session.publicToken ?? code, `${clientKey}:${context.participant.id}`)) {
     return { error: "Hiciste demasiadas preguntas. Intentá nuevamente en un minuto." };
   }
 

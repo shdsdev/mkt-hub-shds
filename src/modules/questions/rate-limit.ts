@@ -22,10 +22,10 @@ export function createQuestionRateLimiter(options: RateLimitOptions) {
 const publicQuestionLimiter = createQuestionRateLimiter({ maxActions: 5, windowMs: 60_000 });
 const publicRegistrationLimiter = createQuestionRateLimiter({ maxActions: 10, windowMs: 60_000 });
 
-export function checkPublicQuestionRateLimit(key: string): boolean {
-  return publicQuestionLimiter.check(key);
+export function checkPublicQuestionRateLimit(publicToken: string, clientKey: string): boolean {
+  return publicQuestionLimiter.check(`question:${publicToken}:${clientKey}`);
 }
 
-export function checkPublicQuestionRegistrationRateLimit(code: string): boolean {
-  return publicRegistrationLimiter.check(`registration:${code}`);
+export function checkPublicQuestionRegistrationRateLimit(publicToken: string, clientKey: string): boolean {
+  return publicRegistrationLimiter.check(`registration:${publicToken}:${clientKey}`);
 }

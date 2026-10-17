@@ -60,7 +60,8 @@ export function PublicQuestionList({ code, questions }: { code: string; question
 function PublicQuestion({ code, question }: { code: string; question: PublicQuestion }) {
   return (
     <article className="rounded-xl border border-black/[0.08] bg-white/90 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      <p className="break-words text-base">{question.text}</p>
+      <p className="text-xs text-[#6b6b6b]">{question.participantName}</p>
+      <p className="mt-2 break-words text-base">{question.text}</p>
       {question.answerText && question.publishedAt ? <p className="mt-4 break-words border-l-2 border-sky-500 pl-3 text-sm"><strong>Respuesta:</strong> {question.answerText}</p> : null}
       <div className="mt-4 flex items-center justify-between gap-3">
         <QuestionLikeButton code={code} question={question} />

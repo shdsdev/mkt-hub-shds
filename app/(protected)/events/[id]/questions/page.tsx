@@ -9,6 +9,7 @@ import { QuestionList } from "./question-list";
 import { QuestionSessionPanel } from "./question-session-panel";
 import { QuestionLiveRefresh } from "./question-live-refresh";
 import { createQuestionTopicAction } from "./actions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default async function QuestionsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ status?: string; search?: string }> }) {
   const user = await getCurrentUser();
@@ -20,9 +21,18 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
 
   const session = await getQuestionSession(event.id, user.profile.organizationId);
   const appOrigin = env.NEXT_PUBLIC_APP_ORIGIN.replace(/\/+$/, "");
-  const publicUrl = session?.displayCode ? `${appOrigin}/questions/${session.displayCode}` : undefined;
+  const publicUrl = session?.publicToken ? `${appOrigin}/questions/${session.publicToken}` : undefined;
   const query = await searchParams;
   const status = ["pending", "approved", "rejected", "answered", "archived"].includes(query.status ?? "") ? query.status as QuestionStatus : undefined;
+  const statusLabels: Record<string, string> = {
+    all: "Todos los estados",
+    pending: "Pendientes",
+    approved: "Aprobadas",
+    answered: "Respondidas",
+    rejected: "Rechazadas",
+    archived: "Archivadas",
+  };
+  const selectedStatus = query.status ?? "all";
   const [questions, topics] = session ? await Promise.all([listModeratorQuestions(session.id, { status, search: query.search?.trim() || undefined }), listQuestionTopics(session.id)]) : [[], []];
   const metrics = session ? await getQuestionMetrics(session.id) : undefined;
 
@@ -59,16 +69,19 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
           </div>
         ) : null}
         {session ? (
-          <form method="get" className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-4">
+          <form method="get" className="flex flex-wrap gap-2">
             <input name="search" defaultValue={query.search} placeholder="Buscar pregunta" className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
-            <select name="status" defaultValue={query.status ?? ""} className="rounded-md border border-input bg-background px-3 py-2 text-sm">
-              <option value="">Todos los estados</option>
-              <option value="pending">Pendientes</option>
-              <option value="approved">Aprobadas</option>
-              <option value="answered">Respondidas</option>
-              <option value="rejected">Rechazadas</option>
-              <option value="archived">Archivadas</option>
-            </select>
+            <Select name="status" defaultValue={selectedStatus}>
+              <SelectTrigger className="min-w-44" aria-label="Filtrar por estado"><SelectValue>{statusLabels[selectedStatus]}</SelectValue></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="pending">Pendientes</SelectItem>
+                <SelectItem value="approved">Aprobadas</SelectItem>
+                <SelectItem value="answered">Respondidas</SelectItem>
+                <SelectItem value="rejected">Rechazadas</SelectItem>
+                <SelectItem value="archived">Archivadas</SelectItem>
+              </SelectContent>
+            </Select>
             <button type="submit" className="rounded-full border border-border px-4 py-2 text-sm hover:bg-muted">Filtrar</button>
           </form>
         ) : null}

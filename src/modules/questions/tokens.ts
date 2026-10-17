@@ -1,4 +1,8 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+
+export function createQuestionPublicToken(): string {
+  return randomBytes(32).toString("base64url");
+}
 
 export function hashQuestionToken(token: string): string {
   return createHash("sha256").update(token, "utf8").digest("hex");

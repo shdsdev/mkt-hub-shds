@@ -11,8 +11,12 @@ export function ParticipantForm({ code }: { code: string }) {
       <input type="hidden" name="code" value={code} />
       <div>
         <h1 className="font-heading text-2xl font-semibold">Preguntas de la presentación</h1>
-        <p className="mt-2 text-sm text-[#6b6b6b]">Ingresá tus datos una sola vez para participar.</p>
+        <p className="mt-2 text-sm text-[#6b6b6b]">Ingresá el código y tus datos una sola vez para participar.</p>
       </div>
+      <label className="flex flex-col gap-1.5 text-sm font-medium">
+        Código de acceso
+        <input name="accessCode" required minLength={5} maxLength={5} autoComplete="off" spellCheck={false} className="rounded-md border border-black/[0.12] bg-white px-3 py-2 font-mono uppercase tracking-[0.3em] outline-none focus:ring-2 focus:ring-sky-500/30" />
+      </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Nombre completo
         <input name="fullName" required maxLength={255} className="rounded-md border border-black/[0.12] bg-white px-3 py-2 font-normal outline-none focus:ring-2 focus:ring-sky-500/30" />

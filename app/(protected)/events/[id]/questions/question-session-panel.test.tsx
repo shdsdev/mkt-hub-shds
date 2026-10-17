@@ -40,8 +40,10 @@ describe("QuestionSessionPanel", () => {
       id: "session-1",
       eventId: "event-1",
       organizationId: "org-1",
-      codeHash: "hash",
-      displayCode: "ABC123",
+       codeHash: "hash",
+       displayCode: "ABC123",
+       publicToken: "public-token-1",
+       accessCodeHash: "access-hash",
       status: "open" as const,
       codeCreatedAt: new Date("2026-01-01T00:00:00Z"),
       closedAt: null,
@@ -53,10 +55,10 @@ describe("QuestionSessionPanel", () => {
     document.body.appendChild(container);
     root = createRoot(container);
 
-    act(() => root?.render(<QuestionSessionPanel eventId="event-1" session={session} publicUrl="https://example.com/questions/ABC123" />));
+    act(() => root?.render(<QuestionSessionPanel eventId="event-1" session={session} publicUrl="https://example.com/questions/public-token-1" />));
 
     expect(container.textContent).toContain("ABC123");
-    expect(container.textContent).toContain("https://example.com/questions/ABC123");
+    expect(container.textContent).toContain("https://example.com/questions/public-token-1");
     expect(container.querySelector('img[alt="Código QR para preguntas"]')).not.toBeNull();
     expect(container.querySelector('button[type="submit"]')?.textContent).toContain("Regenerar código");
   });
@@ -65,7 +67,8 @@ describe("QuestionSessionPanel", () => {
     createQuestionSessionAction.mockResolvedValue({
       success: "Código generado.",
       code: "NEW456",
-      publicUrl: "https://example.com/questions/NEW456",
+      publicToken: "public-token-2",
+      publicUrl: "https://example.com/questions/public-token-2",
     });
 
     container = document.createElement("div");
@@ -78,7 +81,7 @@ describe("QuestionSessionPanel", () => {
     });
 
     expect(container.textContent).toContain("NEW456");
-    expect(container.textContent).toContain("https://example.com/questions/NEW456");
+    expect(container.textContent).toContain("https://example.com/questions/public-token-2");
     expect(container.querySelector('img[alt="Código QR para preguntas"]')).not.toBeNull();
   });
 
@@ -87,9 +90,11 @@ describe("QuestionSessionPanel", () => {
       id: "session-1",
       eventId: "event-1",
       organizationId: "org-1",
-      codeHash: "hash",
-      displayCode: "ABC123",
-      status: "closed" as const,
+       codeHash: "hash",
+       displayCode: "ABC123",
+       publicToken: "public-token-1",
+       accessCodeHash: "access-hash",
+       status: "closed" as const,
       codeCreatedAt: new Date("2026-01-01T00:00:00Z"),
       closedAt: new Date("2026-01-02T00:00:00Z"),
       createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -114,9 +119,11 @@ describe("QuestionSessionPanel", () => {
       id: "session-1",
       eventId: "event-1",
       organizationId: "org-1",
-      codeHash: "hash",
-      displayCode: "ABC123",
-      status: "open" as const,
+       codeHash: "hash",
+       displayCode: "ABC123",
+       publicToken: "public-token-1",
+       accessCodeHash: "access-hash",
+       status: "open" as const,
       codeCreatedAt: new Date("2026-01-01T00:00:00Z"),
       closedAt: null,
       createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -131,7 +138,8 @@ describe("QuestionSessionPanel", () => {
     createQuestionSessionAction.mockResolvedValue({
       success: "Código generado.",
       code: "NEW456",
-      publicUrl: "https://example.com/questions/NEW456",
+      publicToken: "public-token-2",
+      publicUrl: "https://example.com/questions/public-token-2",
     });
 
     container = document.createElement("div");
@@ -144,12 +152,12 @@ describe("QuestionSessionPanel", () => {
     });
 
     expect(container.textContent).toContain("NEW456");
-    expect(container.textContent).toContain("https://example.com/questions/NEW456");
+    expect(container.textContent).toContain("https://example.com/questions/public-token-2");
 
     act(() => root?.render(<QuestionSessionPanel eventId="event-1" session={closedSession} publicUrl="https://example.com/questions/ABC123" />));
 
     expect(container.textContent).not.toContain("NEW456");
-    expect(container.textContent).not.toContain("https://example.com/questions/NEW456");
+    expect(container.textContent).not.toContain("https://example.com/questions/public-token-2");
     expect(container.querySelector('img[alt="Código QR para preguntas"]')).toBeNull();
   });
 

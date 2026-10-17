@@ -62,6 +62,7 @@ describe("PublicQuestionList", () => {
         code="ABC123"
         questions={[{
           id: "question-1",
+          participantName: "Javier Enriquez",
           text: "¿Cuál es la pregunta?",
           status: "approved",
           answerText: null,
@@ -95,6 +96,7 @@ describe("PublicQuestionList", () => {
 
     const question = {
       id: "question-1",
+      participantName: "Javier Enriquez",
       text: "¿Cuál es la pregunta?",
       status: "approved" as const,
       answerText: null,
@@ -133,6 +135,7 @@ describe("PublicQuestionList", () => {
         code="ABC123"
         questions={[{
           id: "question-1",
+          participantName: "Javier Enriquez",
           text: "¿Cuál es la pregunta?",
           status: "approved",
           answerText: null,
@@ -160,6 +163,7 @@ describe("PublicQuestionList", () => {
         code="ABC123"
         questions={[{
           id: "question-1",
+          participantName: "Javier Enriquez",
           text: "PreguntaConUnaCadenaLargaSinEspaciosQueDebePoderPartirse",
           status: "approved",
           answerText: "RespuestaConUnaCadenaLargaSinEspaciosQueDebePoderPartirse",

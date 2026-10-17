@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
   QUESTION_MAX_LENGTH,
+  questionAccessCodeSchema,
   questionParticipantSchema,
   questionTextSchema,
 } from "./validation";
+
+describe("questionAccessCodeSchema", () => {
+  it("accepts a five-character access code case-insensitively", () => {
+    expect(questionAccessCodeSchema.parse("ab2c3")).toBe("AB2C3");
+  });
+
+  it("rejects access codes that are not exactly five safe characters", () => {
+    expect(() => questionAccessCodeSchema.parse("AB1234")).toThrow();
+    expect(() => questionAccessCodeSchema.parse("AB0C3")).toThrow();
+  });
+});
 
 describe("questionTextSchema", () => {
   it("trims valid question text", () => {

@@ -24,6 +24,7 @@ export type QuestionActionState = {
   success?: string;
   code?: string;
   publicUrl?: string;
+  publicToken?: string;
 };
 
 const eventIdSchema = z.string().uuid();
@@ -55,14 +56,15 @@ export async function createQuestionSessionAction(
   if (!user) return { error: "No tienes permiso para administrar preguntas." };
 
   try {
-    const { session, code } = await createOrRegenerateQuestionSession({ eventId: eventId.data, organizationId: user.profile.organizationId });
+    const { session, code, publicToken } = await createOrRegenerateQuestionSession({ eventId: eventId.data, organizationId: user.profile.organizationId });
     await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "question_regenerate_code", resourceType: "question_session", resourceId: session.id, after: { codeIssued: true } });
     revalidatePath(route(eventId.data));
     const appOrigin = env.NEXT_PUBLIC_APP_ORIGIN.replace(/\/+$/, "");
     return {
       success: "Código generado. El código anterior dejó de funcionar.",
       code,
-      publicUrl: `${appOrigin}/questions/${code}`,
+      publicToken,
+      publicUrl: `${appOrigin}/questions/${publicToken}`,
     };
   } catch {
     return { error: "No se pudo generar el código de preguntas." };
