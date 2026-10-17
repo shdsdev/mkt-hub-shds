@@ -11,6 +11,9 @@ import {
   createEvent,
   updateEvent,
   setEventStatus,
+  archiveEvent,
+  restoreEvent,
+  deleteEvent,
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
   registrationFormConfigSchema,
@@ -207,7 +210,7 @@ export async function createEventAction(
   if (!result.ok) return { error: PERMISSION_ERROR };
 
   revalidatePath("/events");
-  return { success: "Evento creado.", eventId: result.event.id };
+  redirect(`/events/${result.event.id}/dashboard`);
 }
 
 const updateEventFieldsSchema = eventFieldsSchema.partial({ name: true, slug: true, startsAt: true });
@@ -287,6 +290,47 @@ export async function publishEventAction(formData: FormData): Promise<void> {
 
 export async function closeEventAction(formData: FormData): Promise<void> {
   return setStatusAction(formData, "closed");
+}
+
+async function lifecycleAction(
+  formData: FormData,
+  operation: typeof archiveEvent,
+): Promise<void> {
+  const user = await requireActiveAdmin();
+  if (!user) return;
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return;
+  const result = await operation({ id: id.data, organizationId: user.profile.organizationId, actorRole: user.profile.role });
+  if (!result.ok) return;
+  revalidatePath("/events");
+  revalidatePath(`/events/${id.data}`);
+  revalidatePath(`/events/${id.data}/dashboard`);
+  revalidatePath(`/events/${id.data}/edit`);
+}
+
+export async function archiveEventAction(formData: FormData): Promise<void> {
+  return lifecycleAction(formData, archiveEvent);
+}
+
+export async function restoreEventAction(formData: FormData): Promise<void> {
+  return lifecycleAction(formData, restoreEvent);
+}
+
+export async function deleteEventAction(_prevState: EventFormState, formData: FormData): Promise<EventFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: NOT_FOUND_ERROR };
+  const result = await deleteEvent({ id: id.data, organizationId: user.profile.organizationId, actorRole: user.profile.role });
+  if (!result.ok) {
+    if (result.reason === "has_registrations") return { error: "No se puede eliminar un evento con registros." };
+    return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
+  }
+  revalidatePath("/events");
+  revalidatePath(`/events/${id.data}`);
+  revalidatePath(`/events/${id.data}/dashboard`);
+  revalidatePath(`/events/${id.data}/edit`);
+  return { success: "Evento eliminado." };
 }
 
 const webhookUrlSchema = z.object({

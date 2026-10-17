@@ -55,6 +55,10 @@ export type EventMutationResult =
   | { ok: true; event: EventRow }
   | { ok: false; reason: "forbidden" | "not_found" };
 
+export type DeleteEventResult =
+  | { ok: true }
+  | { ok: false; reason: "forbidden" | "not_found" | "has_registrations" };
+
 export type CreateEventInput = {
   organizationId: string;
   // Caller-supplied, not re-derived here (spec.md "ADMIN-Only Event Authoring") — the events
@@ -167,11 +171,69 @@ export async function setEventStatus(input: {
   return { ok: true, event };
 }
 
-export async function listEvents(organizationId: string): Promise<EventRow[]> {
+export async function archiveEvent(input: {
+  id: string;
+  organizationId: string;
+  actorRole: UserRole;
+}): Promise<EventMutationResult> {
+  if (!isAdmin({ role: input.actorRole })) return { ok: false, reason: "forbidden" };
+  const [event] = await db
+    .update(events)
+    .set({ status: "archived" })
+    .where(and(eq(events.id, input.id), eq(events.organizationId, input.organizationId)))
+    .returning();
+  return event ? { ok: true, event } : { ok: false, reason: "not_found" };
+}
+
+export async function restoreEvent(input: {
+  id: string;
+  organizationId: string;
+  actorRole: UserRole;
+}): Promise<EventMutationResult> {
+  if (!isAdmin({ role: input.actorRole })) return { ok: false, reason: "forbidden" };
+  const [event] = await db
+    .update(events)
+    .set({ status: "published" })
+    .where(and(eq(events.id, input.id), eq(events.organizationId, input.organizationId), eq(events.status, "archived")))
+    .returning();
+  return event ? { ok: true, event } : { ok: false, reason: "not_found" };
+}
+
+export async function deleteEvent(input: {
+  id: string;
+  organizationId: string;
+  actorRole: UserRole;
+}): Promise<DeleteEventResult> {
+  if (!isAdmin({ role: input.actorRole })) return { ok: false, reason: "forbidden" };
+  const [event] = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(and(eq(events.id, input.id), eq(events.organizationId, input.organizationId)))
+    .limit(1);
+  if (!event) return { ok: false, reason: "not_found" };
+
+  const [registrationCount] = await db
+    .select({ count: count() })
+    .from(eventRegistrations)
+    .where(eq(eventRegistrations.eventId, input.id));
+  if (Number(registrationCount?.count ?? 0) > 0) return { ok: false, reason: "has_registrations" };
+
+  await db.delete(events).where(eq(events.id, input.id));
+  return { ok: true };
+}
+
+export async function listEvents(
+  organizationId: string,
+  options: { includeArchived?: boolean } = {},
+): Promise<EventRow[]> {
   return db
     .select()
     .from(events)
-    .where(eq(events.organizationId, organizationId))
+    .where(
+      options.includeArchived
+        ? eq(events.organizationId, organizationId)
+        : and(eq(events.organizationId, organizationId), ne(events.status, "archived")),
+    )
     .orderBy(desc(events.createdAt));
 }
 
