@@ -357,7 +357,7 @@
   --ink: currentColor;
 }
 .ld-binary {
-  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-family: var(--font-mono, "Cutive Mono", monospace);
   font-size: 14px;
   font-weight: 600;
   color: var(--ink);
@@ -731,7 +731,7 @@
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-family: var(--font-mono, "Cutive Mono", monospace);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
