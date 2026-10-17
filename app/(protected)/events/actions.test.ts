@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   createEvent: vi.fn(),
   updateEvent: vi.fn(),
   setEventStatus: vi.fn(),
+  archiveEvent: vi.fn(),
+  restoreEvent: vi.fn(),
+  deleteEvent: vi.fn(),
   setEventWebhookUrl: vi.fn(),
   regenerateEventWebhookSecret: vi.fn(),
   registrationFormConfigSchema: {
@@ -24,6 +27,9 @@ vi.mock("@/modules/events", () => ({
   createEvent: mocks.createEvent,
   updateEvent: mocks.updateEvent,
   setEventStatus: mocks.setEventStatus,
+  archiveEvent: mocks.archiveEvent,
+  restoreEvent: mocks.restoreEvent,
+  deleteEvent: mocks.deleteEvent,
   setEventWebhookUrl: mocks.setEventWebhookUrl,
   regenerateEventWebhookSecret: mocks.regenerateEventWebhookSecret,
   registrationFormConfigSchema: mocks.registrationFormConfigSchema,
@@ -36,6 +42,9 @@ import {
   updateEventAction,
   publishEventAction,
   closeEventAction,
+  archiveEventAction,
+  restoreEventAction,
+  deleteEventAction,
   setWebhookAction,
   regenerateWebhookSecretAction,
 } from "./actions";
@@ -111,9 +120,7 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
       event: { id: "event-1", name: "Launch Day" },
     });
 
-    const result = await createEventAction({}, createFormData(validCreateFields));
-
-    expect(result).toEqual({ success: "Evento creado.", eventId: "event-1" });
+    await createEventAction({}, createFormData(validCreateFields));
     expect(mocks.createEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org-1",
@@ -124,6 +131,7 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
       }),
     );
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/events");
+    expect(mocks.redirect).toHaveBeenCalledWith("/events/event-1/dashboard");
   });
 
   it("passes a valid direct Maps URL and the 48-hour reminder when creating", async () => {
@@ -188,12 +196,11 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
   it("keeps an omitted end timestamp valid when creating an event", async () => {
     mocks.createEvent.mockResolvedValue({ ok: true, event: { id: "event-1" } });
 
-    const result = await createEventAction(
+    await createEventAction(
       {},
       createFormData({ ...validCreateFields, endsAt: "" }),
     );
 
-    expect(result).toEqual({ success: "Evento creado.", eventId: "event-1" });
     expect(mocks.createEvent).toHaveBeenCalledWith(expect.objectContaining({ endsAt: undefined }));
   });
 
@@ -239,6 +246,29 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
     expect(mocks.setEventStatus).toHaveBeenCalledWith(
       expect.objectContaining({ status: "closed" }),
     );
+  });
+
+  it("archives and restores an event for ADMIN and revalidates its pages", async () => {
+    mocks.archiveEvent.mockResolvedValue({ ok: true, event: { id: "event-1", status: "archived" } });
+    mocks.restoreEvent.mockResolvedValue({ ok: true, event: { id: "event-1", status: "published" } });
+    const form = createFormData({ id: "11111111-1111-4111-8111-111111111111" });
+
+    await archiveEventAction(form);
+    await restoreEventAction(form);
+
+    expect(mocks.archiveEvent).toHaveBeenCalledWith(expect.objectContaining({ actorRole: "ADMIN", organizationId: "org-1" }));
+    expect(mocks.restoreEvent).toHaveBeenCalledWith(expect.objectContaining({ actorRole: "ADMIN", organizationId: "org-1" }));
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/events");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/events/11111111-1111-4111-8111-111111111111");
+  });
+
+  it("returns a clear delete error when registrations prevent deletion", async () => {
+    mocks.deleteEvent.mockResolvedValue({ ok: false, reason: "has_registrations" });
+
+    const result = await deleteEventAction({}, createFormData({ id: "11111111-1111-4111-8111-111111111111" }));
+
+    expect(result).toEqual({ error: "No se puede eliminar un evento con registros." });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("clears a previously-set description/location by mapping an empty submitted field to explicit null, not undefined (verify-report W2)", async () => {

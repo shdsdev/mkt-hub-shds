@@ -15,7 +15,7 @@ import {
 // Decisions", tasks.md 1.1).
 describe("events schema (additive events-module migration, PR1)", () => {
   it("defines the lifecycle, registration-status, and source enums", () => {
-    expect(eventStatus.enumValues).toEqual(["draft", "published", "closed"]);
+    expect(eventStatus.enumValues).toEqual(["draft", "published", "closed", "archived"]);
     expect(eventRegistrationStatus.enumValues).toEqual([
       "confirmed",
       "waitlisted",

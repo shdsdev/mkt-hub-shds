@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, it, expect, vi } from "vitest";
 const {
   insertMock,
   updateMock,
+  deleteMock,
   selectMock,
   transactionMock,
   txExecuteMock,
@@ -13,6 +14,7 @@ const {
 } = vi.hoisted(() => ({
   insertMock: vi.fn(),
   updateMock: vi.fn(),
+  deleteMock: vi.fn(),
   selectMock: vi.fn(),
   transactionMock: vi.fn(),
   txExecuteMock: vi.fn(),
@@ -26,6 +28,7 @@ vi.mock("@/db/client", () => ({
   db: {
     insert: insertMock,
     update: updateMock,
+    delete: deleteMock,
     select: selectMock,
     transaction: transactionMock,
   },
@@ -54,6 +57,9 @@ import {
   createEvent,
   updateEvent,
   setEventStatus,
+  archiveEvent,
+  restoreEvent,
+  deleteEvent,
   listEvents,
   getEvent,
   getPublishedEventBySlug,
@@ -134,7 +140,7 @@ const baseEvent = {
 
 describe("events service — ADMIN-only authoring (design.md 'event-management')", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("denies event creation for a non-admin and persists no change", async () => {
@@ -245,6 +251,30 @@ describe("events service — ADMIN-only authoring (design.md 'event-management')
     });
 
     expect(result).toEqual({ ok: true, event: closed });
+  });
+
+  it("archives and restores an event for ADMIN", async () => {
+    const archived = { ...baseEvent, status: "archived" as const };
+    const restored = { ...baseEvent, status: "published" as const };
+    updateMock.mockReturnValueOnce(updateChain([archived])).mockReturnValueOnce(updateChain([restored]));
+
+    await expect(archiveEvent({ id: "event-1", organizationId: "org-1", actorRole: "ADMIN" })).resolves.toEqual({ ok: true, event: archived });
+    await expect(restoreEvent({ id: "event-1", organizationId: "org-1", actorRole: "ADMIN" })).resolves.toEqual({ ok: true, event: restored });
+  });
+
+  it("refuses to delete an event with registrations", async () => {
+    selectMock.mockReturnValueOnce(selectChain([baseEvent])).mockReturnValueOnce(selectChain([{ count: 2 }]));
+
+    await expect(deleteEvent({ id: "event-1", organizationId: "org-1", actorRole: "ADMIN" })).resolves.toEqual({ ok: false, reason: "has_registrations" });
+    expect(deleteMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes an organization-owned event without registrations", async () => {
+    selectMock.mockReturnValueOnce(selectChain([baseEvent])).mockReturnValueOnce(selectChain([{ count: 0 }]));
+    deleteMock.mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
+
+    await expect(deleteEvent({ id: "event-1", organizationId: "org-1", actorRole: "ADMIN" })).resolves.toEqual({ ok: true });
+    expect(deleteMock).toHaveBeenCalledWith(events);
   });
 
   it("creates an event with the fixed optional-field toggles disabled by default (spec.md 'Fixed Optional Field Catalog')", async () => {
