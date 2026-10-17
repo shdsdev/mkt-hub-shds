@@ -13,3 +13,4 @@ export * from "@/modules/audit/db";
 export * from "@/modules/events/db";
 export * from "@/modules/notifications/db";
 export * from "@/modules/raffles/db";
+export * from "@/modules/questions/db";
