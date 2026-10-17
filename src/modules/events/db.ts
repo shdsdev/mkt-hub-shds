@@ -24,7 +24,7 @@ export type SponsorLogo = { url: string; name?: string };
 
 // Lifecycle status (design.md "event-management"): draft is never publicly reachable, published
 // serves the public landing, closed stops new registrations without hiding history.
-export const eventStatus = pgEnum("event_status", ["draft", "published", "closed"]);
+export const eventStatus = pgEnum("event_status", ["draft", "published", "closed", "archived"]);
 
 // Booking-level status on `event_registrations` (design.md "Booking vs person"). `confirmed` and
 // `waitlisted` are capacity outcomes; `cancelled` is terminal; `checked_in` mirrors the first

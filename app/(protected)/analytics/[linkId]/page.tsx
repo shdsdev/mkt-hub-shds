@@ -49,6 +49,8 @@ export default async function AnalyticsPage({
   const heatmapCounts = new Map(heatmapRows.map((row) => [row.bucket, row.count]));
   const heatmapWeeks = buildHeatmapWeeks(heatmapCounts, HEATMAP_WEEKS, today);
   const heatmapTotal = heatmapRows.reduce((sum, row) => sum + row.count, 0);
+  const heatmapFromKey = heatmapFrom.toISOString().slice(0, 10);
+  const todayKey = today.toISOString().slice(0, 10);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -114,7 +116,13 @@ export default async function AnalyticsPage({
 
       <ScansPanel linkId={linkId} />
 
-      <ActivityHeatmap weeks={heatmapWeeks} total={heatmapTotal} />
+      <ActivityHeatmap
+        linkId={linkId}
+        from={heatmapFromKey}
+        to={todayKey}
+        weeks={heatmapWeeks}
+        total={heatmapTotal}
+      />
     </div>
   );
 }
