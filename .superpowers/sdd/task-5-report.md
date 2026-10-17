@@ -169,3 +169,124 @@ Route (app)
 ```
 
 All required commands passed. Verification was run with Node `v24.18.0`; the project declares Node `22.x`, producing the existing engine warning.
+
+## Final P2 Finding Verification
+
+The final P2 finding was fixed: successful generation now renders the returned code, public URL, and QR immediately when no persisted session exists yet, while closed persisted sessions continue to clear all access artifacts. Regression coverage now includes immediate generation and open-to-closed clearing.
+
+Command: `pnpm vitest run src/modules/questions app/questions/[code] "app/(protected)/events/[id]/questions"`
+
+```text
+[WARN] Unsupported engine: wanted: {"node":"22.x"} (current: {"node":"v24.18.0","pnpm":"11.20.0"})
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set "type": "module" in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.0 C:/Users/javier.enriquez/Desktop/PROYECTOS/MKT/hub mkt-worktrees/faq-live-qa
+
+ Test Files  12 passed (12)
+      Tests  43 passed (43)
+   Start at  18:00:52
+   Duration  2.29s (import 42%, environment 27%, transform 18%, tests 12%, worker 1%)
+```
+
+Command: `pnpm typecheck`
+
+```text
+[WARN] Unsupported engine: wanted: {"node":"22.x"} (current: {"node":"v24.18.0","pnpm":"11.20.0"})
+$ tsc --noEmit
+```
+
+Command: `pnpm lint`
+
+```text
+[WARN] Unsupported engine: wanted: {"node":"22.x"} (current: {"node":"v24.18.0","pnpm":"11.20.0"})
+$ eslint .
+```
+
+Command: `pnpm build`
+
+```text
+[WARN] Unsupported engine: wanted: {"node":"22.x"} (current: {"node":"v24.18.0","pnpm":"11.20.0"})
+$ next build --webpack
+▲ Next.js 16.3.4 (webpack)
+- Environments: .env
+✓ Running next.config.ts took 33ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 17.1s
+  Running TypeScript ...
+  Finished TypeScript in 4.8s ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/31) ...
+  Generating static pages using 15 workers (7/31)
+  Generating static pages using 15 workers (15/31)
+  Generating static pages using 15 workers (23/31)
+✓ Generating static pages using 15 workers (31/31) in 2.8s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+ƒ Proxy (Middleware)
+
+ƒ  (Dynamic)  server-rendered on demand
+```
+
+All required commands passed. Verification was run with Node `v24.18.0`; the project declares Node `22.x`, producing the existing engine warning.
+
+## Final Review Finding: Closed Session Access State
+
+The question-session panel now gates action-generated `state.code` and `state.publicUrl` by the current persisted session status, preventing stale code, link, and QR access from remaining visible after polling observes an open-to-closed transition.
+
+Command: `pnpm vitest run src/modules/questions app/questions/[code] "app/(protected)/events/[id]/questions"`
+
+```text
+[WARN] Unsupported engine: wanted: {"node":"22.x"} (current: {"node":"v24.18.0","pnpm":"11.20.0"})
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set "type": "module" in the closest package.json
+Set VITE_CONFIG_NATIVE_IGNORE_WARNING=true to suppress this warning.
+
+ RUN  v5.0.0 C:/Users/javier.enriquez/Desktop/PROYECTOS/MKT/hub mkt-worktrees/faq-live-qa
+
+ Test Files  12 passed (12)
+      Tests  42 passed (42)
+   Start at  17:55:24
+   Duration  4.23s (import 40%, environment 27%, tests 17%, transform 14%, worker 1%)
+```
+
+Command: `pnpm typecheck`
+
+```text
+[WARN] Unsupported engine: wanted: {"node":"22.x"} (current: {"node":"v24.18.0","pnpm":"11.20.0"})
+$ tsc --noEmit
+```
+
+Command: `pnpm lint`
+
+```text
+[WARN] Unsupported engine: wanted: {"node":"22.x"} (current: {"node":"v24.18.0","pnpm":"11.20.0"})
+$ eslint .
+```
+
+Command: `pnpm build`
+
+```text
+[WARN] Unsupported engine: wanted: {"node":"22.x"} (current: {"node":"v24.18.0","pnpm":"11.20.0"})
+$ next build --webpack
+▲ Next.js 16.3.4 (webpack)
+- Environments: .env
+✓ Running next.config.ts took 67ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 26.4s
+  Running TypeScript ...
+  Finished TypeScript in 5.8s ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/31) ...
+✓ Generating static pages using 15 workers (31/31) in 3.3s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+ƒ  (Dynamic)  server-rendered on demand
+```
+
+All required commands passed. Verification was run with Node `v24.18.0`; the project declares Node `22.x`, producing the existing engine warning.

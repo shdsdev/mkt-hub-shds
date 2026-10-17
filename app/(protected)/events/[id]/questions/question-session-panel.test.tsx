@@ -61,6 +61,27 @@ describe("QuestionSessionPanel", () => {
     expect(container.querySelector('button[type="submit"]')?.textContent).toContain("Regenerar código");
   });
 
+  it("renders generated access artifacts immediately when no session is persisted yet", async () => {
+    createQuestionSessionAction.mockResolvedValue({
+      success: "Código generado.",
+      code: "NEW456",
+      publicUrl: "https://example.com/questions/NEW456",
+    });
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => root?.render(<QuestionSessionPanel eventId="event-1" />));
+    await act(async () => {
+      container?.querySelector("form")?.requestSubmit();
+    });
+
+    expect(container.textContent).toContain("NEW456");
+    expect(container.textContent).toContain("https://example.com/questions/NEW456");
+    expect(container.querySelector('img[alt="Código QR para preguntas"]')).not.toBeNull();
+  });
+
   it("makes a closed session explicit without rendering its inactive access code or QR", () => {
     const session = {
       id: "session-1",

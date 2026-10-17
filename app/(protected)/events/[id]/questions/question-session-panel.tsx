@@ -8,8 +8,9 @@ import { closeQuestionSessionAction, createQuestionSessionAction } from "./actio
 export function QuestionSessionPanel({ eventId, session, publicUrl }: { eventId: string; session?: QuestionSessionRow; publicUrl?: string }) {
   const [state, formAction, pending] = useActionState(createQuestionSessionAction, {});
   const isOpen = session?.status === "open";
-  const code = isOpen ? state.code ?? session.displayCode : undefined;
-  const resolvedPublicUrl = isOpen ? state.publicUrl ?? publicUrl : undefined;
+  const canShowActionArtifacts = !session || isOpen;
+  const code = canShowActionArtifacts ? state.code ?? session?.displayCode : undefined;
+  const resolvedPublicUrl = canShowActionArtifacts ? state.publicUrl ?? publicUrl : undefined;
 
   return (
     <section className="space-y-4 rounded-lg border border-border bg-card p-5">
