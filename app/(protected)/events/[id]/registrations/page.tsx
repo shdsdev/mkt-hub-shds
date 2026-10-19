@@ -5,6 +5,7 @@ import { isActive } from "@/modules/users";
 import { canAccessEvent, getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
 import { EventSubNav } from "../../event-sub-nav";
 import { RegistrationsTable } from "./registrations-table";
+import { REVIEW_STATUS_LABELS, type ReviewStatus } from "./review-status";
 
 const STATUS_LABELS: Record<EventRegistrationRow["status"], string> = {
   confirmed: "Confirmado",
@@ -31,19 +32,24 @@ export default async function RegistrationsPage({
 
   const sp = await searchParams;
   const status = (sp.status as EventRegistrationRow["status"] | undefined) ?? undefined;
+  const reviewStatus = sp.reviewStatus && sp.reviewStatus in REVIEW_STATUS_LABELS
+    ? sp.reviewStatus as ReviewStatus
+    : undefined;
   const q = sp.q ?? undefined;
 
-  const registrations = await listRegistrations(id, user.profile.organizationId, { status, q });
+  const registrations = await listRegistrations(id, user.profile.organizationId, { status, reviewStatus, q });
 
-  const filterHref = (nextStatus?: EventRegistrationRow["status"]) => {
+  const filterHref = (nextStatus?: EventRegistrationRow["status"], nextReviewStatus?: ReviewStatus) => {
     const query = new URLSearchParams();
     if (nextStatus) query.set("status", nextStatus);
+    if (nextReviewStatus) query.set("reviewStatus", nextReviewStatus);
     if (q) query.set("q", q);
     const qs = query.toString();
     return `/events/${id}/registrations${qs ? `?${qs}` : ""}`;
   };
   const exportQuery = new URLSearchParams();
   if (status) exportQuery.set("status", status);
+  if (reviewStatus) exportQuery.set("reviewStatus", reviewStatus);
   if (q) exportQuery.set("q", q);
   const exportHref = `/events/${id}/registrations/export${exportQuery.toString() ? `?${exportQuery}` : ""}`;
 
@@ -63,9 +69,10 @@ export default async function RegistrationsPage({
         </Link>
       </div>
 
-      <div className="flex flex-col gap-4 rounded-lg border border-border bg-card/40 p-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-4 rounded-lg border border-border bg-card/40 p-4">
       <form className="flex w-full flex-col gap-2 text-sm sm:flex-row sm:items-center lg:max-w-xl">
-        <input type="hidden" name="status" value={status ?? ""} />
+         <input type="hidden" name="status" value={status ?? ""} />
+         <input type="hidden" name="reviewStatus" value={reviewStatus ?? ""} />
         <input
           name="q"
           defaultValue={q ?? ""}
@@ -77,7 +84,7 @@ export default async function RegistrationsPage({
         </button>
       </form>
 
-      <div className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 text-sm">
+       <div className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 text-sm">
         <Link href={filterHref(undefined)} className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${!status ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
           Todos
         </Link>
@@ -89,6 +96,12 @@ export default async function RegistrationsPage({
           >
             {label}
           </Link>
+        ))}
+      </div>
+      <div className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 text-sm">
+        <Link href={filterHref(status, undefined)} className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${!reviewStatus ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>Todas las revisiones</Link>
+        {Object.entries(REVIEW_STATUS_LABELS).map(([value, label]) => (
+          <Link key={value} href={filterHref(status, value as ReviewStatus)} className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${reviewStatus === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{label}</Link>
         ))}
       </div>
       </div>
@@ -103,6 +116,7 @@ export default async function RegistrationsPage({
           collectCompany={event.collectCompany}
           collectJobTitle={event.collectJobTitle}
           statusLabels={STATUS_LABELS}
+          reviewStatusLabels={REVIEW_STATUS_LABELS}
         />
       )}
     </div>

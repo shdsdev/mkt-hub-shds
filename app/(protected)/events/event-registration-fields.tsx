@@ -2,11 +2,34 @@
 
 import { Checkbox } from "@/components/checkbox";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RegistrationFieldRenderer } from "@/components/registration-field-renderer";
 import { useState } from "react";
-import type { RegistrationFormConfig } from "@/modules/events";
+import type { ClientBrandOption, RegistrationCustomField, RegistrationFormConfig } from "@/modules/events";
+import { toggleClientBrandOption } from "@/lib/events/registration-form-ui";
+import {
+  addCustomField,
+  moveCustomField,
+  removeCustomField,
+  updateCustomField,
+  type CustomFieldType,
+} from "./registration-field-builder";
 
 type RegistrationField = "phone" | "company" | "jobTitle";
 type OptionGroup = "clientBrands" | "interests";
+
+const customFieldTypes: readonly [CustomFieldType, string][] = [
+  ["short_text", "Texto corto"],
+  ["long_text", "Texto largo"],
+  ["number", "Número"],
+  ["email", "Correo electrónico"],
+  ["phone", "Teléfono"],
+  ["date", "Fecha"],
+  ["checkbox", "Casilla de verificación"],
+  ["select", "Selección única"],
+  ["select_multiple", "Selección múltiple"],
+];
 
 export function EventRegistrationFields({
   initialFormConfig,
@@ -14,6 +37,7 @@ export function EventRegistrationFields({
   initialFormConfig: RegistrationFormConfig;
 }) {
   const [formConfig, setFormConfig] = useState(initialFormConfig);
+  const [newFieldType, setNewFieldType] = useState<CustomFieldType>("short_text");
 
   function updateField(field: RegistrationField, key: "visible" | "required", value: boolean) {
     setFormConfig((current) => ({
@@ -34,11 +58,33 @@ export function EventRegistrationFields({
       ...current,
       [group]: {
         ...current[group],
-        options: enabled
-          ? [...current[group].options, option]
-          : current[group].options.filter((value) => value !== option),
+        options: group === "clientBrands"
+          ? toggleClientBrandOption(current.clientBrands.options, option as ClientBrandOption, enabled)
+          : enabled
+            ? [...current[group].options, option]
+            : current[group].options.filter((value) => value !== option),
       },
     }));
+  }
+
+  function updateCustomFieldState(id: string, changes: Partial<RegistrationCustomField>) {
+    setFormConfig((current) => ({
+      ...current,
+      customFields: updateCustomField(current.customFields, id, changes),
+    }));
+  }
+
+  function addField() {
+    setFormConfig((current) => ({
+      ...current,
+      customFields: addCustomField(current.customFields, newFieldType),
+    }));
+  }
+
+  function addOption(field: RegistrationCustomField & { options: { value: string; label: string }[] }) {
+    updateCustomFieldState(field.id, {
+      options: [...field.options, { value: `option-${field.options.length + 1}`, label: `Opción ${field.options.length + 1}` }],
+    });
   }
 
   return (
@@ -80,6 +126,101 @@ export function EventRegistrationFields({
           );
         })}
       </div>
+      <section className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">Campos personalizados</h3>
+            <p className="text-xs text-muted-foreground">Agregá preguntas para el titular del registro.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Select value={newFieldType} onValueChange={(value) => { if (value) setNewFieldType(value as CustomFieldType); }}>
+              <SelectTrigger className="w-full sm:w-52" aria-label="Tipo de campo nuevo">
+                <SelectValue>{customFieldTypes.find(([value]) => value === newFieldType)?.[1]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {customFieldTypes.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" onClick={addField}>Agregar campo</Button>
+          </div>
+        </div>
+        {formConfig.customFields.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">Todavía no agregaste campos personalizados.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {formConfig.customFields.map((field, index) => (
+              <article key={field.id} className="rounded-lg border border-border bg-card p-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+                  <div className="flex min-w-0 flex-1 flex-col gap-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1.5 text-sm font-medium">
+                        Etiqueta
+                        <Input value={field.label} onChange={(event) => updateCustomFieldState(field.id, { label: event.target.value })} />
+                      </label>
+                      <label className="flex flex-col gap-1.5 text-sm font-medium">
+                        Ayuda
+                        <Input value={field.description} onChange={(event) => updateCustomFieldState(field.id, { description: event.target.value })} />
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      <Checkbox checked={field.enabled} onChange={(checked) => updateCustomFieldState(field.id, { enabled: checked, required: checked ? field.required : false })} label="Activo" />
+                      <Checkbox checked={field.required} disabled={!field.enabled} onChange={(checked) => updateCustomFieldState(field.id, { required: checked })} label="Obligatorio" />
+                      <Select
+                        value={field.section}
+                        onValueChange={(value) => {
+                          if (value === "personal" || value === "preferences") {
+                            updateCustomFieldState(field.id, { section: value });
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9 w-full sm:w-48" aria-label={`Sección de ${field.label}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="personal">Tus datos</SelectItem>
+                          <SelectItem value="preferences">Preferencias</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {field.type === "number" ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="flex flex-col gap-1.5 text-sm font-medium">Mínimo<Input type="number" value={field.min ?? ""} onChange={(event) => updateCustomFieldState(field.id, { min: event.target.value ? Number(event.target.value) : undefined })} /></label>
+                        <label className="flex flex-col gap-1.5 text-sm font-medium">Máximo<Input type="number" value={field.max ?? ""} onChange={(event) => updateCustomFieldState(field.id, { max: event.target.value ? Number(event.target.value) : undefined })} /></label>
+                      </div>
+                    ) : null}
+                    {field.type === "checkbox" ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="flex flex-col gap-1.5 text-sm font-medium">Texto del enlace<Input value={field.link?.text ?? ""} onChange={(event) => updateCustomFieldState(field.id, { link: { url: field.link?.url ?? "/", text: event.target.value } })} /></label>
+                        <label className="flex flex-col gap-1.5 text-sm font-medium">URL del enlace<Input value={field.link?.url ?? ""} onChange={(event) => updateCustomFieldState(field.id, { link: { url: event.target.value, text: field.link?.text ?? "Ver información" } })} /></label>
+                      </div>
+                    ) : null}
+                    {field.type === "select" || field.type === "select_multiple" ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium">Opciones</p><Button type="button" variant="ghost" size="sm" onClick={() => addOption(field)}>Agregar opción</Button></div>
+                        {field.options.map((option, optionIndex) => (
+                          <div key={`${field.id}-${optionIndex}`} className="grid gap-2 sm:grid-cols-2">
+                            <Input aria-label={`Valor de opción ${optionIndex + 1}`} value={option.value} onChange={(event) => updateCustomFieldState(field.id, { options: field.options.map((current, index) => index === optionIndex ? { ...current, value: event.target.value } : current) })} />
+                            <Input aria-label={`Etiqueta de opción ${optionIndex + 1}`} value={option.label} onChange={(event) => updateCustomFieldState(field.id, { options: field.options.map((current, index) => index === optionIndex ? { ...current, label: event.target.value } : current) })} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button type="button" variant="ghost" size="sm" disabled={index === 0} onClick={() => setFormConfig((current) => ({ ...current, customFields: moveCustomField(current.customFields, field.id, index - 1) }))}>Subir</Button>
+                    <Button type="button" variant="ghost" size="sm" disabled={index === formConfig.customFields.length - 1} onClick={() => setFormConfig((current) => ({ ...current, customFields: moveCustomField(current.customFields, field.id, index + 1) }))}>Bajar</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setFormConfig((current) => ({ ...current, customFields: removeCustomField(current.customFields, field.id) }))}>Eliminar</Button>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg border border-dashed border-border p-3">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Vista previa</p>
+                  <RegistrationFieldRenderer field={field} />
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
       <Checkbox
         checked={formConfig.companion.enabled}
         onChange={(checked) => setFormConfig((current) => ({ ...current, companion: { enabled: checked } }))}

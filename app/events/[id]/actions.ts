@@ -13,6 +13,7 @@ import {
 import { sendConfirmationEmail } from "@/modules/notifications";
 import { exportQrPng } from "@/modules/qr";
 import { resolveEventEmailContent } from "@/lib/events/event-email-content";
+import { parseRegistrationFormAnswers } from "../registration-form-answers";
 
 const EVENT_UNAVAILABLE_ERROR = "Este evento ya no está disponible.";
 const INVALID_FORM_ERROR = "Revisa tus datos de contacto.";
@@ -25,6 +26,13 @@ const TOO_MANY_COMPANIONS_ERROR = "Solo puedes registrar un acompañante.";
 const INVALID_OCCUPATION_ERROR = "Seleccioná tu actividad profesional para continuar.";
 const INVALID_COMPANION_OCCUPATION_ERROR = "Seleccioná la actividad del acompañante para continuar.";
 const INVALID_BRAND_COMBINATION_ERROR = "Seleccioná una sola opción: Ninguno o una marca.";
+const PUBLIC_FORM_KEYS = [
+  "slug", "website", "fullName", "email", "phone", "company", "jobTitle", "occupation",
+  "companionFullName", "companionEmail", "companionPhone", "companionCompany", "companionCompanyMode",
+  "companionJobTitle", "companionOccupation", "requestMoreCompanions", "privacyAccepted", "termsAccepted",
+  "marketingAccepted", "clientBrands", "interests", "utmSource", "utmMedium", "utmCampaign", "utmTerm",
+  "utmContent", "utmId",
+] as const;
 
 const attendeeSchema = z.object({
   fullName: z.string().trim().min(1).max(255),
@@ -35,7 +43,12 @@ const attendeeSchema = z.object({
   occupation: z.enum(OCCUPATION_OPTIONS),
 });
 
-export type RegisterFormState = { error?: string; success?: boolean; status?: "confirmed" | "waitlisted" };
+export type RegisterFormState = {
+  error?: string;
+  fieldErrors?: Record<string, string>;
+  success?: boolean;
+  status?: "confirmed" | "waitlisted";
+};
 
 function normalizeAttendee(parsed: z.infer<typeof attendeeSchema>): AttendeeInput {
   return {
@@ -140,9 +153,11 @@ export async function registerForEventAction(
   const event = await getPublishedEventBySlugPublic(slug);
   if (!event) return { error: EVENT_UNAVAILABLE_ERROR };
   const formConfig = resolveRegistrationFormConfig(event);
+  const customAnswers = parseRegistrationFormAnswers(formConfig.customFields, formData, PUBLIC_FORM_KEYS);
+  if (!customAnswers.ok) return { error: customAnswers.error, fieldErrors: customAnswers.fieldErrors };
   const occupation = formData.get("occupation");
   if (typeof occupation !== "string" || !OCCUPATION_OPTIONS.includes(occupation as never)) {
-    return { error: INVALID_OCCUPATION_ERROR };
+    return { error: INVALID_OCCUPATION_ERROR, fieldErrors: { occupation: INVALID_OCCUPATION_ERROR } };
   }
 
   const primaryCompany = z.string().trim().max(255).optional().safeParse(formData.get("company") || undefined);
@@ -155,7 +170,12 @@ export async function registerForEventAction(
     jobTitle: formData.get("jobTitle") ?? undefined,
     occupation: formData.get("occupation") ?? "",
   });
-  if (!primaryParsed.success) return { error: INVALID_FORM_ERROR };
+  if (!primaryParsed.success) {
+    return {
+      error: INVALID_FORM_ERROR,
+      fieldErrors: Object.fromEntries(primaryParsed.error.issues.map((issue) => [String(issue.path[0] ?? "fullName"), "Revisá este campo."])),
+    };
+  }
   const primaryFieldError = validateConfiguredFields(primaryParsed.data, formConfig.fields);
   if (primaryFieldError) return { error: primaryFieldError };
 
@@ -186,13 +206,19 @@ export async function registerForEventAction(
   if (companionFieldError) return { error: companionFieldError.replace(/^El |^La /, "El acompañante: ") };
 
   if (!isAccepted(formData, "privacyAccepted") || !isAccepted(formData, "termsAccepted")) {
-    return { error: INVALID_CONSENT_ERROR };
+    return {
+      error: INVALID_CONSENT_ERROR,
+      fieldErrors: {
+        ...(!isAccepted(formData, "privacyAccepted") ? { privacyAccepted: "Aceptá la política de privacidad." } : {}),
+        ...(!isAccepted(formData, "termsAccepted") ? { termsAccepted: "Aceptá los términos y condiciones." } : {}),
+      },
+    };
   }
 
   const clientBrands = readSelectedOptions(formData, "clientBrands");
   if (clientBrands.includes("none") && clientBrands.length > 1) return { error: INVALID_BRAND_COMBINATION_ERROR };
   if (!formConfig.clientBrands.enabled && clientBrands.length > 0) return { error: INVALID_BRANDS_ERROR };
-  if (clientBrands.some((option) => !formConfig.clientBrands.options.some((allowed) => allowed === option))) {
+  if (clientBrands.some((option) => option !== "none" && !formConfig.clientBrands.options.some((allowed) => allowed === option))) {
     return { error: INVALID_BRANDS_ERROR };
   }
 
@@ -223,6 +249,8 @@ export async function registerForEventAction(
       termsAcceptedAt: now,
       ...(formConfig.consent.marketing.enabled && marketingAccepted ? { marketingAcceptedAt: now } : {}),
     },
+    formVersion: formConfig.customFieldsVersion,
+    customFormAnswers: customAnswers.answers,
     utm: readUtm(formData),
   });
 

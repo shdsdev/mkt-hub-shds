@@ -38,7 +38,7 @@ export default async function EmbedEventPage({
   }
 
   return (
-    <main className="min-h-screen bg-[#FAFAFA] p-4 font-sans text-[#202020] sm:p-6">
+    <main className="mx-auto min-h-screen w-full max-w-3xl bg-[#FAFAFA] p-3 font-sans text-[#202020] sm:p-6">
       <ResizeBridge />
       <RegisterForm
         slug={event.slug}

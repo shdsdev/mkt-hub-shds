@@ -1,1 +1,1 @@
-ALTER TABLE "qr_codes" ADD COLUMN "description" text;
+ALTER TABLE "qr_codes" ADD COLUMN IF NOT EXISTS "description" text;

@@ -401,8 +401,8 @@
   --tt-delay: 80ms;
   --tt-in-ease: ease-out;
   --tt-out-ease: ease-out;
-  --tt-bg: var(--popover);
-  --tt-fg: var(--popover-foreground);
+   --tt-bg: #0b0b0b;
+   --tt-fg: #ffffff;
 }
 .t-tt-wrap {
   position: relative;
@@ -418,7 +418,12 @@
   border-radius: 8px;
   background: var(--tt-bg);
   color: var(--tt-fg);
-  white-space: nowrap;
+   width: max-content;
+   max-width: min(20rem, calc(100vw - 2rem));
+   text-align: center;
+   white-space: normal;
+   font-size: 12px;
+   line-height: 1.35;
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.06),
     0 2px 6px 0 rgba(0, 0, 0, 0.05),

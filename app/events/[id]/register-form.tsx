@@ -1,8 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import type { RegistrationFormConfig } from "@/modules/events";
+import { useActionState, useRef, useState } from "react";
+import type { ClientBrandOption, RegistrationFormConfig } from "@/modules/events";
+import { getPublicClientBrandOptions, toggleClientBrandOption } from "@/lib/events/registration-form-ui";
 import { Tooltip } from "@/components/tooltip";
+import { RegistrationFieldRenderer } from "@/components/registration-field-renderer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getRegistrationFormSteps, type RegistrationStepId } from "@/lib/events/registration-form-steps";
 import { registerForEventAction, type RegisterFormState } from "./actions";
 
 const initialState: RegisterFormState = {};
@@ -19,6 +23,14 @@ const occupationOptions = [
 // lapse") — this surface owns its own input vocabulary.
 const fieldClass =
   "h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-base text-[#202020] shadow-[0_2px_8px_rgba(0,0,0,0.025)] placeholder:text-[#9a9a9a] outline-none transition-[border-color,box-shadow,transform] focus:border-[#7d66b0]/50 focus:ring-4 focus:ring-[#7d66b0]/10";
+
+const selectClass = `${fieldClass} !h-12`;
+
+const secondaryButtonClass =
+  "inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-medium text-[#4a4a4a] transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#7d66b0]/15";
+
+const primaryButtonClass =
+  "inline-flex h-12 items-center justify-center rounded-full bg-[#202020] px-7 text-base font-medium text-white transition-colors hover:bg-[#3a3a3a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#7d66b0]/20 disabled:cursor-not-allowed disabled:opacity-60";
 
 const choiceClass =
   "group relative flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 text-sm text-[#4a4a4a] shadow-[0_2px_8px_rgba(0,0,0,0.025)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_8px_18px_rgba(0,0,0,0.06)] has-[:checked]:border-[#202020] has-[:checked]:bg-[#faf9ff] has-[:checked]:text-[#202020] has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#7d66b0]/15";
@@ -43,21 +55,24 @@ function Field({
   label,
   required = false,
   help,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
   help: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="flex flex-col gap-1.5 text-sm font-medium text-[#4a4a4a]">
-      <span className="flex items-center gap-1.5">
+      <span className={`flex items-center gap-1.5 ${error ? "text-[#c0335a]" : ""}`}>
         {label}
         {required ? <span className="ml-1 text-[#c0335a]" aria-hidden="true">•</span> : null}
         <HelpTooltip label={help} />
       </span>
       {children}
+      {error ? <span role="alert" className="text-xs font-normal text-[#c0335a]">{error}</span> : null}
     </label>
   );
 }
@@ -81,19 +96,79 @@ export function RegisterForm({
   const [state, formAction, pending] = useActionState(registerForEventAction, initialState);
   const [hasCompanion, setHasCompanion] = useState(false);
   const [companionCompanyMode, setCompanionCompanyMode] = useState<"same" | "other">("same");
-  const [selectedBrands, setSelectedBrands] = useState<string[]>(formConfig.clientBrands.options[0] === "none" ? ["none"] : []);
+  const [selectedBrands, setSelectedBrands] = useState<ClientBrandOption[]>(formConfig.clientBrands.options.includes("none") ? ["none"] : []);
+  const [mobileStep, setMobileStep] = useState(0);
+  const [summaryItems, setSummaryItems] = useState<{ label: string; value: string }[]>([]);
+  const [clientFieldErrors, setClientFieldErrors] = useState<Record<string, string>>({});
+  const formRef = useRef<HTMLFormElement>(null);
+  const steps = getRegistrationFormSteps(formConfig);
+  const activeStepId = steps[mobileStep]?.id ?? steps[steps.length - 1].id;
+  const personalCustomFields = formConfig.customFields.filter((field) => field.enabled && field.section === "personal");
+  const preferenceCustomFields = formConfig.customFields.filter((field) => field.enabled && field.section === "preferences");
+  const hasPreferenceStep = steps.some((step) => step.id === "preferences");
+  const fieldErrors = { ...clientFieldErrors, ...state.fieldErrors };
 
   function toggleBrand(brand: string, checked: boolean) {
-    setSelectedBrands((current) => {
-      if (!checked) return current.filter((value) => value !== brand);
-      if (brand === "none") return ["none"];
-      return [...current.filter((value) => value !== "none" && value !== brand), brand];
-    });
+    setSelectedBrands((current) => toggleClientBrandOption(current, brand as ClientBrandOption, checked));
+  }
+
+  function continueMobileStep() {
+    const sections = formRef.current
+      ? Array.from(formRef.current.querySelectorAll<HTMLElement>(`[data-mobile-step="${activeStepId}"]`))
+      : [];
+    const invalidControl = sections
+      .flatMap((section) => Array.from(section.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select")))
+      .find((control) => !control.checkValidity());
+    if (invalidControl) {
+      setClientFieldErrors((current) => ({ ...current, [invalidControl.name]: "Completá este campo." }));
+      invalidControl.reportValidity();
+      invalidControl.focus();
+      return;
+    }
+    const nextStep = steps[mobileStep + 1];
+    if (nextStep?.id === "confirmation" && formRef.current) {
+      const data = new FormData(formRef.current);
+      const items: { label: string; value: string }[] = [];
+      const addItem = (label: string, name: string) => {
+        const values = data.getAll(name).map(String).filter(Boolean);
+        if (values.length > 0) items.push({ label, value: values.join(", ") });
+      };
+
+      addItem("Nombre", "fullName");
+      addItem("Correo", "email");
+      addItem("Teléfono", "phone");
+      addItem("Empresa", "company");
+      addItem("Puesto", "jobTitle");
+      addItem("Ocupación", "occupation");
+      formConfig.customFields.filter((field) => field.enabled).forEach((field) => addItem(field.label, field.id));
+      addItem("Marcas", "clientBrands");
+      addItem("Intereses", "interests");
+      addItem("Acompañante", "companionFullName");
+      addItem("Correo del acompañante", "companionEmail");
+      setSummaryItems(items);
+    }
+    setClientFieldErrors({});
+    setMobileStep((step) => Math.min(steps.length - 1, step + 1));
+  }
+
+  function handleFormSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const invalidControl = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select"))
+      .find((control) => !control.checkValidity());
+    if (!invalidControl) return;
+    event.preventDefault();
+    setClientFieldErrors((current) => ({ ...current, [invalidControl.name]: "Completá este campo." }));
+    invalidControl.reportValidity();
+    invalidControl.focus();
+  }
+
+  function editStep(stepId: RegistrationStepId) {
+    const index = steps.findIndex((step) => step.id === stepId);
+    if (index >= 0) setMobileStep(index);
   }
 
   if (state.success) {
     return (
-      <section className="flex flex-col items-start gap-2 rounded-[20px] bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/5">
+      <section className="mx-auto flex w-full max-w-2xl flex-col items-start gap-2 rounded-[20px] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/5 sm:p-8">
         <h2 className="font-sans text-xl font-medium tracking-tight">
           {state.status === "waitlisted" ? "Quedaste en lista de espera" : "¡Registro confirmado!"}
         </h2>
@@ -109,7 +184,9 @@ export function RegisterForm({
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-6 rounded-[20px] bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/5"
+      ref={formRef}
+      onSubmit={handleFormSubmit}
+      className="mx-auto flex w-full max-w-2xl flex-col gap-8 rounded-[20px] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/5 sm:p-8"
     >
       <h2 className="font-sans text-xl font-medium tracking-tight">Reserva tu lugar</h2>
 
@@ -128,62 +205,88 @@ export function RegisterForm({
       {utm.utmContent ? <input type="hidden" name="utmContent" value={utm.utmContent} /> : null}
       {utm.utmId ? <input type="hidden" name="utmId" value={utm.utmId} /> : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-         <Field label="Nombre completo" required help="Usá tu nombre completo tal como aparece en tu identificación.">
+      <div className="flex flex-col gap-3 sm:hidden" aria-label="Progreso del formulario">
+        <div className="flex items-center justify-between gap-2 text-xs text-[#6b6b6b]">
+          <span>Paso {mobileStep + 1} de {steps.length}</span>
+          <span className="font-medium text-[#202020]">{steps[mobileStep].label}</span>
+        </div>
+        <div className="flex gap-1" aria-hidden="true">
+          {steps.map((step, index) => (
+            <span key={step.id} className={`h-1 flex-1 rounded-full transition-colors ${index <= mobileStep ? "bg-[#202020]" : "bg-black/10"}`} />
+          ))}
+        </div>
+      </div>
+
+      <div data-mobile-step="personal" className={`${activeStepId === "personal" ? "block" : "hidden"} flex flex-col gap-4 sm:block`}>
+      <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
+          <Field label="Nombre completo" required error={fieldErrors.fullName} help="Usá tu nombre completo tal como aparece en tu identificación.">
            <input name="fullName" required aria-required="true" maxLength={255} placeholder="Ej. María González" className={fieldClass} />
          </Field>
-         <Field label="Correo" required help="Te enviaremos aquí la confirmación y tu pase de acceso.">
+          <Field label="Correo" required error={fieldErrors.email} help="Te enviaremos aquí la confirmación y tu pase de acceso.">
            <input name="email" type="email" required aria-required="true" maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} />
          </Field>
          {formConfig.fields.phone.visible ? (
-           <Field label="Teléfono" required={formConfig.fields.phone.required} help="Usaremos este número solo para comunicarnos sobre el evento.">
+            <Field label="Teléfono" required={formConfig.fields.phone.required} error={fieldErrors.phone} help="Usaremos este número solo para comunicarnos sobre el evento.">
              <input name="phone" required={formConfig.fields.phone.required} aria-required={formConfig.fields.phone.required} maxLength={50} placeholder="Ej. +52 55 1234 5678" className={fieldClass} />
            </Field>
          ) : null}
          {formConfig.fields.company.visible ? (
-           <Field label="Empresa" required={formConfig.fields.company.required} help="Indicá la empresa, estudio o negocio con el que trabajás.">
+            <Field label="Empresa" required={formConfig.fields.company.required} error={fieldErrors.company} help="Indicá la empresa, estudio o negocio con el que trabajás.">
              <input name="company" required={formConfig.fields.company.required} aria-required={formConfig.fields.company.required} maxLength={255} placeholder="Ej. Estudio Norte" className={fieldClass} />
            </Field>
          ) : null}
          {formConfig.fields.jobTitle.visible ? (
-           <Field label="Puesto" required={formConfig.fields.jobTitle.required} help="Escribí tu cargo o función dentro de tu empresa.">
+            <Field label="Puesto" required={formConfig.fields.jobTitle.required} error={fieldErrors.jobTitle} help="Escribí tu cargo o función dentro de tu empresa.">
              <input name="jobTitle" required={formConfig.fields.jobTitle.required} aria-required={formConfig.fields.jobTitle.required} maxLength={255} placeholder="Ej. Director de compras" className={fieldClass} />
            </Field>
          ) : null}
-         <Field label="¿A qué te dedicás profesionalmente?" required help="Elegí la opción que mejor describe tu actividad profesional.">
-           <select name="occupation" required aria-required="true" defaultValue="" className={fieldClass}>
-             <option value="" disabled>Seleccioná una opción</option>
-             {occupationOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-           </select>
+          <Field label="¿A qué te dedicás profesionalmente?" required error={fieldErrors.occupation} help="Elegí la opción que mejor describe tu actividad profesional.">
+            <Select name="occupation" defaultValue="">
+            <SelectTrigger className={selectClass} aria-label="Actividad profesional" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
+              <SelectContent>{occupationOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+            </Select>
          </Field>
-       </div>
+        </div>
 
-       {formConfig.clientBrands.enabled ? (
+        {personalCustomFields.length > 0 ? (
+          <fieldset className="flex flex-col gap-4 border-t border-black/[0.06] pt-6">
+            <legend className="text-sm font-medium text-[#4a4a4a]">Información adicional</legend>
+            {personalCustomFields.map((field) => <RegistrationFieldRenderer key={field.id} field={field} error={fieldErrors[field.id]} />)}
+          </fieldset>
+        ) : null}
+      </div>
+
+      {hasPreferenceStep ? <>
+      <div data-mobile-step="preferences" className={`${activeStepId === "preferences" ? "block" : "hidden"} flex flex-col gap-6 sm:block`}>
+        {formConfig.clientBrands.enabled && formConfig.clientBrands.options.length > 0 ? (
            <fieldset className="flex flex-col gap-2">
            <legend className="flex items-center gap-1.5 text-sm font-medium text-[#4a4a4a]">¿Con qué marca trabajás? <HelpTooltip label="Seleccioná las marcas con las que trabajás habitualmente." /></legend>
-           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-             {formConfig.clientBrands.options.filter((option) => option !== "none").map((option) => (
-               <label key={option} className={choiceClass}>
-                 <input
-                   type="checkbox"
-                   name="clientBrands"
-                   value={option}
-                   checked={selectedBrands.includes(option)}
-                   onChange={(event) => toggleBrand(option, event.target.checked)}
-                   className={checkboxClass}
-                 />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {getPublicClientBrandOptions(formConfig.clientBrands.options).map((option) => (
+                <label key={option} className={choiceClass}>
+                  <input
+                    type="checkbox"
+                    name="clientBrands"
+                    value={option}
+                    checked={selectedBrands.includes(option as ClientBrandOption)}
+                    disabled={option === "none"
+                      ? selectedBrands.some((value) => value !== "none")
+                      : selectedBrands.includes("none")}
+                    onChange={(event) => toggleBrand(option, event.target.checked)}
+                    className={checkboxClass}
+                  />
                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-black/20 bg-white text-xs font-bold text-white transition-colors peer-checked:border-[#202020] peer-checked:bg-[#202020]" aria-hidden="true">✓</span>
-                 {option === "bmighty" ? "BMighty" : option[0].toUpperCase() + option.slice(1)}
+                  {option === "none" ? "Ninguna" : option === "bmighty" ? "BMighty" : option[0].toUpperCase() + option.slice(1)}
                </label>
              ))}
            </div>
          </fieldset>
        ) : null}
 
-       {formConfig.interests.enabled ? (
+        {formConfig.interests.enabled && formConfig.interests.options.length > 0 ? (
          <fieldset className="flex flex-col gap-2">
            <legend className="flex items-center gap-1.5 text-sm font-medium text-[#4a4a4a]">¿Qué temas te interesan? <HelpTooltip label="Seleccioná los temas que querés conocer o profundizar durante el evento." /></legend>
-           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
              {formConfig.interests.options.map((option) => {
                const labels: Record<string, string> = {
                  "battery-motors": "Motores de baterías",
@@ -202,20 +305,28 @@ export function RegisterForm({
            </div>
          </fieldset>
        ) : null}
+       {preferenceCustomFields.length > 0 ? (
+         <fieldset className="flex flex-col gap-4 border-t border-black/[0.06] pt-6">
+           <legend className="text-sm font-medium text-[#4a4a4a]">Información adicional</legend>
+           {preferenceCustomFields.map((field) => <RegistrationFieldRenderer key={field.id} field={field} error={fieldErrors[field.id]} />)}
+         </fieldset>
+       ) : null}
+      </div>
 
-       {hasCompanion ? (
-         <div className="grid grid-cols-1 gap-4 border-t border-black/[0.06] pt-6 sm:grid-cols-2">
-           <Field label="Nombre del acompañante" required help="Usá el nombre completo de la persona que te acompañará.">
+       <div data-mobile-step="preferences" className={`${activeStepId === "preferences" ? "block" : "hidden"} flex flex-col gap-6 sm:block`}>
+        {hasCompanion ? (
+         <div className="grid grid-cols-1 gap-x-5 gap-y-5 border-t border-black/[0.06] pt-8 sm:grid-cols-2">
+            <Field label="Nombre del acompañante" required error={fieldErrors.companionFullName} help="Usá el nombre completo de la persona que te acompañará.">
              <input name="companionFullName" required aria-required="true" maxLength={255} placeholder="Ej. Ana López" className={fieldClass} />
            </Field>
-           <Field label="Correo del acompañante" required help="Te enviaremos su confirmación y pase de acceso a este correo.">
+            <Field label="Correo del acompañante" required error={fieldErrors.companionEmail} help="Te enviaremos su confirmación y pase de acceso a este correo.">
              <input name="companionEmail" type="email" required aria-required="true" maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} />
            </Field>
            {formConfig.fields.phone.visible ? (
-             <Field label="Teléfono del acompañante" required={formConfig.fields.phone.required} help="Usaremos este número solo para comunicarnos sobre el evento.">
+              <Field label="Teléfono del acompañante" required={formConfig.fields.phone.required} error={fieldErrors.companionPhone} help="Usaremos este número solo para comunicarnos sobre el evento.">
                <input name="companionPhone" required={formConfig.fields.phone.required} maxLength={50} placeholder="Ej. +52 55 1234 5678" className={fieldClass} />
              </Field>
-           ) : null}
+        ) : null}
            {formConfig.fields.company.visible ? (
              <fieldset className="flex flex-col gap-2 sm:col-span-2">
                <legend className="flex items-center gap-1.5 text-sm font-medium text-[#4a4a4a]">
@@ -223,7 +334,7 @@ export function RegisterForm({
                  {formConfig.fields.company.required ? <span className="ml-1 text-[#c0335a]" aria-hidden="true">•</span> : null}
                  <HelpTooltip label="Indicá la empresa, estudio o negocio con el que trabaja." />
                </legend>
-               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                  <label className={choiceClass}>
                    <input
                      type="radio"
@@ -266,16 +377,16 @@ export function RegisterForm({
              </fieldset>
            ) : null}
            {formConfig.fields.jobTitle.visible ? (
-             <Field label="Puesto del acompañante" required={formConfig.fields.jobTitle.required} help="Escribí su cargo o función dentro de su empresa.">
+              <Field label="Puesto del acompañante" required={formConfig.fields.jobTitle.required} error={fieldErrors.companionJobTitle} help="Escribí su cargo o función dentro de su empresa.">
                <input name="companionJobTitle" required={formConfig.fields.jobTitle.required} maxLength={255} placeholder="Ej. Director de compras" className={fieldClass} />
              </Field>
            ) : null}
-           <Field label="¿A qué se dedica tu acompañante?" required help="Elegí la opción que mejor describe su actividad profesional.">
-             <select name="companionOccupation" required aria-required="true" defaultValue="" className={fieldClass}>
-               <option value="" disabled>Seleccioná una opción</option>
-               {occupationOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-             </select>
-           </Field>
+             <Field label="¿A qué se dedica tu acompañante?" required error={fieldErrors.companionOccupation} help="Elegí la opción que mejor describe su actividad profesional.">
+              <Select name="companionOccupation" defaultValue="">
+              <SelectTrigger className={selectClass} aria-label="Actividad profesional del acompañante" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
+                <SelectContent>{occupationOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
            <label className="flex cursor-pointer items-center gap-3 text-sm text-[#4a4a4a] sm:col-span-2">
              <input type="checkbox" name="requestMoreCompanions" value="true" className={checkboxClass} />
              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-black/20 bg-white text-xs font-bold text-white transition-colors peer-checked:border-[#202020] peer-checked:bg-[#202020]" aria-hidden="true">✓</span>
@@ -283,7 +394,7 @@ export function RegisterForm({
            </label>
            <button
              type="button"
-             className="self-start text-sm text-[#6b6b6b] underline underline-offset-2 hover:text-[#202020] sm:col-span-2"
+              className="self-start justify-self-start text-sm text-[#6b6b6b] underline underline-offset-2 hover:text-[#202020] sm:col-span-2"
              onClick={() => setHasCompanion(false)}
            >
              Quitar acompañante
@@ -294,24 +405,45 @@ export function RegisterForm({
        {formConfig.companion.enabled && !hasCompanion ? (
          <button
            type="button"
-           className="self-start rounded-full border border-black/10 px-5 py-2 text-sm font-medium text-[#4a4a4a] transition-colors hover:bg-black/[0.03]"
+            className={secondaryButtonClass}
            onClick={() => setHasCompanion(true)}
          >
            + Agregar acompañante
          </button>
        ) : null}
+      </div>
+      </> : null}
 
-       <div className="flex flex-col gap-3 border-t border-black/[0.06] pt-6 text-sm text-[#4a4a4a]">
-         <label className="flex cursor-pointer items-start gap-3">
+      <div data-mobile-step="confirmation" className={`${activeStepId === "confirmation" ? "block" : "hidden"} flex flex-col gap-6 sm:block`}>
+        {summaryItems.length > 0 ? (
+          <section className="flex flex-col gap-4 border-b border-black/[0.06] pb-6">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium text-[#202020]">Revisá tu información</h3>
+              <button type="button" className="text-sm text-[#6b6b6b] underline underline-offset-2 hover:text-[#202020]" onClick={() => editStep("personal")}>Editar</button>
+            </div>
+            <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+              {summaryItems.map((item) => (
+                <div key={`${item.label}-${item.value}`} className="min-w-0">
+                  <dt className="text-xs text-[#6b6b6b]">{item.label}</dt>
+                  <dd className="truncate text-[#202020]">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
+        <div className="flex flex-col gap-3 border-t border-black/[0.06] pt-8 text-sm text-[#4a4a4a]">
+          <label className={`flex cursor-pointer items-start gap-3 ${fieldErrors.privacyAccepted ? "text-[#c0335a]" : ""}`}>
            <input type="checkbox" name="privacyAccepted" value="true" required aria-required="true" className={checkboxClass} />
            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-black/20 bg-white text-xs font-bold text-white transition-colors peer-checked:border-[#202020] peer-checked:bg-[#202020]" aria-hidden="true">✓</span>
            <span><a href={formConfig.consent.privacy.url} target="_blank" rel="noreferrer" className="underline">{formConfig.consent.privacy.text}</a><span className="ml-1 text-[#c0335a]" aria-hidden="true">•</span></span>
-         </label>
-         <label className="flex cursor-pointer items-start gap-3">
+          </label>
+          {fieldErrors.privacyAccepted ? <p role="alert" className="-mt-1 ml-8 text-xs text-[#c0335a]">{fieldErrors.privacyAccepted}</p> : null}
+          <label className={`flex cursor-pointer items-start gap-3 ${fieldErrors.termsAccepted ? "text-[#c0335a]" : ""}`}>
            <input type="checkbox" name="termsAccepted" value="true" required aria-required="true" className={checkboxClass} />
            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-black/20 bg-white text-xs font-bold text-white transition-colors peer-checked:border-[#202020] peer-checked:bg-[#202020]" aria-hidden="true">✓</span>
            <span><a href={formConfig.consent.terms.url} target="_blank" rel="noreferrer" className="underline">{formConfig.consent.terms.text}</a><span className="ml-1 text-[#c0335a]" aria-hidden="true">•</span></span>
-         </label>
+          </label>
+          {fieldErrors.termsAccepted ? <p role="alert" className="-mt-1 ml-8 text-xs text-[#c0335a]">{fieldErrors.termsAccepted}</p> : null}
          {formConfig.consent.marketing.enabled ? (
            <label className="flex cursor-pointer items-start gap-3">
              <input type="checkbox" name="marketingAccepted" value="true" className={checkboxClass} />
@@ -321,14 +453,35 @@ export function RegisterForm({
          ) : null}
        </div>
 
-      <div>
+        <div className="mt-2">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-full bg-[#202020] px-7 py-3.5 text-base font-medium text-white transition-colors hover:bg-[#3a3a3a] disabled:opacity-60"
+           className={primaryButtonClass}
         >
           {pending ? "Registrando…" : "Registrarme"}
         </button>
+       </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 sm:hidden">
+        <button
+          type="button"
+           className={`${secondaryButtonClass} disabled:invisible`}
+          disabled={mobileStep === 0}
+          onClick={() => setMobileStep((step) => Math.max(0, step - 1))}
+        >
+          Atrás
+        </button>
+        {mobileStep < steps.length - 1 ? (
+          <button
+            type="button"
+             className={`${primaryButtonClass} h-11 px-5 text-sm`}
+            onClick={continueMobileStep}
+          >
+            Continuar
+          </button>
+        ) : null}
       </div>
       {state.error ? <p className="text-sm text-[#c0335a]">{state.error}</p> : null}
     </form>

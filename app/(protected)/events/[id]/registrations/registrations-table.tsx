@@ -16,6 +16,7 @@ type Props = {
   collectCompany: boolean;
   collectJobTitle: boolean;
   statusLabels: Record<EventRegistrationRow["status"], string>;
+  reviewStatusLabels: Record<EventRegistrationRow["reviewStatus"], string>;
 };
 
 export function RegistrationsTable({
@@ -25,6 +26,7 @@ export function RegistrationsTable({
   collectCompany,
   collectJobTitle,
   statusLabels,
+  reviewStatusLabels,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedRegistration = registrations.find(({ id }) => id === selectedId) ?? null;
@@ -50,6 +52,8 @@ export function RegistrationsTable({
               <th className="px-4 py-3 font-medium">Fecha</th>
               <th className="px-4 py-3 font-medium">Tipo de cliente</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Revisión</th>
+              <th className="px-4 py-3 font-medium">Respuestas</th>
               <th className="px-4 py-3 font-medium">Marca</th>
               <th className="px-4 py-3 font-medium">Seguimiento</th>
               <th className="px-4 py-3 font-medium">Acciones</th>
@@ -90,6 +94,12 @@ export function RegistrationsTable({
                     {primary?.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation); return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">{displayStatus}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{reviewStatusLabels[registration.reviewStatus]}</td>
+                  <td className="max-w-64 px-4 py-3 text-xs text-muted-foreground">
+                    {Object.values(registration.customFormAnswers).length > 0
+                      ? Object.values(registration.customFormAnswers).map((answer) => `${answer.label}: ${Array.isArray(answer.value) ? answer.value.join(", ") : String(answer.value ?? "—")}`).join(" · ")
+                      : "—"}
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap">{values.isClient ? "Cliente" : "No cliente"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {values.followUp ? (

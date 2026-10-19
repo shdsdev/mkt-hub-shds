@@ -9,6 +9,7 @@ import {
   eventStatus,
   eventRegistrationStatus,
   eventRegistrationSource,
+  eventRegistrationReviewStatus,
 } from "./db";
 
 // Schema contract for the additive events-module migration (PR1 — design.md "Architecture
@@ -98,6 +99,22 @@ describe("events schema (additive events-module migration, PR1)", () => {
     expect(eventAttendees.checkedInAt.notNull).toBe(false);
     expect(eventAttendees.checkedInBy.notNull).toBe(false);
   });
+
+  it("defines independent registration review status and custom answer storage", () => {
+    expect(eventRegistrationReviewStatus.enumValues).toEqual([
+      "new",
+      "in_review",
+      "approved",
+      "rejected",
+    ]);
+    expect(eventRegistrations.customFormAnswers.notNull).toBe(true);
+    expect(eventRegistrations.formVersion.notNull).toBe(true);
+    expect(eventRegistrations.formVersion.default).toBe(1);
+    expect(eventRegistrations.reviewStatus.notNull).toBe(true);
+    expect(eventRegistrations.reviewStatus.default).toBe("new");
+    expect(eventRegistrations.reviewedAt.notNull).toBe(false);
+    expect(eventRegistrations.reviewedBy.notNull).toBe(false);
+  });
 });
 
 describe("events-module migration (additive)", () => {
@@ -138,5 +155,17 @@ describe("events-module migration (additive)", () => {
   it("creates the UNIQUE(subject_id, notification_type) constraint on notification_log", () => {
     const sql = readFileSync(path.join(migrationDir, migration!), "utf8");
     expect(sql).toContain('CONSTRAINT "notification_log_subject_type_unique" UNIQUE("subject_id","notification_type")');
+  });
+
+  it("contains the additive event form answers and review status migration", () => {
+    const migration = readdirSync(migrationDir)
+      .filter((name) => name.endsWith(".sql"))
+      .map((name) => readFileSync(path.join(migrationDir, name), "utf8"))
+      .find((sql) => sql.includes('ADD COLUMN "custom_form_answers"'));
+
+    expect(migration).toContain('ADD COLUMN "custom_form_answers" jsonb');
+    expect(migration).toContain('ADD COLUMN "form_version" integer');
+    expect(migration).toContain('ADD COLUMN "review_status"');
+    expect(migration).not.toContain('DROP COLUMN');
   });
 });

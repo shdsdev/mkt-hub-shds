@@ -35,6 +35,8 @@ let onOpenChangeCallback: ((open: boolean) => void) | undefined;
 
 const config = {
   version: 1 as const,
+  customFieldsVersion: 1 as const,
+  customFields: [],
   fields: {
     phone: { visible: false, required: false },
     company: { visible: false, required: false },

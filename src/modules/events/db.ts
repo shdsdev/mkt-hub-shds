@@ -43,6 +43,13 @@ export const eventRegistrationSource = pgEnum("event_registration_source", [
   "admin_added",
 ]);
 
+export const eventRegistrationReviewStatus = pgEnum("event_registration_review_status", [
+  "new",
+  "in_review",
+  "approved",
+  "rejected",
+]);
+
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id")
@@ -120,6 +127,9 @@ export const eventRegistrations = pgTable("event_registrations", {
     .references(() => events.id),
   status: eventRegistrationStatus("status").notNull().default("confirmed"),
   source: eventRegistrationSource("source").notNull().default("public"),
+  reviewStatus: eventRegistrationReviewStatus("review_status").notNull().default("new"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  reviewedBy: uuid("reviewed_by").references(() => users.id),
   // Opaque, unguessable, revocable-by-update (design.md "Pass + cancel tokens") — no signing
   // secret, no expiry clock.
   cancelToken: text("cancel_token").notNull(),
@@ -131,6 +141,11 @@ export const eventRegistrations = pgTable("event_registrations", {
   utmId: text("utm_id"),
   clientBrands: jsonb("client_brands").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   interests: jsonb("interests").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  formVersion: integer("form_version").notNull().default(1),
+  customFormAnswers: jsonb("custom_form_answers")
+    .$type<RegistrationFormAnswers>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
   requestedMoreCompanions: boolean("requested_more_companions").notNull().default(false),
   consents: jsonb("consents").$type<RegistrationConsents | null>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -142,6 +157,14 @@ export type RegistrationConsents = {
   termsAcceptedAt: string;
   marketingAcceptedAt?: string;
 };
+
+export type RegistrationFormAnswer = {
+  label: string;
+  type: string;
+  value: string | number | boolean | string[] | null;
+};
+
+export type RegistrationFormAnswers = Record<string, RegistrationFormAnswer>;
 
 // Person-level identity (design.md "Contact identity" — the key decision): full_name/email/phone
 // live here exactly once, never copied onto events/event_registrations, so a future CRM can
@@ -210,6 +233,7 @@ export const eventsTables = {
   eventStatus,
   eventRegistrationStatus,
   eventRegistrationSource,
+  eventRegistrationReviewStatus,
   events,
   eventRegistrations,
   eventAttendees,

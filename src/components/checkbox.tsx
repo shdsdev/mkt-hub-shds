@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 /**
  * The project's one checkbox — pure CSS "Spin" checkbox (styling + the spin-on-check animation
  * live in app/globals.css under `.check`/`.ck-10`). `tabIndex={-1}` on the input is part of the
@@ -8,17 +10,21 @@
  */
 export function Checkbox({
   checked,
+  defaultChecked,
   onChange,
   label,
   name,
   value,
+  required = false,
   disabled = false,
 }: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label: string;
+  checked?: boolean;
+  defaultChecked?: boolean;
+  onChange?: (checked: boolean) => void;
+  label: ReactNode;
   name?: string;
   value?: string;
+  required?: boolean;
   disabled?: boolean;
 }) {
   return (
@@ -28,9 +34,11 @@ export function Checkbox({
         tabIndex={0}
         name={name}
         value={value}
-        disabled={disabled}
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
+        required={required}
+        aria-required={required}
+      disabled={disabled}
+        {...(checked === undefined ? { defaultChecked } : { checked })}
+        onChange={(event) => onChange?.(event.target.checked)}
       />
       <span className="box" />
       <span className="lbl">{label}</span>

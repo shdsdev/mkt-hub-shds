@@ -8,6 +8,9 @@ function registration(overrides: Partial<Parameters<typeof buildRegistrationsCsv
     organizationId: "org-1",
     status: "confirmed" as const,
     source: "public" as const,
+    reviewStatus: "new" as const,
+    reviewedAt: null,
+    reviewedBy: null,
     cancelToken: "token",
     utmSource: null,
     utmMedium: null,
@@ -17,6 +20,8 @@ function registration(overrides: Partial<Parameters<typeof buildRegistrationsCsv
     utmId: null,
     clientBrands: [],
     interests: [],
+    formVersion: 1,
+    customFormAnswers: {},
     requestedMoreCompanions: false,
     consents: null,
     createdAt: new Date("2026-10-01T12:00:00Z"),
@@ -30,7 +35,7 @@ describe("buildRegistrationsCsv", () => {
   it("includes a header row even with no registrations", () => {
     const csv = buildRegistrationsCsv([]);
     expect(csv).toBe(
-      "fecha,estado,contacto_principal,correo_principal,acompanantes,utm_source,pase,solicita_mas_acompanantes,marcas,intereses,privacidad_aceptada,terminos_aceptados,marketing_aceptado,actividad_principal,actividad_acompanante\r\n",
+      "fecha,estado,estado_revision,contacto_principal,correo_principal,acompanantes,utm_source,pase,solicita_mas_acompanantes,marcas,intereses,privacidad_aceptada,terminos_aceptados,marketing_aceptado,actividad_principal,actividad_acompanante\r\n",
     );
   });
 
@@ -99,5 +104,17 @@ describe("buildRegistrationsCsv", () => {
     })]);
 
     expect(csv).toContain("Arquitecto,Instalador o técnico");
+  });
+
+  it("exports historical custom answers as labeled columns", () => {
+    const csv = buildRegistrationsCsv([registration({
+      customFormAnswers: {
+        interests: { label: "Intereses del evento", type: "select_multiple", value: ["Automatización", "Cortinas"] },
+        accepts: { label: "Acepta contacto", type: "checkbox", value: true },
+      },
+    })]);
+
+    expect(csv.split("\r\n")[0]).toContain("Acepta contacto,Intereses del evento");
+    expect(csv).toContain("sí,Automatización; Cortinas");
   });
 });

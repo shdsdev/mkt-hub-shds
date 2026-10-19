@@ -5,6 +5,7 @@ export { generateBackupCode, generateOpaqueToken, normalizeEmail } from "./servi
 export { canAccessEvent, canRoleAccessCapability, type EventCapability } from "./access";
 export { getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl } from "./embed";
 export { eventAttendees, eventRegistrations, events } from "./db";
+export type { RegistrationFormAnswers } from "./db";
 export {
   CLIENT_BRAND_OPTIONS,
   INTEREST_OPTIONS,
@@ -12,9 +13,11 @@ export {
   getDefaultRegistrationFormConfig,
   registrationFormConfigSchema,
   resolveRegistrationFormConfig,
+  toggleClientBrandOption,
   type ClientBrandOption,
   type InterestOption,
   type OccupationOption,
+  type RegistrationCustomField,
   type RegistrationFormConfig,
 } from "./registration-form-config";
 export {
@@ -47,6 +50,7 @@ export {
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
   notifyEventWebhook,
+  updateRegistrationReviewStatus,
   type EventRow,
   type EventMutationResult,
   type DeleteEventResult,

@@ -11,6 +11,7 @@ import {
   listRegistrations,
   notifyEventWebhook,
   OCCUPATION_OPTIONS,
+  updateRegistrationReviewStatus,
   type AddAttendeeToRegistrationResult,
 } from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
@@ -19,6 +20,11 @@ import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar registros.";
 const INVALID_FORM_ERROR = "Revisa los datos del acompañante.";
+const reviewStatusSchema = z.object({
+  registrationId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  reviewStatus: z.enum(["new", "in_review", "approved", "rejected"]),
+});
 
 const REASON_MESSAGES: Record<Exclude<AddAttendeeToRegistrationResult, { ok: true }>["reason"], string> = {
   registration_not_found: "No se encontró el registro.",
@@ -42,6 +48,33 @@ export type AddedCompanion = { fullName: string; backupCode: string };
 export type AddCompanionFormState = { error?: string; success?: boolean; addedCompanion?: AddedCompanion };
 
 export type ResendInvitationState = { error?: string; success?: string };
+
+export type ReviewStatusFormState = { error?: string; success?: string };
+
+export async function updateRegistrationReviewStatusAction(
+  _prevState: ReviewStatusFormState,
+  formData: FormData,
+): Promise<ReviewStatusFormState> {
+  const user = await getCurrentUser();
+  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) return { error: PERMISSION_ERROR };
+
+  const parsed = reviewStatusSchema.safeParse({
+    registrationId: formData.get("registrationId"),
+    eventId: formData.get("eventId"),
+    reviewStatus: formData.get("reviewStatus"),
+  });
+  if (!parsed.success) return { error: "No se pudo actualizar el estado de revisión." };
+
+  const registration = await updateRegistrationReviewStatus({
+    ...parsed.data,
+    organizationId: user.profile.organizationId,
+    reviewedBy: user.id,
+  });
+  if (!registration) return { error: "No se encontró el registro." };
+
+  revalidatePath(`/events/${parsed.data.eventId}/registrations`);
+  return { success: "Estado de revisión actualizado." };
+}
 
 // Admin feedback round: a "master form" to add more companions to a registration that was
 // already submitted (not the public registration form — that stays scoped to the person

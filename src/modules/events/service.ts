@@ -11,6 +11,7 @@ import {
   eventReceptionists,
   type AgendaItem,
   type RegistrationConsents,
+  type RegistrationFormAnswers,
   type SponsorLogo,
 } from "./db";
 import { getEffectiveRegistrationStatus } from "./registration-status";
@@ -319,6 +320,8 @@ export type RegisterForEventInput = {
     termsAcceptedAt: Date;
     marketingAcceptedAt?: Date;
   };
+  formVersion?: number;
+  customFormAnswers?: RegistrationFormAnswers;
   utm?: UtmFields;
 };
 
@@ -418,6 +421,8 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
           utmId: input.utm?.utmId,
           clientBrands: input.clientBrands ?? [],
           interests: input.interests ?? [],
+          formVersion: input.formVersion ?? 1,
+          customFormAnswers: input.customFormAnswers ?? {},
           requestedMoreCompanions: input.requestedMoreCompanions ?? false,
           consents: input.consents
             ? ({
@@ -823,6 +828,32 @@ export async function listEventReceptionistIds(eventId: string, organizationId: 
   return rows.map((row) => row.userId);
 }
 
+export async function updateRegistrationReviewStatus(input: {
+  registrationId: string;
+  eventId: string;
+  organizationId: string;
+  reviewStatus: EventRegistrationRow["reviewStatus"];
+  reviewedBy: string;
+}): Promise<EventRegistrationRow | undefined> {
+  const [registration] = await db
+    .update(eventRegistrations)
+    .set({
+      reviewStatus: input.reviewStatus,
+      reviewedBy: input.reviewedBy,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(eventRegistrations.id, input.registrationId),
+        eq(eventRegistrations.eventId, input.eventId),
+        eq(eventRegistrations.organizationId, input.organizationId),
+      ),
+    )
+    .returning();
+  return registration;
+}
+
 export async function assignEventReceptionist(eventId: string, userId: string, organizationId: string): Promise<boolean> {
   const event = await getEvent(eventId, organizationId);
   if (!event) return false;
@@ -845,16 +876,13 @@ export async function removeEventReceptionist(eventId: string, userId: string, o
 export async function listRegistrations(
   eventId: string,
   organizationId: string,
-  filter?: { status?: EventRegistrationRow["status"]; q?: string },
+  filter?: { status?: EventRegistrationRow["status"]; reviewStatus?: EventRegistrationRow["reviewStatus"]; q?: string },
 ): Promise<RegistrationWithAttendees[]> {
   const statusRequiresAttendees = filter?.status === "confirmed" || filter?.status === "checked_in";
-  const scope = filter?.status && !statusRequiresAttendees
-    ? and(
-        eq(eventRegistrations.eventId, eventId),
-        eq(eventRegistrations.organizationId, organizationId),
-        eq(eventRegistrations.status, filter.status),
-      )
-    : and(eq(eventRegistrations.eventId, eventId), eq(eventRegistrations.organizationId, organizationId));
+  const predicates = [eq(eventRegistrations.eventId, eventId), eq(eventRegistrations.organizationId, organizationId)];
+  if (filter?.status && !statusRequiresAttendees) predicates.push(eq(eventRegistrations.status, filter.status));
+  if (filter?.reviewStatus) predicates.push(eq(eventRegistrations.reviewStatus, filter.reviewStatus));
+  const scope = and(...predicates);
 
   const registrations = await db
     .select()

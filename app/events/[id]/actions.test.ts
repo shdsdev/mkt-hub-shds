@@ -9,13 +9,15 @@ const mocks = vi.hoisted(() => ({
   OCCUPATION_OPTIONS: ["distributor", "manufacturer", "architect", "decorator", "installer-technician"],
   resolveRegistrationFormConfig: vi.fn(() => ({
     version: 1,
+    customFieldsVersion: 1,
+    customFields: [],
     fields: {
       phone: { visible: false, required: false },
       company: { visible: true, required: false },
       jobTitle: { visible: false, required: false },
     },
     companion: { enabled: true },
-    clientBrands: { enabled: true, options: ["none", "shades", "bmighty", "drapery"] },
+    clientBrands: { enabled: true, options: ["shades", "bmighty", "drapery"] },
     interests: { enabled: false, options: [] },
     consent: {
       privacy: { url: "/privacy", text: "Acepto la política de privacidad" },
@@ -443,5 +445,16 @@ describe("registerForEventAction", () => {
 
     expect(result.error).toBe("Seleccioná una sola opción: Ninguno o una marca.");
     expect(mocks.registerForEvent).not.toHaveBeenCalled();
+  });
+
+  it("accepts an explicit none selection even when no admin brand is configured as none", async () => {
+    mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
+    const fd = baseFormData();
+    fd.append("clientBrands", "none");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result.error).toContain("Ya existe un registro");
+    expect(mocks.registerForEvent).toHaveBeenCalled();
   });
 });

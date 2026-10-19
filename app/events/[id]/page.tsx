@@ -171,7 +171,7 @@ export default async function EventLandingPage({
           </section>
         ) : null}
 
-        <section id="registro" className="scroll-mt-10">
+        <section id="registro" className="mx-auto w-full max-w-2xl scroll-mt-10">
           <RegisterForm
             slug={event.slug}
              formConfig={resolveRegistrationFormConfig(event)}

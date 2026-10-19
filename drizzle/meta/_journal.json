@@ -295,6 +295,13 @@
       "when": 1792253782713,
       "tag": "0039_hesitant_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792431839278,
+      "tag": "0041_broad_thunderbolts",
+      "breakpoints": true
     }
   ]
 }
