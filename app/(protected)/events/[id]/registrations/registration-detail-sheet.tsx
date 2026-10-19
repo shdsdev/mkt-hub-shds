@@ -10,8 +10,7 @@ import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, Tag, X, XCircle } fro
 import { Button } from "@/components/ui/button";
 import { AddCompanionRow } from "./add-companion-row";
 import { resendInvitationAction, updateRegistrationReviewStatusAction, type ResendInvitationState } from "./actions";
-import { REVIEW_STATUS_LABELS } from "./review-status";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { REVIEW_STATUS_LABELS, type ReviewStatus } from "./review-status";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
 import { formatRegistrationDate } from "./registration-date";
 
@@ -73,9 +72,18 @@ export function RegistrationDetailSheet({
   const [resendState, resendAction, resendPending] = useActionState(resendInvitationAction, initialResendState);
   const [reviewState, reviewAction, reviewPending] = useActionState(updateRegistrationReviewStatusAction, {});
   const [reviewStatus, setReviewStatus] = useState(registration.reviewStatus);
+  const [pendingReviewStatus, setPendingReviewStatus] = useState<ReviewStatus | null>(null);
   const router = useRouter();
   useEffect(() => setReviewStatus(registration.reviewStatus), [registration.reviewStatus]);
-  useEffect(() => { if (reviewState.success) router.refresh(); }, [reviewState.success, router]);
+  useEffect(() => {
+    if (!reviewState.success) return;
+    setPendingReviewStatus(null);
+    router.refresh();
+  }, [reviewState.success, router]);
+  function requestReviewStatus(status: ReviewStatus) {
+    if (status === reviewStatus) return;
+    setPendingReviewStatus(status);
+  }
   const utmEntries = (Object.keys(UTM_LABELS) as (keyof typeof UTM_LABELS)[])
     .map((key) => [UTM_LABELS[key], registration[key as keyof RegistrationWithAttendees]] as const)
     .filter(([, value]) => Boolean(value));
@@ -92,17 +100,10 @@ export function RegistrationDetailSheet({
                 {statusLabel} · {formatRegistrationDate(registration.createdAt)} · {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
               </DialogPrimitive.Description>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <form action={reviewAction} className="flex items-center gap-2" onSubmit={() => undefined}>
-                <input type="hidden" name="registrationId" value={registration.id} />
-                <input type="hidden" name="eventId" value={eventId} />
-                <input type="hidden" name="reviewStatus" value={reviewStatus} />
-                <Select value={reviewStatus} onValueChange={(value) => { if (value) setReviewStatus(value as typeof reviewStatus); }} disabled={reviewPending}>
-                  <SelectTrigger className="w-40" aria-label="Estado de revisión"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(REVIEW_STATUS_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-                </Select>
-                <Button type="submit" size="sm" variant="outline" disabled={reviewPending}>Guardar</Button>
-              </form>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <Button type="button" size="sm" onClick={() => requestReviewStatus("approved")} disabled={reviewPending || reviewStatus === "approved"}>Aprobar</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => requestReviewStatus("waitlisted")} disabled={reviewPending || reviewStatus === "waitlisted"}>Lista de espera</Button>
+              <Button type="button" size="sm" variant="destructive" onClick={() => requestReviewStatus("rejected")} disabled={reviewPending || reviewStatus === "rejected"}>Rechazar</Button>
               {registration.status !== "cancelled" ? (
                 <AddCompanionRow
                   registrationId={registration.id}
@@ -116,6 +117,25 @@ export function RegistrationDetailSheet({
               </Button>
             </div>
           </div>
+
+          <DialogPrimitive.Root open={pendingReviewStatus !== null} onOpenChange={(open) => { if (!open || reviewPending) setPendingReviewStatus(null); }}>
+            <DialogPrimitive.Portal>
+              <DialogPrimitive.Backdrop className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-md" />
+              <DialogPrimitive.Popup className="fixed inset-0 z-[60] m-auto h-fit w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl">
+                <DialogPrimitive.Title className="text-lg font-semibold">Confirmar cambio</DialogPrimitive.Title>
+                <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
+                  ¿Seguro que querés marcar esta solicitud como {pendingReviewStatus ? REVIEW_STATUS_LABELS[pendingReviewStatus] : ""}?
+                </DialogPrimitive.Description>
+                <form action={reviewAction} className="mt-6 flex justify-end gap-2">
+                  <input type="hidden" name="registrationId" value={registration.id} />
+                  <input type="hidden" name="eventId" value={eventId} />
+                  <input type="hidden" name="reviewStatus" value={pendingReviewStatus ?? reviewStatus} />
+                  <Button type="button" variant="outline" onClick={() => setPendingReviewStatus(null)} disabled={reviewPending}>Cancelar</Button>
+                  <Button type="submit" variant={pendingReviewStatus === "rejected" ? "destructive" : "default"} disabled={reviewPending}>{reviewPending ? "Guardando…" : "Confirmar"}</Button>
+                </form>
+              </DialogPrimitive.Popup>
+            </DialogPrimitive.Portal>
+          </DialogPrimitive.Root>
 
           <div className="mt-6 flex flex-col gap-6 pb-4 text-sm">
           {reviewState.error ? <p role="alert" className="text-sm text-destructive">{reviewState.error}</p> : null}
