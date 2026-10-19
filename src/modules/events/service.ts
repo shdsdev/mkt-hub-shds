@@ -295,6 +295,7 @@ export type AttendeeInput = {
   company?: string;
   jobTitle?: string;
   occupation?: string;
+  state?: string;
 };
 
 export type UtmFields = Partial<{
@@ -451,6 +452,7 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
             company: attendee.company,
             jobTitle: attendee.jobTitle,
             occupation: attendee.occupation,
+            state: attendee.state,
             passToken: generateOpaqueToken(),
             backupCode: generateBackupCode(),
             isActive: true,

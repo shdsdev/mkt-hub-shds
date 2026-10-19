@@ -302,6 +302,13 @@
       "when": 1792431839278,
       "tag": "0041_broad_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1792443258478,
+      "tag": "0042_minor_cardiac",
+      "breakpoints": true
     }
   ]
 }

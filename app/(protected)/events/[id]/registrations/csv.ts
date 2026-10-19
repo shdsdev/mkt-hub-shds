@@ -1,6 +1,7 @@
+import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import type { RegistrationWithAttendees } from "@/modules/events";
 
-const BASE_HEADERS = ["fecha", "estado", "estado_revision", "contacto_principal", "correo_principal", "acompanantes", "utm_source", "pase", "solicita_mas_acompanantes", "marcas", "intereses", "privacidad_aceptada", "terminos_aceptados", "marketing_aceptado", "actividad_principal", "actividad_acompanante"];
+const BASE_HEADERS = ["fecha", "estado", "estado_revision", "contacto_principal", "correo_principal", "estado_residencia", "acompanantes", "utm_source", "pase", "solicita_mas_acompanantes", "marcas", "intereses", "privacidad_aceptada", "terminos_aceptados", "marketing_aceptado", "actividad_principal", "actividad_acompanante"];
 
 const BRAND_LABELS: Record<string, string> = { shades: "Shades", bmighty: "BMighty", drapery: "Drapery" };
 const INTEREST_LABELS: Record<string, string> = {
@@ -16,6 +17,7 @@ const OCCUPATION_LABELS: Record<string, string> = {
   decorator: "Decorador",
   "installer-technician": "Instalador o técnico",
 };
+const STATE_LABELS = new Map<string, string>(MEXICAN_STATES.map((state) => [state.value, state.label]));
 
 function escapeCsvField(value: string): string {
   if (/[",\r\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
@@ -41,6 +43,7 @@ export function buildRegistrationsCsv(registrations: RegistrationWithAttendees[]
       registration.reviewStatus,
       primary?.fullName ?? "",
       primary?.email ?? "",
+      STATE_LABELS.get(primary?.state ?? "") ?? primary?.state ?? "",
       companions.map((companion) => companion.fullName).join("; "),
       registration.utmSource ?? "",
       passStatus,

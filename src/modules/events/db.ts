@@ -192,6 +192,7 @@ export const eventAttendees = pgTable(
     company: text("company"),
     jobTitle: text("job_title"),
     occupation: text("occupation"),
+    state: text("state"),
     // Opaque per-attendee pass token (QR payload) — same token family as `cancelToken`.
     passToken: text("pass_token").notNull(),
     // 8-char Crockford base32 (no I/L/O/U), unique per event, human-typeable at the door.

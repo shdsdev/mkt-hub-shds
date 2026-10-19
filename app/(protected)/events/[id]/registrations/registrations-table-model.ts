@@ -1,6 +1,8 @@
+import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import type { RegistrationWithAttendees } from "@/modules/events";
 
 const CLIENT_BRANDS = new Set(["shades", "bmighty", "drapery"]);
+const STATE_LABELS = new Map<string, string>(MEXICAN_STATES.map((state) => [state.value, state.label]));
 
 export function getPrimaryAttendee(registration: RegistrationWithAttendees) {
   return registration.attendees[0];
@@ -17,5 +19,6 @@ export function getRegistrationTableValues(registration: RegistrationWithAttende
     status: everyoneCheckedIn ? "Check-in" : primaryCheckedIn ? "Confirmado" : "Pendiente",
     followUp: registration.requestedMoreCompanions,
     source: registration.utmSource ?? (registration.source === "admin_added" ? "Admin" : "Directo"),
+    state: STATE_LABELS.get(primary?.state ?? "") ?? "Sin indicar",
   };
 }

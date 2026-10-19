@@ -9,6 +9,7 @@ export type { RegistrationFormAnswers } from "./db";
 export {
   CLIENT_BRAND_OPTIONS,
   INTEREST_OPTIONS,
+  MEXICAN_STATES,
   OCCUPATION_OPTIONS,
   getDefaultRegistrationFormConfig,
   registrationFormConfigSchema,

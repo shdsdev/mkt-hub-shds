@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MEXICAN_STATES,
   getDefaultRegistrationFormConfig,
   registrationFormConfigSchema,
   resolveRegistrationFormConfig,
@@ -31,7 +32,14 @@ describe("registration form configuration", () => {
 
     expect(config.fields.company).toEqual({ visible: true, required: false });
     expect(config.fields.jobTitle).toEqual({ visible: false, required: false });
+    expect(config.fields.state).toEqual({ visible: false, required: false });
     expect(config.consent.privacy).toEqual({ url: "/privacy", text: "Acepto la política de privacidad" });
+  });
+
+  it("provides all Mexican states for the single-select state field", () => {
+    expect(MEXICAN_STATES).toHaveLength(32);
+    expect(MEXICAN_STATES).toContainEqual({ value: "jalisco", label: "Jalisco" });
+    expect(new Set(MEXICAN_STATES.map((state) => state.value)).size).toBe(32);
   });
 
   it("rejects a required hidden field", () => {

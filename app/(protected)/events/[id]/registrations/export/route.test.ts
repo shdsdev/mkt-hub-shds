@@ -11,7 +11,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
-vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, listRegistrations: mocks.listRegistrations }));
+vi.mock("@/modules/events", () => ({
+  getEvent: mocks.getEvent,
+  listRegistrations: mocks.listRegistrations,
+  MEXICAN_STATES: [{ value: "jalisco", label: "Jalisco" }],
+}));
 
 import { GET } from "./route";
 

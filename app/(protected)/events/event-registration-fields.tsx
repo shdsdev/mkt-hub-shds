@@ -16,7 +16,7 @@ import {
   type CustomFieldType,
 } from "./registration-field-builder";
 
-type RegistrationField = "phone" | "company" | "jobTitle";
+type RegistrationField = "phone" | "company" | "jobTitle" | "state";
 type OptionGroup = "clientBrands" | "interests";
 
 const customFieldTypes: readonly [CustomFieldType, string][] = [
@@ -106,8 +106,8 @@ export function EventRegistrationFields({
         <p className="text-sm">Correo electrónico</p>
         <p className="text-xs text-muted-foreground">Siempre visible</p>
         <p className="text-xs text-muted-foreground">Siempre obligatorio</p>
-        {(["phone", "company", "jobTitle"] as const).map((field) => {
-          const labels = { phone: "Teléfono", company: "Empresa", jobTitle: "Puesto" };
+        {(["phone", "company", "jobTitle", "state"] as const).map((field) => {
+          const labels = { phone: "Teléfono", company: "Empresa", jobTitle: "Puesto", state: "Estado" };
           return (
             <div key={field} className="contents">
               <p className="text-sm">{labels[field]}</p>

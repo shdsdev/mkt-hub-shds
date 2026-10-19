@@ -41,6 +41,7 @@ const config = {
     phone: { visible: false, required: false },
     company: { visible: false, required: false },
     jobTitle: { visible: false, required: false },
+    state: { visible: false, required: false },
   },
   companion: { enabled: true },
   clientBrands: { enabled: false, options: [] as never[] },

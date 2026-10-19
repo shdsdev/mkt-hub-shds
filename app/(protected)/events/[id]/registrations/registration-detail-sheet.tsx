@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import type { RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, Tag, X, XCircle } from "lucide-react";
@@ -32,6 +33,7 @@ const OPTION_LABELS: Record<string, string> = {
   curtains: "Cortinería",
   "manual-and-motorized-rods": "Cortineros manuales y motorizados",
 };
+const STATE_LABELS = new Map<string, string>(MEXICAN_STATES.map((state) => [state.value, state.label]));
 const initialResendState: ResendInvitationState = {};
 
 function ConsentStatus({ label, accepted, date }: { label: string; accepted: boolean; date?: string }) {
@@ -217,6 +219,9 @@ export function RegistrationDetailSheet({
                 ) : null}
                 {attendee.occupation ? (
                   <p className="text-muted-foreground">Actividad: {getOccupationPresentation(attendee.occupation).label}</p>
+                ) : null}
+                {attendee.state ? (
+                  <p className="text-muted-foreground">Estado: {STATE_LABELS.get(attendee.state) ?? attendee.state}</p>
                 ) : null}
                 <div className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2"><p className="text-[11px] font-medium uppercase tracking-wide text-primary/80">Folio de acceso</p><p className="mt-1 font-mono text-lg font-bold tracking-wider text-primary">{attendee.backupCode}</p></div>
                 <p className={`text-xs font-medium ${attendee.checkedInAt ? "text-emerald-300" : "text-muted-foreground"}`}>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+export { MEXICAN_STATES } from "@/lib/events/mexican-states";
 
 export const CLIENT_BRAND_OPTIONS = ["none", "shades", "bmighty", "drapery"] as const;
 export const OCCUPATION_OPTIONS = [
@@ -133,6 +134,7 @@ export const registrationFormConfigSchema = z.object({
     phone: visibilitySchema,
     company: visibilitySchema,
     jobTitle: visibilitySchema,
+    state: visibilitySchema.default({ visible: false, required: false }),
   }),
   companion: z.object({ enabled: z.boolean() }),
   clientBrands: z.object({
@@ -176,6 +178,7 @@ export function getDefaultRegistrationFormConfig(
       phone: { visible: false, required: false },
       company: { visible: event.collectCompany, required: false },
       jobTitle: { visible: event.collectJobTitle, required: false },
+      state: { visible: false, required: false },
     },
       companion: { enabled: true },
     clientBrands: { enabled: false, options: [] },

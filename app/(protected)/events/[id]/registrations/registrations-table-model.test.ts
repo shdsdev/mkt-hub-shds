@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { getPrimaryAttendee, getRegistrationTableValues } from "./registrations-table-model";
+
+vi.mock("@/lib/env", () => ({ env: { DATABASE_URL: "postgres://localhost:5432/test" } }));
+vi.mock("@/modules/users", () => ({ isAdmin: () => true }));
 
 const registrationData = {
   id: "reg-1",
@@ -13,8 +16,9 @@ const registrationData = {
   attendees: [
     {
       id: "att-1",
-      fullName: "María González",
-      email: "maria@example.com",
+        fullName: "María González",
+        email: "maria@example.com",
+        state: "jalisco",
       checkedInAt: null,
       occupation: "architect",
     },
@@ -41,6 +45,7 @@ describe("registration table model", () => {
       status: "Pendiente",
       followUp: true,
       source: "instagram",
+      state: "Jalisco",
     });
   });
 

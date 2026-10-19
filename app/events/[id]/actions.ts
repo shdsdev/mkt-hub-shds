@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { env } from "@/lib/env";
+import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import {
   getPublishedEventBySlugPublic,
   registerForEvent,
@@ -27,7 +28,7 @@ const INVALID_OCCUPATION_ERROR = "Seleccioná tu actividad profesional para cont
 const INVALID_COMPANION_OCCUPATION_ERROR = "Seleccioná la actividad del acompañante para continuar.";
 const INVALID_BRAND_COMBINATION_ERROR = "Seleccioná una sola opción: Ninguno o una marca.";
 const PUBLIC_FORM_KEYS = [
-  "slug", "website", "fullName", "email", "phone", "company", "jobTitle", "occupation",
+  "slug", "website", "fullName", "email", "phone", "company", "jobTitle", "occupation", "state",
   "companionFullName", "companionEmail", "companionPhone", "companionCompany", "companionCompanyMode",
   "companionJobTitle", "companionOccupation", "requestMoreCompanions", "privacyAccepted", "termsAccepted",
   "marketingAccepted", "clientBrands", "interests", "utmSource", "utmMedium", "utmCampaign", "utmTerm",
@@ -41,7 +42,10 @@ const attendeeSchema = z.object({
   company: z.string().trim().max(255).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
   occupation: z.enum(OCCUPATION_OPTIONS),
+  state: z.string().trim().max(100).optional().or(z.literal("")),
 });
+
+const MEXICAN_STATE_VALUES = new Set<string>(MEXICAN_STATES.map((state) => state.value));
 
 export type RegisterFormState = {
   error?: string;
@@ -57,6 +61,7 @@ function normalizeAttendee(parsed: z.infer<typeof attendeeSchema>): AttendeeInpu
     phone: parsed.phone || undefined,
     company: parsed.company || undefined,
     jobTitle: parsed.jobTitle || undefined,
+    state: parsed.state || undefined,
   };
 }
 
@@ -71,12 +76,13 @@ function readSelectedOptions(formData: FormData, name: string): string[] {
 
 function validateConfiguredFields(
   attendee: z.infer<typeof attendeeSchema>,
-  fields: { phone: { visible: boolean; required: boolean }; company: { visible: boolean; required: boolean }; jobTitle: { visible: boolean; required: boolean } },
+  fields: { phone: { visible: boolean; required: boolean }; company: { visible: boolean; required: boolean }; jobTitle: { visible: boolean; required: boolean }; state: { visible: boolean; required: boolean } },
 ): string | undefined {
   const requiredFields = [
     ["phone", attendee.phone, fields.phone, "El teléfono"],
     ["company", attendee.company, fields.company, "La empresa"],
     ["jobTitle", attendee.jobTitle, fields.jobTitle, "El puesto"],
+    ["state", attendee.state, fields.state, "El estado"],
   ] as const;
 
   for (const [, value, field, label] of requiredFields) {
@@ -87,7 +93,7 @@ function validateConfiguredFields(
 
 function normalizeConfiguredAttendee(
   parsed: z.infer<typeof attendeeSchema>,
-  fields: { phone: { visible: boolean; required: boolean }; company: { visible: boolean; required: boolean }; jobTitle: { visible: boolean; required: boolean } },
+  fields: { phone: { visible: boolean; required: boolean }; company: { visible: boolean; required: boolean }; jobTitle: { visible: boolean; required: boolean }; state: { visible: boolean; required: boolean } },
 ): AttendeeInput {
   const normalized = normalizeAttendee(parsed);
   return {
@@ -95,6 +101,7 @@ function normalizeConfiguredAttendee(
     phone: fields.phone.visible ? normalized.phone : undefined,
     company: fields.company.visible ? normalized.company : undefined,
     jobTitle: fields.jobTitle.visible ? normalized.jobTitle : undefined,
+    state: fields.state.visible ? normalized.state : undefined,
     occupation: parsed.occupation,
   };
 }
@@ -169,12 +176,16 @@ export async function registerForEventAction(
     company: primaryCompany.data,
     jobTitle: formData.get("jobTitle") ?? undefined,
     occupation: formData.get("occupation") ?? "",
+    state: formData.get("state") ?? undefined,
   });
   if (!primaryParsed.success) {
     return {
       error: INVALID_FORM_ERROR,
       fieldErrors: Object.fromEntries(primaryParsed.error.issues.map((issue) => [String(issue.path[0] ?? "fullName"), "Revisá este campo."])),
     };
+  }
+  if (primaryParsed.data.state && !MEXICAN_STATE_VALUES.has(primaryParsed.data.state)) {
+    return { error: INVALID_FORM_ERROR, fieldErrors: { state: "Seleccioná un estado válido." } };
   }
   const primaryFieldError = validateConfiguredFields(primaryParsed.data, formConfig.fields);
   if (primaryFieldError) return { error: primaryFieldError };

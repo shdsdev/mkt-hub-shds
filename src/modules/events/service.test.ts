@@ -538,6 +538,29 @@ describe("events service — registerForEvent", () => {
     expect(txExecuteMock).toHaveBeenCalledTimes(1);
   });
 
+  it("persists the public primary attendee state without copying it to companions", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([unlimitedEvent]));
+    const registrationRow = { id: "reg-1", status: "confirmed" };
+    const attendeeRows = [
+      { id: "att-1", email: "ada@example.com", state: "jalisco" },
+      { id: "att-2", email: "alan@example.com", state: null },
+    ];
+    const firstInsert = txChain([registrationRow]);
+    const attendeeInsert = txChain([attendeeRows[0]]);
+    txInsertMock.mockReturnValueOnce(firstInsert).mockReturnValueOnce(attendeeInsert).mockReturnValueOnce(txChain([attendeeRows[1]]));
+
+    const result = await registerForEvent({
+      eventId: "event-1",
+      primary: { fullName: "Ada Lovelace", email: "ada@example.com", state: "jalisco" },
+      companions: [{ fullName: "Alan Turing", email: "alan@example.com" }],
+    });
+
+    expect(txInsertMock).toHaveBeenNthCalledWith(2, eventAttendees);
+    expect((attendeeInsert.values as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ state: "jalisco" });
+    expect((txInsertMock.mock.results[2].value.values as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ state: undefined });
+    expect(result).toEqual({ ok: true, registration: registrationRow, attendees: attendeeRows });
+  });
+
   it("waitlists the whole group when confirmed seats would exceed capacity", async () => {
     const limitedEvent = { ...unlimitedEvent, capacity: 1 };
     txSelectMock

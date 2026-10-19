@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import type { ClientBrandOption, RegistrationFormConfig } from "@/modules/events";
 import { getPublicClientBrandOptions, toggleClientBrandOption } from "@/lib/events/registration-form-ui";
 import { Tooltip } from "@/components/tooltip";
@@ -33,7 +34,7 @@ const primaryButtonClass =
   "inline-flex h-12 items-center justify-center rounded-full bg-[#202020] px-7 text-base font-medium text-white transition-colors hover:bg-[#3a3a3a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#7d66b0]/20 disabled:cursor-not-allowed disabled:opacity-60";
 
 const choiceClass =
-  "group relative flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 text-sm text-[#4a4a4a] shadow-[0_2px_8px_rgba(0,0,0,0.025)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_8px_18px_rgba(0,0,0,0.06)] has-[:checked]:border-[#202020] has-[:checked]:bg-[#faf9ff] has-[:checked]:text-[#202020] has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[#7d66b0]/15";
+  "group relative flex min-h-8 cursor-pointer items-center gap-2 text-sm text-[#4a4a4a] transition-colors hover:text-[#202020] has-[:checked]:text-[#202020] has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#7d66b0]/15";
 
 const checkboxClass =
   "peer sr-only";
@@ -138,7 +139,8 @@ export function RegisterForm({
       addItem("Correo", "email");
       addItem("Teléfono", "phone");
       addItem("Empresa", "company");
-      addItem("Puesto", "jobTitle");
+       addItem("Puesto", "jobTitle");
+       addItem("Estado", "state");
       addItem("Ocupación", "occupation");
       formConfig.customFields.filter((field) => field.enabled).forEach((field) => addItem(field.label, field.id));
       addItem("Marcas", "clientBrands");
@@ -235,11 +237,25 @@ export function RegisterForm({
              <input name="company" required={formConfig.fields.company.required} aria-required={formConfig.fields.company.required} maxLength={255} placeholder="Ej. Estudio Norte" className={fieldClass} />
            </Field>
          ) : null}
-         {formConfig.fields.jobTitle.visible ? (
+          {formConfig.fields.jobTitle.visible ? (
             <Field label="Puesto" required={formConfig.fields.jobTitle.required} error={fieldErrors.jobTitle} help="Escribí tu cargo o función dentro de tu empresa.">
              <input name="jobTitle" required={formConfig.fields.jobTitle.required} aria-required={formConfig.fields.jobTitle.required} maxLength={255} placeholder="Ej. Director de compras" className={fieldClass} />
            </Field>
-         ) : null}
+          ) : null}
+          {formConfig.fields.state.visible ? (
+            <Field label="Estado" required={formConfig.fields.state.required} error={fieldErrors.state} help="Seleccioná el estado de México donde residís.">
+              <Select name="state" defaultValue="">
+                <SelectTrigger className={selectClass} aria-label="Estado" aria-required={formConfig.fields.state.required}>
+                  <SelectValue placeholder="Seleccioná tu estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MEXICAN_STATES.map((stateOption) => (
+                    <SelectItem key={stateOption.value} value={stateOption.value}>{stateOption.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
           <Field label="¿A qué te dedicás profesionalmente?" required error={fieldErrors.occupation} help="Elegí la opción que mejor describe tu actividad profesional.">
             <Select name="occupation" defaultValue="">
             <SelectTrigger className={selectClass} aria-label="Actividad profesional" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>

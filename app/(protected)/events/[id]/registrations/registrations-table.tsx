@@ -49,6 +49,7 @@ export function RegistrationsTable({
             <tr className="border-b border-border text-xs text-muted-foreground">
               <th className="px-4 py-3 font-medium">Nombre</th>
               <th className="px-4 py-3 font-medium">Empresa</th>
+              <th className="px-4 py-3 font-medium">Estado</th>
               <th className="px-4 py-3 font-medium">Fecha</th>
               <th className="px-4 py-3 font-medium">Tipo de cliente</th>
               <th className="px-4 py-3 font-medium">Status</th>
@@ -87,6 +88,7 @@ export function RegistrationsTable({
                     {primary?.email ? <span className="block truncate text-xs text-muted-foreground">{primary.email}</span> : null}
                   </td>
                   <td className="max-w-48 truncate px-4 py-3">{primary?.company ?? "—"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{values.state}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                     {formatRegistrationDate(registration.createdAt)}
                   </td>
