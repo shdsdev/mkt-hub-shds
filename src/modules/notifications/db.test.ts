@@ -1,13 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { getTableConfig } from "drizzle-orm/pg-core";
-import { notificationLog, notificationType, notificationStatus, notificationSubjectType } from "./db";
+import { notificationLog, notificationType, notificationStatus, notificationSubjectType, userNotifications, internalNotificationType } from "./db";
 
 // Leaf-module schema contract (design.md "notifications" — generic subject, no FK into events).
 describe("notifications schema (additive events-module migration, PR1)", () => {
   it("defines the notification type and status enums", () => {
-    expect(notificationType.enumValues).toEqual(["confirmation", "reminder", "waitlist_promotion", "winner_email"]);
+    expect(notificationType.enumValues).toEqual(["confirmation", "reminder", "waitlist_promotion", "registration_waitlisted", "registration_rejected", "winner_email"]);
     expect(notificationStatus.enumValues).toEqual(["pending", "sent", "failed", "resent", "unknown"]);
     expect(notificationSubjectType.enumValues).toEqual(["event_attendee", "raffle_draw"]);
+    expect(internalNotificationType.enumValues).toEqual(["registration_submitted", "registration_review_blocked", "registration_decision"]);
+  });
+
+  it("stores persistent notifications per recipient with a direct link", () => {
+    expect(userNotifications.recipientUserId.notNull).toBe(true);
+    expect(userNotifications.href.notNull).toBe(true);
+    expect(userNotifications.readAt.notNull).toBe(false);
   });
 
   it("scopes notification_log to an organization", () => {

@@ -1,4 +1,4 @@
-export type RegistrationStatus = "confirmed" | "waitlisted" | "cancelled" | "checked_in";
+export type RegistrationStatus = "pending_review" | "confirmed" | "waitlisted" | "rejected" | "cancelled" | "checked_in";
 
 export function getEffectiveRegistrationStatus(
   status: RegistrationStatus,

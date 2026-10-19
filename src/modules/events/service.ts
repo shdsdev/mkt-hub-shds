@@ -85,6 +85,7 @@ export type CreateEventInput = {
   sponsorLogos?: SponsorLogo[];
   registrationFormConfig?: EventRow["registrationFormConfig"];
   emailContent?: EventEmailContent | null;
+  telegramChatId?: string | null;
 };
 
 // spec.md "ADMIN-Only Event Authoring": only ADMIN may create, edit, publish, or close events;
@@ -134,6 +135,7 @@ export type UpdateEventChanges = Partial<{
   sponsorLogos: SponsorLogo[];
   registrationFormConfig: EventRow["registrationFormConfig"];
   emailContent: EventEmailContent | null;
+  telegramChatId: string | null;
 }>;
 
 export async function updateEvent(input: {
@@ -400,8 +402,8 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
         return { ok: false, reason: "event_not_found" };
       }
 
-      let status: "confirmed" | "waitlisted" = "confirmed";
-      if (event.capacity !== null) {
+      let status: "pending_review" | "confirmed" | "waitlisted" = source === "public" ? "pending_review" : "confirmed";
+      if (source === "admin_added" && event.capacity !== null) {
         const seatsUsed = await countConfirmedSeats(tx, input.eventId);
         if (seatsUsed + attendeeInputs.length > event.capacity) status = "waitlisted";
       }
@@ -830,30 +832,57 @@ export async function listEventReceptionistIds(eventId: string, organizationId: 
   return rows.map((row) => row.userId);
 }
 
+export type RegistrationReviewUpdateResult = EventRegistrationRow | { reason: "capacity" } | undefined;
+
 export async function updateRegistrationReviewStatus(input: {
   registrationId: string;
   eventId: string;
   organizationId: string;
   reviewStatus: EventRegistrationRow["reviewStatus"];
   reviewedBy: string;
-}): Promise<EventRegistrationRow | undefined> {
-  const [registration] = await db
-    .update(eventRegistrations)
-    .set({
-      reviewStatus: input.reviewStatus,
-      reviewedBy: input.reviewedBy,
-      reviewedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
+}): Promise<RegistrationReviewUpdateResult> {
+  return db.transaction(async (tx) => {
+    const [registration] = await tx
+      .select()
+      .from(eventRegistrations)
+      .where(and(
         eq(eventRegistrations.id, input.registrationId),
         eq(eventRegistrations.eventId, input.eventId),
         eq(eventRegistrations.organizationId, input.organizationId),
-      ),
-    )
-    .returning();
-  return registration;
+      ))
+      .limit(1);
+    if (!registration) return undefined;
+
+    await lockEventForCapacityDecision(tx, input.eventId);
+    const now = new Date();
+    const status = input.reviewStatus === "approved"
+      ? "confirmed"
+      : input.reviewStatus === "waitlisted"
+        ? "waitlisted"
+        : input.reviewStatus === "rejected"
+          ? "rejected"
+          : registration.status;
+
+    if (input.reviewStatus === "approved") {
+      const [event] = await tx.select().from(events).where(eq(events.id, input.eventId)).limit(1);
+      if (!event) return undefined;
+      const seatsUsed = await countConfirmedSeats(tx, input.eventId);
+      const requestedSeats = await tx
+        .select({ seats: count() })
+        .from(eventAttendees)
+        .where(and(eq(eventAttendees.registrationId, input.registrationId), eq(eventAttendees.isActive, true)));
+      if (event.capacity !== null && seatsUsed + Number(requestedSeats[0]?.seats ?? 0) > event.capacity) {
+        return { reason: "capacity" };
+      }
+    }
+
+    const [updated] = await tx
+      .update(eventRegistrations)
+      .set({ status, reviewStatus: input.reviewStatus, reviewedBy: input.reviewedBy, reviewedAt: now, updatedAt: now })
+      .where(eq(eventRegistrations.id, input.registrationId))
+      .returning();
+    return updated;
+  });
 }
 
 export async function assignEventReceptionist(eventId: string, userId: string, organizationId: string): Promise<boolean> {

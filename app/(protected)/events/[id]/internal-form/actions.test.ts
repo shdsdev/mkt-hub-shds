@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   updatePrimaryAttendee: vi.fn(),
   recordAudit: vi.fn(),
   revalidatePath: vi.fn(),
-  OCCUPATION_OPTIONS: ["distributor", "manufacturer", "architect", "decorator", "installer-technician"],
+  OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -39,7 +39,7 @@ function formData(fields: { company?: string } = {}) {
   data.set("fullName", "Alan Turing");
   data.set("email", "alan@example.com");
   if (fields.company) data.set("company", fields.company);
-  data.set("occupation", "architect");
+  data.set("occupation", "architect-decorator");
   return data;
 }
 

@@ -18,12 +18,15 @@ describe("events schema (additive events-module migration, PR1)", () => {
   it("defines the lifecycle, registration-status, and source enums", () => {
     expect(eventStatus.enumValues).toEqual(["draft", "published", "closed", "archived"]);
     expect(eventRegistrationStatus.enumValues).toEqual([
+      "pending_review",
       "confirmed",
       "waitlisted",
+      "rejected",
       "cancelled",
       "checked_in",
     ]);
     expect(eventRegistrationSource.enumValues).toEqual(["public", "admin_added"]);
+    expect(eventRegistrationReviewStatus.enumValues).toEqual(["new", "in_review", "approved", "waitlisted", "rejected"]);
   });
 
   it("scopes every table to an organization via a required foreign key", () => {
@@ -105,6 +108,7 @@ describe("events schema (additive events-module migration, PR1)", () => {
       "new",
       "in_review",
       "approved",
+      "waitlisted",
       "rejected",
     ]);
     expect(eventRegistrations.customFormAnswers.notNull).toBe(true);

@@ -101,12 +101,12 @@ describe("buildRegistrationsCsv", () => {
   it("exports primary and companion occupation", () => {
     const csv = buildRegistrationsCsv([registration({
       attendees: [
-        { id: "att-1", registrationId: "reg-1", fullName: "Ada Lovelace", email: "ada@example.com", occupation: "architect", checkedInAt: null },
+        { id: "att-1", registrationId: "reg-1", fullName: "Ada Lovelace", email: "ada@example.com", occupation: "architect-decorator", checkedInAt: null },
         { id: "att-2", registrationId: "reg-1", fullName: "Alan Turing", email: "alan@example.com", occupation: "installer-technician", checkedInAt: null },
       ] as never,
     })]);
 
-    expect(csv).toContain("Arquitecto,Instalador o técnico");
+    expect(csv).toContain("Arquitecto / Decorador,Instalador o técnico");
   });
 
   it("exports historical custom answers as labeled columns", () => {

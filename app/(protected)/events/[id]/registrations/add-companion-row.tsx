@@ -70,10 +70,9 @@ export function AddCompanionRow({
                       <SelectValue placeholder="Selecciona una actividad" />
                     </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="distributor">Distribuidor</SelectItem>
+                    <SelectItem value="wholesaler">Mayorista</SelectItem>
                     <SelectItem value="manufacturer">Fabricante</SelectItem>
-                    <SelectItem value="architect">Arquitecto</SelectItem>
-                    <SelectItem value="decorator">Decorador</SelectItem>
+                    <SelectItem value="architect-decorator">Arquitecto / Decorador</SelectItem>
                     <SelectItem value="installer-technician">Instalador o técnico</SelectItem>
                   </SelectContent>
                   </Select>

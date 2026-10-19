@@ -3,10 +3,9 @@ export { MEXICAN_STATES } from "@/lib/events/mexican-states";
 
 export const CLIENT_BRAND_OPTIONS = ["none", "shades", "bmighty", "drapery"] as const;
 export const OCCUPATION_OPTIONS = [
-  "distributor",
+  "wholesaler",
   "manufacturer",
-  "architect",
-  "decorator",
+  "architect-decorator",
   "installer-technician",
 ] as const;
 export const INTEREST_OPTIONS = [

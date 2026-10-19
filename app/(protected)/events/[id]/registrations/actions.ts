@@ -8,22 +8,31 @@ import { isActive, isAdmin } from "@/modules/users";
 import {
   addAttendeeToRegistration,
   getEvent,
+  listEventReceptionistIds,
   listRegistrations,
   notifyEventWebhook,
   OCCUPATION_OPTIONS,
   updateRegistrationReviewStatus,
   type AddAttendeeToRegistrationResult,
 } from "@/modules/events";
-import { sendConfirmationEmail } from "@/modules/notifications";
+import {
+  buildRegistrationTelegramMessage,
+  createInternalNotifications,
+  sendConfirmationEmail,
+  sendRegistrationDecisionEmail,
+  sendTelegramMessage,
+} from "@/modules/notifications";
+import { listManagedUsers } from "@/modules/users";
 import { exportQrPng } from "@/modules/qr";
 import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar registros.";
 const INVALID_FORM_ERROR = "Revisa los datos del acompañante.";
+const CAPACITY_REVIEW_ERROR = "No hay cupo disponible para aprobar este registro. Se notificó a los responsables para resolverlo como lista de espera.";
 const reviewStatusSchema = z.object({
   registrationId: z.string().uuid(),
   eventId: z.string().uuid(),
-  reviewStatus: z.enum(["new", "in_review", "approved", "rejected"]),
+  reviewStatus: z.enum(["new", "in_review", "approved", "waitlisted", "rejected"]),
 });
 
 const REASON_MESSAGES: Record<Exclude<AddAttendeeToRegistrationResult, { ok: true }>["reason"], string> = {
@@ -56,7 +65,8 @@ export async function updateRegistrationReviewStatusAction(
   formData: FormData,
 ): Promise<ReviewStatusFormState> {
   const user = await getCurrentUser();
-  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) return { error: PERMISSION_ERROR };
+  if (!user || !isActive(user.profile)) return { error: PERMISSION_ERROR };
+  if (!isAdmin(user.profile) && !formData.get("eventId")) return { error: PERMISSION_ERROR };
 
   const parsed = reviewStatusSchema.safeParse({
     registrationId: formData.get("registrationId"),
@@ -65,12 +75,93 @@ export async function updateRegistrationReviewStatusAction(
   });
   if (!parsed.success) return { error: "No se pudo actualizar el estado de revisión." };
 
+  const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+  if (!event) return { error: "No se encontró el registro." };
+  const receptionistIds = await listEventReceptionistIds(parsed.data.eventId, user.profile.organizationId);
+  if (!isAdmin(user.profile) && !receptionistIds.includes(user.id)) return { error: PERMISSION_ERROR };
+
   const registration = await updateRegistrationReviewStatus({
     ...parsed.data,
     organizationId: user.profile.organizationId,
     reviewedBy: user.id,
   });
+  if (registration && "reason" in registration && registration.reason === "capacity") {
+    const recipientIds = [...new Set([
+      ...receptionistIds,
+      ...(await listManagedUsers(user.profile.organizationId)).filter((candidate) => candidate.role === "ADMIN" && candidate.status === "active").map((candidate) => candidate.id),
+    ])];
+    const href = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/${event.id}/registrations?registrationId=${parsed.data.registrationId}`;
+    void Promise.resolve(createInternalNotifications({
+      organizationId: event.organizationId,
+      recipientUserIds: recipientIds,
+      subjectId: parsed.data.registrationId,
+      type: "registration_review_blocked",
+      title: "Aprobación bloqueada por falta de cupo",
+      body: `No hay cupo disponible para aprobar un registro de ${event.name}. Resolvelo como lista de espera.`,
+      href,
+      dedupeKey: `registration-review-blocked:${parsed.data.registrationId}`,
+    })).catch(() => undefined);
+    if (event.telegramChatId) {
+      const message = buildRegistrationTelegramMessage({ eventName: event.name, reviewUrl: href });
+      void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: event.telegramChatId, text: `Aprobación bloqueada por falta de cupo\n${message.text}`, replyMarkup: message.replyMarkup })).catch(() => undefined);
+    }
+    return { error: CAPACITY_REVIEW_ERROR };
+  }
   if (!registration) return { error: "No se encontró el registro." };
+  if ("reason" in registration) return { error: CAPACITY_REVIEW_ERROR };
+
+  const registrations = await listRegistrations(parsed.data.eventId, user.profile.organizationId);
+  const fullRegistration = registrations.find((candidate) => candidate.id === parsed.data.registrationId);
+  const primary = fullRegistration?.attendees[0];
+  const href = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/${event.id}/registrations?registrationId=${parsed.data.registrationId}`;
+  const recipientIds = [...new Set([
+    ...receptionistIds,
+    ...(await listManagedUsers(user.profile.organizationId)).filter((candidate) => candidate.role === "ADMIN" && candidate.status === "active").map((candidate) => candidate.id),
+  ])];
+  void Promise.resolve(createInternalNotifications({
+    organizationId: event.organizationId,
+    recipientUserIds: recipientIds,
+    subjectId: parsed.data.registrationId,
+    type: "registration_decision",
+    title: "Solicitud actualizada",
+    body: `La solicitud para ${event.name} fue marcada como ${parsed.data.reviewStatus}.`,
+    href,
+    dedupeKey: `registration-decision:${parsed.data.registrationId}:${parsed.data.reviewStatus}`,
+  })).catch(() => undefined);
+  if (event.telegramChatId) {
+    const message = buildRegistrationTelegramMessage({ eventName: event.name, reviewUrl: href });
+    void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: event.telegramChatId, text: `Solicitud actualizada: ${parsed.data.reviewStatus}\n${message.text}`, replyMarkup: message.replyMarkup })).catch(() => undefined);
+  }
+
+  if (primary && parsed.data.reviewStatus === "approved") {
+    const qrPng = await exportQrPng(primary.passToken, {});
+    await sendConfirmationEmail({
+      organizationId: primary.organizationId,
+      attendeeId: primary.id,
+      to: primary.email,
+      attendeeName: primary.fullName,
+      eventName: event.name,
+      backupCode: primary.backupCode,
+      qrPngBase64: qrPng.toString("base64"),
+      eventStartsAt: event.startsAt,
+      eventEndsAt: event.endsAt,
+      eventLocation: event.location,
+      eventLocationUrl: event.locationUrl,
+      manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${registration.cancelToken}`,
+      emailContent: resolveEventEmailContent(event.emailContent),
+      agenda: event.agenda,
+    });
+  }
+  if (primary && (parsed.data.reviewStatus === "waitlisted" || parsed.data.reviewStatus === "rejected")) {
+    await sendRegistrationDecisionEmail({
+      organizationId: primary.organizationId,
+      registrationId: registration.id,
+      to: primary.email,
+      attendeeName: primary.fullName,
+      eventName: event.name,
+      decision: parsed.data.reviewStatus,
+    });
+  }
 
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
   return { success: "Estado de revisión actualizado." };

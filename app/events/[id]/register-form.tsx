@@ -12,10 +12,9 @@ import { registerForEventAction, type RegisterFormState } from "./actions";
 
 const initialState: RegisterFormState = {};
 const occupationOptions = [
-  ["distributor", "Distribuidor"],
+  ["wholesaler", "Mayorista"],
   ["manufacturer", "Fabricante"],
-  ["architect", "Arquitecto"],
-  ["decorator", "Decorador"],
+  ["architect-decorator", "Arquitecto / Decorador"],
   ["installer-technician", "Instalador o técnico"],
 ] as const;
 
@@ -172,12 +171,18 @@ export function RegisterForm({
     return (
       <section className="mx-auto flex w-full max-w-2xl flex-col items-start gap-2 rounded-[20px] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/5 sm:p-8">
         <h2 className="font-sans text-xl font-medium tracking-tight">
-          {state.status === "waitlisted" ? "Quedaste en lista de espera" : "¡Registro confirmado!"}
+          {state.status === "pending_review"
+            ? "Tu solicitud fue recibida"
+            : state.status === "waitlisted"
+              ? "Quedaste en lista de espera"
+              : "¡Registro confirmado!"}
         </h2>
         <p className="text-[#4a4a4a]">
-          {state.status === "waitlisted"
-            ? "El evento está a capacidad. Te avisaremos por correo si se libera un lugar."
-            : "Te enviamos un correo con tu pase de acceso y código de respaldo."}
+          {state.status === "pending_review"
+            ? "Nuestro equipo revisará tu solicitud. Si es aprobada, recibirás por correo la confirmación y tu llave de acceso."
+            : state.status === "waitlisted"
+              ? "Gracias por tu interés. El cupo está lleno y quedaste en lista de espera. Te comunicaremos si se libera una plaza."
+              : "Te enviamos un correo con tu pase de acceso y código de respaldo."}
         </p>
       </section>
     );
@@ -257,7 +262,7 @@ export function RegisterForm({
             </Field>
           ) : null}
           <Field label="¿A qué te dedicás profesionalmente?" required error={fieldErrors.occupation} help="Elegí la opción que mejor describe tu actividad profesional.">
-            <Select name="occupation" defaultValue="">
+            <Select name="occupation" defaultValue="" items={occupationOptions.map(([value, label]) => ({ value, label }))}>
             <SelectTrigger className={selectClass} aria-label="Actividad profesional" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
               <SelectContent>{occupationOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
             </Select>
@@ -398,7 +403,7 @@ export function RegisterForm({
              </Field>
            ) : null}
              <Field label="¿A qué se dedica tu acompañante?" required error={fieldErrors.companionOccupation} help="Elegí la opción que mejor describe su actividad profesional.">
-              <Select name="companionOccupation" defaultValue="">
+              <Select name="companionOccupation" defaultValue="" items={occupationOptions.map(([value, label]) => ({ value, label }))}>
               <SelectTrigger className={selectClass} aria-label="Actividad profesional del acompañante" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
                 <SelectContent>{occupationOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
               </Select>

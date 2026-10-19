@@ -8,8 +8,10 @@ import { RegistrationsTable } from "./registrations-table";
 import { REVIEW_STATUS_LABELS, type ReviewStatus } from "./review-status";
 
 const STATUS_LABELS: Record<EventRegistrationRow["status"], string> = {
+  pending_review: "Pendiente de revisión",
   confirmed: "Confirmado",
   waitlisted: "Lista de espera",
+  rejected: "Rechazado",
   cancelled: "Cancelado",
   checked_in: "Check-in",
 };
@@ -36,6 +38,7 @@ export default async function RegistrationsPage({
     ? sp.reviewStatus as ReviewStatus
     : undefined;
   const q = sp.q ?? undefined;
+  const registrationId = sp.registrationId ?? undefined;
 
   const registrations = await listRegistrations(id, user.profile.organizationId, { status, reviewStatus, q });
 
@@ -117,6 +120,7 @@ export default async function RegistrationsPage({
           collectJobTitle={event.collectJobTitle}
           statusLabels={STATUS_LABELS}
           reviewStatusLabels={REVIEW_STATUS_LABELS}
+          initialSelectedId={registrationId}
         />
       )}
     </div>

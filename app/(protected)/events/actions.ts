@@ -140,6 +140,7 @@ const eventFieldsSchema = z.object({
   sponsorLogos: jsonArrayField(sponsorLogoSchema),
   registrationFormConfig: registrationFormConfigField.optional(),
   emailContent: eventEmailContentField.optional(),
+  telegramChatId: z.string().trim().max(100).optional().or(z.literal("")),
 });
 
 export type EventFormState = { error?: string; success?: string; eventId?: string };
@@ -174,6 +175,7 @@ function readEventFields(formData: FormData) {
     sponsorLogos: formData.get("sponsorLogos") ?? undefined,
     registrationFormConfig: formData.get("registrationFormConfig") ?? undefined,
     emailContent: formData.get("emailContent") ?? undefined,
+    telegramChatId: formData.get("telegramChatId") ?? undefined,
   };
 }
 
@@ -206,6 +208,7 @@ export async function createEventAction(
     sponsorLogos: parsed.data.sponsorLogos,
     registrationFormConfig: parsed.data.registrationFormConfig,
     emailContent: parsed.data.emailContent,
+    telegramChatId: parsed.data.telegramChatId || undefined,
   });
   if (!result.ok) return { error: PERMISSION_ERROR };
 
@@ -256,6 +259,7 @@ export async function updateEventAction(
       sponsorLogos: parsed.data.sponsorLogos,
       emailContent: parsed.data.emailContent,
       registrationFormConfig: parsed.data.registrationFormConfig,
+      telegramChatId: parsed.data.telegramChatId === undefined ? undefined : parsed.data.telegramChatId || null,
     },
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };

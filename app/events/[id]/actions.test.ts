@@ -4,9 +4,11 @@ const mocks = vi.hoisted(() => ({
   getPublishedEventBySlugPublic: vi.fn(),
   registerForEvent: vi.fn(),
   notifyEventWebhook: vi.fn(),
+  listEventReceptionistIds: vi.fn(),
+  listManagedUsers: vi.fn(),
   sendConfirmationEmail: vi.fn(),
   exportQrPng: vi.fn(),
-  OCCUPATION_OPTIONS: ["distributor", "manufacturer", "architect", "decorator", "installer-technician"],
+  OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
   MEXICAN_STATES: [{ value: "jalisco", label: "Jalisco" }],
   resolveRegistrationFormConfig: vi.fn(() => ({
     version: 1,
@@ -33,18 +35,23 @@ vi.mock("@/modules/events", () => ({
   getPublishedEventBySlugPublic: mocks.getPublishedEventBySlugPublic,
   registerForEvent: mocks.registerForEvent,
   notifyEventWebhook: mocks.notifyEventWebhook,
+  listEventReceptionistIds: mocks.listEventReceptionistIds,
   OCCUPATION_OPTIONS: mocks.OCCUPATION_OPTIONS,
   MEXICAN_STATES: mocks.MEXICAN_STATES,
   resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
 }));
 vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
+  createInternalNotifications: vi.fn(),
+  sendTelegramMessage: vi.fn(),
+  buildRegistrationTelegramMessage: vi.fn(() => ({ text: "", replyMarkup: { inline_keyboard: [] } })),
 }));
+vi.mock("@/modules/users", () => ({ listManagedUsers: mocks.listManagedUsers }));
 vi.mock("@/modules/qr", () => ({
   exportQrPng: mocks.exportQrPng,
 }));
 vi.mock("@/lib/env", () => ({
-  env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com" },
+  env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com", TELEGRAM_BOT_TOKEN: "test-token" },
 }));
 
 import { registerForEventAction } from "./actions";
@@ -66,7 +73,7 @@ function baseFormData(overrides: Record<string, string> = {}) {
   fd.set("fullName", "Ada Lovelace");
   fd.set("email", "ada@example.com");
   fd.set("company", "Acme Interiors");
-  fd.set("occupation", "architect");
+  fd.set("occupation", "architect-decorator");
   fd.set("privacyAccepted", "true");
   fd.set("termsAccepted", "true");
   for (const [key, value] of Object.entries(overrides)) fd.set(key, value);
@@ -85,6 +92,8 @@ describe("registerForEventAction", () => {
     mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
     mocks.sendConfirmationEmail.mockResolvedValue({ sent: true, notificationId: "n1" });
     mocks.notifyEventWebhook.mockResolvedValue(undefined);
+    mocks.listEventReceptionistIds.mockResolvedValue([]);
+    mocks.listManagedUsers.mockResolvedValue([]);
   });
 
   it("rejects when the event is no longer published", async () => {
@@ -130,6 +139,15 @@ describe("registerForEventAction", () => {
     expect(result).toEqual({ success: true, status: "waitlisted" });
   });
 
+  it("shows a pending-review message without sending an access email", async () => {
+    mocks.registerForEvent.mockResolvedValue({ ok: true, registration: { status: "pending_review" }, attendees: [] });
+
+    const result = await registerForEventAction({}, baseFormData());
+
+    expect(result).toEqual({ success: true, status: "pending_review" });
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+  });
+
   it("surfaces a duplicate-email registration as a friendly message", async () => {
     mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
     const result = await registerForEventAction({}, baseFormData());
@@ -142,7 +160,7 @@ describe("registerForEventAction", () => {
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
     fd.append("companionCompanyMode", "same");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     mocks.registerForEvent.mockResolvedValue({ ok: true, registration: { status: "confirmed", cancelToken: "cancel-token-1" }, attendees: [{ id: "att-1", organizationId: "org-1", email: "ada@example.com", fullName: "Ada Lovelace", passToken: "pass-token-1", backupCode: "ABCD1234" }, { id: "att-2", organizationId: "org-1", email: "alan@example.com", fullName: "Alan Turing", passToken: "pass-token-2", backupCode: "WXYZ5678" }] });
     await registerForEventAction({}, fd);
     expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({ companions: [expect.objectContaining({ fullName: "Alan Turing", email: "alan@example.com" })] }));
@@ -155,7 +173,7 @@ describe("registerForEventAction", () => {
     fd.append("companionEmail", "alan@example.com");
     fd.append("companionCompanyMode", "same");
     fd.append("companionCompany", "Forged Industries");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
     await registerForEventAction({}, fd);
     expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({ companions: [expect.objectContaining({ company: "Acme Interiors" })] }));
@@ -166,7 +184,7 @@ describe("registerForEventAction", () => {
     const fd = baseFormData();
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
     await registerForEventAction({}, fd);
     expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({ primary: expect.objectContaining({ company: undefined }), companions: [expect.objectContaining({ company: undefined })] }));
@@ -178,7 +196,7 @@ describe("registerForEventAction", () => {
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
     fd.append("companionCompanyMode", "same");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
     await registerForEventAction({}, fd);
     expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({ companions: [expect.objectContaining({ company: "Acme Interiors" })] }));
@@ -189,7 +207,7 @@ describe("registerForEventAction", () => {
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
     fd.append("companionCompanyMode", "same");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     const result = await registerForEventAction({}, fd);
     expect(result).toEqual({ error: "Revisa la empresa del acompañante." });
     expect(mocks.registerForEvent).not.toHaveBeenCalled();
@@ -201,7 +219,7 @@ describe("registerForEventAction", () => {
     fd.append("companionEmail", "alan@example.com");
     fd.append("companionCompanyMode", "other");
     fd.append("companionCompany", "  Turing Labs  ");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
     await registerForEventAction({}, fd);
     expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({ companions: [expect.objectContaining({ company: "Turing Labs" })] }));
@@ -213,7 +231,7 @@ describe("registerForEventAction", () => {
     fd.append("companionEmail", "alan@example.com");
     fd.append("companionCompanyMode", "other");
     fd.append("companionCompany", "Turing Labs");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     mocks.registerForEvent.mockResolvedValue({ ok: false, reason: "duplicate_email" });
     await registerForEventAction({}, fd);
     expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({ primary: expect.objectContaining({ company: undefined }), companions: [expect.objectContaining({ company: "Turing Labs" })] }));
@@ -232,7 +250,7 @@ describe("registerForEventAction", () => {
     fd.append("companionEmail", "alan@example.com");
     fd.append("companionCompanyMode", "other");
     fd.append("companionCompany", "   ");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     const result = await registerForEventAction({}, fd);
     expect(result).toEqual({ error: "Revisa la empresa del acompañante." });
     expect(mocks.registerForEvent).not.toHaveBeenCalled();
@@ -243,7 +261,7 @@ describe("registerForEventAction", () => {
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
     if (mode) fd.append("companionCompanyMode", mode);
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
     const result = await registerForEventAction({}, fd);
     expect(result).toEqual({ error: "Revisa la empresa del acompañante." });
     expect(mocks.registerForEvent).not.toHaveBeenCalled();
@@ -253,8 +271,8 @@ describe("registerForEventAction", () => {
     const fd = baseFormData();
     fd.append("companionFullName", "Alan Turing");
     fd.append("companionEmail", "alan@example.com");
-    fd.append("companionOccupation", "architect");
-    fd.append("companionOccupation", "architect");
+    fd.append("companionOccupation", "architect-decorator");
+    fd.append("companionOccupation", "architect-decorator");
     fd.append("companionFullName", "Grace Hopper");
     fd.append("companionEmail", "grace@example.com");
     fd.append("companionOccupation", "manufacturer");

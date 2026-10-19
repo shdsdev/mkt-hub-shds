@@ -46,6 +46,9 @@ export const env = {
   get RESEND_FROM() {
     return required("RESEND_FROM");
   },
+  get TELEGRAM_BOT_TOKEN() {
+    return required("TELEGRAM_BOT_TOKEN");
+  },
   get NEXT_PUBLIC_APP_ORIGIN() {
     return required("NEXT_PUBLIC_APP_ORIGIN");
   },

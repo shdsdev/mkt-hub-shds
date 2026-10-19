@@ -18,7 +18,7 @@ const attendee = {
   email: "ana@example.com",
   phone: "+54 11 5555-5555",
   company: "Acme Studio",
-  occupation: "architect",
+    occupation: "architect-decorator",
   passToken: "pass-token-1",
   backupCode: "ABC12345",
   checkedInAt: null,
@@ -56,10 +56,9 @@ function renderCard(card: ReactNode) {
 
 describe("CheckInResultDialog", () => {
   it("maps every supported occupation to a visible label and color", () => {
-    expect(categoryPresentation.distributor).toEqual({ label: "Distribuidor", className: "bg-orange-600 text-white", surfaceClassName: "border-orange-500/40 bg-orange-500/10" });
+    expect(categoryPresentation.wholesaler).toEqual({ label: "Mayorista", className: "bg-orange-600 text-white", surfaceClassName: "border-orange-500/40 bg-orange-500/10" });
     expect(categoryPresentation.manufacturer).toEqual({ label: "Fabricante", className: "bg-blue-600 text-white", surfaceClassName: "border-blue-500/40 bg-blue-500/10" });
-    expect(categoryPresentation.architect).toEqual({ label: "Arquitecto", className: "bg-green-600 text-white", surfaceClassName: "border-green-500/40 bg-green-500/10" });
-    expect(categoryPresentation.decorator).toEqual({ label: "Decorador", className: "bg-yellow-700 text-white", surfaceClassName: "border-yellow-400/40 bg-yellow-400/10" });
+    expect(categoryPresentation["architect-decorator"]).toEqual({ label: "Arquitecto / Decorador", className: "bg-green-600 text-white", surfaceClassName: "border-green-500/40 bg-green-500/10" });
     expect(categoryPresentation["installer-technician"]).toEqual({ label: "Instalador o técnico", className: "bg-red-600 text-white", surfaceClassName: "border-red-500/40 bg-red-500/10" });
   });
 

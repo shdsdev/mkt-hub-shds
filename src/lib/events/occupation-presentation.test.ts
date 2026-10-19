@@ -3,10 +3,9 @@ import { getOccupationPresentation } from "./occupation-presentation";
 
 describe("getOccupationPresentation", () => {
   it("returns a visible label and category color for each occupation", () => {
-    expect(getOccupationPresentation("distributor")).toMatchObject({ label: "Distribuidor", color: "orange" });
+    expect(getOccupationPresentation("wholesaler")).toMatchObject({ label: "Mayorista", color: "orange" });
     expect(getOccupationPresentation("manufacturer")).toMatchObject({ label: "Fabricante", color: "blue" });
-    expect(getOccupationPresentation("architect")).toMatchObject({ label: "Arquitecto", color: "green" });
-    expect(getOccupationPresentation("decorator")).toMatchObject({ label: "Decorador", color: "yellow" });
+    expect(getOccupationPresentation("architect-decorator")).toMatchObject({ label: "Arquitecto / Decorador", color: "green" });
     expect(getOccupationPresentation("installer-technician")).toMatchObject({ label: "Instalador o técnico", color: "red" });
   });
 

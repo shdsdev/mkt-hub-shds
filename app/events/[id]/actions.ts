@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import {
   getPublishedEventBySlugPublic,
+  listEventReceptionistIds,
   registerForEvent,
   notifyEventWebhook,
   OCCUPATION_OPTIONS,
@@ -12,6 +13,8 @@ import {
   type AttendeeInput,
 } from "@/modules/events";
 import { sendConfirmationEmail } from "@/modules/notifications";
+import { buildRegistrationTelegramMessage, createInternalNotifications, sendTelegramMessage } from "@/modules/notifications";
+import { listManagedUsers } from "@/modules/users";
 import { exportQrPng } from "@/modules/qr";
 import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 import { parseRegistrationFormAnswers } from "../registration-form-answers";
@@ -51,7 +54,7 @@ export type RegisterFormState = {
   error?: string;
   fieldErrors?: Record<string, string>;
   success?: boolean;
-  status?: "confirmed" | "waitlisted";
+  status?: "pending_review" | "confirmed" | "waitlisted" | "rejected";
 };
 
 function normalizeAttendee(parsed: z.infer<typeof attendeeSchema>): AttendeeInput {
@@ -269,6 +272,27 @@ export async function registerForEventAction(
     return { error: result.reason === "duplicate_email" ? DUPLICATE_EMAIL_ERROR : EVENT_UNAVAILABLE_ERROR };
   }
 
+  const responsibleIds = await listEventReceptionistIds(event.id, event.organizationId);
+  const adminIds = (await listManagedUsers(event.organizationId))
+    .filter((user) => user.role === "ADMIN" && user.status === "active")
+    .map((user) => user.id);
+  const recipientIds = [...new Set([...responsibleIds, ...adminIds])];
+  const reviewUrl = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/${event.id}/registrations?registrationId=${result.registration.id}`;
+  void Promise.resolve(createInternalNotifications({
+    organizationId: event.organizationId,
+    recipientUserIds: recipientIds,
+    subjectId: result.registration.id,
+    type: "registration_submitted",
+    title: "Nuevo registro pendiente",
+    body: `Hay una nueva solicitud para ${event.name}. Revisá el candidato para decidir si puede asistir.`,
+    href: reviewUrl,
+    dedupeKey: `registration-submitted:${result.registration.id}`,
+  })).catch(() => undefined);
+  if (event.telegramChatId) {
+    const message = buildRegistrationTelegramMessage({ eventName: event.name, reviewUrl });
+    void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: event.telegramChatId, text: message.text, replyMarkup: message.replyMarkup })).catch(() => undefined);
+  }
+
   // Fire-and-forget, same convention as recordEventVisit — notifyEventWebhook already swallows
   // its own errors, so a slow/misconfigured receiver never delays or breaks the public response.
   void notifyEventWebhook(event, "registration.created", {
@@ -306,5 +330,12 @@ export async function registerForEventAction(
     );
   }
 
-  return { success: true, status: result.registration.status === "waitlisted" ? "waitlisted" : "confirmed" };
+  return {
+    success: true,
+    status: result.registration.status === "pending_review"
+      ? "pending_review"
+      : result.registration.status === "waitlisted"
+        ? "waitlisted"
+        : "confirmed",
+  };
 }

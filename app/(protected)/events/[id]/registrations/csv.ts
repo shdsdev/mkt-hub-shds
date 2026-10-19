@@ -11,10 +11,9 @@ const INTEREST_LABELS: Record<string, string> = {
   "manual-and-motorized-rods": "Cortineros manuales y motorizados",
 };
 const OCCUPATION_LABELS: Record<string, string> = {
-  distributor: "Distribuidor",
+  wholesaler: "Mayorista",
   manufacturer: "Fabricante",
-  architect: "Arquitecto",
-  decorator: "Decorador",
+  "architect-decorator": "Arquitecto / Decorador",
   "installer-technician": "Instalador o técnico",
 };
 const STATE_LABELS = new Map<string, string>(MEXICAN_STATES.map((state) => [state.value, state.label]));

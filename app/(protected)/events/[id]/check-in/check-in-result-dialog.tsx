@@ -7,10 +7,9 @@ import { Button } from "@/components/ui/button";
 import type { CheckInLookupResult } from "@/modules/events";
 
 export const categoryPresentation = {
-  distributor: { label: "Distribuidor", className: "bg-orange-600 text-white", surfaceClassName: "border-orange-500/40 bg-orange-500/10" },
+  wholesaler: { label: "Mayorista", className: "bg-orange-600 text-white", surfaceClassName: "border-orange-500/40 bg-orange-500/10" },
   manufacturer: { label: "Fabricante", className: "bg-blue-600 text-white", surfaceClassName: "border-blue-500/40 bg-blue-500/10" },
-  architect: { label: "Arquitecto", className: "bg-green-600 text-white", surfaceClassName: "border-green-500/40 bg-green-500/10" },
-  decorator: { label: "Decorador", className: "bg-yellow-700 text-white", surfaceClassName: "border-yellow-400/40 bg-yellow-400/10" },
+  "architect-decorator": { label: "Arquitecto / Decorador", className: "bg-green-600 text-white", surfaceClassName: "border-green-500/40 bg-green-500/10" },
   "installer-technician": { label: "Instalador o técnico", className: "bg-red-600 text-white", surfaceClassName: "border-red-500/40 bg-red-500/10" },
   unknown: { label: "Categoría no especificada", className: "bg-muted text-muted-foreground", surfaceClassName: "border-border bg-muted/30" },
 } as const;

@@ -17,6 +17,7 @@ type Props = {
   collectJobTitle: boolean;
   statusLabels: Record<EventRegistrationRow["status"], string>;
   reviewStatusLabels: Record<EventRegistrationRow["reviewStatus"], string>;
+  initialSelectedId?: string;
 };
 
 export function RegistrationsTable({
@@ -27,8 +28,9 @@ export function RegistrationsTable({
   collectJobTitle,
   statusLabels,
   reviewStatusLabels,
+  initialSelectedId,
 }: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const selectedRegistration = registrations.find(({ id }) => id === selectedId) ?? null;
 
   function selectRegistration(id: string) {

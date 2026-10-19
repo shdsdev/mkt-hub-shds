@@ -31,8 +31,10 @@ export const eventStatus = pgEnum("event_status", ["draft", "published", "closed
 // attendee check-in on the registration (per-attendee `checked_in_at` on event_attendees remains
 // the authoritative record).
 export const eventRegistrationStatus = pgEnum("event_registration_status", [
+  "pending_review",
   "confirmed",
   "waitlisted",
+  "rejected",
   "cancelled",
   "checked_in",
 ]);
@@ -47,6 +49,7 @@ export const eventRegistrationReviewStatus = pgEnum("event_registration_review_s
   "new",
   "in_review",
   "approved",
+  "waitlisted",
   "rejected",
 ]);
 
@@ -108,6 +111,7 @@ export const events = pgTable("events", {
   // `setEventWebhookUrl`/`regenerateEventWebhookSecret` in service.ts).
   webhookUrl: text("webhook_url"),
   webhookSecret: text("webhook_secret"),
+  telegramChatId: text("telegram_chat_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
@@ -125,7 +129,7 @@ export const eventRegistrations = pgTable("event_registrations", {
   eventId: uuid("event_id")
     .notNull()
     .references(() => events.id),
-  status: eventRegistrationStatus("status").notNull().default("confirmed"),
+  status: eventRegistrationStatus("status").notNull().default("pending_review"),
   source: eventRegistrationSource("source").notNull().default("public"),
   reviewStatus: eventRegistrationReviewStatus("review_status").notNull().default("new"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),

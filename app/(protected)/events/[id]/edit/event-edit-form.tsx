@@ -106,6 +106,20 @@ export function EventEditForm({
               webhookUrl={event.webhookUrl}
               webhookSecret={event.webhookSecret}
             />
+            <div className="rounded-md border border-border p-4">
+              <label className="flex flex-col gap-1.5 text-sm font-medium">
+                Grupo de Telegram
+                <input
+                  name="telegramChatId"
+                  defaultValue={event.telegramChatId ?? ""}
+                  placeholder="ID del grupo o @nombre"
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal"
+                />
+                <span className="text-xs font-normal text-muted-foreground">
+                  El bot enviará aquí las nuevas solicitudes y bloqueos de cupo.
+                </span>
+              </label>
+            </div>
             <EmbedSettings embedUrl={embedUrl} embedSnippet={embedSnippet} />
             <ReceptionTeam
               eventId={event.id}

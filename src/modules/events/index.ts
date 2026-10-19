@@ -58,6 +58,7 @@ export {
   type CreateEventInput,
   type UpdateEventChanges,
   type EventRegistrationRow,
+  type RegistrationReviewUpdateResult,
   type EventAttendeeRow,
   type AttendeeInput,
   type UtmFields,

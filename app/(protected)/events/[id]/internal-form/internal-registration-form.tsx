@@ -11,10 +11,9 @@ import { CompanionAddedDialog, type AddedCompanion } from "../../companion-added
 import { addInternalCompanionAction, searchInternalRegistrationAction, updatePrimaryAttendeeAction } from "./actions";
 
 const occupations = [
-  ["distributor", "Distribuidor"],
+  ["wholesaler", "Mayorista"],
   ["manufacturer", "Fabricante"],
-  ["architect", "Arquitecto"],
-  ["decorator", "Decorador"],
+  ["architect-decorator", "Arquitecto / Decorador"],
   ["installer-technician", "Instalador o técnico"],
 ] as const;
 

@@ -20,7 +20,7 @@ const registrationData = {
         email: "maria@example.com",
         state: "jalisco",
       checkedInAt: null,
-      occupation: "architect",
+      occupation: "architect-decorator",
     },
     {
       id: "att-2",

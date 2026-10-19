@@ -7,28 +7,37 @@ const mocks = vi.hoisted(() => ({
   addAttendeeToRegistration: vi.fn(),
   getEvent: vi.fn(),
   listRegistrations: vi.fn(),
+  listEventReceptionistIds: vi.fn(),
+  listManagedUsers: vi.fn(),
   notifyEventWebhook: vi.fn(),
   sendConfirmationEmail: vi.fn(),
   exportQrPng: vi.fn(),
   updateRegistrationReviewStatus: vi.fn(),
   revalidatePath: vi.fn(),
-  OCCUPATION_OPTIONS: ["distributor", "manufacturer", "architect", "decorator", "installer-technician"],
+  OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
-vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
+vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin, listManagedUsers: mocks.listManagedUsers }));
 vi.mock("@/modules/events", () => ({
   addAttendeeToRegistration: mocks.addAttendeeToRegistration,
   getEvent: mocks.getEvent,
   listRegistrations: mocks.listRegistrations,
+  listEventReceptionistIds: mocks.listEventReceptionistIds,
   notifyEventWebhook: mocks.notifyEventWebhook,
   OCCUPATION_OPTIONS: mocks.OCCUPATION_OPTIONS,
   updateRegistrationReviewStatus: mocks.updateRegistrationReviewStatus,
 }));
-vi.mock("@/modules/notifications", () => ({ sendConfirmationEmail: mocks.sendConfirmationEmail }));
+vi.mock("@/modules/notifications", () => ({
+  sendConfirmationEmail: mocks.sendConfirmationEmail,
+  sendRegistrationDecisionEmail: vi.fn(),
+  createInternalNotifications: vi.fn(),
+  sendTelegramMessage: vi.fn(),
+  buildRegistrationTelegramMessage: vi.fn(() => ({ text: "", replyMarkup: { inline_keyboard: [] } })),
+}));
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
-vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com" } }));
+vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com", TELEGRAM_BOT_TOKEN: "test-token" } }));
 vi.mock("@/lib/events/event-email-content", () => ({ resolveEventEmailContent: vi.fn() }));
 
 import { addCompanionAction, resendInvitationAction, updateRegistrationReviewStatusAction } from "./actions";
@@ -48,7 +57,7 @@ function formData(fields: Record<string, string> = {}) {
   fd.set("eventId", EVENT_ID);
   fd.set("fullName", "Alan Turing");
   fd.set("email", "alan@example.com");
-  fd.set("occupation", "architect");
+  fd.set("occupation", "architect-decorator");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }
@@ -150,6 +159,10 @@ describe("updateRegistrationReviewStatusAction", () => {
     mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "11111111-1111-4111-8111-111111111111" });
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(true);
+    mocks.listEventReceptionistIds.mockResolvedValue([]);
+    mocks.listRegistrations.mockResolvedValue([]);
+    mocks.listManagedUsers.mockResolvedValue([]);
+    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, organizationId: "org-1", name: "Workshop", startsAt: new Date("2026-11-06T15:00:00Z"), endsAt: new Date("2026-11-06T21:00:00Z"), location: null, locationUrl: null, agenda: [], emailContent: null, telegramChatId: null });
     mocks.updateRegistrationReviewStatus.mockResolvedValue({ id: "registration-1" });
   });
 
@@ -161,6 +174,17 @@ describe("updateRegistrationReviewStatusAction", () => {
     const result = await updateRegistrationReviewStatusAction({}, data);
     expect(result).toEqual({ success: "Estado de revisión actualizado." });
     expect(mocks.updateRegistrationReviewStatus).toHaveBeenCalledWith(expect.objectContaining({ reviewStatus: "approved", organizationId: "org-1" }));
+  });
+
+  it("accepts the waitlisted commercial decision", async () => {
+    const data = new FormData();
+    data.set("registrationId", "22222222-2222-4222-8222-222222222222");
+    data.set("eventId", "33333333-3333-4333-8333-333333333333");
+    data.set("reviewStatus", "waitlisted");
+
+    const result = await updateRegistrationReviewStatusAction({}, data);
+
+    expect(result).toEqual({ success: "Estado de revisión actualizado." });
   });
 
   it("rejects non-admin users without changing the registration", async () => {

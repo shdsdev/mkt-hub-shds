@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { env } from "@/lib/env";
 import type { EventEmailContent } from "@/lib/events/event-email-content";
@@ -6,12 +6,56 @@ import {
   notificationLog,
   notificationSubjectType,
   notificationType as notificationTypeEnum,
+  userNotifications,
 } from "./db";
 
 export type NotificationSubjectType =
   (typeof notificationSubjectType.enumValues)[number];
 export type NotificationType = (typeof notificationTypeEnum.enumValues)[number];
 export type NotificationLogRow = typeof notificationLog.$inferSelect;
+export type UserNotificationRow = typeof userNotifications.$inferSelect;
+
+export type CreateInternalNotificationsInput = {
+  organizationId: string;
+  recipientUserIds: string[];
+  subjectId: string;
+  type: "registration_submitted" | "registration_review_blocked" | "registration_decision";
+  title: string;
+  body: string;
+  href: string;
+  dedupeKey: string;
+};
+
+export async function createInternalNotifications(input: CreateInternalNotificationsInput): Promise<void> {
+  if (input.recipientUserIds.length === 0) return;
+  await db.insert(userNotifications).values(input.recipientUserIds.map((recipientUserId) => ({
+    organizationId: input.organizationId,
+    recipientUserId,
+    subjectId: input.subjectId,
+    type: input.type,
+    title: input.title,
+    body: input.body,
+    href: input.href,
+    dedupeKey: input.dedupeKey,
+  }))).onConflictDoNothing();
+}
+
+export async function listUserNotifications(input: { userId: string; organizationId: string; limit?: number }): Promise<UserNotificationRow[]> {
+  return db
+    .select()
+    .from(userNotifications)
+    .where(and(eq(userNotifications.recipientUserId, input.userId), eq(userNotifications.organizationId, input.organizationId)))
+    .orderBy(desc(userNotifications.createdAt))
+    .limit(input.limit ?? 30);
+}
+
+export async function markUserNotificationRead(input: { id: string; userId: string; organizationId: string }): Promise<void> {
+  await db.update(userNotifications).set({ readAt: new Date() }).where(and(
+    eq(userNotifications.id, input.id),
+    eq(userNotifications.recipientUserId, input.userId),
+    eq(userNotifications.organizationId, input.organizationId),
+  ));
+}
 
 export type ClaimNotificationInput = {
   organizationId: string;
@@ -183,6 +227,37 @@ export type SendEmailResult =
   | { sent: true; notificationId: string }
   | { sent: false; reason: "already_sent" }
   | { sent: false; reason: "provider_failure"; error: string };
+
+export async function sendRegistrationDecisionEmail(input: {
+  organizationId: string;
+  registrationId: string;
+  to: string;
+  attendeeName: string;
+  eventName: string;
+  decision: "waitlisted" | "rejected";
+}): Promise<SendEmailResult> {
+  const notificationType = input.decision === "waitlisted" ? "registration_waitlisted" : "registration_rejected";
+  const claim = await claimNotification({
+    organizationId: input.organizationId,
+    subjectType: "event_attendee",
+    subjectId: input.registrationId,
+    notificationType,
+  });
+  if (!claim) return { sent: false, reason: "already_sent" };
+
+  const waitlisted = input.decision === "waitlisted";
+  const subject = waitlisted ? `Lista de espera: ${input.eventName}` : `Actualización de tu solicitud: ${input.eventName}`;
+  const html = waitlisted
+    ? `<p>Hola ${escapeHtml(input.attendeeName)},</p><p>Gracias por tu interés en nuestro workshop. Por el momento se ha llenado el cupo y quedaste en lista de espera.</p><p>Te comunicaremos si se libera una plaza para poder tenerte con nosotros.</p>`
+    : `<p>Hola ${escapeHtml(input.attendeeName)},</p><p>Gracias por tu interés en nuestro workshop. Por el momento no podremos confirmar tu participación en esta ocasión.</p>`;
+  const sent = await sendViaResend({ to: input.to, subject, html });
+  if (!sent.ok) {
+    await markNotificationFailed(claim.id, sent.error);
+    return { sent: false, reason: "provider_failure", error: sent.error };
+  }
+  await markNotificationSent(claim.id, sent.messageId);
+  return { sent: true, notificationId: claim.id };
+}
 
 export type AttendeeEmailInput = {
   organizationId: string;

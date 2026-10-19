@@ -397,7 +397,7 @@ describe("events service — ADMIN-only authoring (design.md 'event-management')
 
 describe("events service — read paths", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("lists events scoped to the organization", async () => {
@@ -517,7 +517,7 @@ describe("events service — registerForEvent", () => {
   const unlimitedEvent = { ...baseEvent, status: "published" as const, capacity: null };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
       callback({ execute: txExecuteMock, select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
     );

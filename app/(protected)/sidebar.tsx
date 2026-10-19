@@ -23,6 +23,7 @@ import {
   UserRoundCheck,
   Calendar,
   CalendarDays,
+  Bell,
 } from "lucide";
 import {
   Sidebar,
@@ -108,6 +109,9 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
             <SidebarMenu className="gap-1.5">
               <NavItem href="/" idle={LayoutDashboard} active={Gauge}>
                 Resumen
+              </NavItem>
+              <NavItem href="/notifications" idle={Bell} active={Bell}>
+                Notificaciones
               </NavItem>
             </SidebarMenu>
           </SidebarGroupContent>
