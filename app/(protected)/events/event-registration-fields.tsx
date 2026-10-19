@@ -214,7 +214,7 @@ export function EventRegistrationFields({
                 </div>
                 <div className="mt-3 rounded-lg border border-dashed border-border p-3">
                   <p className="mb-2 text-xs font-medium text-muted-foreground">Vista previa</p>
-                  <RegistrationFieldRenderer field={field} />
+                  <RegistrationFieldRenderer field={field} disabled />
                 </div>
               </article>
             ))}

@@ -270,9 +270,9 @@ export function RegisterForm({
         </div>
 
         {personalCustomFields.length > 0 ? (
-          <fieldset className="flex flex-col gap-4 border-t border-black/[0.06] pt-6">
+          <fieldset className="flex flex-col gap-4 border-t border-black/[0.06] pt-6 sm:mt-4">
             <legend className="text-sm font-medium text-[#4a4a4a]">Información adicional</legend>
-            {personalCustomFields.map((field) => <RegistrationFieldRenderer key={field.id} field={field} error={fieldErrors[field.id]} />)}
+            {personalCustomFields.map((field) => <RegistrationFieldRenderer key={field.id} field={field} controlClassName={fieldClass} error={fieldErrors[field.id]} />)}
           </fieldset>
         ) : null}
       </div>
@@ -327,9 +327,9 @@ export function RegisterForm({
          </fieldset>
        ) : null}
        {preferenceCustomFields.length > 0 ? (
-         <fieldset className="flex flex-col gap-4 border-t border-black/[0.06] pt-6">
+          <fieldset className="flex flex-col gap-4 border-t border-black/[0.06] pt-6 sm:mt-4">
            <legend className="text-sm font-medium text-[#4a4a4a]">Información adicional</legend>
-           {preferenceCustomFields.map((field) => <RegistrationFieldRenderer key={field.id} field={field} error={fieldErrors[field.id]} />)}
+            {preferenceCustomFields.map((field) => <RegistrationFieldRenderer key={field.id} field={field} controlClassName={fieldClass} error={fieldErrors[field.id]} />)}
          </fieldset>
        ) : null}
       </div>

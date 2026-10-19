@@ -75,4 +75,12 @@ describe("RegistrationFieldRenderer", () => {
     expect(markup).toContain("Automatización");
     expect(markup).toContain("Cortinas");
   });
+
+  it("applies the public form control class to custom inputs", () => {
+    const markup = renderToStaticMarkup(
+      <RegistrationFieldRenderer field={field({ required: false })} controlClassName="public-field" />,
+    );
+
+    expect(markup).toContain("public-field");
+  });
 });

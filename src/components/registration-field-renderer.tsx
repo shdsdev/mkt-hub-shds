@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { Checkbox } from "@/components/checkbox";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -33,6 +34,7 @@ export function RegistrationFieldRenderer({
   name = field.id,
   defaultValue,
   disabled = false,
+  controlClassName,
   error,
   onChange,
 }: {
@@ -40,6 +42,7 @@ export function RegistrationFieldRenderer({
   name?: string;
   defaultValue?: RegistrationFieldValue;
   disabled?: boolean;
+  controlClassName?: string;
   error?: string;
   onChange?: (value: RegistrationFieldValue) => void;
 }) {
@@ -67,7 +70,7 @@ export function RegistrationFieldRenderer({
             aria-required={field.required}
             aria-invalid={Boolean(error)}
             aria-describedby={describedBy}
-            className="min-h-24 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive"
+            className={cn("min-h-24 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive", controlClassName)}
             onChange={(event) => onChange?.(event.target.value)}
           />
         );
@@ -84,19 +87,20 @@ export function RegistrationFieldRenderer({
             aria-required={field.required}
             aria-invalid={Boolean(error)}
             aria-describedby={describedBy}
+            className={controlClassName}
             onChange={(event) => onChange?.(event.target.value)}
           />
         );
       case "email":
-        return <Input name={name} type="email" defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} required={field.required} disabled={disabled} aria-required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} onChange={(event) => onChange?.(event.target.value)} />;
+        return <Input name={name} type="email" defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} required={field.required} disabled={disabled} aria-required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} className={controlClassName} onChange={(event) => onChange?.(event.target.value)} />;
       case "phone":
-        return <Input name={name} type="tel" defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} required={field.required} disabled={disabled} aria-required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} onChange={(event) => onChange?.(event.target.value)} />;
+        return <Input name={name} type="tel" defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} required={field.required} disabled={disabled} aria-required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} className={controlClassName} onChange={(event) => onChange?.(event.target.value)} />;
       case "date":
-        return <Input name={name} type="date" defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} required={field.required} disabled={disabled} aria-required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} onChange={(event) => onChange?.(event.target.value)} />;
+        return <Input name={name} type="date" defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} required={field.required} disabled={disabled} aria-required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} className={controlClassName} onChange={(event) => onChange?.(event.target.value)} />;
       case "select":
         return (
           <Select name={name} defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} disabled={disabled}>
-            <SelectTrigger aria-label={field.label} aria-required={field.required} aria-invalid={Boolean(error)}>
+            <SelectTrigger className={cn(controlClassName, controlClassName ? "!h-12" : undefined)} aria-label={field.label} aria-required={field.required} aria-invalid={Boolean(error)}>
               <SelectValue placeholder="Seleccioná una opción" />
             </SelectTrigger>
             <SelectContent>
@@ -141,7 +145,7 @@ export function RegistrationFieldRenderer({
           />
         );
       case "short_text":
-        return <Input name={name} type="text" defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} required={field.required} disabled={disabled} aria-required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} onChange={(event) => onChange?.(event.target.value)} />;
+        return <Input name={name} type="text" defaultValue={typeof defaultValue === "string" ? defaultValue : undefined} required={field.required} disabled={disabled} aria-required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} className={controlClassName} onChange={(event) => onChange?.(event.target.value)} />;
     }
   }
 
