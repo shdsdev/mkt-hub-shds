@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   sendConfirmationEmail: vi.fn(),
   resolveTelegramChatId: vi.fn(),
   resolveTelegramMessageTemplate: vi.fn(),
+  sendTelegramMessage: vi.fn(),
+  getTelegramBotToken: vi.fn(() => "test-token"),
   exportQrPng: vi.fn(),
   updateRegistrationReviewStatus: vi.fn(),
   revalidatePath: vi.fn(),
@@ -34,14 +36,19 @@ vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
   sendRegistrationDecisionEmail: vi.fn(),
   createInternalNotifications: vi.fn(),
-  sendTelegramMessage: vi.fn(),
+  sendTelegramMessage: mocks.sendTelegramMessage,
   resolveTelegramChatId: mocks.resolveTelegramChatId,
   resolveTelegramMessageTemplate: mocks.resolveTelegramMessageTemplate,
   buildRegistrationTelegramMessage: vi.fn(() => ({ text: "", replyMarkup: { inline_keyboard: [] } })),
 }));
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
-vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com", TELEGRAM_BOT_TOKEN: "test-token" } }));
+vi.mock("@/lib/env", () => ({
+  env: {
+    NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com",
+    get TELEGRAM_BOT_TOKEN() { return mocks.getTelegramBotToken(); },
+  },
+}));
 vi.mock("@/lib/events/event-email-content", () => ({ resolveEventEmailContent: vi.fn() }));
 
 import { addCompanionAction, resendInvitationAction, updateRegistrationReviewStatusAction } from "./actions";
@@ -191,6 +198,17 @@ describe("updateRegistrationReviewStatusAction", () => {
     const result = await updateRegistrationReviewStatusAction({}, data);
 
     expect(result).toEqual({ success: "Estado de revisión actualizado." });
+  });
+
+  it("does not fail the review action when the Telegram token is unavailable", async () => {
+    mocks.resolveTelegramChatId.mockResolvedValue("-100123");
+    mocks.getTelegramBotToken.mockImplementation(() => { throw new Error("Missing required environment variable: TELEGRAM_BOT_TOKEN"); });
+    const data = new FormData();
+    data.set("registrationId", "22222222-2222-4222-8222-222222222222");
+    data.set("eventId", "33333333-3333-4333-8333-333333333333");
+    data.set("reviewStatus", "rejected");
+
+    await expect(updateRegistrationReviewStatusAction({}, data)).resolves.toEqual({ success: "Estado de revisión actualizado." });
   });
 
   it("rejects non-admin users without changing the registration", async () => {

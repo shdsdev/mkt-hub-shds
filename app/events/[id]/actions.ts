@@ -321,7 +321,9 @@ export async function registerForEventAction(
         fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt),
       },
     });
-    void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: message.text, replyMarkup: message.replyMarkup })).catch(() => undefined);
+    void Promise.resolve()
+      .then(() => sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: message.text, replyMarkup: message.replyMarkup }))
+      .catch(() => undefined);
   }
 
   // Fire-and-forget, same convention as recordEventVisit — notifyEventWebhook already swallows

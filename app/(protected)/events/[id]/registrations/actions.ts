@@ -140,7 +140,9 @@ export async function updateRegistrationReviewStatusAction(
         template: telegramTemplate,
         values: { fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt) },
       });
-      void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: `Aprobación bloqueada por falta de cupo\n${message.text}`, replyMarkup: message.replyMarkup })).catch(() => undefined);
+      void Promise.resolve()
+        .then(() => sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: `Aprobación bloqueada por falta de cupo\n${message.text}`, replyMarkup: message.replyMarkup }))
+        .catch(() => undefined);
     }
     return { error: CAPACITY_REVIEW_ERROR };
   }
@@ -175,7 +177,9 @@ export async function updateRegistrationReviewStatusAction(
         fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt),
       },
     });
-    void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: `Solicitud actualizada: ${parsed.data.reviewStatus}\n${message.text}`, replyMarkup: message.replyMarkup })).catch(() => undefined);
+    void Promise.resolve()
+      .then(() => sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: `Solicitud actualizada: ${parsed.data.reviewStatus}\n${message.text}`, replyMarkup: message.replyMarkup }))
+      .catch(() => undefined);
   }
 
   if (primary && parsed.data.reviewStatus === "approved") {
