@@ -73,6 +73,7 @@ function PassQr({ value }: { value: string }) {
       const qr = new QRCodeStyling({
         width: 176,
         height: 176,
+        margin: 16,
         type: "svg",
         data: value,
         qrOptions: { errorCorrectionLevel: "M" },

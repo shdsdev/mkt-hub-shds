@@ -244,6 +244,7 @@ async function buildBaseSvg(encodedValue: string, options: QrCustomization): Pro
   const qr = new QRCodeStyling({
     width: QR_PIXEL_SIZE,
     height: QR_PIXEL_SIZE,
+    margin: 32,
     type: "svg",
     data: encodedValue,
     jsdom: JSDOM,
