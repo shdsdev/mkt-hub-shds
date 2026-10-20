@@ -82,6 +82,7 @@ export const events = pgTable("events", {
   collectJobTitle: boolean("collect_job_title").notNull().default(false),
   registrationFormConfig: jsonb("registration_form_config").$type<RegistrationFormConfig | null>(),
   emailContent: jsonb("email_content").$type<EventEmailContent | null>(),
+  telegramMessageTemplate: text("telegram_message_template"),
   // Acquisition source capture — column set and naming reused exactly from
   // `src/modules/links/db.ts` (design.md "Interfaces"), read/validated via `@/modules/utm`.
   utmSource: text("utm_source"),

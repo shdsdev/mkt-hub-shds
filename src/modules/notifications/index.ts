@@ -24,3 +24,18 @@ export {
   type CreateInternalNotificationsInput,
 } from "./service";
 export { buildRegistrationTelegramMessage, sendTelegramMessage, type TelegramReplyMarkup } from "./telegram";
+export {
+  DEFAULT_TELEGRAM_TEMPLATE,
+  TELEGRAM_TEMPLATE_TAGS,
+  renderTelegramTemplate,
+  validateTelegramTemplate,
+  type TelegramTemplateTag,
+  type TelegramTemplateValues,
+} from "./telegram-template";
+export {
+  getTelegramSettings,
+  upsertTelegramSettings,
+  resolveTelegramChatId,
+  resolveTelegramMessageTemplate,
+  type TelegramSettings,
+} from "./telegram-settings";

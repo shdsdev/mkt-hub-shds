@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getMexicanStateLabel } from "@/lib/events/mexican-states";
 import {
   MEXICAN_STATES,
   getDefaultRegistrationFormConfig,
@@ -40,6 +41,11 @@ describe("registration form configuration", () => {
     expect(MEXICAN_STATES).toHaveLength(32);
     expect(MEXICAN_STATES).toContainEqual({ value: "jalisco", label: "Jalisco" });
     expect(new Set(MEXICAN_STATES.map((state) => state.value)).size).toBe(32);
+  });
+
+  it("presents stored state values with their visible labels", () => {
+    expect(getMexicanStateLabel("tlaxcala")).toBe("Tlaxcala");
+    expect(getMexicanStateLabel("unknown-state")).toBe("unknown-state");
   });
 
   it("rejects a required hidden field", () => {

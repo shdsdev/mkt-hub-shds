@@ -5,6 +5,7 @@ import { DEFAULT_EVENT_REMINDER_OFFSET_MINUTES } from "@/lib/events/event-remind
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
+import { validateTelegramTemplate } from "@/modules/notifications";
 import { isActive, isAdmin } from "@/modules/users";
 import { eventEmailContentSchema } from "@/lib/events/event-email-content";
 import {
@@ -267,6 +268,66 @@ export async function updateEventAction(
   revalidatePath("/events");
   revalidatePath(`/events/${id.data}/edit`);
   return { success: "Evento actualizado." };
+}
+
+export async function saveEventTelegramChatIdAction(
+  _prevState: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const parsed = z.object({
+    id: z.string().uuid(),
+    telegramChatId: z.string().trim().max(100).optional().or(z.literal("")),
+  }).safeParse({
+    id: formData.get("id"),
+    telegramChatId: formData.get("telegramChatId") ?? undefined,
+  });
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await updateEvent({
+    id: parsed.data.id,
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+    changes: { telegramChatId: parsed.data.telegramChatId || null },
+  });
+  if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${parsed.data.id}/edit`);
+  return { success: "Grupo de Telegram guardado." };
+}
+
+export async function saveEventTelegramMessageTemplateAction(
+  _prevState: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const parsed = z.object({
+    id: z.string().uuid(),
+    template: z.string().trim().max(3000, "La plantilla no puede superar 3000 caracteres."),
+  }).safeParse({
+    id: formData.get("id"),
+    template: formData.get("template") ?? "",
+  });
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+  const templateError = validateTelegramTemplate(parsed.data.template);
+  if (templateError) return { error: templateError };
+
+  const result = await updateEvent({
+    id: parsed.data.id,
+    organizationId: user.profile.organizationId,
+    actorRole: user.profile.role,
+    changes: { telegramMessageTemplate: parsed.data.template || null },
+  });
+  if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${parsed.data.id}/edit`);
+  return { success: "Mensaje de Telegram guardado." };
 }
 
 async function setStatusAction(formData: FormData, status: "published" | "closed"): Promise<void> {

@@ -136,6 +136,7 @@ export type UpdateEventChanges = Partial<{
   registrationFormConfig: EventRow["registrationFormConfig"];
   emailContent: EventEmailContent | null;
   telegramChatId: string | null;
+  telegramMessageTemplate: string | null;
 }>;
 
 export async function updateEvent(input: {

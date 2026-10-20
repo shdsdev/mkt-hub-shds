@@ -61,6 +61,7 @@ describe("EventCard", () => {
             webhookUrl: null,
              webhookSecret: null,
              telegramChatId: null,
+             telegramMessageTemplate: null,
             createdAt: new Date("2026-01-01T00:00:00Z"),
             updatedAt: new Date("2026-01-01T00:00:00Z"),
           }}

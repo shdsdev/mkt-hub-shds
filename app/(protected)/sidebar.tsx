@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -36,6 +36,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -89,10 +92,16 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
   const pathname = usePathname();
   const qrShortLinksActive =
     pathname.startsWith("/links") || pathname.startsWith("/qr") || pathname.startsWith("/analytics");
-  const [qrShortLinksOpen, setQrShortLinksOpen] = useState(qrShortLinksActive);
+  // Keep the first render structurally identical on the server and client. The pathname can be
+  // resolved differently during hydration when a rewrite or browser navigation is involved.
+  const [qrShortLinksOpen, setQrShortLinksOpen] = useState(false);
   const [qrGroupHovered, setQrGroupHovered] = useState(false);
   const [signOutHovered, setSignOutHovered] = useState(false);
   const [settingsHovered, setSettingsHovered] = useState(false);
+
+  useEffect(() => {
+    setQrShortLinksOpen(qrShortLinksActive);
+  }, [qrShortLinksActive]);
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -139,14 +148,28 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {qrShortLinksOpen && (
-                <div className="ml-3 space-y-1.5 border-l border-sidebar-border pl-3">
-                  <NavItem href="/qr" idle={ScanLine} active={QrCode}>
-                    Códigos QR
-                  </NavItem>
-                  <NavItem href="/analytics" idle={ChartColumn} active={ChartColumnIncreasing}>
-                    Analytics
-                  </NavItem>
-                </div>
+                <SidebarMenuItem>
+                  <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        isActive={pathname === "/qr" || pathname.startsWith("/qr/")}
+                        render={<Link href="/qr" />}
+                      >
+                        <HoverMorphIcon idle={ScanLine} active={QrCode} size={16} />
+                        <span>Códigos QR</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        isActive={pathname === "/analytics" || pathname.startsWith("/analytics/")}
+                        render={<Link href="/analytics" />}
+                      >
+                        <HoverMorphIcon idle={ChartColumn} active={ChartColumnIncreasing} size={16} />
+                        <span>Analytics</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  </SidebarMenuSub>
+                </SidebarMenuItem>
               )}
               <NavItem href="/campaigns" idle={Megaphone} active={Volume2}>
                 Campañas

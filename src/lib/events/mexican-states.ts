@@ -32,3 +32,7 @@ export const MEXICAN_STATES = [
   { value: "yucatan", label: "Yucatán" },
   { value: "zacatecas", label: "Zacatecas" },
 ] as const;
+
+export function getMexicanStateLabel(value?: string | null): string {
+  return MEXICAN_STATES.find((state) => state.value === value)?.label ?? value ?? "";
+}

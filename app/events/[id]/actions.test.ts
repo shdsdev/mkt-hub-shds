@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   listEventReceptionistIds: vi.fn(),
   listManagedUsers: vi.fn(),
   sendConfirmationEmail: vi.fn(),
+  resolveTelegramChatId: vi.fn(),
+  resolveTelegramMessageTemplate: vi.fn(),
+  buildRegistrationTelegramMessage: vi.fn(),
   exportQrPng: vi.fn(),
   OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
   MEXICAN_STATES: [{ value: "jalisco", label: "Jalisco" }],
@@ -44,7 +47,9 @@ vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
   createInternalNotifications: vi.fn(),
   sendTelegramMessage: vi.fn(),
-  buildRegistrationTelegramMessage: vi.fn(() => ({ text: "", replyMarkup: { inline_keyboard: [] } })),
+  resolveTelegramChatId: mocks.resolveTelegramChatId,
+  resolveTelegramMessageTemplate: mocks.resolveTelegramMessageTemplate,
+  buildRegistrationTelegramMessage: mocks.buildRegistrationTelegramMessage,
 }));
 vi.mock("@/modules/users", () => ({ listManagedUsers: mocks.listManagedUsers }));
 vi.mock("@/modules/qr", () => ({
@@ -94,6 +99,8 @@ describe("registerForEventAction", () => {
     mocks.notifyEventWebhook.mockResolvedValue(undefined);
     mocks.listEventReceptionistIds.mockResolvedValue([]);
     mocks.listManagedUsers.mockResolvedValue([]);
+    mocks.resolveTelegramChatId.mockResolvedValue(undefined);
+    mocks.buildRegistrationTelegramMessage.mockReturnValue({ text: "", replyMarkup: { inline_keyboard: [] } });
   });
 
   it("rejects when the event is no longer published", async () => {
@@ -137,6 +144,21 @@ describe("registerForEventAction", () => {
     expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
     expect(mocks.exportQrPng).not.toHaveBeenCalled();
     expect(result).toEqual({ success: true, status: "waitlisted" });
+  });
+
+  it("uses visible occupation and state labels in Telegram notifications", async () => {
+    mocks.registerForEvent.mockResolvedValue({
+      ok: true,
+      registration: { status: "pending_review" },
+      attendees: [],
+    });
+    mocks.resolveTelegramChatId.mockResolvedValue("-100123");
+    const result = await registerForEventAction({}, baseFormData({ occupation: "manufacturer", state: "tlaxcala" }));
+
+    expect(result).toEqual({ success: true, status: "pending_review" });
+    expect(mocks.buildRegistrationTelegramMessage).toHaveBeenCalledWith(expect.objectContaining({
+      values: expect.objectContaining({ ocupacion: "Fabricante", estado: "Tlaxcala" }),
+    }));
   });
 
   it("shows a pending-review message without sending an access email", async () => {

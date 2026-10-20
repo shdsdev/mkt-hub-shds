@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   listManagedUsers: vi.fn(),
   notifyEventWebhook: vi.fn(),
   sendConfirmationEmail: vi.fn(),
+  resolveTelegramChatId: vi.fn(),
+  resolveTelegramMessageTemplate: vi.fn(),
   exportQrPng: vi.fn(),
   updateRegistrationReviewStatus: vi.fn(),
   revalidatePath: vi.fn(),
@@ -33,6 +35,8 @@ vi.mock("@/modules/notifications", () => ({
   sendRegistrationDecisionEmail: vi.fn(),
   createInternalNotifications: vi.fn(),
   sendTelegramMessage: vi.fn(),
+  resolveTelegramChatId: mocks.resolveTelegramChatId,
+  resolveTelegramMessageTemplate: mocks.resolveTelegramMessageTemplate,
   buildRegistrationTelegramMessage: vi.fn(() => ({ text: "", replyMarkup: { inline_keyboard: [] } })),
 }));
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
@@ -159,6 +163,8 @@ describe("updateRegistrationReviewStatusAction", () => {
     mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "11111111-1111-4111-8111-111111111111" });
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(true);
+    mocks.resolveTelegramChatId.mockResolvedValue(undefined);
+    mocks.resolveTelegramMessageTemplate.mockResolvedValue(undefined);
     mocks.listEventReceptionistIds.mockResolvedValue([]);
     mocks.listRegistrations.mockResolvedValue([]);
     mocks.listManagedUsers.mockResolvedValue([]);

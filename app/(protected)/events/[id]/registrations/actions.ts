@@ -18,6 +18,8 @@ import {
 import {
   buildRegistrationTelegramMessage,
   createInternalNotifications,
+  resolveTelegramChatId,
+  resolveTelegramMessageTemplate,
   sendConfirmationEmail,
   sendRegistrationDecisionEmail,
   sendTelegramMessage,
@@ -25,6 +27,8 @@ import {
 import { listManagedUsers } from "@/modules/users";
 import { exportQrPng } from "@/modules/qr";
 import { resolveEventEmailContent } from "@/lib/events/event-email-content";
+import { getMexicanStateLabel } from "@/lib/events/mexican-states";
+import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar registros.";
 const INVALID_FORM_ERROR = "Revisa los datos del acompañante.";
@@ -41,6 +45,26 @@ const REASON_MESSAGES: Record<Exclude<AddAttendeeToRegistrationResult, { ok: tru
   at_capacity: "El evento está a capacidad — no se puede agregar más gente a un registro confirmado.",
   duplicate_email: "Ya existe un asistente activo con ese correo en este evento.",
 };
+
+function telegramAttendeeValues(attendee?: {
+  fullName: string;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  jobTitle: string | null;
+  occupation: string | null;
+  state: string | null;
+}) {
+  return {
+    nombre: attendee?.fullName ?? "",
+    email: attendee?.email ?? "",
+    telefono: attendee?.phone ?? "",
+    empresa: attendee?.company ?? "",
+    puesto: attendee?.jobTitle ?? "",
+    ocupacion: getOccupationPresentation(attendee?.occupation).label,
+    estado: getMexicanStateLabel(attendee?.state),
+  };
+}
 
 const schema = z.object({
   registrationId: z.string().uuid(),
@@ -79,6 +103,14 @@ export async function updateRegistrationReviewStatusAction(
   if (!event) return { error: "No se encontró el registro." };
   const receptionistIds = await listEventReceptionistIds(parsed.data.eventId, user.profile.organizationId);
   if (!isAdmin(user.profile) && !receptionistIds.includes(user.id)) return { error: PERMISSION_ERROR };
+  const telegramChatId = await resolveTelegramChatId({
+    organizationId: event.organizationId,
+    eventChatId: event.telegramChatId,
+  });
+  const telegramTemplate = await resolveTelegramMessageTemplate({
+    organizationId: event.organizationId,
+    eventTemplate: event.telegramMessageTemplate,
+  });
 
   const registration = await updateRegistrationReviewStatus({
     ...parsed.data,
@@ -101,9 +133,14 @@ export async function updateRegistrationReviewStatusAction(
       href,
       dedupeKey: `registration-review-blocked:${parsed.data.registrationId}`,
     })).catch(() => undefined);
-    if (event.telegramChatId) {
-      const message = buildRegistrationTelegramMessage({ eventName: event.name, reviewUrl: href });
-      void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: event.telegramChatId, text: `Aprobación bloqueada por falta de cupo\n${message.text}`, replyMarkup: message.replyMarkup })).catch(() => undefined);
+    if (telegramChatId) {
+      const message = buildRegistrationTelegramMessage({
+        eventName: event.name,
+        reviewUrl: href,
+        template: telegramTemplate,
+        values: { fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt) },
+      });
+      void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: `Aprobación bloqueada por falta de cupo\n${message.text}`, replyMarkup: message.replyMarkup })).catch(() => undefined);
     }
     return { error: CAPACITY_REVIEW_ERROR };
   }
@@ -128,9 +165,17 @@ export async function updateRegistrationReviewStatusAction(
     href,
     dedupeKey: `registration-decision:${parsed.data.registrationId}:${parsed.data.reviewStatus}`,
   })).catch(() => undefined);
-  if (event.telegramChatId) {
-    const message = buildRegistrationTelegramMessage({ eventName: event.name, reviewUrl: href });
-    void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: event.telegramChatId, text: `Solicitud actualizada: ${parsed.data.reviewStatus}\n${message.text}`, replyMarkup: message.replyMarkup })).catch(() => undefined);
+  if (telegramChatId) {
+    const message = buildRegistrationTelegramMessage({
+      eventName: event.name,
+      reviewUrl: href,
+      template: telegramTemplate,
+      values: {
+        ...telegramAttendeeValues(primary),
+        fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt),
+      },
+    });
+    void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: `Solicitud actualizada: ${parsed.data.reviewStatus}\n${message.text}`, replyMarkup: message.replyMarkup })).catch(() => undefined);
   }
 
   if (primary && parsed.data.reviewStatus === "approved") {

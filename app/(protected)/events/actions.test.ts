@@ -34,12 +34,15 @@ vi.mock("@/modules/events", () => ({
   regenerateEventWebhookSecret: mocks.regenerateEventWebhookSecret,
   registrationFormConfigSchema: mocks.registrationFormConfigSchema,
 }));
+vi.mock("@/modules/notifications", () => ({ validateTelegramTemplate: vi.fn(() => undefined) }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
 import {
   createEventAction,
   updateEventAction,
+  saveEventTelegramChatIdAction,
+  saveEventTelegramMessageTemplateAction,
   publishEventAction,
   closeEventAction,
   archiveEventAction,
@@ -95,6 +98,38 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
 
     expect(result).toEqual({ error: "No tienes permiso para administrar eventos." });
     expect(mocks.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("saves only the event Telegram chat ID", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "11111111-1111-4111-8111-111111111111" } });
+
+    const result = await saveEventTelegramChatIdAction(
+      {},
+      createFormData({ id: "11111111-1111-4111-8111-111111111111", telegramChatId: "-1004365089226" }),
+    );
+
+    expect(result).toEqual({ success: "Grupo de Telegram guardado." });
+    expect(mocks.updateEvent).toHaveBeenCalledWith(expect.objectContaining({
+      id: "11111111-1111-4111-8111-111111111111",
+      changes: { telegramChatId: "-1004365089226" },
+    }));
+  });
+
+  it("saves an event-specific Telegram message template", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "11111111-1111-4111-8111-111111111111" } });
+
+    const result = await saveEventTelegramMessageTemplateAction(
+      {},
+      createFormData({
+        id: "11111111-1111-4111-8111-111111111111",
+        template: "{{nombre}} solicitó acceso a {{evento}}.",
+      }),
+    );
+
+    expect(result).toEqual({ success: "Mensaje de Telegram guardado." });
+    expect(mocks.updateEvent).toHaveBeenCalledWith(expect.objectContaining({
+      changes: { telegramMessageTemplate: "{{nombre}} solicitó acceso a {{evento}}." },
+    }));
   });
 
   it("rejects publish for a non-admin without calling the service", async () => {

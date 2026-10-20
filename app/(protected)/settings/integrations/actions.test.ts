@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   createPairingCode: vi.fn(),
   revokeHcsConnection: vi.fn(),
   renewHcsConnection: vi.fn(),
+  getTelegramSettings: vi.fn(),
+  upsertTelegramSettings: vi.fn(),
+  sendTelegramMessage: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 
@@ -17,12 +20,27 @@ vi.mock("@/modules/integrations", () => ({
   revokeHcsConnection: mocks.revokeHcsConnection,
   renewHcsConnection: mocks.renewHcsConnection,
 }));
+vi.mock("@/modules/notifications", () => ({
+  getTelegramSettings: mocks.getTelegramSettings,
+  upsertTelegramSettings: mocks.upsertTelegramSettings,
+  sendTelegramMessage: mocks.sendTelegramMessage,
+  validateTelegramTemplate: vi.fn(() => undefined),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/lib/env", () => ({
+  env: {
+    HCS_PAIRING_EXPIRY_MINUTES: 15,
+    HCS_CONNECTION_EXPIRY_DAYS: 90,
+    TELEGRAM_BOT_TOKEN: "test-bot-token",
+  },
+}));
 
 import {
   generateHcsPairingCodeAction,
   renewHcsConnectionAction,
   revokeHcsConnectionAction,
+  saveTelegramSettingsAction,
+  sendTelegramTestMessageAction,
 } from "./actions";
 
 const admin = {
@@ -53,6 +71,9 @@ describe("HCS integration settings actions", () => {
       connection: { id: connectionId, hcsCompanyName: "Acme", expiresAt: new Date("2027-01-14T00:00:00Z") },
       accessToken: "new-access-token",
     });
+    mocks.getTelegramSettings.mockResolvedValue({ enabled: true, chatId: "-100123" });
+    mocks.upsertTelegramSettings.mockResolvedValue({ enabled: true, chatId: "-100123" });
+    mocks.sendTelegramMessage.mockResolvedValue(undefined);
   });
 
   it("denies inactive or non-admin users before calling integration services", async () => {
@@ -91,5 +112,33 @@ describe("HCS integration settings actions", () => {
       expect.objectContaining({ organizationId: "org-1", connectionId, expiresAt: expect.any(Date) }),
     );
     expect(JSON.stringify(mocks.renewHcsConnection.mock.calls[0][0])).not.toContain("new-access-token");
+  });
+
+  it("saves organization-scoped Telegram settings", async () => {
+    const data = new FormData();
+    data.set("chatId", "-100987");
+    data.set("enabled", "on");
+
+    await expect(saveTelegramSettingsAction({}, data)).resolves.toEqual({
+      success: "Configuración de Telegram guardada.",
+    });
+    expect(mocks.upsertTelegramSettings).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      chatId: "-100987",
+      enabled: true,
+      messageTemplate: null,
+    });
+  });
+
+  it("sends a Telegram test only when the organization setting is active", async () => {
+    await expect(sendTelegramTestMessageAction({})).resolves.toEqual({
+      success: "Mensaje de prueba enviado correctamente.",
+    });
+    expect(mocks.sendTelegramMessage).toHaveBeenCalledWith(expect.objectContaining({ chatId: "-100123" }));
+
+    mocks.getTelegramSettings.mockResolvedValue({ enabled: false, chatId: "-100123" });
+    await expect(sendTelegramTestMessageAction({})).resolves.toEqual({
+      error: "Activá Telegram y configurá un chat ID antes de enviar una prueba.",
+    });
   });
 });

@@ -6,6 +6,8 @@ import type { EventRow, RegistrationFormConfig } from "@/modules/events";
 import type { ManagedUser } from "@/modules/users";
 import {
   updateEventAction,
+  saveEventTelegramChatIdAction,
+  saveEventTelegramMessageTemplateAction,
   publishEventAction,
   closeEventAction,
   type EventFormState,
@@ -39,6 +41,8 @@ export function EventEditForm({
   assignedReceptionistIds: string[];
 }) {
   const [state, formAction, pending] = useActionState(updateEventAction, initialState);
+  const [telegramState, telegramAction, telegramPending] = useActionState(saveEventTelegramChatIdAction, initialState);
+  const [telegramTemplateState, telegramTemplateAction, telegramTemplatePending] = useActionState(saveEventTelegramMessageTemplateAction, initialState);
   const [heroImageUrl, setHeroImageUrl] = useState<string | undefined>(event.heroImageUrl ?? undefined);
   const [checkInConfirmationRequired, setCheckInConfirmationRequired] = useState(event.checkInConfirmationRequired);
 
@@ -106,7 +110,8 @@ export function EventEditForm({
               webhookUrl={event.webhookUrl}
               webhookSecret={event.webhookSecret}
             />
-            <div className="rounded-md border border-border p-4">
+            <form action={telegramAction} className="rounded-md border border-border p-4">
+              <input type="hidden" name="id" value={event.id} />
               <label className="flex flex-col gap-1.5 text-sm font-medium">
                 Grupo de Telegram
                 <input
@@ -119,7 +124,34 @@ export function EventEditForm({
                   El bot enviará aquí las nuevas solicitudes y bloqueos de cupo.
                 </span>
               </label>
-            </div>
+              <Button type="submit" className="mt-3" disabled={telegramPending}>
+                {telegramPending ? "Guardando…" : "Guardar grupo"}
+              </Button>
+              {telegramState.error ? <p role="alert" className="mt-2 text-sm text-destructive">{telegramState.error}</p> : null}
+              {telegramState.success ? <p role="status" aria-live="polite" className="mt-2 text-sm text-muted-foreground">{telegramState.success}</p> : null}
+            </form>
+            <form action={telegramTemplateAction} className="rounded-md border border-border p-4">
+              <input type="hidden" name="id" value={event.id} />
+              <label className="flex flex-col gap-1.5 text-sm font-medium">
+                Mensaje de Telegram
+                <textarea
+                  name="template"
+                  defaultValue={event.telegramMessageTemplate ?? ""}
+                  maxLength={3000}
+                  rows={7}
+                  placeholder="Vacío = usa la plantilla global.\nEjemplo: {{nombre}} solicitó acceso a {{evento}}. Empresa: {{empresa}}"
+                  className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-sm font-normal"
+                />
+                <span className="text-xs font-normal text-muted-foreground">
+                  Etiquetas: {"{{evento}} {{nombre}} {{email}} {{telefono}} {{empresa}} {{puesto}} {{ocupacion}} {{estado}} {{fecha_evento}} {{url_revision}}"}
+                </span>
+              </label>
+              <Button type="submit" className="mt-3" disabled={telegramTemplatePending}>
+                {telegramTemplatePending ? "Guardando…" : "Guardar mensaje"}
+              </Button>
+              {telegramTemplateState.error ? <p role="alert" className="mt-2 text-sm text-destructive">{telegramTemplateState.error}</p> : null}
+              {telegramTemplateState.success ? <p role="status" aria-live="polite" className="mt-2 text-sm text-muted-foreground">{telegramTemplateState.success}</p> : null}
+            </form>
             <EmbedSettings embedUrl={embedUrl} embedSnippet={embedSnippet} />
             <ReceptionTeam
               eventId={event.id}

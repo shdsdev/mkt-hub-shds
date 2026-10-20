@@ -2,15 +2,21 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/checkbox";
 import type { SafeHcsConnection } from "@/modules/integrations";
+import type { TelegramSettings } from "@/modules/notifications";
 import {
   generateHcsPairingCodeAction,
   renewHcsConnectionAction,
   revokeHcsConnectionAction,
   type HcsIntegrationActionState,
+  saveTelegramSettingsAction,
+  sendTelegramTestMessageAction,
+  type TelegramIntegrationActionState,
 } from "./actions";
 
 const initialState: HcsIntegrationActionState = {};
+const initialTelegramState: TelegramIntegrationActionState = {};
 const dateFormatter = new Intl.DateTimeFormat("es-MX", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -26,7 +32,13 @@ function connectionStatus(connection: SafeHcsConnection) {
   return "Activa";
 }
 
-export function HcsIntegrations({ connections }: { connections: SafeHcsConnection[] }) {
+export function HcsIntegrations({
+  connections,
+  telegramSettings,
+}: {
+  connections: SafeHcsConnection[];
+  telegramSettings?: TelegramSettings;
+}) {
   const [pairingState, pairingAction, pairingPending] = useActionState(
     generateHcsPairingCodeAction,
     initialState,
@@ -39,6 +51,14 @@ export function HcsIntegrations({ connections }: { connections: SafeHcsConnectio
     revokeHcsConnectionAction,
     initialState,
   );
+  const [telegramSaveState, telegramSaveAction, telegramSavePending] = useActionState(
+    saveTelegramSettingsAction,
+    initialTelegramState,
+  );
+  const [telegramTestState, telegramTestAction, telegramTestPending] = useActionState(
+    sendTelegramTestMessageAction,
+    initialTelegramState,
+  );
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8">
@@ -49,6 +69,71 @@ export function HcsIntegrations({ connections }: { connections: SafeHcsConnectio
           muestran una sola vez.
         </p>
       </div>
+
+      <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-heading font-medium">Telegram</h3>
+            <p className="text-xs text-muted-foreground">
+              Recibí avisos de nuevas solicitudes y decisiones en un chat de Telegram.
+            </p>
+          </div>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${telegramSettings?.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+            {telegramSettings?.enabled ? "Activo" : telegramSettings ? "Desactivado" : "No configurado"}
+          </span>
+        </div>
+
+        <form action={telegramSaveAction} className="flex flex-col gap-4">
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">Chat ID</span>
+            <input
+              name="chatId"
+              defaultValue={telegramSettings?.chatId ?? ""}
+              placeholder="-1001234567890"
+              maxLength={100}
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+              <span className="text-xs text-muted-foreground">
+              Usá el ID del grupo o canal donde querés recibir las notificaciones.
+            </span>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">Mensaje de solicitud</span>
+            <textarea
+              name="messageTemplate"
+              defaultValue={telegramSettings?.messageTemplate ?? ""}
+              maxLength={3000}
+              rows={6}
+              placeholder="Nuevo registro para {{evento}}\n{{nombre}} solicitó acceso.\nEmpresa: {{empresa}}"
+              className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 font-mono text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <span className="text-xs text-muted-foreground">
+              Etiquetas: {"{{evento}} {{nombre}} {{email}} {{telefono}} {{empresa}} {{puesto}} {{ocupacion}} {{estado}} {{fecha_evento}} {{url_revision}}"}
+            </span>
+          </label>
+          <Checkbox
+            name="enabled"
+            defaultChecked={telegramSettings?.enabled ?? false}
+            label={
+              <span>
+                <span className="block font-medium">Enviar notificaciones de solicitudes</span>
+                <span className="block text-xs text-muted-foreground">Se usará como destino predeterminado para los eventos sin chat propio.</span>
+              </span>
+            }
+          />
+          <Button type="submit" className="self-start" disabled={telegramSavePending}>
+            {telegramSavePending ? "Guardando…" : "Guardar configuración"}
+          </Button>
+        </form>
+        <form action={telegramTestAction}>
+          <Button type="submit" variant="outline" disabled={telegramTestPending || !telegramSettings?.enabled}>
+            {telegramTestPending ? "Enviando…" : "Enviar mensaje de prueba"}
+          </Button>
+        </form>
+        {telegramSaveState.success ? <p className="text-sm text-muted-foreground" role="status">{telegramSaveState.success}</p> : null}
+        {telegramTestState.success ? <p className="text-sm text-muted-foreground" role="status">{telegramTestState.success}</p> : null}
+        {telegramSaveState.error || telegramTestState.error ? <p className="text-sm text-destructive" role="alert">{telegramSaveState.error ?? telegramTestState.error}</p> : null}
+      </section>
 
       <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 sm:p-5">
         <div>

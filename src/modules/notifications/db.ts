@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, uuid, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid, text, timestamp, boolean, unique, uniqueIndex } from "drizzle-orm/pg-core";
 import { organizations, users } from "@/modules/users/db";
 
 // Leaf module (design.md "Architecture Decisions" — notifications stays a leaf): no FK into
@@ -60,10 +60,27 @@ export const userNotifications = pgTable(
   (table) => [uniqueIndex("user_notifications_recipient_dedupe_unique").on(table.recipientUserId, table.dedupeKey)],
 );
 
+export const telegramSettings = pgTable(
+  "telegram_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    chatId: text("chat_id"),
+    messageTemplate: text("message_template"),
+    enabled: boolean("enabled").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("telegram_settings_organization_unique").on(table.organizationId)],
+);
+
 export const notificationsTables = {
   notificationSubjectType,
   notificationType,
   notificationStatus,
   notificationLog,
   userNotifications,
+  telegramSettings,
 } as const;

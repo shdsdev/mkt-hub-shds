@@ -8,6 +8,12 @@ import {
   renewHcsConnection,
   revokeHcsConnection,
 } from "@/modules/integrations";
+import {
+  getTelegramSettings,
+  sendTelegramMessage,
+  upsertTelegramSettings,
+  validateTelegramTemplate,
+} from "@/modules/notifications";
 import { isActive, isAdmin } from "@/modules/users";
 import { env } from "@/lib/env";
 
@@ -25,10 +31,80 @@ export type HcsIntegrationActionState = {
   companyName?: string;
 };
 
+export type TelegramIntegrationActionState = {
+  error?: string;
+  success?: string;
+};
+
 async function requireActiveAdmin() {
   const user = await getCurrentUser();
   if (!user || !isActive(user.profile) || !isAdmin(user.profile)) return undefined;
   return user;
+}
+
+const telegramSettingsSchema = z.object({
+  chatId: z.string().trim().max(100, "El chat ID es demasiado largo."),
+  enabled: z.boolean(),
+  messageTemplate: z.string().trim().max(3000, "La plantilla no puede superar 3000 caracteres."),
+}).superRefine((value, context) => {
+  if (value.enabled && !value.chatId) {
+    context.addIssue({ code: "custom", path: ["chatId"], message: "Ingresá un chat ID para activar Telegram." });
+  }
+});
+
+export async function saveTelegramSettingsAction(
+  _state: TelegramIntegrationActionState,
+  formData: FormData,
+): Promise<TelegramIntegrationActionState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const parsed = telegramSettingsSchema.safeParse({
+    chatId: formData.get("chatId") ?? "",
+    enabled: formData.get("enabled") === "on",
+    messageTemplate: formData.get("messageTemplate") ?? "",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "La configuración no es válida." };
+  const templateError = validateTelegramTemplate(parsed.data.messageTemplate);
+  if (templateError) return { error: templateError };
+
+  await upsertTelegramSettings({
+    organizationId: user.profile.organizationId,
+    chatId: parsed.data.chatId || null,
+    enabled: parsed.data.enabled,
+    messageTemplate: parsed.data.messageTemplate || null,
+  });
+  revalidatePath("/settings/integrations");
+  return { success: "Configuración de Telegram guardada." };
+}
+
+export async function sendTelegramTestMessageAction(
+  _state: TelegramIntegrationActionState,
+): Promise<TelegramIntegrationActionState> {
+  void _state;
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+
+  const settings = await getTelegramSettings(user.profile.organizationId);
+  if (!settings?.enabled || !settings.chatId?.trim()) {
+    return { error: "Activá Telegram y configurá un chat ID antes de enviar una prueba." };
+  }
+
+  try {
+    await sendTelegramMessage({
+      token: env.TELEGRAM_BOT_TOKEN,
+      chatId: settings.chatId.trim(),
+      text: "Mensaje de prueba de Marketing HUB. Telegram está conectado correctamente.",
+      replyMarkup: { inline_keyboard: [] },
+    });
+    return { success: "Mensaje de prueba enviado correctamente." };
+  } catch (error) {
+    return {
+      error: error instanceof Error
+        ? `Telegram: ${error.message}`
+        : "Telegram no aceptó el mensaje. Revisá el token y el chat ID.",
+    };
+  }
 }
 
 export async function generateHcsPairingCodeAction(

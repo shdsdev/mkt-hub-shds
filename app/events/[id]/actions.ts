@@ -2,7 +2,8 @@
 
 import { z } from "zod";
 import { env } from "@/lib/env";
-import { MEXICAN_STATES } from "@/lib/events/mexican-states";
+import { getMexicanStateLabel, MEXICAN_STATES } from "@/lib/events/mexican-states";
+import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import {
   getPublishedEventBySlugPublic,
   listEventReceptionistIds,
@@ -12,8 +13,14 @@ import {
   resolveRegistrationFormConfig,
   type AttendeeInput,
 } from "@/modules/events";
-import { sendConfirmationEmail } from "@/modules/notifications";
-import { buildRegistrationTelegramMessage, createInternalNotifications, sendTelegramMessage } from "@/modules/notifications";
+import {
+  buildRegistrationTelegramMessage,
+  createInternalNotifications,
+  resolveTelegramChatId,
+  resolveTelegramMessageTemplate,
+  sendConfirmationEmail,
+  sendTelegramMessage,
+} from "@/modules/notifications";
 import { listManagedUsers } from "@/modules/users";
 import { exportQrPng } from "@/modules/qr";
 import { resolveEventEmailContent } from "@/lib/events/event-email-content";
@@ -278,6 +285,14 @@ export async function registerForEventAction(
     .map((user) => user.id);
   const recipientIds = [...new Set([...responsibleIds, ...adminIds])];
   const reviewUrl = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/${event.id}/registrations?registrationId=${result.registration.id}`;
+  const telegramChatId = await resolveTelegramChatId({
+    organizationId: event.organizationId,
+    eventChatId: event.telegramChatId,
+  });
+  const telegramTemplate = await resolveTelegramMessageTemplate({
+    organizationId: event.organizationId,
+    eventTemplate: event.telegramMessageTemplate,
+  });
   void Promise.resolve(createInternalNotifications({
     organizationId: event.organizationId,
     recipientUserIds: recipientIds,
@@ -288,9 +303,23 @@ export async function registerForEventAction(
     href: reviewUrl,
     dedupeKey: `registration-submitted:${result.registration.id}`,
   })).catch(() => undefined);
-  if (event.telegramChatId) {
-    const message = buildRegistrationTelegramMessage({ eventName: event.name, reviewUrl });
-    void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: event.telegramChatId, text: message.text, replyMarkup: message.replyMarkup })).catch(() => undefined);
+  if (telegramChatId) {
+    const message = buildRegistrationTelegramMessage({
+      eventName: event.name,
+      reviewUrl,
+      template: telegramTemplate,
+      values: {
+        nombre: primaryParsed.data.fullName,
+        email: primaryParsed.data.email,
+        telefono: primaryParsed.data.phone ?? "",
+        empresa: primaryParsed.data.company ?? "",
+        puesto: primaryParsed.data.jobTitle ?? "",
+        ocupacion: getOccupationPresentation(primaryParsed.data.occupation).label,
+        estado: getMexicanStateLabel(primaryParsed.data.state),
+        fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt),
+      },
+    });
+    void Promise.resolve(sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: message.text, replyMarkup: message.replyMarkup })).catch(() => undefined);
   }
 
   // Fire-and-forget, same convention as recordEventVisit — notifyEventWebhook already swallows
