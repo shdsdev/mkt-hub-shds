@@ -13,35 +13,48 @@ export function QrScanner({ active, onDetected, onError }: { active: boolean; on
   useEffect(() => {
     if (!active || !videoRef.current) return;
     const videoElement = videoRef.current;
-    const reader = new BrowserQRCodeReader();
+    const reader = new BrowserQRCodeReader(undefined, {
+      delayBetweenScanAttempts: 200,
+      delayBetweenScanSuccess: 300,
+      tryPlayVideoTimeout: 3000,
+    });
     let stopped = false;
+    let stoppedByResult = false;
     let controls: { stop: () => void } | undefined;
 
     void reader
       .decodeFromConstraints(
         { video: { facingMode: { ideal: "environment" } } },
         videoElement,
-        (result) => {
+        (result, _error, callbackControls) => {
           if (!result || stopped) return;
           stopped = true;
-          controls?.stop();
+          stoppedByResult = true;
+          callbackControls.stop();
           onDetectedRef.current(result.getText());
         },
       )
       .then((nextControls) => {
         controls = nextControls;
-        if (stopped) controls.stop();
+        if (stopped && !stoppedByResult) controls.stop();
       })
       .catch(() => onErrorRef.current("No se pudo acceder a la cámara. Revisa los permisos del navegador."));
 
     return () => {
       stopped = true;
-      controls?.stop();
+      if (!stoppedByResult) controls?.stop();
       const stream = videoElement.srcObject;
-      if (stream instanceof MediaStream) stream.getTracks().forEach((track) => track.stop());
+      if (typeof MediaStream !== "undefined" && stream instanceof MediaStream) stream.getTracks().forEach((track) => track.stop());
       videoElement.srcObject = null;
     };
   }, [active]);
 
-  return <video ref={videoRef} autoPlay muted playsInline className="aspect-[4/3] w-full rounded-lg bg-black object-cover" aria-label="Vista previa de la cámara" />;
+  return (
+    <div className="w-full">
+      <video ref={videoRef} autoPlay muted playsInline className="aspect-[4/3] w-full rounded-lg bg-black object-cover" aria-label="Vista previa de la cámara" />
+      <p className="mt-3 text-center text-sm font-medium text-muted-foreground" role="status" aria-live="polite">
+        {active ? "Escaneando QR…" : "Procesando QR…"}
+      </p>
+    </div>
+  );
 }
