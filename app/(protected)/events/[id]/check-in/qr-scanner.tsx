@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { BrowserQRCodeReader } from "@zxing/browser";
+import { decodeQrFrame } from "./qr-frame-decoder";
 
 export function QrScanner({ active, onDetected, onError }: { active: boolean; onDetected: (code: string) => void; onError: (message: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -13,39 +13,73 @@ export function QrScanner({ active, onDetected, onError }: { active: boolean; on
   useEffect(() => {
     if (!active || !videoRef.current) return;
     const videoElement = videoRef.current;
-    const reader = new BrowserQRCodeReader(undefined, {
-      delayBetweenScanAttempts: 200,
-      delayBetweenScanSuccess: 300,
-      tryPlayVideoTimeout: 3000,
-    });
+    const canvas = document.createElement("canvas");
+    const frameContext = canvas.getContext("2d", { willReadFrequently: true });
+    if (!frameContext) {
+      onErrorRef.current("El navegador no puede preparar la lectura de la cámara.");
+      return;
+    }
+    const context = frameContext;
     let stopped = false;
-    let stoppedByResult = false;
-    let controls: { stop: () => void } | undefined;
+    let animationFrame = 0;
+    let stream: MediaStream | undefined;
+    let lastScanAt = 0;
 
-    void reader
-      .decodeFromConstraints(
-        { video: { facingMode: { ideal: "environment" } } },
-        videoElement,
-        (result, _error, callbackControls) => {
-          if (!result || stopped) return;
-          stopped = true;
-          stoppedByResult = true;
-          callbackControls.stop();
-          onDetectedRef.current(result.getText());
-        },
-      )
-      .then((nextControls) => {
-        controls = nextControls;
-        if (stopped && !stoppedByResult) controls.stop();
-      })
-      .catch(() => onErrorRef.current("No se pudo acceder a la cámara. Revisa los permisos del navegador."));
+    function stop() {
+      stopped = true;
+      cancelAnimationFrame(animationFrame);
+      stream?.getTracks().forEach((track) => track.stop());
+      videoElement.srcObject = null;
+    }
+
+    async function start() {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera_unavailable");
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            height: { ideal: 720 },
+            width: { ideal: 1280 },
+          },
+        });
+        if (stopped) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        videoElement.srcObject = stream;
+        videoElement.muted = true;
+        videoElement.playsInline = true;
+        await videoElement.play();
+
+        function scan(timestamp: number) {
+          if (stopped) return;
+          if (timestamp - lastScanAt >= 100 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+            lastScanAt = timestamp;
+            if (canvas.width !== videoElement.videoWidth || canvas.height !== videoElement.videoHeight) {
+              canvas.width = videoElement.videoWidth;
+              canvas.height = videoElement.videoHeight;
+            }
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            const result = decodeQrFrame(context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+            if (result) {
+              stop();
+              onDetectedRef.current(result);
+              return;
+            }
+          }
+          animationFrame = requestAnimationFrame(scan);
+        }
+
+        animationFrame = requestAnimationFrame(scan);
+      } catch {
+        if (!stopped) onErrorRef.current("No se pudo acceder a la cámara. Revisa los permisos del navegador.");
+      }
+    }
+
+    void start();
 
     return () => {
-      stopped = true;
-      if (!stoppedByResult) controls?.stop();
-      const stream = videoElement.srcObject;
-      if (typeof MediaStream !== "undefined" && stream instanceof MediaStream) stream.getTracks().forEach((track) => track.stop());
-      videoElement.srcObject = null;
+      stop();
     };
   }, [active]);
 
