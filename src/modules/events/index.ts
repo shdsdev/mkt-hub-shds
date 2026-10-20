@@ -52,6 +52,7 @@ export {
   regenerateEventWebhookSecret,
   notifyEventWebhook,
   updateRegistrationReviewStatus,
+  deleteRejectedRegistration,
   type EventRow,
   type EventMutationResult,
   type DeleteEventResult,

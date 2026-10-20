@@ -14,9 +14,9 @@ const mocks = vi.hoisted(() => ({
   resolveTelegramChatId: vi.fn(),
   resolveTelegramMessageTemplate: vi.fn(),
   sendTelegramMessage: vi.fn(),
-  getTelegramBotToken: vi.fn(() => "test-token"),
   exportQrPng: vi.fn(),
   updateRegistrationReviewStatus: vi.fn(),
+  deleteRejectedRegistration: vi.fn(),
   revalidatePath: vi.fn(),
   OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
 }));
@@ -31,6 +31,7 @@ vi.mock("@/modules/events", () => ({
   notifyEventWebhook: mocks.notifyEventWebhook,
   OCCUPATION_OPTIONS: mocks.OCCUPATION_OPTIONS,
   updateRegistrationReviewStatus: mocks.updateRegistrationReviewStatus,
+  deleteRejectedRegistration: mocks.deleteRejectedRegistration,
 }));
 vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
@@ -46,12 +47,12 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/env", () => ({
   env: {
     NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com",
-    get TELEGRAM_BOT_TOKEN() { return mocks.getTelegramBotToken(); },
+    TELEGRAM_BOT_TOKEN: "test-token",
   },
 }));
 vi.mock("@/lib/events/event-email-content", () => ({ resolveEventEmailContent: vi.fn() }));
 
-import { addCompanionAction, resendInvitationAction, updateRegistrationReviewStatusAction } from "./actions";
+import { addCompanionAction, deleteRejectedRegistrationAction, resendInvitationAction, updateRegistrationReviewStatusAction } from "./actions";
 
 const adminUser = {
   id: "admin-1",
@@ -200,15 +201,32 @@ describe("updateRegistrationReviewStatusAction", () => {
     expect(result).toEqual({ success: "Estado de revisión actualizado." });
   });
 
-  it("does not fail the review action when the Telegram token is unavailable", async () => {
+  it("does not send Telegram when a review decision changes", async () => {
     mocks.resolveTelegramChatId.mockResolvedValue("-100123");
-    mocks.getTelegramBotToken.mockImplementation(() => { throw new Error("Missing required environment variable: TELEGRAM_BOT_TOKEN"); });
+    mocks.listRegistrations.mockResolvedValue([{
+      id: "22222222-2222-4222-8222-222222222222",
+      cancelToken: "cancel-token",
+      attendees: [{
+        id: "attendee-1",
+        organizationId: "org-1",
+        fullName: "Ada Lovelace",
+        email: "ada@example.com",
+        phone: null,
+        company: null,
+        jobTitle: null,
+        occupation: "manufacturer",
+        state: "jalisco",
+        passToken: "pass-token",
+        backupCode: "ABCD1234",
+      }],
+    }]);
     const data = new FormData();
     data.set("registrationId", "22222222-2222-4222-8222-222222222222");
     data.set("eventId", "33333333-3333-4333-8333-333333333333");
     data.set("reviewStatus", "rejected");
 
     await expect(updateRegistrationReviewStatusAction({}, data)).resolves.toEqual({ success: "Estado de revisión actualizado." });
+    expect(mocks.sendTelegramMessage).not.toHaveBeenCalled();
   });
 
   it("rejects non-admin users without changing the registration", async () => {
@@ -216,5 +234,33 @@ describe("updateRegistrationReviewStatusAction", () => {
     const result = await updateRegistrationReviewStatusAction({}, new FormData());
     expect(result).toEqual({ error: "No tienes permiso para administrar registros." });
     expect(mocks.updateRegistrationReviewStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteRejectedRegistrationAction", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.getCurrentUser.mockResolvedValue(adminUser);
+    mocks.isActive.mockReturnValue(true);
+    mocks.isAdmin.mockReturnValue(true);
+  });
+
+  it("deletes an organization-scoped rejected registration for an admin", async () => {
+    mocks.deleteRejectedRegistration.mockResolvedValue({ id: REGISTRATION_ID, status: "rejected" });
+    const data = new FormData();
+    data.set("registrationId", REGISTRATION_ID);
+    data.set("eventId", EVENT_ID);
+
+    await expect(deleteRejectedRegistrationAction({}, data)).resolves.toEqual({ success: "Registro eliminado." });
+    expect(mocks.deleteRejectedRegistration).toHaveBeenCalledWith({ registrationId: REGISTRATION_ID, eventId: EVENT_ID, organizationId: "org-1" });
+  });
+
+  it("rejects deletion when the registration is not rejected or missing", async () => {
+    mocks.deleteRejectedRegistration.mockResolvedValue(undefined);
+    const data = new FormData();
+    data.set("registrationId", REGISTRATION_ID);
+    data.set("eventId", EVENT_ID);
+
+    await expect(deleteRejectedRegistrationAction({}, data)).resolves.toEqual({ error: "Solo se pueden eliminar registros rechazados." });
   });
 });

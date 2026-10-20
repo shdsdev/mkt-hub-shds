@@ -9,7 +9,7 @@ import { getOccupationPresentation } from "@/lib/events/occupation-presentation"
 import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, Tag, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddCompanionRow } from "./add-companion-row";
-import { resendInvitationAction, updateRegistrationReviewStatusAction, type ResendInvitationState } from "./actions";
+import { deleteRejectedRegistrationAction, resendInvitationAction, updateRegistrationReviewStatusAction, type ResendInvitationState } from "./actions";
 import { REVIEW_STATUS_LABELS, type ReviewStatus } from "./review-status";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
 import { formatRegistrationDate } from "./registration-date";
@@ -71,8 +71,10 @@ export function RegistrationDetailSheet({
 }) {
   const [resendState, resendAction, resendPending] = useActionState(resendInvitationAction, initialResendState);
   const [reviewState, reviewAction, reviewPending] = useActionState(updateRegistrationReviewStatusAction, {});
+  const [deleteState, deleteAction, deletePending] = useActionState(deleteRejectedRegistrationAction, {});
   const [reviewStatus, setReviewStatus] = useState(registration.reviewStatus);
   const [pendingReviewStatus, setPendingReviewStatus] = useState<ReviewStatus | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const router = useRouter();
   useEffect(() => setReviewStatus(registration.reviewStatus), [registration.reviewStatus]);
   useEffect(() => {
@@ -80,6 +82,12 @@ export function RegistrationDetailSheet({
     setPendingReviewStatus(null);
     router.refresh();
   }, [reviewState.success, router]);
+  useEffect(() => {
+    if (!deleteState.success) return;
+    setDeleteOpen(false);
+    onOpenChange(false);
+    router.refresh();
+  }, [deleteState.success, onOpenChange, router]);
   function requestReviewStatus(status: ReviewStatus) {
     if (status === reviewStatus) return;
     setPendingReviewStatus(status);
@@ -104,6 +112,9 @@ export function RegistrationDetailSheet({
               <Button type="button" size="sm" onClick={() => requestReviewStatus("approved")} disabled={reviewPending || reviewStatus === "approved"}>Aprobar</Button>
               <Button type="button" size="sm" variant="outline" onClick={() => requestReviewStatus("waitlisted")} disabled={reviewPending || reviewStatus === "waitlisted"}>Lista de espera</Button>
               <Button type="button" size="sm" variant="destructive" onClick={() => requestReviewStatus("rejected")} disabled={reviewPending || reviewStatus === "rejected"}>Rechazar</Button>
+              {registration.status === "rejected" ? (
+                <Button type="button" size="sm" variant="outline" onClick={() => setDeleteOpen(true)} disabled={deletePending}>Eliminar registro</Button>
+              ) : null}
               {registration.status !== "cancelled" ? (
                 <AddCompanionRow
                   registrationId={registration.id}
@@ -132,6 +143,25 @@ export function RegistrationDetailSheet({
                   <input type="hidden" name="reviewStatus" value={pendingReviewStatus ?? reviewStatus} />
                   <Button type="button" variant="outline" onClick={() => setPendingReviewStatus(null)} disabled={reviewPending}>Cancelar</Button>
                   <Button type="submit" variant={pendingReviewStatus === "rejected" ? "destructive" : "default"} disabled={reviewPending}>{reviewPending ? "Guardando…" : "Confirmar"}</Button>
+                </form>
+              </DialogPrimitive.Popup>
+            </DialogPrimitive.Portal>
+           </DialogPrimitive.Root>
+
+          <DialogPrimitive.Root open={deleteOpen} onOpenChange={(open) => { if (!open || !deletePending) setDeleteOpen(open); }}>
+            <DialogPrimitive.Portal>
+              <DialogPrimitive.Backdrop className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-md" />
+              <DialogPrimitive.Popup className="fixed inset-0 z-[60] m-auto h-fit w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl">
+                <DialogPrimitive.Title className="text-lg font-semibold">Eliminar registro rechazado</DialogPrimitive.Title>
+                <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
+                  Esta acción eliminará permanentemente el registro y sus acompañantes. No se puede deshacer.
+                </DialogPrimitive.Description>
+                {deleteState.error ? <p role="alert" className="mt-3 text-sm text-destructive">{deleteState.error}</p> : null}
+                <form action={deleteAction} className="mt-6 flex justify-end gap-2">
+                  <input type="hidden" name="registrationId" value={registration.id} />
+                  <input type="hidden" name="eventId" value={eventId} />
+                  <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)} disabled={deletePending}>Cancelar</Button>
+                  <Button type="submit" variant="destructive" disabled={deletePending}>{deletePending ? "Eliminando…" : "Eliminar definitivamente"}</Button>
                 </form>
               </DialogPrimitive.Popup>
             </DialogPrimitive.Portal>

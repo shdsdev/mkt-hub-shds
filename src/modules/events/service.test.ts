@@ -10,6 +10,7 @@ const {
   txSelectMock,
   txInsertMock,
   txUpdateMock,
+  txDeleteMock,
   dnsLookupMock,
 } = vi.hoisted(() => ({
   insertMock: vi.fn(),
@@ -21,6 +22,7 @@ const {
   txSelectMock: vi.fn(),
   txInsertMock: vi.fn(),
   txUpdateMock: vi.fn(),
+  txDeleteMock: vi.fn(),
   dnsLookupMock: vi.fn(),
 }));
 
@@ -78,6 +80,7 @@ import {
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
   notifyEventWebhook,
+  deleteRejectedRegistration,
 } from "./service";
 
 // Chainable mock builders matching the project's established pattern
@@ -519,7 +522,7 @@ describe("events service — registerForEvent", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
-      callback({ execute: txExecuteMock, select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+      callback({ execute: txExecuteMock, select: txSelectMock, insert: txInsertMock, update: txUpdateMock, delete: txDeleteMock }),
     );
   });
 
@@ -1520,5 +1523,40 @@ describe("events service — notifyEventWebhook", () => {
     await expect(
       notifyEventWebhook({ webhookUrl: "https://example.com/webhook", webhookSecret: "s" }, "registration.created", {}),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("events service — rejected registration cleanup", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ select: txSelectMock, delete: txDeleteMock }),
+    );
+  });
+
+  it("deletes attendees before an organization-scoped rejected registration", async () => {
+    const registration = { id: "registration-1", eventId: "event-1", organizationId: "org-1", status: "rejected" };
+    txSelectMock.mockReturnValueOnce(txChain([registration]));
+    txDeleteMock.mockReturnValueOnce(txChain([])).mockReturnValueOnce(txChain([registration]));
+
+    await expect(deleteRejectedRegistration({
+      registrationId: "registration-1",
+      eventId: "event-1",
+      organizationId: "org-1",
+    })).resolves.toEqual(registration);
+
+    expect(txDeleteMock).toHaveBeenCalledTimes(2);
+    expect(txDeleteMock.mock.invocationCallOrder[0]).toBeLessThan(txDeleteMock.mock.invocationCallOrder[1]);
+  });
+
+  it("does not delete a registration unless it is rejected", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([{ id: "registration-1", status: "confirmed" }]));
+
+    await expect(deleteRejectedRegistration({
+      registrationId: "registration-1",
+      eventId: "event-1",
+      organizationId: "org-1",
+    })).resolves.toBeUndefined();
+    expect(txDeleteMock).not.toHaveBeenCalled();
   });
 });

@@ -886,6 +886,36 @@ export async function updateRegistrationReviewStatus(input: {
   });
 }
 
+export async function deleteRejectedRegistration(input: {
+  registrationId: string;
+  eventId: string;
+  organizationId: string;
+}): Promise<EventRegistrationRow | undefined> {
+  return db.transaction(async (tx) => {
+    const [registration] = await tx
+      .select()
+      .from(eventRegistrations)
+      .where(and(
+        eq(eventRegistrations.id, input.registrationId),
+        eq(eventRegistrations.eventId, input.eventId),
+        eq(eventRegistrations.organizationId, input.organizationId),
+      ))
+      .limit(1);
+    if (!registration || registration.status !== "rejected") return undefined;
+
+    await tx.delete(eventAttendees).where(eq(eventAttendees.registrationId, registration.id));
+    const [deleted] = await tx
+      .delete(eventRegistrations)
+      .where(and(
+        eq(eventRegistrations.id, registration.id),
+        eq(eventRegistrations.eventId, input.eventId),
+        eq(eventRegistrations.organizationId, input.organizationId),
+      ))
+      .returning();
+    return deleted;
+  });
+}
+
 export async function assignEventReceptionist(eventId: string, userId: string, organizationId: string): Promise<boolean> {
   const event = await getEvent(eventId, organizationId);
   if (!event) return false;

@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
 import {
   addAttendeeToRegistration,
+  deleteRejectedRegistration,
   getEvent,
   listEventReceptionistIds,
   listRegistrations,
@@ -16,19 +17,13 @@ import {
   type AddAttendeeToRegistrationResult,
 } from "@/modules/events";
 import {
-  buildRegistrationTelegramMessage,
   createInternalNotifications,
-  resolveTelegramChatId,
-  resolveTelegramMessageTemplate,
   sendConfirmationEmail,
   sendRegistrationDecisionEmail,
-  sendTelegramMessage,
 } from "@/modules/notifications";
 import { listManagedUsers } from "@/modules/users";
 import { exportQrPng } from "@/modules/qr";
 import { resolveEventEmailContent } from "@/lib/events/event-email-content";
-import { getMexicanStateLabel } from "@/lib/events/mexican-states";
-import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar registros.";
 const INVALID_FORM_ERROR = "Revisa los datos del acompañante.";
@@ -45,26 +40,6 @@ const REASON_MESSAGES: Record<Exclude<AddAttendeeToRegistrationResult, { ok: tru
   at_capacity: "El evento está a capacidad — no se puede agregar más gente a un registro confirmado.",
   duplicate_email: "Ya existe un asistente activo con ese correo en este evento.",
 };
-
-function telegramAttendeeValues(attendee?: {
-  fullName: string;
-  email: string;
-  phone: string | null;
-  company: string | null;
-  jobTitle: string | null;
-  occupation: string | null;
-  state: string | null;
-}) {
-  return {
-    nombre: attendee?.fullName ?? "",
-    email: attendee?.email ?? "",
-    telefono: attendee?.phone ?? "",
-    empresa: attendee?.company ?? "",
-    puesto: attendee?.jobTitle ?? "",
-    ocupacion: getOccupationPresentation(attendee?.occupation).label,
-    estado: getMexicanStateLabel(attendee?.state),
-  };
-}
 
 const schema = z.object({
   registrationId: z.string().uuid(),
@@ -83,6 +58,33 @@ export type AddCompanionFormState = { error?: string; success?: boolean; addedCo
 export type ResendInvitationState = { error?: string; success?: string };
 
 export type ReviewStatusFormState = { error?: string; success?: string };
+export type DeleteRegistrationState = { error?: string; success?: string };
+
+export async function deleteRejectedRegistrationAction(
+  _prevState: DeleteRegistrationState,
+  formData: FormData,
+): Promise<DeleteRegistrationState> {
+  const user = await getCurrentUser();
+  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) return { error: PERMISSION_ERROR };
+
+  const parsed = z.object({
+    registrationId: z.string().uuid(),
+    eventId: z.string().uuid(),
+  }).safeParse({
+    registrationId: formData.get("registrationId"),
+    eventId: formData.get("eventId"),
+  });
+  if (!parsed.success) return { error: "No se pudo identificar el registro." };
+
+  const deleted = await deleteRejectedRegistration({
+    ...parsed.data,
+    organizationId: user.profile.organizationId,
+  });
+  if (!deleted) return { error: "Solo se pueden eliminar registros rechazados." };
+
+  revalidatePath(`/events/${parsed.data.eventId}/registrations`);
+  return { success: "Registro eliminado." };
+}
 
 export async function updateRegistrationReviewStatusAction(
   _prevState: ReviewStatusFormState,
@@ -103,15 +105,6 @@ export async function updateRegistrationReviewStatusAction(
   if (!event) return { error: "No se encontró el registro." };
   const receptionistIds = await listEventReceptionistIds(parsed.data.eventId, user.profile.organizationId);
   if (!isAdmin(user.profile) && !receptionistIds.includes(user.id)) return { error: PERMISSION_ERROR };
-  const telegramChatId = await resolveTelegramChatId({
-    organizationId: event.organizationId,
-    eventChatId: event.telegramChatId,
-  });
-  const telegramTemplate = await resolveTelegramMessageTemplate({
-    organizationId: event.organizationId,
-    eventTemplate: event.telegramMessageTemplate,
-  });
-
   const registration = await updateRegistrationReviewStatus({
     ...parsed.data,
     organizationId: user.profile.organizationId,
@@ -133,17 +126,6 @@ export async function updateRegistrationReviewStatusAction(
       href,
       dedupeKey: `registration-review-blocked:${parsed.data.registrationId}`,
     })).catch(() => undefined);
-    if (telegramChatId) {
-      const message = buildRegistrationTelegramMessage({
-        eventName: event.name,
-        reviewUrl: href,
-        template: telegramTemplate,
-        values: { fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt) },
-      });
-      void Promise.resolve()
-        .then(() => sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: `Aprobación bloqueada por falta de cupo\n${message.text}`, replyMarkup: message.replyMarkup }))
-        .catch(() => undefined);
-    }
     return { error: CAPACITY_REVIEW_ERROR };
   }
   if (!registration) return { error: "No se encontró el registro." };
@@ -167,21 +149,6 @@ export async function updateRegistrationReviewStatusAction(
     href,
     dedupeKey: `registration-decision:${parsed.data.registrationId}:${parsed.data.reviewStatus}`,
   })).catch(() => undefined);
-  if (telegramChatId) {
-    const message = buildRegistrationTelegramMessage({
-      eventName: event.name,
-      reviewUrl: href,
-      template: telegramTemplate,
-      values: {
-        ...telegramAttendeeValues(primary),
-        fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt),
-      },
-    });
-    void Promise.resolve()
-      .then(() => sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: `Solicitud actualizada: ${parsed.data.reviewStatus}\n${message.text}`, replyMarkup: message.replyMarkup }))
-      .catch(() => undefined);
-  }
-
   if (primary && parsed.data.reviewStatus === "approved") {
     const qrPng = await exportQrPng(primary.passToken, {});
     await sendConfirmationEmail({
