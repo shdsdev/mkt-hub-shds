@@ -189,6 +189,28 @@ describe("registerForEventAction", () => {
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the companion state when the event requires state", async () => {
+    mocks.resolveRegistrationFormConfig.mockReturnValue(requiredStateConfig());
+    mocks.registerForEvent.mockResolvedValue({
+      ok: true,
+      registration: { status: "pending_review" },
+      attendees: [],
+    });
+    const fd = baseFormData({ state: "jalisco" });
+    fd.append("companionFullName", "Alan Turing");
+    fd.append("companionEmail", "alan@example.com");
+    fd.append("companionCompanyMode", "same");
+    fd.append("companionOccupation", "architect-decorator");
+    fd.append("companionState", "jalisco");
+
+    const result = await registerForEventAction({}, fd);
+
+    expect(result).toEqual({ success: true, status: "pending_review" });
+    expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({
+      companions: [expect.objectContaining({ state: "jalisco" })],
+    }));
+  });
+
   it("copies the primary company when the companion selects same, ignoring a forged company", async () => {
     const fd = baseFormData();
     fd.append("companionFullName", "Alan Turing");

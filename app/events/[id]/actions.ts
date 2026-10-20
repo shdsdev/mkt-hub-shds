@@ -40,7 +40,7 @@ const INVALID_BRAND_COMBINATION_ERROR = "Seleccioná una sola opción: Ninguno o
 const PUBLIC_FORM_KEYS = [
   "slug", "website", "fullName", "email", "phone", "company", "jobTitle", "occupation", "state",
   "companionFullName", "companionEmail", "companionPhone", "companionCompany", "companionCompanyMode",
-  "companionJobTitle", "companionOccupation", "requestMoreCompanions", "privacyAccepted", "termsAccepted",
+  "companionJobTitle", "companionOccupation", "companionState", "requestMoreCompanions", "privacyAccepted", "termsAccepted",
   "marketingAccepted", "clientBrands", "interests", "utmSource", "utmMedium", "utmCampaign", "utmTerm",
   "utmContent", "utmId",
 ] as const;
@@ -127,16 +127,18 @@ function readCompanions(formData: FormData): unknown[] {
   const companies = formData.getAll("companionCompany").map(String);
   const jobTitles = formData.getAll("companionJobTitle").map(String);
   const occupations = formData.getAll("companionOccupation").map(String);
+  const states = formData.getAll("companionState").map(String);
 
-  const rowCount = Math.max(fullNames.length, emails.length, phones.length, companies.length, jobTitles.length, occupations.length);
+  const rowCount = Math.max(fullNames.length, emails.length, phones.length, companies.length, jobTitles.length, occupations.length, states.length);
   return Array.from({ length: rowCount }, (_, index) => ({
       fullName: fullNames[index] ?? "",
       email: emails[index] ?? "",
       phone: phones[index] ?? "",
       company: companies[index] ?? "",
-      jobTitle: jobTitles[index] ?? "",
-      occupation: occupations[index] ?? "",
-    }))
+       jobTitle: jobTitles[index] ?? "",
+       occupation: occupations[index] ?? "",
+       state: states[index] ?? "",
+     }))
     .filter((companion) => companion.fullName.trim() || companion.email.trim());
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import type { ClientBrandOption, RegistrationFormConfig } from "@/modules/events";
 import { getPublicClientBrandOptions, toggleClientBrandOption } from "@/lib/events/registration-form-ui";
@@ -9,6 +9,7 @@ import { RegistrationFieldRenderer } from "@/components/registration-field-rende
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getRegistrationFormSteps, type RegistrationStepId } from "@/lib/events/registration-form-steps";
 import { registerForEventAction, type RegisterFormState } from "./actions";
+import { restoreFormValues, snapshotFormValues, type FormValueSnapshot } from "@/lib/forms/form-values";
 
 const initialState: RegisterFormState = {};
 const occupationOptions = [
@@ -101,12 +102,18 @@ export function RegisterForm({
   const [summaryItems, setSummaryItems] = useState<{ label: string; value: string }[]>([]);
   const [clientFieldErrors, setClientFieldErrors] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
+  const submittedValuesRef = useRef<FormValueSnapshot | null>(null);
   const steps = getRegistrationFormSteps(formConfig);
   const activeStepId = steps[mobileStep]?.id ?? steps[steps.length - 1].id;
   const personalCustomFields = formConfig.customFields.filter((field) => field.enabled && field.section === "personal");
   const preferenceCustomFields = formConfig.customFields.filter((field) => field.enabled && field.section === "preferences");
   const hasPreferenceStep = steps.some((step) => step.id === "preferences");
   const fieldErrors = { ...clientFieldErrors, ...state.fieldErrors };
+
+  useEffect(() => {
+    if (!state.error || !formRef.current || !submittedValuesRef.current) return;
+    restoreFormValues(formRef.current, submittedValuesRef.current);
+  }, [state]);
 
   function toggleBrand(brand: string, checked: boolean) {
     setSelectedBrands((current) => toggleClientBrandOption(current, brand as ClientBrandOption, checked));
@@ -155,7 +162,10 @@ export function RegisterForm({
   function handleFormSubmit(event: React.FormEvent<HTMLFormElement>) {
     const invalidControl = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select"))
       .find((control) => !control.checkValidity());
-    if (!invalidControl) return;
+    if (!invalidControl) {
+      submittedValuesRef.current = snapshotFormValues(event.currentTarget);
+      return;
+    }
     event.preventDefault();
     setClientFieldErrors((current) => ({ ...current, [invalidControl.name]: "Completá este campo." }));
     invalidControl.reportValidity();
@@ -242,7 +252,7 @@ export function RegisterForm({
              <input name="company" required={formConfig.fields.company.required} aria-required={formConfig.fields.company.required} maxLength={255} placeholder="Ej. Estudio Norte" className={fieldClass} />
            </Field>
          ) : null}
-          {formConfig.fields.jobTitle.visible ? (
+            {formConfig.fields.jobTitle.visible ? (
             <Field label="Puesto" required={formConfig.fields.jobTitle.required} error={fieldErrors.jobTitle} help="Escribí tu cargo o función dentro de tu empresa.">
              <input name="jobTitle" required={formConfig.fields.jobTitle.required} aria-required={formConfig.fields.jobTitle.required} maxLength={255} placeholder="Ej. Director de compras" className={fieldClass} />
            </Field>
@@ -401,8 +411,22 @@ export function RegisterForm({
               <Field label="Puesto del acompañante" required={formConfig.fields.jobTitle.required} error={fieldErrors.companionJobTitle} help="Escribí su cargo o función dentro de su empresa.">
                <input name="companionJobTitle" required={formConfig.fields.jobTitle.required} maxLength={255} placeholder="Ej. Director de compras" className={fieldClass} />
              </Field>
-           ) : null}
-             <Field label="¿A qué se dedica tu acompañante?" required error={fieldErrors.companionOccupation} help="Elegí la opción que mejor describe su actividad profesional.">
+            ) : null}
+            {formConfig.fields.state.visible ? (
+              <Field label="Estado del acompañante" required={formConfig.fields.state.required} error={fieldErrors.companionState} help="Seleccioná el estado de México donde reside tu acompañante.">
+                <Select name="companionState" defaultValue="">
+                  <SelectTrigger className={selectClass} aria-label="Estado del acompañante" aria-required={formConfig.fields.state.required}>
+                    <SelectValue placeholder="Seleccioná su estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MEXICAN_STATES.map((stateOption) => (
+                      <SelectItem key={stateOption.value} value={stateOption.value}>{stateOption.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            ) : null}
+              <Field label="¿A qué se dedica tu acompañante?" required error={fieldErrors.companionOccupation} help="Elegí la opción que mejor describe su actividad profesional.">
               <Select name="companionOccupation" defaultValue="" items={occupationOptions.map(([value, label]) => ({ value, label }))}>
               <SelectTrigger className={selectClass} aria-label="Actividad profesional del acompañante" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
                 <SelectContent>{occupationOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
