@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   resolveTelegramChatId: vi.fn(),
   resolveTelegramMessageTemplate: vi.fn(),
   buildRegistrationTelegramMessage: vi.fn(),
+  sendTelegramMessage: vi.fn(),
   exportQrPng: vi.fn(),
   OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
   MEXICAN_STATES: [{ value: "jalisco", label: "Jalisco" }],
@@ -46,7 +47,7 @@ vi.mock("@/modules/events", () => ({
 vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
   createInternalNotifications: vi.fn(),
-  sendTelegramMessage: vi.fn(),
+  sendTelegramMessage: mocks.sendTelegramMessage,
   resolveTelegramChatId: mocks.resolveTelegramChatId,
   resolveTelegramMessageTemplate: mocks.resolveTelegramMessageTemplate,
   buildRegistrationTelegramMessage: mocks.buildRegistrationTelegramMessage,
@@ -101,6 +102,7 @@ describe("registerForEventAction", () => {
     mocks.listManagedUsers.mockResolvedValue([]);
     mocks.resolveTelegramChatId.mockResolvedValue(undefined);
     mocks.buildRegistrationTelegramMessage.mockReturnValue({ text: "", replyMarkup: { inline_keyboard: [] } });
+    mocks.sendTelegramMessage.mockResolvedValue(undefined);
   });
 
   it("rejects when the event is no longer published", async () => {
@@ -159,6 +161,27 @@ describe("registerForEventAction", () => {
     expect(mocks.buildRegistrationTelegramMessage).toHaveBeenCalledWith(expect.objectContaining({
       values: expect.objectContaining({ ocupacion: "Fabricante", estado: "Tlaxcala" }),
     }));
+  });
+
+  it("waits for Telegram delivery before completing a new registration", async () => {
+    mocks.registerForEvent.mockResolvedValue({
+      ok: true,
+      registration: { status: "pending_review" },
+      attendees: [],
+    });
+    mocks.resolveTelegramChatId.mockResolvedValue("-100123");
+    let resolveTelegram: () => void = () => undefined;
+    mocks.sendTelegramMessage.mockReturnValue(new Promise<void>((resolve) => { resolveTelegram = resolve; }));
+    let settled = false;
+    const resultPromise = registerForEventAction({}, baseFormData()).then((result) => {
+      settled = true;
+      return result;
+    });
+
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    resolveTelegram();
+    await expect(resultPromise).resolves.toEqual({ success: true, status: "pending_review" });
   });
 
   it("shows a pending-review message without sending an access email", async () => {

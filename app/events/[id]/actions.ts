@@ -321,7 +321,7 @@ export async function registerForEventAction(
         fecha_evento: new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(event.startsAt),
       },
     });
-    void Promise.resolve()
+    await Promise.resolve()
       .then(() => sendTelegramMessage({ token: env.TELEGRAM_BOT_TOKEN, chatId: telegramChatId, text: message.text, replyMarkup: message.replyMarkup }))
       .catch(() => undefined);
   }

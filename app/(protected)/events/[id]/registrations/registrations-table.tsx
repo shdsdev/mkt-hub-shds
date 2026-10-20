@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import { Tag } from "lucide-react";
@@ -30,8 +31,16 @@ export function RegistrationsTable({
   reviewStatusLabels,
   initialSelectedId,
 }: Props) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const selectedRegistration = registrations.find(({ id }) => id === selectedId) ?? null;
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, 10_000);
+    return () => window.clearInterval(interval);
+  }, [router]);
 
   function selectRegistration(id: string) {
     setSelectedId(id);
