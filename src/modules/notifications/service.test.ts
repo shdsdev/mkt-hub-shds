@@ -25,6 +25,7 @@ import {
   sendConfirmationEmail,
   sendWaitlistPromotionEmail,
   sendReminderEmail,
+  sendRegistrationDecisionEmail,
   escapeHtml,
   formatEventDateEs,
   formatEventTimeRangeEs,
@@ -150,6 +151,33 @@ describe("notifications service — send functions (spec.md 'notifications-email
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("sends a branded waitlist message when a workshop application is rejected", async () => {
+    insertMock.mockReturnValue(insertChain([{ id: "log-decision-1" }]));
+    updateMock.mockReturnValue(updateChain());
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "resend-decision-1" }),
+    });
+
+    const result = await sendRegistrationDecisionEmail({
+      organizationId: "org-1",
+      registrationId: "registration-1",
+      to: "attendee@example.com",
+      attendeeName: "Jane Doe",
+      eventName: "Launch Day",
+      decision: "rejected",
+    });
+
+    expect(result).toEqual({ sent: true, notificationId: "log-decision-1" });
+    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse((requestInit as RequestInit).body as string);
+    expect(body.subject).toBe("Lista de espera: Launch Day");
+    expect(body.html).toContain("Gracias por tu interés en nuestro workshop");
+    expect(body.html).toContain("lista de espera");
+    expect(body.html).toContain("SHADES");
+    expect(body.html).toContain("#15434A");
   });
 
   it("does not call the email provider when the notification was already claimed by another sender", async () => {

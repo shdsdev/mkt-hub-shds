@@ -228,6 +228,48 @@ export type SendEmailResult =
   | { sent: false; reason: "already_sent" }
   | { sent: false; reason: "provider_failure"; error: string };
 
+function registrationWaitlistEmailHtml(input: { attendeeName: string; eventName: string }): string {
+  const name = escapeHtml(input.attendeeName);
+  const eventName = escapeHtml(input.eventName);
+
+  return `<!doctype html>
+<html lang="es-MX">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Lista de espera | ${eventName}</title></head>
+<body style="margin:0;padding:0;background-color:#eeeae2;font-family:Arial,Helvetica,sans-serif;color:#172a32;">
+<div style="display:none;font-size:1px;color:#eeeae2;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Tu registro para ${eventName} quedó en lista de espera. Te avisaremos si se libera un espacio.</div>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#eeeae2;"><tr><td align="center" style="padding:28px 12px 48px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;border-collapse:collapse;">
+<tr><td style="padding:0 2px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:12px;font-weight:800;letter-spacing:1.4px;color:#172a32;">SHADES <span style="color:#E97558;">SPACES.</span></td><td align="right" style="font-size:10px;letter-spacing:1px;color:#66747a;text-transform:uppercase;">Experience Lab · Edición Drapery</td></tr></table></td></tr>
+<tr><td style="background:#15434A;padding:13px 22px;text-align:center;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1.7px;">ACTUALIZACIÓN DE TU SOLICITUD &nbsp; ✦</td></tr>
+<tr><td style="background:#f7f5ef;padding:40px 38px 34px;">
+<p style="font-size:12px;font-weight:700;letter-spacing:2px;color:#245d72;margin:0 0 18px;text-transform:uppercase;">${eventName} · WORKSHOP</p>
+<h1 style="font-size:42px;line-height:1.08;letter-spacing:-2px;font-weight:400;margin:0 0 20px;color:#172a32;">Tu registro está<br><strong>en lista de espera.</strong></h1>
+<p style="font-size:17px;line-height:1.7;margin:0 0 14px;">Hola, <strong>${name}</strong>:</p>
+<p style="font-size:15px;line-height:1.8;color:#455960;margin:0 0 14px;">Gracias por tu interés en nuestro workshop. En este momento los cupos disponibles ya se llenaron, pero tu registro permanecerá en lista de espera.</p>
+<p style="font-size:15px;line-height:1.8;color:#455960;margin:0;">Si se libera un espacio, nos pondremos en contacto contigo por correo. Mantente conectado y atento a tu bandeja de entrada.</p>
+</td></tr>
+<tr><td style="background:#9CD4C6;padding:32px 30px;text-align:center;">
+<p style="font-size:11px;letter-spacing:1.5px;font-weight:bold;color:#245d72;text-transform:uppercase;margin:0 0 10px;">¿QUÉ SIGUE?</p>
+<h2 style="font-size:27px;font-weight:400;letter-spacing:-1px;line-height:1.15;margin:0 0 11px;">Sigue conectado<br>con nosotros.</h2>
+<p style="margin:0;font-size:13px;color:#455960;line-height:1.6;">Te avisaremos si se abre un lugar para que puedas acompañarnos.</p>
+</td></tr>
+<tr><td style="background:#f7f5ef;padding:33px 38px;">
+<p style="font-size:14px;line-height:1.75;color:#455960;margin:0;">Gracias nuevamente por registrarte y por querer formar parte de esta experiencia.</p>
+</td></tr>
+<tr><td style="background:#15434A;color:#f7f5ef;padding:30px 38px;">
+<p style="margin:0 0 10px;color:#c8dee2;font-size:10px;font-weight:bold;letter-spacing:1.4px;">SHADES SPACES.</p>
+<p style="font-size:22px;line-height:1.2;font-weight:400;margin:0 0 12px;">Descubre. Aprende. Conecta.</p>
+<p style="font-size:13px;line-height:1.75;color:#d4dfe0;margin:0;">Una experiencia respaldada por <strong>Shades de México</strong>.</p>
+</td></tr>
+<tr><td style="padding:26px 12px 0;text-align:center;">
+<p style="font-weight:bold;font-size:14px;margin:0 0 8px;letter-spacing:.4px;">SHADES <span style="color:#E97558;">×</span> SPACES EDICIÓN DRAPERY/BMIGHTY</p>
+<p style="font-size:12px;color:#66747a;line-height:1.7;margin:0 0 8px;">Motores y automatización · Cortineros e insumos para cortinería</p>
+<p style="font-size:11px;color:#66747a;margin:16px 0 0;">Descubre. Aprende. Conecta.</p>
+</td></tr>
+</table></td></tr></table>
+</body></html>`;
+}
+
 export async function sendRegistrationDecisionEmail(input: {
   organizationId: string;
   registrationId: string;
@@ -245,11 +287,8 @@ export async function sendRegistrationDecisionEmail(input: {
   });
   if (!claim) return { sent: false, reason: "already_sent" };
 
-  const waitlisted = input.decision === "waitlisted";
-  const subject = waitlisted ? `Lista de espera: ${input.eventName}` : `Actualización de tu solicitud: ${input.eventName}`;
-  const html = waitlisted
-    ? `<p>Hola ${escapeHtml(input.attendeeName)},</p><p>Gracias por tu interés en nuestro workshop. Por el momento se ha llenado el cupo y quedaste en lista de espera.</p><p>Te comunicaremos si se libera una plaza para poder tenerte con nosotros.</p>`
-    : `<p>Hola ${escapeHtml(input.attendeeName)},</p><p>Gracias por tu interés en nuestro workshop. Por el momento no podremos confirmar tu participación en esta ocasión.</p>`;
+  const subject = `Lista de espera: ${input.eventName}`;
+  const html = registrationWaitlistEmailHtml(input);
   const sent = await sendViaResend({ to: input.to, subject, html });
   if (!sent.ok) {
     await markNotificationFailed(claim.id, sent.error);
@@ -413,15 +452,15 @@ function confirmationEmailHtml(
 <tr><td align="center" style="padding:30px 12px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#f7f5ef;">
   <tr><td style="padding:35px 35px 25px;">
-    <div style="font-size:24px;font-weight:800;letter-spacing:-1px;color:#ff0040;">SHADES SPACES.</div>
+    <div style="font-size:24px;font-weight:800;letter-spacing:-1px;color:#E97558;">SHADES SPACES.</div>
     <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#66747a;margin-top:8px;">EXPERIENCE LAB / EDICIÓN DRAPERY</div>
   </td></tr>
   <tr><td style="padding:0 35px;"><div style="height:1px;background:#d8d5cd;"></div></td></tr>
   <tr><td style="padding:40px 35px 15px;">
-    <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#ff0040;">${escapeHtml(headline)}</div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#E97558;">${escapeHtml(headline)}</div>
     <h1 style="font-size:42px;line-height:1.12;letter-spacing:-2px;font-weight:400;margin:18px 0;color:#172a32;">¡Tu lugar está confirmado!</h1>
     <p style="font-size:16px;line-height:1.8;">Hola, <strong>${name}</strong>:</p>
-    <p style="font-size:15px;line-height:1.8;color:#52636a;">${escapeHtml(introSentence)} <strong>${eventName}</strong>.</p>
+    <p style="font-size:15px;line-height:1.8;color:#52636a;">${escapeHtml(introSentence)} <span style="font-size:15px;line-height:1.8;color:#E97558;"><strong>${eventName}</strong>.</span></p>
     <p style="font-size:15px;line-height:1.8;color:#52636a;">${escapeHtml(input.emailContent.confirmationIntro)}</p>
   </td></tr>
   <tr><td style="padding:15px 35px;">
@@ -444,7 +483,7 @@ function confirmationEmailHtml(
         <p style="font-size:13px;line-height:1.7;color:#66747a;max-width:360px;">Este código es personal y será utilizado para validar tu asistencia a ${eventName}.</p>
         <img src="cid:${qrContentId}" alt="Código QR personal de acceso al evento" width="230" height="230" style="display:block;width:230px;height:230px;max-width:100%;margin:25px auto 10px;border:0;">
         <div style="font-size:12px;color:#66747a;margin-top:15px;">CÓDIGO DE REGISTRO</div>
-        <div style="font-size:20px;font-weight:700;letter-spacing:1px;margin-top:8px;color:#172a32;">${backupCode}</div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:1px;margin-top:8px;color:#E97558;">${backupCode}</div>
       </td></tr>
     </table>
   </td></tr>
@@ -453,11 +492,11 @@ function confirmationEmailHtml(
     <p style="font-size:14px;line-height:1.8;color:#52636a;">Si ya no puedes asistir, utiliza este enlace para cancelar tu registro.</p>
     <a href="${manageUrl}" style="display:inline-block;padding:15px 0;border-bottom:1px solid #172a32;color:#172a32;font-size:12px;font-weight:700;letter-spacing:1px;text-decoration:none;">CANCELAR MI REGISTRO ↗</a>
   </td></tr>
-  <tr><td style="padding:25px 35px;background:#c8dee2;">
+  <tr><td style="padding:25px 35px;background:#9CD4C6;">
     <h2 style="font-size:23px;font-weight:400;margin:0 0 12px;color:#172a32;">Prepárate para conectar.</h2>
     <p style="font-size:14px;line-height:1.8;margin:0;color:#172a32;">${escapeHtml(input.emailContent.logistics)}</p>
   </td></tr>
-  <tr><td style="padding:38px 35px;background:#172a32;color:#ffffff;">
+  <tr><td style="padding:38px 35px;background:#15434A;color:#E97558;">
     <div style="font-size:27px;font-weight:800;letter-spacing:-1px;">SHADES SPACES.</div>
     <p style="font-size:12px;line-height:1.8;color:#cad2d3;">Descubre. Aprende. Conecta.</p>
     <div style="height:1px;background:#41565f;margin:25px 0;"></div>
@@ -488,6 +527,7 @@ function reminderEmailHtml(input: AttendeeEmailInput, qrContentId: string): stri
   );
 
   return `
+
 <!doctype html>
 <html lang="es-MX">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Faltan 48 horas | ${eventName}</title></head>
@@ -495,8 +535,8 @@ function reminderEmailHtml(input: AttendeeEmailInput, qrContentId: string): stri
 <div style="display:none;font-size:1px;color:#eeeae2;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Faltan 48 horas para ${eventName}. Revisa tu horario, cómo llegar y tu QR personal.</div>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#eeeae2;"><tr><td align="center" style="padding:28px 12px 48px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;border-collapse:collapse;">
-<tr><td style="padding:0 2px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:12px;font-weight:800;letter-spacing:1.4px;color:#172a32;">SHADES <span style="color:#ff0040;">SPACES.</span></td><td align="right" style="font-size:10px;letter-spacing:1px;color:#66747a;text-transform:uppercase;">Experience Lab · Edición Drapery</td></tr></table></td></tr>
-<tr><td style="background:#172a32;padding:13px 22px;text-align:center;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1.7px;">¡FALTAN 48 HORAS! &nbsp; ✦</td></tr>
+<tr><td style="padding:0 2px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-size:12px;font-weight:800;letter-spacing:1.4px;color:#172a32;">SHADES <span style="color:#E97558;">SPACES.</span></td><td align="right" style="font-size:10px;letter-spacing:1px;color:#66747a;text-transform:uppercase;">Experience Lab · Edición Drapery</td></tr></table></td></tr>
+<tr><td style="background:#15434A;padding:13px 22px;text-align:center;color:#fff;font-size:11px;font-weight:bold;letter-spacing:1.7px;">¡FALTAN 48 HORAS! &nbsp; ✦</td></tr>
 <tr><td style="background:#f7f5ef;padding:40px 38px 30px;">
 <p style="font-size:12px;font-weight:700;letter-spacing:2px;color:#245d72;margin:0 0 18px;text-transform:uppercase;">${reminderSentDate} · RECORDATORIO</p>
 <h1 style="font-size:42px;line-height:1.08;letter-spacing:-2px;font-weight:400;margin:0 0 20px;color:#172a32;">¡Estamos a solo<br><strong>48 horas!</strong></h1>
@@ -514,7 +554,7 @@ ${input.agenda.map((item, index) => `<p style="font-size:14px;color:#455960;line
 <tr><td style="padding:15px 0;border-top:1px solid #d8d5cd;font-size:10px;letter-spacing:1px;font-weight:bold;color:#66747a;text-transform:uppercase;">Sede</td><td style="padding:15px 0;border-top:1px solid #d8d5cd;font-size:14px;"><strong>${location}</strong><br>${mapsLinkHtml}</td></tr>
 <tr><td style="padding:15px 0;border-top:1px solid #d8d5cd;font-size:10px;letter-spacing:1px;font-weight:bold;color:#66747a;text-transform:uppercase;">Acceso</td><td style="padding:15px 0;border-top:1px solid #d8d5cd;font-size:14px;font-weight:bold;">Gratuito · Confirmado</td></tr>
 </table></td></tr>
-<tr><td style="background:#d6e2e2;padding:32px 30px;text-align:center;">
+<tr><td style="background:#9CD4C6;padding:32px 30px;text-align:center;">
 <p style="font-size:11px;letter-spacing:1.5px;font-weight:bold;color:#245d72;text-transform:uppercase;margin:0 0 10px;">TU QR PARA EL VIERNES</p>
 <h2 style="font-size:27px;font-weight:400;letter-spacing:-1px;line-height:1.15;margin:0 0 11px;">Guarda tu QR<br>para el acceso</h2>
 <p style="margin:0 0 19px;font-size:13px;color:#455960;line-height:1.6;">Preséntalo al ingresar. El QR es personal: no lo compartas.</p>
@@ -527,7 +567,7 @@ ${input.agenda.map((item, index) => `<p style="font-size:14px;color:#455960;line
 <p style="color:#455960;font-size:14px;line-height:1.75;margin:0 0 18px;">Si ya no puedes asistir, utiliza este enlace para cancelar tu registro.</p>
 <p style="margin:0;"><a href="${manageUrl}" style="color:#172a32;text-decoration:underline;font-weight:bold;font-size:12px;letter-spacing:1px;">CANCELAR MI REGISTRO ↗</a></p>
 </td></tr>
-<tr><td style="background:#172a32;color:#f7f5ef;padding:30px 38px;">
+<tr><td style="background:#15434A;color:#f7f5ef;padding:30px 38px;">
 <p style="margin:0 0 10px;color:#c8dee2;font-size:10px;font-weight:bold;letter-spacing:1.4px;">UN BENEFICIO POR ASISTIR</p>
 <p style="font-size:22px;line-height:1.2;font-weight:400;margin:0 0 12px;">Tu asistencia tiene beneficios.</p>
 <p style="font-size:13px;line-height:1.75;color:#d4dfe0;margin:0;">${escapeHtml(input.emailContent.benefit)}</p>
@@ -536,7 +576,7 @@ ${input.agenda.map((item, index) => `<p style="font-size:14px;color:#455960;line
 <p style="font-size:14px;line-height:1.75;color:#455960;margin:0;">${escapeHtml(input.emailContent.logistics)}</p>
 </td></tr>
 <tr><td style="padding:26px 12px 0;text-align:center;">
-<p style="font-weight:bold;font-size:14px;margin:0 0 8px;letter-spacing:.4px;">BMIGHTY <span style="color:#ff0040;">×</span> SHADES DRAPERY</p>
+<p style="font-weight:bold;font-size:14px;margin:0 0 8px;letter-spacing:.4px;">SHADES <span style="color:#ff0040;">×</span> SPACES EDICIÓN DRAPERY/BMIGHTY</p>
 <p style="font-size:12px;color:#66747a;line-height:1.7;margin:0 0 8px;">Motores y automatización · Cortineros e insumos para cortinería</p>
 <p style="font-size:12px;color:#66747a;line-height:1.7;margin:0;">Una experiencia respaldada por <strong>Shades de México</strong>.</p>
 <p style="font-size:11px;color:#66747a;margin:16px 0 0;">Descubre. Aprende. Conecta.</p>
