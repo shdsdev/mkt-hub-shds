@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   const due = await listDueReminderAttendees();
   await Promise.all(
     due.map(async ({ event, attendee, cancelToken }) => {
-      const qrPng = await exportQrPng(attendee.passToken, {});
+      const qrPng = await exportQrPng(attendee.backupCode, {});
       await sendReminderEmail({
         organizationId: attendee.organizationId,
         attendeeId: attendee.id,

@@ -84,7 +84,7 @@ describe("POST /api/jobs/event-reminders", () => {
     const response = await POST(requestWithAuth("Bearer test-secret"));
 
     expect(response.status).toBe(200);
-    expect(mocks.exportQrPng).toHaveBeenCalledWith("pass-token-1", {});
+    expect(mocks.exportQrPng).toHaveBeenCalledWith("ABCD1234", {});
     expect(mocks.sendReminderEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org-1",

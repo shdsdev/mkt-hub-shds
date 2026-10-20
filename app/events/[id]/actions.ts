@@ -342,7 +342,7 @@ export async function registerForEventAction(
     const manageUrl = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.registration.cancelToken}`;
     await Promise.all(
       result.attendees.map(async (attendee) => {
-        const qrPng = await exportQrPng(attendee.passToken, {});
+        const qrPng = await exportQrPng(attendee.backupCode, {});
         await sendConfirmationEmail({
           organizationId: attendee.organizationId,
           attendeeId: attendee.id,

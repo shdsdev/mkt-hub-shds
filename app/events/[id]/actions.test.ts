@@ -135,7 +135,7 @@ describe("registerForEventAction", () => {
     const result = await registerForEventAction({}, baseFormData());
     expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({ eventId: "event-1", source: "public", primary: expect.objectContaining({ fullName: "Ada Lovelace", email: "ada@example.com" }) }));
     expect(mocks.notifyEventWebhook).toHaveBeenCalledWith(event, "registration.created", expect.objectContaining({ status: "confirmed" }));
-    expect(mocks.exportQrPng).toHaveBeenCalledWith("pass-token-1", {});
+    expect(mocks.exportQrPng).toHaveBeenCalledWith("ABCD1234", {});
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ organizationId: "org-1", attendeeId: "att-1", to: "ada@example.com", attendeeName: "Ada Lovelace", eventName: "Workshop de Marketing", backupCode: "ABCD1234", qrPngBase64: Buffer.from("fake-png").toString("base64"), eventStartsAt: event.startsAt, eventEndsAt: event.endsAt, eventLocation: event.location, manageUrl: "https://hub.example.com/events/cancel/cancel-token-1" }));
     expect(result).toEqual({ success: true, status: "confirmed" });
   });

@@ -119,7 +119,7 @@ function DigitalPass({ attendee, category }: { attendee: CardProps["result"]["at
           </div>
         </div>
         <div className="w-fit rounded-xl bg-white p-2 text-black shadow-lg">
-          <PassQr value={attendee.passToken} />
+          <PassQr value={attendee.backupCode} />
           <p className="px-1 pb-1 text-center text-[10px] font-semibold uppercase tracking-wide">Escaneá para validar</p>
         </div>
       </div>

@@ -150,7 +150,7 @@ export async function updateRegistrationReviewStatusAction(
     dedupeKey: `registration-decision:${parsed.data.registrationId}:${parsed.data.reviewStatus}`,
   })).catch(() => undefined);
   if (primary && parsed.data.reviewStatus === "approved") {
-    const qrPng = await exportQrPng(primary.passToken, {});
+    const qrPng = await exportQrPng(primary.backupCode, {});
     await sendConfirmationEmail({
       organizationId: primary.organizationId,
       attendeeId: primary.id,
@@ -233,7 +233,7 @@ export async function addCompanionAction(
   // design.md "Emails sent AFTER commit, never inside the lock" — same convention as
   // registerForEventAction/cancelRegistrationAction.
   if (result.registrationStatus === "confirmed") {
-    const qrPng = await exportQrPng(result.attendee.passToken, {});
+    const qrPng = await exportQrPng(result.attendee.backupCode, {});
     await sendConfirmationEmail({
       organizationId: result.attendee.organizationId,
       attendeeId: result.attendee.id,
@@ -288,7 +288,7 @@ export async function resendInvitationAction(
   const attendee = registration?.attendees.find(({ id }) => id === parsed.data.attendeeId);
   if (!attendee || !registration) return { error: "No se encontró al asistente." };
 
-  const qrPng = await exportQrPng(attendee.passToken, {});
+  const qrPng = await exportQrPng(attendee.backupCode, {});
   const result = await sendConfirmationEmail({
     organizationId: attendee.organizationId,
     attendeeId: attendee.id,
