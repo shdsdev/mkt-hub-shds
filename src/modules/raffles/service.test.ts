@@ -70,17 +70,17 @@ describe("raffle service", () => {
     const draw = { id: "draw-1", raffleId: "raffle-1", prizeId: "prize-1", eventId: "event-1", organizationId: "org-1", status: "claimed", attendeeEmail: "winner@example.com", attendeeName: "Winner", attendeeCode: "DRAW-456" };
     selectMock
       .mockReturnValueOnce(selectChain([draw]))
-      .mockReturnValueOnce(selectChain([{ draw, attendee: { backupCode: "REG-123" }, prize: { name: "Gift", instructions: "Presenta tus códigos.", claimDeadlineAt: null }, event: { name: "Launch" } }]));
+      .mockReturnValueOnce(selectChain([{ draw, prize: { name: "Gift", instructions: "Presenta tu código.", claimDeadlineAt: null }, event: { name: "Launch" } }]));
     notificationMocks.sendRaffleWinnerEmail.mockResolvedValue({ status: "sent", sentAt: new Date("2026-01-01T00:00:00.000Z") });
 
     await confirmDrawAndNotify({ drawId: draw.id, eventId: draw.eventId, organizationId: draw.organizationId, actor: { userId: "admin-1", email: "admin@example.com" } });
 
-    expect(notificationMocks.sendRaffleWinnerEmail).toHaveBeenCalledWith(expect.objectContaining({ registrationCode: "REG-123", redemptionCode: "DRAW-456" }));
+    expect(notificationMocks.sendRaffleWinnerEmail).toHaveBeenCalledWith(expect.objectContaining({ redemptionCode: "DRAW-456" }));
   });
 
   it("resends a scoped winner email and returns no attendee PII", async () => {
     const draw = { id: "draw-1", raffleId: "raffle-1", prizeId: "prize-1", eventId: "event-1", organizationId: "org-1", status: "claimed", attendeeEmail: "winner@example.com", attendeeName: "Winner <script>" };
-    selectMock.mockReturnValue(selectChain([{ draw: { ...draw, attendeeCode: "DRAW-456" }, attendee: { backupCode: "REG-123" }, prize: { name: "Gift" }, event: { name: "Launch" } }]));
+    selectMock.mockReturnValue(selectChain([{ draw: { ...draw, attendeeCode: "DRAW-456" }, prize: { name: "Gift" }, event: { name: "Launch" } }]));
     insertMock.mockReturnValue(insertChain([]));
     notificationMocks.sendRaffleWinnerEmail.mockResolvedValue({ status: "resent", sentAt: new Date("2026-01-01T00:00:00.000Z") });
 
@@ -93,7 +93,7 @@ describe("raffle service", () => {
       reason: "Manual resend",
       client: { select: selectMock, insert: insertMock, execute: vi.fn() } as never,
     })).resolves.toEqual({ status: "resent", sentAt: new Date("2026-01-01T00:00:00.000Z") });
-    expect(notificationMocks.sendRaffleWinnerEmail).toHaveBeenCalledWith(expect.objectContaining({ drawId: draw.id, to: draw.attendeeEmail, winnerName: draw.attendeeName, eventName: "Launch", prizeName: "Gift", registrationCode: "REG-123", redemptionCode: "DRAW-456" }));
+    expect(notificationMocks.sendRaffleWinnerEmail).toHaveBeenCalledWith(expect.objectContaining({ drawId: draw.id, to: draw.attendeeEmail, winnerName: draw.attendeeName, eventName: "Launch", prizeName: "Gift", redemptionCode: "DRAW-456" }));
   });
 
   it("rejects an invalidated draw without sending", async () => {

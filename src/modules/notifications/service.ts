@@ -168,7 +168,6 @@ export type RaffleWinnerEmailInput = {
   winnerName: string;
   eventName: string;
   prizeName: string;
-  registrationCode: string;
   redemptionCode: string;
   reason: string | null;
   instructions?: string | null;
@@ -181,7 +180,6 @@ export type RaffleWinnerEmailRenderInput = {
   winnerEmail: string;
   eventName: string;
   prizeName: string;
-  registrationCode: string;
   redemptionCode: string;
   reason?: string | null;
   instructions?: string | null;
@@ -194,14 +192,13 @@ export type RaffleWinnerEmailResult = {
 };
 
 export function renderRaffleWinnerEmailHtml(input: RaffleWinnerEmailRenderInput): string {
-  if (!input.registrationCode || !input.redemptionCode) throw new Error("Winner email codes are required");
+  if (!input.redemptionCode) throw new Error("Winner email redemption code is required");
   const winnerName = escapeHtml(input.winnerName);
   const winnerEmail = escapeHtml(input.winnerEmail);
   const eventName = escapeHtml(input.eventName);
   const prizeName = escapeHtml(input.prizeName);
-  const registrationCode = escapeHtml(input.registrationCode);
   const redemptionCode = escapeHtml(input.redemptionCode);
-  const instructions = input.instructions ? escapeHtml(input.instructions) : "Presenta ambos códigos al equipo de atención para validar y canjear tu premio.";
+  const instructions = input.instructions ? escapeHtml(input.instructions) : "Presenta este código al equipo de atención para validar y canjear tu premio.";
   const reason = input.reason ? `<tr><td style="padding:0 34px 24px;"><div style="border-left:3px solid #e97558;padding:12px 16px;background:#fff8f3;color:#455960;font-size:13px;line-height:1.6;"><strong>Nota:</strong> ${escapeHtml(input.reason)}</div></td></tr>` : "";
   const deadline = input.claimDeadlineAt
     ? escapeHtml(new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(input.claimDeadlineAt))
@@ -219,7 +216,6 @@ export function renderRaffleWinnerEmailHtml(input: RaffleWinnerEmailRenderInput)
 <tr><td style="background:#f7f5ef;padding:40px 34px 32px;"><p style="font-size:12px;font-weight:700;letter-spacing:2px;color:#245d72;margin:0 0 18px;text-transform:uppercase;">${eventName}</p><h1 style="font-size:40px;line-height:1.08;letter-spacing:-1.5px;font-weight:400;margin:0 0 18px;color:#172a32;">¡Felicidades,<br><strong>${winnerName}!</strong></h1><p style="font-size:16px;line-height:1.7;margin:0;color:#455960;">Tu participación fue seleccionada y ganaste el siguiente premio:</p></td></tr>
 <tr><td style="background:#9cd4c6;padding:30px 34px;"><p style="font-size:11px;letter-spacing:1.5px;font-weight:bold;color:#245d72;text-transform:uppercase;margin:0 0 10px;">TU PREMIO</p><h2 style="font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.5px;margin:0;color:#172a32;">${prizeName}</h2><p style="font-size:13px;line-height:1.6;color:#455960;margin:12px 0 0;">Estado: <strong>Pendiente de canje</strong></p></td></tr>
 <tr><td style="background:#f7f5ef;padding:30px 34px 8px;"><p style="font-size:11px;letter-spacing:1.5px;font-weight:bold;color:#245d72;text-transform:uppercase;margin:0 0 12px;">DATOS DEL GANADOR</p><p style="font-size:14px;line-height:1.7;margin:0 0 6px;"><strong>Nombre:</strong> ${winnerName}</p><p style="font-size:14px;line-height:1.7;margin:0;"><strong>Correo:</strong> ${winnerEmail}</p></td></tr>
-<tr><td style="background:#f7f5ef;padding:24px 34px 8px;"><div style="border:1px solid #cddbd6;border-radius:12px;padding:20px;background:#fff;"><p style="font-size:11px;letter-spacing:1.5px;font-weight:bold;color:#245d72;text-transform:uppercase;margin:0 0 8px;">CÓDIGO DE REGISTRO</p><p style="font-family:Arial,Helvetica,sans-serif;font-size:25px;letter-spacing:3px;font-weight:700;color:#172a32;margin:0 0 9px;word-break:break-all;">${registrationCode}</p><p style="font-size:12px;line-height:1.6;color:#66747a;margin:0;">Identifica tu registro en el sistema de validación.</p></div></td></tr>
 <tr><td style="background:#f7f5ef;padding:16px 34px 8px;"><div style="border:2px solid #e97558;border-radius:12px;padding:20px;background:#fff8f3;"><p style="font-size:11px;letter-spacing:1.5px;font-weight:bold;color:#a94c38;text-transform:uppercase;margin:0 0 8px;">CÓDIGO DE CANJE</p><p style="font-family:Arial,Helvetica,sans-serif;font-size:28px;letter-spacing:3px;font-weight:800;color:#172a32;margin:0 0 9px;word-break:break-all;">${redemptionCode}</p><p style="font-size:12px;line-height:1.6;color:#66747a;margin:0;">Preséntalo para realizar el intercambio. Este código corresponde únicamente a este premio.</p></div></td></tr>
 <tr><td style="background:#f7f5ef;padding:24px 34px 30px;"><p style="font-size:14px;line-height:1.75;color:#455960;margin:0 0 10px;"><strong>Cómo reclamar:</strong> ${instructions}</p><p style="font-size:14px;line-height:1.75;color:#455960;margin:0;"><strong>Fecha límite:</strong> ${deadline}</p></td></tr>
 ${reason}
@@ -259,7 +255,6 @@ export async function sendRaffleWinnerEmail(input: RaffleWinnerEmailInput): Prom
     winnerEmail: input.to,
     eventName: input.eventName,
     prizeName: input.prizeName,
-    registrationCode: input.registrationCode,
     redemptionCode: input.redemptionCode,
     reason: input.reason,
     instructions: input.instructions,

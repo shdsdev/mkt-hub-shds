@@ -53,7 +53,6 @@ describe("raffle winner notification", () => {
       winnerName: "Winner <script>alert(1)</script>",
       eventName: "Launch & Learn",
       prizeName: "Gift \"card\"",
-      registrationCode: "REG-123",
       redemptionCode: "DRAW-456",
       reason: "Please resend <now>",
     });
@@ -63,7 +62,6 @@ describe("raffle winner notification", () => {
     expect(payload.to).toBe("winner@example.com");
     expect(payload.html).not.toContain("<script>alert(1)</script>");
     expect(payload.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
-    expect(payload.html).toContain("REG-123");
     expect(payload.html).toContain("DRAW-456");
     expect(insertMock).toHaveBeenCalledWith(expect.anything());
     expect(updateMock).toHaveBeenCalledWith(expect.anything());
@@ -79,7 +77,6 @@ describe("raffle winner notification", () => {
       winnerName: "Winner",
       eventName: "Launch",
       prizeName: "Gift",
-      registrationCode: "REG-123",
       redemptionCode: "DRAW-456",
       reason: null,
     })).rejects.toThrow("Winner email provider failed");
@@ -87,23 +84,21 @@ describe("raffle winner notification", () => {
     expect(updateMock).toHaveBeenCalledWith(expect.anything());
   });
 
-  it("renders separate registration and redemption codes", () => {
+  it("renders the redemption code without a duplicate registration block", () => {
     const html = renderRaffleWinnerEmailHtml({
       winnerName: "Javier <Test>",
       winnerEmail: "javier@example.com",
       eventName: "Shades Spaces",
       prizeName: "Motor 45 mm",
-      registrationCode: "REG-123",
       redemptionCode: "PREM-456",
       instructions: "Presenta este código en el módulo de entrega.",
       claimDeadlineAt: new Date("2026-12-30T18:18:00.000Z"),
     });
 
-    expect(html).toContain("CÓDIGO DE REGISTRO");
     expect(html).toContain("CÓDIGO DE CANJE");
-    expect(html).toContain("REG-123");
     expect(html).toContain("PREM-456");
     expect(html).toContain("Javier &lt;Test&gt;");
     expect(html).not.toContain("Javier <Test>");
+    expect(html).not.toContain("CÓDIGO DE REGISTRO");
   });
 });

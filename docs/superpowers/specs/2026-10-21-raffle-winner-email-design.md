@@ -4,9 +4,9 @@ Upgrade the raffle winner email from a plain text-like message to a branded, ope
 
 ## Quick path
 
-1. Confirm a draw and send a branded email containing the winner, event, prize, deadline, instructions, and both validation identifiers.
-2. Label the identifiers by purpose so the winner does not confuse registration validation with prize redemption.
-3. Keep HCS integration unchanged: Marketing Hub supplies the existing codes and HCS continues to validate and claim through its current endpoints.
+1. Confirm a draw and send a branded email containing the winner, event, prize, deadline, instructions, and the prize code.
+2. Label the code by its purpose for validation and prize redemption.
+3. Keep HCS integration unchanged: Marketing Hub supplies the existing code and HCS continues to validate and claim through its current endpoints.
 
 ## Data Contract
 
@@ -18,11 +18,10 @@ Upgrade the raffle winner email from a plain text-like message to a branded, ope
 | Prize | Joined `raffle_prizes.name` | Prize won |
 | Instructions | `raffle_prizes.instructions` | Organizer-provided redemption guidance |
 | Deadline | `raffle_prizes.claimDeadlineAt` | Time limit, when configured |
-| Registration code | `event_attendees.backupCode` | Identifies the attendee in HCS validation |
-| Redemption code | `raffle_draws.attendeeCode` | Identifies this prize unit for exchange/claim |
+| Prize code | `raffle_draws.attendeeCode` | Identifies the attendee/prize for HCS validation and exchange; it is copied from `event_attendees.backupCode` when the draw is created |
 | Initial status | Draw status | Communicates that the prize is pending redemption |
 
-The two codes must remain visually and semantically separate. The registration code is the attendee identity key; the redemption code is the single-prize exchange key. Neither code is replaced by the other.
+There is one code in the current raffle model. `raffle_draws.attendeeCode` is populated from `event_attendees.backupCode`, so the email must show it once rather than render duplicate registration and redemption blocks.
 
 ## HCS Boundary
 
@@ -30,7 +29,7 @@ Marketing Hub owns only the data sent in the winner email and the existing raffl
 
 The current contract remains unchanged:
 
-1. HCS validates the attendee using the registration/backup code.
+1. HCS validates the attendee using the prize/backup code.
 2. HCS returns the associated winner and prize data.
 3. HCS claims the prize using the draw redemption code.
 4. A claimed draw is rejected on subsequent claim attempts and retains its delivery audit state.
@@ -45,8 +44,7 @@ The template will use table-based HTML and inline styles for Gmail and Outlook c
 - High-contrast winner message: “¡Felicidades, [nombre]!”
 - Prize highlight card with the exact prize name.
 - Winner details block with name and recipient email.
-- Separate registration-code block with instructions to present/use it for attendee validation.
-- Separate redemption-code block with stronger visual emphasis and instructions to present it when exchanging the prize.
+- One prominent prize-code block with instructions to present it for validation and exchange.
 - Claim instructions, deadline, and initial status.
 - Official sponsor footer: `Shades de México`.
 - Accessible text labels, sufficient contrast, responsive width, and escaped dynamic values.
@@ -61,7 +59,7 @@ If a required redemption identifier cannot be loaded, the send must fail rather 
 
 ## Verification
 
-- Unit tests cover both codes being passed to the email renderer and dynamic HTML escaping.
+- Unit tests cover the single prize code being passed to the email renderer and dynamic HTML escaping.
 - Unit tests cover the existing HCS data lookup boundary without changing HCS route contracts.
 - Tests cover first send and resend using the same branded template.
 - TypeScript, lint, focused raffle/notification tests, and production build must pass.
