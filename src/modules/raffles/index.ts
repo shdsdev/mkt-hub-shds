@@ -10,6 +10,8 @@ export {
   createPrize,
   updatePrize,
   increasePrizeQuantity,
+  decreasePrizeQuantity,
+  getPrizeQuantityAfterDecrease,
   listEligibleAttendees,
   drawPrizeUnit,
   revealDraw,

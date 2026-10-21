@@ -55,6 +55,14 @@ export function getPrizeStatusAfterReleasedUnit(status: string, remainingDrawnQu
   return remainingDrawnQuantity > 0 ? "active" : "ready";
 }
 
+export function getPrizeQuantityAfterDecrease(quantity: number, drawnQuantity: number, amount: number): number {
+  if (!Number.isInteger(amount) || amount < 1) throw new Error("Quantity decrease must be positive");
+  const nextQuantity = quantity - amount;
+  if (nextQuantity < drawnQuantity) throw new Error("Prize quantity cannot be lower than drawn units");
+  if (nextQuantity < 1) throw new Error("Prize quantity must be positive");
+  return nextQuantity;
+}
+
 export function selectEligibleWinners<T extends { id: string }>(
   eligible: T[],
   winnerPolicy: "include_winners" | "exclude_winners",
@@ -364,6 +372,28 @@ export async function increasePrizeQuantity(input: { prizeId: string; raffleId: 
     if (!prize) throw new Error("Prize changed concurrently");
     const actor = { userId: input.actorUserId, email: input.actorEmail };
     await insertAudit(tx, { organizationId: input.organizationId, raffleId: raffle.id, eventId: raffle.eventId, prizeId: prize.id, actor, action: "prize_change", metadata: { change: "quantity_increased", amount: input.amount } });
+    await refreshRaffleStatus(tx, { raffle, organizationId: input.organizationId, actor });
+    return prize;
+  });
+}
+
+export async function decreasePrizeQuantity(input: { prizeId: string; raffleId: string; organizationId: string; actorUserId: string; actorEmail: string; amount: number }): Promise<RafflePrizeRow> {
+  if (!Number.isInteger(input.amount) || input.amount < 1) throw new Error("Quantity decrease must be positive");
+  return db.transaction(async (tx) => {
+    const raffle = await getScopedRaffleWithClient(tx, input.raffleId, input.organizationId);
+    if (!raffle) throw new Error("Raffle not found");
+    await lockRaffleAndPrize(tx, raffle.id, input.prizeId);
+    const [current] = await tx.select().from(rafflePrizes).where(and(eq(rafflePrizes.id, input.prizeId), eq(rafflePrizes.raffleId, input.raffleId), eq(rafflePrizes.organizationId, input.organizationId))).limit(1);
+    if (!current) throw new Error("Prize not found");
+    const nextQuantity = getPrizeQuantityAfterDecrease(current.quantity, current.drawnQuantity, input.amount);
+    const [prize] = await tx.update(rafflePrizes).set({
+      quantity: nextQuantity,
+      status: sql`CASE WHEN ${rafflePrizes.status} = 'paused'::raffle_prize_status THEN 'paused'::raffle_prize_status WHEN ${rafflePrizes.drawnQuantity} >= ${nextQuantity} THEN 'finished'::raffle_prize_status ELSE 'active'::raffle_prize_status END`,
+      updatedAt: new Date(),
+    }).where(and(eq(rafflePrizes.id, current.id), eq(rafflePrizes.status, current.status), eq(rafflePrizes.quantity, current.quantity))).returning();
+    if (!prize) throw new Error("Prize changed concurrently");
+    const actor = { userId: input.actorUserId, email: input.actorEmail };
+    await insertAudit(tx, { organizationId: input.organizationId, raffleId: raffle.id, eventId: raffle.eventId, prizeId: prize.id, actor, action: "prize_change", metadata: { change: "quantity_decreased", amount: input.amount } });
     await refreshRaffleStatus(tx, { raffle, organizationId: input.organizationId, actor });
     return prize;
   });

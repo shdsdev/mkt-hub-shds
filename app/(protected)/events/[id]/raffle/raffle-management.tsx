@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Dialog } from "@base-ui/react/dialog";
-import { CalendarDays, ChevronDown, CircleHelp, Clock3, Info, Pause, Play, Plus, Sparkles, X } from "lucide-react";
+import { CalendarDays, ChevronDown, CircleHelp, Clock3, Info, LoaderCircle, Minus, Pause, Play, Plus, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -13,6 +13,7 @@ import { Tooltip } from "@/components/tooltip";
 import {
   claimDrawAction,
   createPrizeAction,
+  decreasePrizeQuantityAction,
   drawNextPrizeAction,
   drawPrizeAction,
   increasePrizeQuantityAction,
@@ -48,6 +49,12 @@ const statusLabels: Record<string, string> = {
   invalidated: "Invalidado",
 };
 
+function drawStatusBadgeClass(status: string) {
+  if (status === "claimed") return "border-primary bg-primary text-primary-foreground";
+  if (status === "invalidated") return "border-destructive/40 bg-destructive/15 text-destructive";
+  return "border-border bg-background/40 text-muted-foreground";
+}
+
 const auditLabels: Record<string, string> = {
   draw: "Unidad sorteada",
   reveal: "Ganador revelado",
@@ -79,14 +86,14 @@ function formatDateLabel(value: Date | undefined) {
   return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(value);
 }
 
-function SubmitButton({ children, pendingLabel = "Procesando…", ...props }: React.ComponentProps<typeof Button> & { pendingLabel?: string }) {
+function SubmitButton({ children, pendingLabel = "Procesando…", pendingContent, ...props }: React.ComponentProps<typeof Button> & { pendingLabel?: string; pendingContent?: React.ReactNode }) {
   const { pending } = useFormStatus();
-  return <Button {...props} disabled={pending || props.disabled}>{pending ? pendingLabel : children}</Button>;
+  return <Button {...props} disabled={pending || props.disabled}>{pending ? pendingContent ?? pendingLabel : children}</Button>;
 }
 
-function StateMessage({ state }: { state: RaffleActionState }) {
+function StateMessage({ state, className = "" }: { state: RaffleActionState; className?: string }) {
   if (!state.error && !state.success) return null;
-  return <p role={state.error ? "alert" : "status"} className={`text-sm ${state.error ? "text-destructive" : "text-accent"}`}>{state.error ?? state.success}</p>;
+  return <p role={state.error ? "alert" : "status"} className={`mt-3 break-words text-sm ${state.error ? "text-destructive" : "text-accent"} ${className}`}>{state.error ?? state.success}</p>;
 }
 
 function useRaffleAction(action: (formData: FormData) => Promise<RaffleActionState>) {
@@ -182,7 +189,7 @@ function DrawRow({ eventId, draw }: { eventId: string; draw: RaffleDrawRow }) {
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div><p className="text-sm font-semibold"><WinnerName name={draw.attendeeName} /></p><p className="text-xs text-muted-foreground">{draw.attendeeEmail} · código {draw.attendeeCode}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(draw.drawnAt)} · {draw.eligibleCount} participantes elegibles</p></div>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        <span className="w-fit rounded-full border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground">{statusLabels[draw.status] ?? draw.status}</span>
+        <span className={`w-fit rounded-full border px-2.5 py-1 text-xs font-semibold ${drawStatusBadgeClass(draw.status)}`}>{statusLabels[draw.status] ?? draw.status}</span>
         {draw.status === "claimed" && <form action={claimAction}><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="drawId" value={draw.id} /><SubmitButton size="sm" variant="outline" type="submit" pendingLabel="Reenviando…">Reenviar correo</SubmitButton></form>}
       </div>
     </div>
@@ -261,6 +268,7 @@ function PrizeCard({ eventId, raffleId, prize, draws, filterOptions, drawMode }:
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toggleState, toggleAction] = useRaffleAction(togglePrizeAction);
   const [quantityState, quantityAction] = useRaffleAction(increasePrizeQuantityAction);
+  const [decreaseQuantityState, decreaseQuantityAction] = useRaffleAction(decreasePrizeQuantityAction);
   const [drawState, drawAction] = useRaffleAction(drawPrizeAction);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const prizeDraws = draws.filter((draw) => draw.prizeId === prize.id).toReversed();
@@ -274,8 +282,12 @@ function PrizeCard({ eventId, raffleId, prize, draws, filterOptions, drawMode }:
         <ChevronDown className={`ml-auto size-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        <form action={toggleAction}><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="raffleId" value={raffleId} /><input type="hidden" name="prizeId" value={prize.id} /><input type="hidden" name="status" value={isPaused ? "ready" : "paused"} /><SubmitButton type="submit" size="icon" variant="outline" disabled={prize.status === "finished"} aria-label={isPaused ? "Reanudar premio" : "Pausar premio"} title={isPaused ? "Reanudar premio" : "Pausar premio"}>{isPaused ? <Play className="size-4" /> : <Pause className="size-4" />}</SubmitButton></form>
-        <form action={quantityAction} className="flex gap-1"><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="raffleId" value={raffleId} /><input type="hidden" name="prizeId" value={prize.id} /><Input className="w-16" type="number" name="amount" min="1" defaultValue="1" aria-label="Unidades a agregar" /><SubmitButton type="submit" size="icon" variant="secondary" aria-label="Agregar unidades" title="Agregar unidades"><Plus className="size-4" /></SubmitButton></form>
+        <form action={toggleAction}><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="raffleId" value={raffleId} /><input type="hidden" name="prizeId" value={prize.id} /><input type="hidden" name="status" value={isPaused ? "ready" : "paused"} /><SubmitButton type="submit" size="icon" variant="outline" disabled={prize.status === "finished"} aria-label={isPaused ? "Reanudar premio" : "Pausar premio"} title={isPaused ? "Reanudar premio" : "Pausar premio"} pendingContent={<LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}>{isPaused ? <Play className="size-4" /> : <Pause className="size-4" />}</SubmitButton></form>
+        <div className="flex items-center gap-1 rounded-lg border border-border/70 bg-background/30 p-1">
+          <form action={decreaseQuantityAction}><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="raffleId" value={raffleId} /><input type="hidden" name="prizeId" value={prize.id} /><input type="hidden" name="amount" value="1" /><SubmitButton type="submit" size="icon" variant="ghost" disabled={prize.quantity <= prize.drawnQuantity} aria-label="Quitar una unidad" title="Quitar una unidad" pendingContent={<LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}><Minus className="size-4" /></SubmitButton></form>
+          <span className="w-8 text-center text-sm font-semibold tabular-nums" aria-label={`${prize.quantity} unidades`}>{prize.quantity}</span>
+          <form action={quantityAction}><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="raffleId" value={raffleId} /><input type="hidden" name="prizeId" value={prize.id} /><input type="hidden" name="amount" value="1" /><SubmitButton type="submit" size="icon" variant="ghost" aria-label="Agregar una unidad" title="Agregar una unidad" pendingContent={<LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}><Plus className="size-4" /></SubmitButton></form>
+        </div>
       </div>
     </header>
     {open ? <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.8fr)]">
@@ -307,7 +319,7 @@ function PrizeCard({ eventId, raffleId, prize, draws, filterOptions, drawMode }:
         </div>
       </section>
     </div> : null}
-    <StateMessage state={toggleState.error ? toggleState : quantityState} />
+    <StateMessage className="px-5 pb-5" state={toggleState.error ? toggleState : quantityState.error || quantityState.success ? quantityState : decreaseQuantityState} />
   </section>;
 }
 

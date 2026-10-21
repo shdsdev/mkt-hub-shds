@@ -11,6 +11,7 @@ import {
   drawPrizeUnit,
   drawNextRafflePrize,
   increasePrizeQuantity,
+  decreasePrizeQuantity,
   invalidateDraw,
   revealDraw,
   rotateRaffleStageToken,
@@ -57,6 +58,8 @@ function route(eventId: string) {
 
 function failure(error: unknown): RaffleActionState {
   if (error instanceof Error && error.message === "No eligible attendees") return { error: "No hay asistentes elegibles con los filtros seleccionados." };
+  if (error instanceof Error && error.message === "Prize quantity cannot be lower than drawn units") return { error: "No puedes quitar unidades que ya fueron sorteadas." };
+  if (error instanceof Error && error.message === "Prize quantity must be positive") return { error: "El premio debe conservar al menos una unidad." };
   return { error: error instanceof Error ? error.message : "No se pudo actualizar el sorteo." };
 }
 
@@ -104,6 +107,18 @@ export async function increasePrizeQuantityAction(formData: FormData): Promise<R
   if (!user) return { error: "No tienes permiso para administrar este sorteo." };
   try {
     await increasePrizeQuantity({ ...parsed.data, organizationId: user.profile.organizationId, actorUserId: user.id, actorEmail: user.email });
+    revalidatePath(route(parsed.data.eventId));
+    return { success: "Cantidad actualizada." };
+  } catch (error) { return failure(error); }
+}
+
+export async function decreasePrizeQuantityAction(formData: FormData): Promise<RaffleActionState> {
+  const parsed = prizeBase.extend({ prizeId: uuid, amount: z.coerce.number().int().min(1) }).safeParse({ eventId: value(formData, "eventId"), raffleId: value(formData, "raffleId"), prizeId: value(formData, "prizeId"), amount: value(formData, "amount") });
+  if (!parsed.success) return { error: "Indica una cantidad válida." };
+  const user = await requireRaffleAdmin(parsed.data.eventId);
+  if (!user) return { error: "No tienes permiso para administrar este sorteo." };
+  try {
+    await decreasePrizeQuantity({ ...parsed.data, organizationId: user.profile.organizationId, actorUserId: user.id, actorEmail: user.email });
     revalidatePath(route(parsed.data.eventId));
     return { success: "Cantidad actualizada." };
   } catch (error) { return failure(error); }

@@ -25,6 +25,7 @@ import {
   getOrCreateRaffle,
   getRaffleLifecycleStatus,
   getPrizeStatusAfterReleasedUnit,
+  getPrizeQuantityAfterDecrease,
   isDrawStatusTransitionAllowed,
   isClaimDeadlinePassed,
   releasesPrizeUnit,
@@ -216,6 +217,11 @@ describe("raffle service", () => {
     expect(releasesPrizeUnit("unclaimed")).toBe(false);
     expect(getPrizeStatusAfterReleasedUnit("finished", 0)).toBe("ready");
     expect(getPrizeStatusAfterReleasedUnit("finished", 1)).toBe("active");
+  });
+
+  it("does not reduce prize quantity below already drawn units", () => {
+    expect(getPrizeQuantityAfterDecrease(8, 4, 1)).toBe(7);
+    expect(() => getPrizeQuantityAfterDecrease(4, 4, 1)).toThrow("Prize quantity cannot be lower than drawn units");
   });
 
   it("commits expiry before reporting that a claim deadline has passed", async () => {

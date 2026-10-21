@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   createPrize: vi.fn(),
   updatePrize: vi.fn(),
   increasePrizeQuantity: vi.fn(),
+  decreasePrizeQuantity: vi.fn(),
   drawPrizeUnit: vi.fn(),
   drawNextRafflePrize: vi.fn(),
   updateRaffleDrawMode: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock("@/modules/raffles", () => ({
   createPrize: mocks.createPrize,
   updatePrize: mocks.updatePrize,
   increasePrizeQuantity: mocks.increasePrizeQuantity,
+  decreasePrizeQuantity: mocks.decreasePrizeQuantity,
   drawPrizeUnit: mocks.drawPrizeUnit,
   drawNextRafflePrize: mocks.drawNextRafflePrize,
   updateRaffleDrawMode: mocks.updateRaffleDrawMode,
@@ -49,6 +51,7 @@ import {
   createPrizeAction,
   drawPrizeAction,
   drawNextPrizeAction,
+  decreasePrizeQuantityAction,
   invalidateDrawAction,
   updateRaffleDrawModeAction,
 } from "./actions";
@@ -178,6 +181,23 @@ describe("raffle admin actions", () => {
       organizationId: "org-1",
       actor: { userId: "admin-1", email: "admin@example.com" },
       idempotencyKey: "55555555-5555-4555-8555-555555555555",
+    });
+  });
+
+  it("decreases one unallocated prize unit through the authenticated admin action", async () => {
+    mocks.decreasePrizeQuantity.mockResolvedValue({ id: ids.prize, quantity: 1 });
+
+    const result = await decreasePrizeQuantityAction(form({ eventId: ids.event, raffleId: ids.raffle, prizeId: ids.prize, amount: "1" }));
+
+    expect(result).toEqual({ success: "Cantidad actualizada." });
+    expect(mocks.decreasePrizeQuantity).toHaveBeenCalledWith({
+      eventId: ids.event,
+      raffleId: ids.raffle,
+      prizeId: ids.prize,
+      organizationId: "org-1",
+      amount: 1,
+      actorUserId: "admin-1",
+      actorEmail: "admin@example.com",
     });
   });
 
