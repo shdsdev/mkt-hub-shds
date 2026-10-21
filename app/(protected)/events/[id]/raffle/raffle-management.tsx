@@ -181,11 +181,13 @@ function DrawRow({ eventId, draw }: { eventId: string; draw: RaffleDrawRow }) {
   return <article className="rounded-xl border border-border/70 p-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div><p className="text-sm font-semibold"><WinnerName name={draw.attendeeName} /></p><p className="text-xs text-muted-foreground">{draw.attendeeEmail} · código {draw.attendeeCode}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(draw.drawnAt)} · {draw.eligibleCount} participantes elegibles</p></div>
-      <span className="w-fit rounded-full border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground">{statusLabels[draw.status] ?? draw.status}</span>
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <span className="w-fit rounded-full border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground">{statusLabels[draw.status] ?? draw.status}</span>
+        {draw.status === "claimed" && <form action={claimAction}><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="drawId" value={draw.id} /><SubmitButton size="sm" variant="outline" type="submit" pendingLabel="Reenviando…">Reenviar correo</SubmitButton></form>}
+      </div>
     </div>
     <div className="mt-3 flex flex-wrap gap-2">
       {(draw.status === "pending_reveal" || draw.status === "revealed") && <form action={claimAction}><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="drawId" value={draw.id} /><SubmitButton size="sm" variant="secondary" type="submit" pendingLabel="Confirmando y enviando…">Confirmar ganador y enviar correo</SubmitButton></form>}
-      {draw.status === "claimed" && <form action={claimAction}><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="drawId" value={draw.id} /><SubmitButton size="sm" variant="outline" type="submit" pendingLabel="Reenviando…">Reenviar correo</SubmitButton></form>}
       {!( ["claimed", "invalidated", "unclaimed"].includes(draw.status)) && <form action={invalidateAction} className="flex min-w-[min(100%,22rem)] flex-1 gap-2"><input type="hidden" name="eventId" value={eventId} /><input type="hidden" name="drawId" value={draw.id} /><Input name="reason" placeholder="Motivo para invalidar" aria-label="Motivo para invalidar" required /><SubmitButton size="sm" variant="destructive" type="submit">Invalidar</SubmitButton></form>}
     </div>
     <StateMessage state={state} />
@@ -330,7 +332,7 @@ function NewPrizeModal({ eventId, raffleId }: { eventId: string; raffleId: strin
     <Dialog.Trigger render={<Button type="button">Nuevo premio</Button>} />
     <Dialog.Portal>
       <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/65" />
-      <Dialog.Popup className="fixed inset-4 z-50 m-auto flex max-h-[calc(100vh-2rem)] w-auto max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl sm:inset-8 sm:max-h-[calc(100vh-4rem)]">
+      <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 flex h-fit max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl sm:max-h-[calc(100vh-4rem)] sm:w-[min(56rem,calc(100vw-4rem))]">
         <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
           <div>
             <Dialog.Title className="font-heading text-2xl font-semibold">Nuevo premio</Dialog.Title>

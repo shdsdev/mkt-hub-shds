@@ -4,6 +4,7 @@
 import { useActionState, useState } from "react";
 import { ChevronDown, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/tooltip";
 import { normalizeRaffleStageTheme, type RaffleStageTheme } from "@/lib/raffle-stage-theme";
 import { LogoUpload } from "../../../qr/logo-upload";
@@ -11,6 +12,14 @@ import { updateRaffleStageThemeAction, type RaffleActionState } from "./actions"
 
 function SaveThemeButton() {
   return <Button type="submit">Guardar tema</Button>;
+}
+
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+
+function updateHexColor(value: string, setDraft: (value: string) => void, setColor: (value: string) => void) {
+  setDraft(value);
+  const normalized = value.trim().toLowerCase();
+  if (HEX_COLOR_PATTERN.test(normalized)) setColor(normalized);
 }
 
 export function StageThemeSettings({
@@ -28,6 +37,8 @@ export function StageThemeSettings({
   const [open, setOpen] = useState(false);
   const [backgroundColor, setBackgroundColor] = useState(theme.backgroundColor);
   const [accentColor, setAccentColor] = useState(theme.accentColor);
+  const [backgroundDraft, setBackgroundDraft] = useState(theme.backgroundColor);
+  const [accentDraft, setAccentDraft] = useState(theme.accentColor);
   const [logoUrl, setLogoUrl] = useState(theme.logoUrl ?? "");
   const preview = normalizeRaffleStageTheme({ stageBackgroundColor: backgroundColor, stageAccentColor: accentColor, stageLogoUrl: logoUrl });
 
@@ -51,11 +62,17 @@ export function StageThemeSettings({
         <div className="grid content-start gap-4 sm:grid-cols-2">
           <label className="flex items-center justify-between gap-3 border-b border-border/60 py-3 text-sm">
             <span><span className="block font-medium">Fondo</span><span className="text-xs text-muted-foreground">Superficie principal</span></span>
-            <input aria-label="Color de fondo del escenario" type="color" value={backgroundColor} onChange={(event) => setBackgroundColor(event.target.value)} className="size-11 cursor-pointer rounded-lg border border-border bg-transparent p-1" />
+            <span className="flex items-center gap-2">
+              <input aria-label="Color de fondo del escenario" type="color" value={backgroundColor} onChange={(event) => { setBackgroundColor(event.target.value); setBackgroundDraft(event.target.value); }} className="size-9 cursor-pointer rounded-lg border border-border bg-transparent p-1" />
+              <Input aria-label="Hexadecimal del color de fondo" value={backgroundDraft} onChange={(event) => updateHexColor(event.target.value, setBackgroundDraft, setBackgroundColor)} onBlur={() => setBackgroundDraft(backgroundColor)} maxLength={7} placeholder="#0B0D12" className="w-28 font-mono text-xs uppercase" />
+            </span>
           </label>
           <label className="flex items-center justify-between gap-3 border-b border-border/60 py-3 text-sm">
             <span><span className="block font-medium">Acento</span><span className="text-xs text-muted-foreground">Código y acciones</span></span>
-            <input aria-label="Color de acento del escenario" type="color" value={accentColor} onChange={(event) => setAccentColor(event.target.value)} className="size-11 cursor-pointer rounded-lg border border-border bg-transparent p-1" />
+            <span className="flex items-center gap-2">
+              <input aria-label="Color de acento del escenario" type="color" value={accentColor} onChange={(event) => { setAccentColor(event.target.value); setAccentDraft(event.target.value); }} className="size-9 cursor-pointer rounded-lg border border-border bg-transparent p-1" />
+              <Input aria-label="Hexadecimal del color de acento" value={accentDraft} onChange={(event) => updateHexColor(event.target.value, setAccentDraft, setAccentColor)} onBlur={() => setAccentDraft(accentColor)} maxLength={7} placeholder="#BEF264" className="w-28 font-mono text-xs uppercase" />
+            </span>
           </label>
           <div className="sm:col-span-2">
             <LogoUpload organizationId={organizationId} onUploaded={(url) => setLogoUrl(url ?? "")} />
