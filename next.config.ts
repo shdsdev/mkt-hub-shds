@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  env: {
+    NEXT_PUBLIC_SENTRY_DSN: process.env.SENTRY_DSN,
+  },
   turbopack: {
     root: path.join(__dirname),
   },
@@ -12,4 +16,6 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["geoip-lite"],
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+});

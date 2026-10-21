@@ -259,23 +259,30 @@ export async function registerForEventAction(
     ...(index === 0 && resolvedCompanionCompany ? { company: resolvedCompanionCompany } : {}),
   }));
 
-  const result = await registerForEvent({
-    eventId: event.id,
-    source: "public",
-    primary: normalizeConfiguredAttendee(primaryParsed.data, formConfig.fields),
-    companions,
-    clientBrands,
-    interests,
-    requestedMoreCompanions: isAccepted(formData, "requestMoreCompanions"),
-    consents: {
-      privacyAcceptedAt: now,
-      termsAcceptedAt: now,
-      ...(formConfig.consent.marketing.enabled && marketingAccepted ? { marketingAcceptedAt: now } : {}),
-    },
-    formVersion: formConfig.customFieldsVersion,
-    customFormAnswers: customAnswers.answers,
-    utm: readUtm(formData),
-  });
+  let result;
+  try {
+    result = await registerForEvent({
+      eventId: event.id,
+      source: "public",
+      primary: normalizeConfiguredAttendee(primaryParsed.data, formConfig.fields),
+      companions,
+      clientBrands,
+      interests,
+      requestedMoreCompanions: isAccepted(formData, "requestMoreCompanions"),
+      consents: {
+        privacyAcceptedAt: now,
+        termsAcceptedAt: now,
+        ...(formConfig.consent.marketing.enabled && marketingAccepted ? { marketingAcceptedAt: now } : {}),
+      },
+      formVersion: formConfig.customFieldsVersion,
+      customFormAnswers: customAnswers.answers,
+      utm: readUtm(formData),
+    });
+  } catch (error) {
+    const { captureOperationFailure } = await import("@/modules/monitoring");
+    captureOperationFailure({ operation: "event_registration", module: "events", error });
+    return { error: EVENT_UNAVAILABLE_ERROR };
+  }
 
   if (!result.ok) {
     return { error: result.reason === "duplicate_email" ? DUPLICATE_EMAIL_ERROR : EVENT_UNAVAILABLE_ERROR };

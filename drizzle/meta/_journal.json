@@ -358,6 +358,13 @@
       "when": 1792604628448,
       "tag": "0049_gray_komodo",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1792615731989,
+      "tag": "0050_gray_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

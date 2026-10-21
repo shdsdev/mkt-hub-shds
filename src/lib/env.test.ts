@@ -33,3 +33,22 @@ describe("env — Marketing Hub server token", () => {
     expect(() => env.MARKETING_HUB_SERVER_TOKEN).toThrow(/MARKETING_HUB_SERVER_TOKEN/);
   });
 });
+
+describe("env — monitoring secrets", () => {
+  const originalDsn = process.env.SENTRY_DSN;
+  const originalSecret = process.env.SENTRY_ALERTS_CLIENT_SECRET;
+
+  afterEach(() => {
+    if (originalDsn === undefined) delete process.env.SENTRY_DSN;
+    else process.env.SENTRY_DSN = originalDsn;
+    if (originalSecret === undefined) delete process.env.SENTRY_ALERTS_CLIENT_SECRET;
+    else process.env.SENTRY_ALERTS_CLIENT_SECRET = originalSecret;
+  });
+
+  it("reads optional monitoring values without making the app fail when disabled", () => {
+    process.env.SENTRY_DSN = "https://example@sentry.invalid/1";
+    process.env.SENTRY_ALERTS_CLIENT_SECRET = "hook-secret";
+    expect(env.SENTRY_DSN).toContain("sentry.invalid");
+    expect(env.SENTRY_ALERTS_CLIENT_SECRET).toBe("hook-secret");
+  });
+});

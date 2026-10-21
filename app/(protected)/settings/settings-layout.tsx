@@ -9,6 +9,7 @@ const settingsNav = [
   { label: "Plantillas UTM", href: "/settings/utm" },
   { label: "Usuarios", href: "/settings/users", adminOnly: true },
   { label: "Integraciones", href: "/settings/integrations", adminOnly: true },
+  { label: "Monitoreo", href: "/settings/monitoring", adminOnly: true },
 ];
 
 export function SettingsLayout({

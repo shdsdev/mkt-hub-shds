@@ -99,6 +99,8 @@ export async function sendTelegramTestMessageAction(
     });
     return { success: "Mensaje de prueba enviado correctamente." };
   } catch (error) {
+    const { captureOperationFailure } = await import("@/modules/monitoring");
+    captureOperationFailure({ operation: "telegram_test_message", module: "integrations", error });
     return {
       error: error instanceof Error
         ? `Telegram: ${error.message}`
