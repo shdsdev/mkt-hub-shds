@@ -23,6 +23,10 @@ describe("monitoring alert classification", () => {
     expect(getMonitoringAlertType({ data: { issue: { tags: [{ key: "monitoring", value: "form_failure" }] } } })).toBe("form_failure");
   });
 
+  it("classifies documented issue-alert event tuple tags", () => {
+    expect(getMonitoringAlertType({ data: { event: { tags: [["monitoring", "form_failure"]] } } })).toBe("form_failure");
+  });
+
   it("classifies slow transaction payloads as performance alerts", () => {
     expect(getMonitoringAlertType({ data: { transaction: { duration: 2200 } } }, 1500)).toBe("performance");
   });

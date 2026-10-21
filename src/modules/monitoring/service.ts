@@ -1,5 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { monitoringSettings } from "./db";
+import { normalizeSentryTags, type SentryAlertPayload } from "./sentry-webhook";
 
 const GLOBAL_ID = "global";
 
@@ -11,17 +12,11 @@ export type MonitoringSettings = typeof monitoringSettings.$inferSelect;
 
 export type MonitoringAlertType = "form_failure" | "performance";
 
-type AlertPayload = {
-  data?: {
-    issue?: { tags?: Array<{ key?: string; value?: string }> };
-    transaction?: { duration?: number };
-  };
-};
-
-export function getMonitoringAlertType(payload: AlertPayload, thresholdMs = 3000): MonitoringAlertType {
-  const tags = payload.data?.issue?.tags ?? [];
-  if (tags.some((tag) => tag.key === "monitoring" && tag.value === "form_failure")) return "form_failure";
-  if ((payload.data?.transaction?.duration ?? 0) >= thresholdMs) return "performance";
+export function getMonitoringAlertType(payload: SentryAlertPayload, thresholdMs = 3000): MonitoringAlertType {
+  const tags = normalizeSentryTags(payload.data?.event?.tags ?? payload.data?.issue?.tags);
+  if (tags.monitoring === "form_failure") return "form_failure";
+  const duration = payload.data?.event?.duration ?? payload.data?.transaction?.duration ?? 0;
+  if (duration >= thresholdMs) return "performance";
   return "form_failure";
 }
 

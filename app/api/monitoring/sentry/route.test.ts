@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/modules/monitoring", () => ({
   getMonitoringSettings: mocks.getMonitoringSettings,
   hasValidSentrySignature: mocks.hasValidSentrySignature,
-  formatSentryAlert: (payload: { data?: { issue?: { title?: string } } }) => payload.data?.issue?.title ?? "alert",
+  formatSentryAlert: (payload: { data?: { event?: { title?: string } } }) => payload.data?.event?.title ?? "alert",
   getMonitoringAlertType: () => "form_failure",
   isMonitoringAlertEnabled: () => true,
 }));
@@ -66,7 +66,18 @@ describe("POST /api/monitoring/sentry", () => {
   });
 
   it("sends a safe operational alert for a valid enabled issue", async () => {
-    const response = await POST(signedRequest({ action: "issue", data: { issue: { title: "Database timeout", tags: { monitoring: "form_failure" } } } }));
+    const response = await POST(signedRequest({
+      action: "triggered",
+      data: {
+        event: {
+          title: "Database timeout",
+          level: "error",
+          tags: [["monitoring", "form_failure"]],
+          web_url: "https://example-org.sentry.io/issues/123/events/456/",
+        },
+      },
+      triggered_rule: "Form failures",
+    }));
     expect(response.status).toBe(202);
     expect(mocks.sendTelegramMessage).toHaveBeenCalledWith(expect.objectContaining({
       token: "bot-token",
