@@ -1,6 +1,10 @@
 export {
   getOrCreateRaffle,
   getRaffleForEvent,
+  rotateRaffleStageToken,
+  getRaffleForStageToken,
+  getRaffleStageState,
+  drawNextRaffleStagePrize,
   createPrize,
   updatePrize,
   increasePrizeQuantity,
@@ -9,6 +13,7 @@ export {
   revealDraw,
   invalidateDraw,
   claimDraw,
+  confirmDrawAndNotify,
   validateRaffleCode,
   claimHcsDraw,
   resendHcsWinnerEmail,
@@ -21,5 +26,7 @@ export {
   type RaffleActor,
   type RaffleFilters,
   type HcsRaffleClaimActor,
+  type RaffleStageState,
 } from "./service";
 export type { RaffleAuditRow, RaffleDrawRow, RafflePrizeRow, RaffleRow } from "./db";
+export { createRaffleStageToken, hashRaffleStageToken } from "./tokens";

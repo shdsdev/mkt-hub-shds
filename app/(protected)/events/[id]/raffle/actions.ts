@@ -6,16 +6,17 @@ import { getCurrentUser } from "@/modules/auth";
 import { canAccessEvent } from "@/modules/events";
 import { isActive } from "@/modules/users";
 import {
-  claimDraw,
+  confirmDrawAndNotify,
   createPrize,
   drawPrizeUnit,
   increasePrizeQuantity,
   invalidateDraw,
   revealDraw,
+  rotateRaffleStageToken,
   updatePrize,
 } from "@/modules/raffles";
 
-export type RaffleActionState = { error?: string; success?: string };
+export type RaffleActionState = { error?: string; success?: string; stageUrl?: string };
 
 const uuid = z.string().uuid();
 const eventFields = z.object({ eventId: uuid });
@@ -29,8 +30,14 @@ function value(formData: FormData, key: string) {
 
 function csv(formData: FormData, key: string) {
   const raw = String(formData.get(key) ?? "");
+  if (!raw || raw.trim() === "all") return undefined;
   const values = raw.split(",").map((item) => item.trim()).filter(Boolean);
   return values.length ? values : undefined;
+}
+
+function filterValue(formData: FormData, key: string) {
+  const raw = String(value(formData, key) ?? "").trim();
+  return raw && raw !== "all" ? raw : undefined;
 }
 
 async function requireRaffleAdmin(eventId: string) {
@@ -45,6 +52,7 @@ function route(eventId: string) {
 }
 
 function failure(error: unknown): RaffleActionState {
+  if (error instanceof Error && error.message === "No eligible attendees") return { error: "No hay asistentes elegibles con los filtros seleccionados." };
   return { error: error instanceof Error ? error.message : "No se pudo actualizar el sorteo." };
 }
 
@@ -103,9 +111,20 @@ export async function drawPrizeAction(formData: FormData): Promise<RaffleActionS
   const user = await requireRaffleAdmin(parsed.data.eventId);
   if (!user) return { error: "No tienes permiso para administrar este sorteo." };
   try {
-    await drawPrizeUnit({ eventId: parsed.data.eventId, prizeId: parsed.data.prizeId, organizationId: user.profile.organizationId, actor: { userId: user.id, email: user.email }, idempotencyKey: parsed.data.idempotencyKey ?? crypto.randomUUID(), filters: { occupation: String(value(formData, "occupation") ?? "").trim() || undefined, clientBrands: csv(formData, "clientBrands"), interests: csv(formData, "interests") } });
+    await drawPrizeUnit({ eventId: parsed.data.eventId, prizeId: parsed.data.prizeId, organizationId: user.profile.organizationId, actor: { userId: user.id, email: user.email }, idempotencyKey: parsed.data.idempotencyKey ?? crypto.randomUUID(), filters: { occupation: filterValue(formData, "occupation"), clientBrands: csv(formData, "clientBrands"), interests: csv(formData, "interests") } });
     revalidatePath(route(parsed.data.eventId));
     return { success: "Ganador sorteado. Revela el resultado para continuar." };
+  } catch (error) { return failure(error); }
+}
+
+export async function rotateRaffleStageTokenAction(_state: RaffleActionState, formData: FormData): Promise<RaffleActionState> {
+  const parsed = eventFields.safeParse({ eventId: value(formData, "eventId") });
+  if (!parsed.success) return { error: "Evento inválido." };
+  const user = await requireRaffleAdmin(parsed.data.eventId);
+  if (!user) return { error: "No tienes permiso para administrar este sorteo." };
+  try {
+    const { token } = await rotateRaffleStageToken(parsed.data.eventId, user.profile.organizationId);
+    return { success: "Enlace de escenario generado.", stageUrl: new URL(`/events/${parsed.data.eventId}/raffle/${token}`, process.env.NEXT_PUBLIC_APP_ORIGIN ?? "http://localhost:3000").toString() };
   } catch (error) { return failure(error); }
 }
 
@@ -117,7 +136,7 @@ async function drawMutation(formData: FormData, operation: "reveal" | "claim"): 
   const input = { drawId: parsed.data.drawId, eventId: parsed.data.eventId, organizationId: user.profile.organizationId, actor: { userId: user.id, email: user.email } };
   try {
     if (operation === "reveal") await revealDraw(input);
-    else await claimDraw(input);
+    else await confirmDrawAndNotify(input);
     revalidatePath(route(parsed.data.eventId));
     return { success: operation === "reveal" ? "Resultado revelado." : "Premio marcado como entregado." };
   } catch (error) { return failure(error); }

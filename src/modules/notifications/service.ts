@@ -169,6 +169,8 @@ export type RaffleWinnerEmailInput = {
   eventName: string;
   prizeName: string;
   reason: string | null;
+  instructions?: string | null;
+  claimDeadlineAt?: Date | null;
   client?: NotificationClient;
 };
 
@@ -202,10 +204,11 @@ export async function sendRaffleWinnerEmail(input: RaffleWinnerEmailInput): Prom
   }
   if (!notificationId) throw new Error("Notification could not be recorded");
 
-  const html = `<!doctype html><html><body><h1>Congratulations, ${escapeHtml(input.winnerName)}!</h1><p>You won <strong>${escapeHtml(input.prizeName)}</strong> at ${escapeHtml(input.eventName)}.</p>${input.reason ? `<p>${escapeHtml(input.reason)}</p>` : ""}</body></html>`;
+  const deadline = input.claimDeadlineAt ? new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(input.claimDeadlineAt) : null;
+  const html = `<!doctype html><html><body><h1>¡Felicidades, ${escapeHtml(input.winnerName)}!</h1><p>Ganaste <strong>${escapeHtml(input.prizeName)}</strong> en ${escapeHtml(input.eventName)}.</p>${input.instructions ? `<p><strong>Cómo reclamar:</strong> ${escapeHtml(input.instructions)}</p>` : ""}${deadline ? `<p><strong>Fecha límite:</strong> ${escapeHtml(deadline)}</p>` : ""}${input.reason ? `<p>${escapeHtml(input.reason)}</p>` : ""}</body></html>`;
   const result = await sendViaResend({
     to: input.to,
-    subject: `Winner notification: ${input.prizeName}`,
+    subject: `Ganaste: ${input.prizeName}`,
     html,
   });
   if (!result.ok) {

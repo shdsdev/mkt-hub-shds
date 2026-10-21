@@ -14,6 +14,7 @@ import {
   type RafflePrizeRow,
   type RaffleRow,
 } from "./db";
+import { createRaffleStageToken, hashRaffleStageToken } from "./tokens";
 
 type RaffleClient = Pick<typeof db, "select" | "insert" | "update" | "execute">;
 
@@ -94,6 +95,53 @@ export async function getRaffleForEvent(eventId: string, organizationId: string)
     .where(and(eq(raffles.eventId, eventId), eq(raffles.organizationId, organizationId)))
     .limit(1);
   return rows[0];
+}
+
+export async function rotateRaffleStageToken(eventId: string, organizationId: string): Promise<{ raffle: RaffleRow; token: string }> {
+  const token = createRaffleStageToken();
+  const [raffle] = await db
+    .update(raffles)
+    .set({ stageTokenHash: hashRaffleStageToken(token), updatedAt: new Date() })
+    .where(and(eq(raffles.eventId, eventId), eq(raffles.organizationId, organizationId)))
+    .returning();
+  if (!raffle) throw new Error("Raffle not found");
+  return { raffle, token };
+}
+
+export async function getRaffleForStageToken(eventId: string, token: string): Promise<RaffleRow | undefined> {
+  const rows = await db
+    .select()
+    .from(raffles)
+    .where(and(eq(raffles.eventId, eventId), eq(raffles.stageTokenHash, hashRaffleStageToken(token))))
+    .limit(1);
+  return rows[0];
+}
+
+export type RaffleStageState = {
+  event: { id: string; name: string };
+  prizes: Array<{ id: string; name: string; quantity: number; drawnQuantity: number; status: string }>;
+  draw: { id: string; prizeId: string; status: string; attendeeName: string; attendeeCompany: string | null; attendeeCode: string; drawnAt: Date } | null;
+};
+
+export async function getRaffleStageState(eventId: string, token: string): Promise<RaffleStageState | undefined> {
+  const raffle = await getRaffleForStageToken(eventId, token);
+  if (!raffle) return undefined;
+  const [event] = await db.select({ id: events.id, name: events.name }).from(events).where(and(eq(events.id, eventId), eq(events.organizationId, raffle.organizationId))).limit(1);
+  if (!event) return undefined;
+  const prizes = await db.select({ id: rafflePrizes.id, name: rafflePrizes.name, quantity: rafflePrizes.quantity, drawnQuantity: rafflePrizes.drawnQuantity, status: rafflePrizes.status }).from(rafflePrizes).where(eq(rafflePrizes.raffleId, raffle.id)).orderBy(asc(rafflePrizes.createdAt));
+  const draws = await db.select({ id: raffleDraws.id, prizeId: raffleDraws.prizeId, status: raffleDraws.status, attendeeName: raffleDraws.attendeeName, attendeeCompany: raffleDraws.attendeeCompany, attendeeCode: raffleDraws.attendeeCode, drawnAt: raffleDraws.drawnAt }).from(raffleDraws).where(and(eq(raffleDraws.raffleId, raffle.id), ne(raffleDraws.status, "invalidated"))).orderBy(asc(raffleDraws.drawnAt));
+  return { event, prizes, draw: draws.at(-1) ?? null };
+}
+
+export async function drawNextRaffleStagePrize(eventId: string, token: string): Promise<RaffleDrawRow> {
+  const raffle = await getRaffleForStageToken(eventId, token);
+  if (!raffle) throw new Error("Stage not found");
+  const prizes = await db.select().from(rafflePrizes).where(eq(rafflePrizes.raffleId, raffle.id)).orderBy(asc(rafflePrizes.createdAt));
+  const [latest] = await db.select().from(raffleDraws).where(and(eq(raffleDraws.raffleId, raffle.id), ne(raffleDraws.status, "invalidated"))).orderBy(sql`${raffleDraws.drawnAt} desc`).limit(1);
+  if (latest && (latest.status === "pending_reveal" || latest.status === "revealed")) throw new Error("Previous draw must be confirmed");
+  const prize = prizes.find((item) => item.status !== "paused" && item.status !== "finished" && item.drawnQuantity < item.quantity);
+  if (!prize) throw new Error("No prizes available");
+  return drawPrizeUnit({ eventId, organizationId: raffle.organizationId, prizeId: prize.id, actor: { type: "hcs", actorId: `stage:${raffle.id}`, email: "stage@raffle.local", name: "Pantalla de escenario", source: "hcs" }, idempotencyKey: crypto.randomUUID() });
 }
 
 export async function getOrCreateRaffle(eventId: string, organizationId: string, actorUserId: string): Promise<RaffleRow> {
@@ -262,6 +310,7 @@ export type EligibleAttendee = {
   email: string;
   backupCode: string;
   occupation: string | null;
+  company: string | null;
 };
 
 async function listEligibleAttendeesWithClient(client: RaffleClient, input: { eventId: string; organizationId: string; filters?: RaffleFilters }): Promise<EligibleAttendee[]> {
@@ -278,7 +327,7 @@ async function listEligibleAttendeesWithClient(client: RaffleClient, input: { ev
   if (filters.clientBrands?.length) conditions.push(sql`${eventRegistrations.clientBrands} @> ${JSON.stringify(filters.clientBrands)}::jsonb`);
   if (filters.interests?.length) conditions.push(sql`${eventRegistrations.interests} @> ${JSON.stringify(filters.interests)}::jsonb`);
   const rows = await client.select({ attendee: eventAttendees }).from(eventAttendees).innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId)).where(and(...conditions)).orderBy(asc(eventAttendees.id));
-  return rows.map(({ attendee }) => ({ id: attendee.id, fullName: attendee.fullName, email: attendee.email, backupCode: attendee.backupCode, occupation: attendee.occupation }));
+  return rows.map(({ attendee }) => ({ id: attendee.id, fullName: attendee.fullName, email: attendee.email, backupCode: attendee.backupCode, occupation: attendee.occupation, company: attendee.company }));
 }
 
 export async function listEligibleAttendees(input: { eventId: string; organizationId: string; filters?: RaffleFilters }): Promise<EligibleAttendee[]> {
@@ -322,6 +371,7 @@ export async function drawPrizeUnit(input: {
       attendeeName: winner.fullName,
       attendeeEmail: winner.email,
       attendeeCode: winner.backupCode,
+      attendeeCompany: winner.company,
       eligibleAttendeeIds: eligible.map((attendee) => attendee.id),
       eligibleCount: eligible.length,
       idempotencyKey: input.idempotencyKey,
@@ -412,6 +462,19 @@ async function claimDrawWithClient(client: RaffleClient, input: { drawId: string
 
 export async function claimDraw(input: { drawId: string; eventId: string; organizationId: string; actor: RaffleActor; note?: string; now?: Date }): Promise<RaffleDrawRow> {
   return db.transaction((tx) => claimDrawWithClient(tx, input));
+}
+
+export async function confirmDrawAndNotify(input: { drawId: string; eventId: string; organizationId: string; actor: RaffleActor }): Promise<RaffleDrawRow> {
+  const initial = await getScopedDraw(db, input.drawId, input.eventId, input.organizationId);
+  if (!initial) throw new Error("Draw not found");
+  if (initial.status === "invalidated" || initial.status === "unclaimed") throw new Error("Draw cannot be confirmed");
+  const revealed = initial.status === "pending_reveal" ? await revealDraw(input) : initial;
+  const draw = revealed.status === "revealed" ? await claimDraw(input) : revealed;
+  const rows = await db.select({ draw: raffleDraws, prize: rafflePrizes, event: events }).from(raffleDraws).innerJoin(rafflePrizes, eq(rafflePrizes.id, raffleDraws.prizeId)).innerJoin(events, eq(events.id, raffleDraws.eventId)).where(and(eq(raffleDraws.id, draw.id), eq(raffleDraws.organizationId, input.organizationId))).limit(1);
+  const scoped = rows[0];
+  if (!scoped) throw new Error("Draw not found");
+  await sendRaffleWinnerEmail({ organizationId: input.organizationId, drawId: draw.id, to: draw.attendeeEmail, winnerName: draw.attendeeName, eventName: scoped.event.name, prizeName: scoped.prize.name, reason: null, instructions: scoped.prize.instructions, claimDeadlineAt: scoped.prize.claimDeadlineAt });
+  return draw;
 }
 
 export type HcsRaffleClaimActor = Extract<RaffleActor, { type: "hcs" }>;

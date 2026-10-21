@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   drawPrizeUnit: vi.fn(),
   revealDraw: vi.fn(),
   claimDraw: vi.fn(),
+  confirmDrawAndNotify: vi.fn(),
+  rotateRaffleStageToken: vi.fn(),
   invalidateDraw: vi.fn(),
   revalidatePath: vi.fn(),
 }));
@@ -24,6 +26,8 @@ vi.mock("@/modules/raffles", () => ({
   drawPrizeUnit: mocks.drawPrizeUnit,
   revealDraw: mocks.revealDraw,
   claimDraw: mocks.claimDraw,
+  confirmDrawAndNotify: mocks.confirmDrawAndNotify,
+  rotateRaffleStageToken: mocks.rotateRaffleStageToken,
   invalidateDraw: mocks.invalidateDraw,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
@@ -114,15 +118,33 @@ describe("raffle admin actions", () => {
   });
 
   it("passes the actor through when claiming a draw", async () => {
-    mocks.claimDraw.mockResolvedValue({ id: "draw-1" });
+    mocks.confirmDrawAndNotify.mockResolvedValue({ id: "draw-1" });
 
     await claimDrawAction(form({ eventId: ids.event, drawId: ids.draw }));
 
-    expect(mocks.claimDraw).toHaveBeenCalledWith({
+    expect(mocks.confirmDrawAndNotify).toHaveBeenCalledWith({
       drawId: ids.draw,
       eventId: ids.event,
       organizationId: "org-1",
       actor: { userId: "admin-1", email: "admin@example.com" },
     });
+  });
+
+  it("explains when the selected filters have no eligible attendees", async () => {
+    mocks.drawPrizeUnit.mockRejectedValue(new Error("No eligible attendees"));
+
+    const result = await drawPrizeAction(form({ eventId: ids.event, prizeId: ids.prize, occupation: "wholesaler" }));
+
+    expect(result).toEqual({ error: "No hay asistentes elegibles con los filtros seleccionados." });
+  });
+
+  it("returns a public stage URL only after an authorized request", async () => {
+    mocks.rotateRaffleStageToken.mockResolvedValue({ token: "stage-token" });
+
+    const { rotateRaffleStageTokenAction } = await import("./actions");
+    const result = await rotateRaffleStageTokenAction({}, form({ eventId: ids.event }));
+
+    expect(mocks.rotateRaffleStageToken).toHaveBeenCalledWith(ids.event, "org-1");
+    expect(result.stageUrl).toContain(`/events/${ids.event}/raffle/stage-token`);
   });
 });
