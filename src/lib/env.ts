@@ -52,4 +52,13 @@ export const env = {
   get NEXT_PUBLIC_APP_ORIGIN() {
     return required("NEXT_PUBLIC_APP_ORIGIN");
   },
+  get SENTRY_DSN() {
+    return process.env.SENTRY_DSN ?? "";
+  },
+  get NEXT_PUBLIC_SENTRY_DSN() {
+    return process.env.NEXT_PUBLIC_SENTRY_DSN ?? "";
+  },
+  get SENTRY_ALERTS_CLIENT_SECRET() {
+    return process.env.SENTRY_ALERTS_CLIENT_SECRET ?? "";
+  },
 };

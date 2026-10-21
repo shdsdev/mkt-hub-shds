@@ -175,6 +175,8 @@ export async function createWebsiteQrCodeAction(
       placementImageUrl: parsed.data.placementImageUrl || undefined,
     });
   } catch (error) {
+    const { captureOperationFailure } = await import("@/modules/monitoring");
+    captureOperationFailure({ operation: "qr_create", module: "qr", error });
     return { error: error instanceof Error ? error.message : "No se pudo crear el código QR." };
   }
 
@@ -774,6 +776,8 @@ export async function createBulkWebsiteQrCodesAction(
         ...preflight.design,
       });
     } catch (error) {
+      const { captureOperationFailure } = await import("@/modules/monitoring");
+      captureOperationFailure({ operation: "qr_bulk_template", module: "qr", error });
       return emptyBulkQrImportSummary(error instanceof Error ? error.message : "No se pudo guardar la plantilla.");
     }
   }
@@ -820,6 +824,8 @@ export async function createBulkWebsiteQrCodesAction(
         qrCodeId: qrCode.id,
       });
     } catch (error) {
+      const { captureOperationFailure } = await import("@/modules/monitoring");
+      captureOperationFailure({ operation: "qr_bulk_create", module: "qr", error });
       results.push({
         rowNumber: row.rowNumber,
         title: row.title,
