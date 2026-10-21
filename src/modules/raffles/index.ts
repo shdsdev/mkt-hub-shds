@@ -2,9 +2,11 @@ export {
   getOrCreateRaffle,
   getRaffleForEvent,
   rotateRaffleStageToken,
+  updateRaffleStageTheme,
   getRaffleForStageToken,
   getRaffleStageState,
-  drawNextRaffleStagePrize,
+  drawNextRafflePrize,
+  updateRaffleDrawMode,
   createPrize,
   updatePrize,
   increasePrizeQuantity,
@@ -27,6 +29,8 @@ export {
   type RaffleFilters,
   type HcsRaffleClaimActor,
   type RaffleStageState,
+  type RaffleDrawMode,
 } from "./service";
 export type { RaffleAuditRow, RaffleDrawRow, RafflePrizeRow, RaffleRow } from "./db";
+export { DEFAULT_RAFFLE_STAGE_THEME, getReadableStageTextColor, normalizeRaffleStageTheme, type RaffleStageTheme } from "./stage-theme";
 export { createRaffleStageToken, hashRaffleStageToken } from "./tokens";

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { canAccessEvent, getEvent, listRegistrations } from "@/modules/events";
 import { isActive } from "@/modules/users";
 import { getOrCreateRaffle, listRaffleAudit, listRaffleDraws, listRafflePrizes } from "@/modules/raffles";
+import { normalizeRaffleStageTheme } from "@/lib/raffle-stage-theme";
 import { EventSubNav } from "../../event-sub-nav";
 import { RaffleManagement } from "./raffle-management";
 
@@ -31,7 +32,7 @@ export default async function RafflePage({ params }: { params: Promise<{ id: str
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 pb-10">
       <EventSubNav eventId={event.id} current="raffle" role={user.profile.role} />
-      <RaffleManagement event={event} raffle={raffle} prizes={prizes} draws={draws} audit={audit} filterOptions={filterOptions} />
+      <RaffleManagement event={event} raffle={raffle} prizes={prizes} draws={draws} audit={audit} filterOptions={filterOptions} organizationId={user.profile.organizationId} stageTheme={normalizeRaffleStageTheme(raffle)} />
     </div>
   );
 }

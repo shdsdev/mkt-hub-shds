@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import {
   raffleStatus,
+  raffleDrawMode,
   raffleWinnerPolicy,
   raffleDrawStatus,
   raffleAuditAction,
@@ -14,6 +15,7 @@ import {
 describe("raffles schema", () => {
   it("defines the raffle, winner, draw, and audit enums", () => {
     expect(raffleStatus.enumValues).toEqual(["not_configured", "ready", "active", "finished", "paused"]);
+    expect(raffleDrawMode.enumValues).toEqual(["manual", "automatic"]);
     expect(raffleWinnerPolicy.enumValues).toEqual(["include_winners", "exclude_winners"]);
     expect(raffleDrawStatus.enumValues).toEqual(["pending_reveal", "revealed", "claimed", "unclaimed", "invalidated"]);
     expect(raffleAuditAction.enumValues).toEqual([

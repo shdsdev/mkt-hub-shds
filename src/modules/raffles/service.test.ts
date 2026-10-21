@@ -29,6 +29,7 @@ import {
   isClaimDeadlinePassed,
   releasesPrizeUnit,
   selectEligibleWinners,
+  selectNextRafflePrize,
   type RandomInt,
   resendHcsWinnerEmail,
 } from "./service";
@@ -191,6 +192,15 @@ describe("raffle service", () => {
     expect(getRaffleLifecycleStatus({ currentStatus: "finished", prizes: [{ quantity: 2, drawnQuantity: 1, status: "active" }], hasDraws: true })).toBe("active");
     expect(getRaffleLifecycleStatus({ currentStatus: "active", prizes: [{ quantity: 1, drawnQuantity: 1, status: "finished" }], hasDraws: true })).toBe("finished");
     expect(getRaffleLifecycleStatus({ currentStatus: "paused", prizes: [{ quantity: 1, drawnQuantity: 0, status: "paused" }], hasDraws: false })).toBe("paused");
+  });
+
+  it("selects the first available prize in configured order", () => {
+    expect(selectNextRafflePrize([
+      { id: "paused", status: "paused", drawnQuantity: 0, quantity: 1 },
+      { id: "finished", status: "finished", drawnQuantity: 1, quantity: 1 },
+      { id: "next", status: "ready", drawnQuantity: 0, quantity: 2 },
+      { id: "later", status: "ready", drawnQuantity: 0, quantity: 1 },
+    ])).toEqual({ id: "next", status: "ready", drawnQuantity: 0, quantity: 2 });
   });
 
   it("recognizes a claim deadline at the deadline instant", () => {

@@ -9,12 +9,16 @@ import {
   confirmDrawAndNotify,
   createPrize,
   drawPrizeUnit,
+  drawNextRafflePrize,
   increasePrizeQuantity,
   invalidateDraw,
   revealDraw,
   rotateRaffleStageToken,
+  updateRaffleStageTheme,
+  updateRaffleDrawMode,
   updatePrize,
 } from "@/modules/raffles";
+import { normalizeRaffleStageTheme } from "@/lib/raffle-stage-theme";
 
 export type RaffleActionState = { error?: string; success?: string; stageUrl?: string };
 
@@ -111,9 +115,48 @@ export async function drawPrizeAction(formData: FormData): Promise<RaffleActionS
   const user = await requireRaffleAdmin(parsed.data.eventId);
   if (!user) return { error: "No tienes permiso para administrar este sorteo." };
   try {
-    await drawPrizeUnit({ eventId: parsed.data.eventId, prizeId: parsed.data.prizeId, organizationId: user.profile.organizationId, actor: { userId: user.id, email: user.email }, idempotencyKey: parsed.data.idempotencyKey ?? crypto.randomUUID(), filters: { occupation: filterValue(formData, "occupation"), clientBrands: csv(formData, "clientBrands"), interests: csv(formData, "interests") } });
+    await drawPrizeUnit({ eventId: parsed.data.eventId, prizeId: parsed.data.prizeId, organizationId: user.profile.organizationId, actor: { userId: user.id, email: user.email }, idempotencyKey: parsed.data.idempotencyKey ?? crypto.randomUUID(), requiredDrawMode: "manual", filters: { occupation: filterValue(formData, "occupation"), clientBrands: csv(formData, "clientBrands"), interests: csv(formData, "interests") } });
     revalidatePath(route(parsed.data.eventId));
     return { success: "Ganador sorteado. Revela el resultado para continuar." };
+  } catch (error) { return failure(error); }
+}
+
+export async function drawNextPrizeAction(formData: FormData): Promise<RaffleActionState> {
+  const parsed = eventFields.extend({ idempotencyKey: z.string().uuid().optional() }).safeParse({ eventId: value(formData, "eventId"), idempotencyKey: value(formData, "idempotencyKey") || undefined });
+  if (!parsed.success) return { error: "No se pudo iniciar el sorteo." };
+  const user = await requireRaffleAdmin(parsed.data.eventId);
+  if (!user) return { error: "No tienes permiso para administrar este sorteo." };
+  try {
+    await drawNextRafflePrize({
+      eventId: parsed.data.eventId,
+      organizationId: user.profile.organizationId,
+      actor: { userId: user.id, email: user.email },
+      idempotencyKey: parsed.data.idempotencyKey ?? crypto.randomUUID(),
+    });
+    revalidatePath(route(parsed.data.eventId));
+    return { success: "Siguiente premio sorteado. Revela el resultado para continuar." };
+  } catch (error) { return failure(error); }
+}
+
+export async function updateRaffleDrawModeAction(_state: RaffleActionState, formData: FormData): Promise<RaffleActionState> {
+  const parsed = prizeBase.extend({ drawMode: z.enum(["manual", "automatic"]) }).safeParse({
+    eventId: value(formData, "eventId"),
+    raffleId: value(formData, "raffleId"),
+    drawMode: value(formData, "drawMode"),
+  });
+  if (!parsed.success) return { error: "Selecciona un modo de sorteo válido." };
+  const user = await requireRaffleAdmin(parsed.data.eventId);
+  if (!user) return { error: "No tienes permiso para administrar este sorteo." };
+  try {
+    await updateRaffleDrawMode({
+      eventId: parsed.data.eventId,
+      raffleId: parsed.data.raffleId,
+      organizationId: user.profile.organizationId,
+      drawMode: parsed.data.drawMode,
+      actor: { userId: user.id, email: user.email },
+    });
+    revalidatePath(route(parsed.data.eventId));
+    return { success: "Modo de sorteo actualizado." };
   } catch (error) { return failure(error); }
 }
 
@@ -125,6 +168,36 @@ export async function rotateRaffleStageTokenAction(_state: RaffleActionState, fo
   try {
     const { token } = await rotateRaffleStageToken(parsed.data.eventId, user.profile.organizationId);
     return { success: "Enlace de escenario generado.", stageUrl: new URL(`/events/${parsed.data.eventId}/raffle/${token}`, process.env.NEXT_PUBLIC_APP_ORIGIN ?? "http://localhost:3000").toString() };
+  } catch (error) { return failure(error); }
+}
+
+export async function updateRaffleStageThemeAction(_state: RaffleActionState, formData: FormData): Promise<RaffleActionState> {
+  const parsed = prizeBase.extend({
+    stageBackgroundColor: z.string().regex(/^#[0-9a-f]{6}$/i),
+    stageAccentColor: z.string().regex(/^#[0-9a-f]{6}$/i),
+    stageLogoUrl: z.string().trim().max(1000).optional().or(z.literal("")),
+  }).safeParse({
+    eventId: value(formData, "eventId"),
+    raffleId: value(formData, "raffleId"),
+    stageBackgroundColor: value(formData, "stageBackgroundColor"),
+    stageAccentColor: value(formData, "stageAccentColor"),
+    stageLogoUrl: value(formData, "stageLogoUrl"),
+  });
+  if (!parsed.success) return { error: "Revisa los colores del escenario." };
+  const user = await requireRaffleAdmin(parsed.data.eventId);
+  if (!user) return { error: "No tienes permiso para administrar este sorteo." };
+  try {
+    const theme = normalizeRaffleStageTheme(parsed.data);
+    await updateRaffleStageTheme({
+      eventId: parsed.data.eventId,
+      raffleId: parsed.data.raffleId,
+      organizationId: user.profile.organizationId,
+      stageBackgroundColor: theme.backgroundColor,
+      stageAccentColor: theme.accentColor,
+      stageLogoUrl: theme.logoUrl,
+    });
+    revalidatePath(route(parsed.data.eventId));
+    return { success: "Tema del escenario actualizado." };
   } catch (error) { return failure(error); }
 }
 

@@ -8,10 +8,18 @@ const mocks = vi.hoisted(() => ({
   updatePrize: vi.fn(),
   increasePrizeQuantity: vi.fn(),
   drawPrizeUnit: vi.fn(),
+  drawNextRafflePrize: vi.fn(),
+  updateRaffleDrawMode: vi.fn(),
   revealDraw: vi.fn(),
   claimDraw: vi.fn(),
   confirmDrawAndNotify: vi.fn(),
   rotateRaffleStageToken: vi.fn(),
+  updateRaffleStageTheme: vi.fn(),
+  normalizeRaffleStageTheme: vi.fn((input: { stageBackgroundColor: string; stageAccentColor: string; stageLogoUrl?: string | null }) => ({
+    backgroundColor: input.stageBackgroundColor.toLowerCase(),
+    accentColor: input.stageAccentColor.toLowerCase(),
+    logoUrl: input.stageLogoUrl?.trim() || null,
+  })),
   invalidateDraw: vi.fn(),
   revalidatePath: vi.fn(),
 }));
@@ -24,10 +32,14 @@ vi.mock("@/modules/raffles", () => ({
   updatePrize: mocks.updatePrize,
   increasePrizeQuantity: mocks.increasePrizeQuantity,
   drawPrizeUnit: mocks.drawPrizeUnit,
+  drawNextRafflePrize: mocks.drawNextRafflePrize,
+  updateRaffleDrawMode: mocks.updateRaffleDrawMode,
   revealDraw: mocks.revealDraw,
   claimDraw: mocks.claimDraw,
   confirmDrawAndNotify: mocks.confirmDrawAndNotify,
   rotateRaffleStageToken: mocks.rotateRaffleStageToken,
+  updateRaffleStageTheme: mocks.updateRaffleStageTheme,
+  normalizeRaffleStageTheme: mocks.normalizeRaffleStageTheme,
   invalidateDraw: mocks.invalidateDraw,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
@@ -36,7 +48,9 @@ import {
   claimDrawAction,
   createPrizeAction,
   drawPrizeAction,
+  drawNextPrizeAction,
   invalidateDrawAction,
+  updateRaffleDrawModeAction,
 } from "./actions";
 
 const adminUser = {
@@ -138,6 +152,35 @@ describe("raffle admin actions", () => {
     expect(result).toEqual({ error: "No hay asistentes elegibles con los filtros seleccionados." });
   });
 
+  it("saves the selected draw mode for an authorized raffle", async () => {
+    mocks.updateRaffleDrawMode.mockResolvedValue({ id: ids.raffle, drawMode: "automatic" });
+
+    const result = await updateRaffleDrawModeAction({}, form({ eventId: ids.event, raffleId: ids.raffle, drawMode: "automatic" }));
+
+    expect(result).toEqual({ success: "Modo de sorteo actualizado." });
+    expect(mocks.updateRaffleDrawMode).toHaveBeenCalledWith({
+      eventId: ids.event,
+      raffleId: ids.raffle,
+      organizationId: "org-1",
+      drawMode: "automatic",
+      actor: { userId: "admin-1", email: "admin@example.com" },
+    });
+  });
+
+  it("draws the next prize through the authenticated admin action", async () => {
+    mocks.drawNextRafflePrize.mockResolvedValue({ id: ids.draw });
+
+    const result = await drawNextPrizeAction(form({ eventId: ids.event, idempotencyKey: "55555555-5555-4555-8555-555555555555" }));
+
+    expect(result).toEqual({ success: "Siguiente premio sorteado. Revela el resultado para continuar." });
+    expect(mocks.drawNextRafflePrize).toHaveBeenCalledWith({
+      eventId: ids.event,
+      organizationId: "org-1",
+      actor: { userId: "admin-1", email: "admin@example.com" },
+      idempotencyKey: "55555555-5555-4555-8555-555555555555",
+    });
+  });
+
   it("returns a public stage URL only after an authorized request", async () => {
     mocks.rotateRaffleStageToken.mockResolvedValue({ token: "stage-token" });
 
@@ -146,5 +189,28 @@ describe("raffle admin actions", () => {
 
     expect(mocks.rotateRaffleStageToken).toHaveBeenCalledWith(ids.event, "org-1");
     expect(result.stageUrl).toContain(`/events/${ids.event}/raffle/stage-token`);
+  });
+
+  it("saves a normalized stage theme after authorization", async () => {
+    mocks.updateRaffleStageTheme.mockResolvedValue({ id: ids.raffle });
+
+    const { updateRaffleStageThemeAction } = await import("./actions");
+    const result = await updateRaffleStageThemeAction({}, form({
+      eventId: ids.event,
+      raffleId: ids.raffle,
+      stageBackgroundColor: "#F4F1EA",
+      stageAccentColor: "#BEEF42",
+      stageLogoUrl: " https://cdn.example/logo.png ",
+    }));
+
+    expect(result).toEqual({ success: "Tema del escenario actualizado." });
+    expect(mocks.updateRaffleStageTheme).toHaveBeenCalledWith({
+      eventId: ids.event,
+      raffleId: ids.raffle,
+      organizationId: "org-1",
+      stageBackgroundColor: "#f4f1ea",
+      stageAccentColor: "#beef42",
+      stageLogoUrl: "https://cdn.example/logo.png",
+    });
   });
 });

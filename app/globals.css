@@ -7,6 +7,83 @@
   to { opacity: 1; transform: translateY(0) rotate(0); }
 }
 
+.raffle-stage-screen {
+  background: var(--stage-background, #0b0d12);
+  color: var(--stage-foreground, #ffffff);
+}
+
+.raffle-stage-accent {
+  color: var(--stage-accent, #bef264);
+}
+
+.raffle-stage-muted {
+  color: color-mix(in srgb, var(--stage-foreground, #ffffff) 65%, transparent);
+}
+
+.raffle-stage-subdued {
+  color: color-mix(in srgb, var(--stage-foreground, #ffffff) 50%, transparent);
+}
+
+.raffle-stage-panel {
+  background: color-mix(in srgb, var(--stage-foreground, #ffffff) 4%, transparent);
+  border-color: color-mix(in srgb, var(--stage-foreground, #ffffff) 12%, transparent);
+}
+
+.raffle-stage-prize {
+  background: color-mix(in srgb, var(--stage-foreground, #ffffff) 5%, transparent);
+  border-color: color-mix(in srgb, var(--stage-accent, #bef264) 45%, transparent);
+}
+
+.raffle-stage-prize-name {
+  color: var(--stage-foreground, #ffffff);
+}
+
+.raffle-confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.raffle-confetti-piece {
+  position: absolute;
+  width: 1rem;
+  height: 2.2rem;
+  border-radius: 999px 999px 0.2rem 0.2rem;
+  background: var(--stage-accent, #bef264);
+  left: var(--confetti-left);
+  top: var(--confetti-top);
+  opacity: 0;
+  transform: rotate(var(--confetti-rotation)) scale(0.2);
+}
+
+.raffle-confetti--active .raffle-confetti-piece {
+  animation: raffle-confetti-fall 3.6s cubic-bezier(0.16, 1, 0.3, 1) var(--confetti-delay) both;
+}
+
+@keyframes raffle-confetti-fall {
+  0% { opacity: 0; transform: translate3d(0, -1.5rem, 0) rotate(var(--confetti-rotation)) scale(0.2); }
+  18% { opacity: 1; }
+  100% { opacity: 0.82; transform: translate3d(0, 4.5rem, 0) rotate(calc(var(--confetti-rotation) + 180deg)) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raffle-confetti--active .raffle-confetti-piece {
+    animation: none;
+    opacity: 0.82;
+  }
+}
+
+.raffle-stage-action {
+  background: var(--stage-accent, #bef264);
+  color: var(--stage-accent-foreground, #000000);
+}
+
+.raffle-stage-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stage-accent, #bef264) 82%, white);
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-reveal="winner"] * { animation: none !important; }
 }

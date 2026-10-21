@@ -4,6 +4,7 @@ import { eventAttendees, events } from "@/modules/events/db";
 import { organizations, users } from "@/modules/users/db";
 
 export const raffleStatus = pgEnum("raffle_status", ["not_configured", "ready", "active", "finished", "paused"]);
+export const raffleDrawMode = pgEnum("raffle_draw_mode", ["manual", "automatic"]);
 export const raffleWinnerPolicy = pgEnum("raffle_winner_policy", ["include_winners", "exclude_winners"]);
 export const rafflePrizeStatus = pgEnum("raffle_prize_status", ["ready", "active", "finished", "paused"]);
 export const raffleDrawStatus = pgEnum("raffle_draw_status", ["pending_reveal", "revealed", "claimed", "unclaimed", "invalidated"]);
@@ -25,7 +26,11 @@ export const raffles = pgTable(
     organizationId: uuid("organization_id").notNull().references(() => organizations.id),
     eventId: uuid("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
     status: raffleStatus("status").notNull().default("not_configured"),
+    drawMode: raffleDrawMode("draw_mode").notNull().default("manual"),
     stageTokenHash: text("stage_token_hash"),
+    stageBackgroundColor: text("stage_background_color").notNull().default("#0b0d12"),
+    stageAccentColor: text("stage_accent_color").notNull().default("#bef264"),
+    stageLogoUrl: text("stage_logo_url"),
     createdBy: uuid("created_by").notNull().references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -108,4 +113,4 @@ export type RaffleDrawRow = typeof raffleDraws.$inferSelect;
 export type RaffleAuditRow = typeof raffleAudit.$inferSelect;
 export type RaffleTables = typeof raffles | typeof rafflePrizes | typeof raffleDraws | typeof raffleAudit;
 
-export const rafflesTables = { raffleStatus, raffleWinnerPolicy, rafflePrizeStatus, raffleDrawStatus, raffleAuditAction, raffles, rafflePrizes, raffleDraws, raffleAudit } as const;
+export const rafflesTables = { raffleStatus, raffleDrawMode, raffleWinnerPolicy, rafflePrizeStatus, raffleDrawStatus, raffleAuditAction, raffles, rafflePrizes, raffleDraws, raffleAudit } as const;
