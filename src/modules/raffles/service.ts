@@ -567,10 +567,11 @@ export async function confirmDrawAndNotify(input: { drawId: string; eventId: str
   if (initial.status === "invalidated" || initial.status === "unclaimed") throw new Error("Draw cannot be confirmed");
   const revealed = initial.status === "pending_reveal" ? await revealDraw(input) : initial;
   const draw = revealed.status === "revealed" ? await claimDraw(input) : revealed;
-  const rows = await db.select({ draw: raffleDraws, prize: rafflePrizes, event: events }).from(raffleDraws).innerJoin(rafflePrizes, eq(rafflePrizes.id, raffleDraws.prizeId)).innerJoin(events, eq(events.id, raffleDraws.eventId)).where(and(eq(raffleDraws.id, draw.id), eq(raffleDraws.organizationId, input.organizationId))).limit(1);
+  const rows = await db.select({ draw: raffleDraws, attendee: eventAttendees, prize: rafflePrizes, event: events }).from(raffleDraws).innerJoin(eventAttendees, eq(eventAttendees.id, raffleDraws.attendeeId)).innerJoin(rafflePrizes, eq(rafflePrizes.id, raffleDraws.prizeId)).innerJoin(events, eq(events.id, raffleDraws.eventId)).where(and(eq(raffleDraws.id, draw.id), eq(raffleDraws.organizationId, input.organizationId), eq(eventAttendees.organizationId, input.organizationId))).limit(1);
   const scoped = rows[0];
   if (!scoped) throw new Error("Draw not found");
-  await sendRaffleWinnerEmail({ organizationId: input.organizationId, drawId: draw.id, to: draw.attendeeEmail, winnerName: draw.attendeeName, eventName: scoped.event.name, prizeName: scoped.prize.name, reason: null, instructions: scoped.prize.instructions, claimDeadlineAt: scoped.prize.claimDeadlineAt });
+  if (!scoped.attendee.backupCode) throw new Error("Attendee not found");
+  await sendRaffleWinnerEmail({ organizationId: input.organizationId, drawId: draw.id, to: draw.attendeeEmail, winnerName: draw.attendeeName, eventName: scoped.event.name, prizeName: scoped.prize.name, registrationCode: scoped.attendee.backupCode, redemptionCode: draw.attendeeCode, reason: null, instructions: scoped.prize.instructions, claimDeadlineAt: scoped.prize.claimDeadlineAt });
   return draw;
 }
 
@@ -628,15 +629,17 @@ export async function resendHcsWinnerEmail(input: {
 }) {
   const client = input.client ?? db;
   const rows = await client
-    .select({ draw: raffleDraws, prize: rafflePrizes, event: events })
+    .select({ draw: raffleDraws, attendee: eventAttendees, prize: rafflePrizes, event: events })
     .from(raffleDraws)
+    .innerJoin(eventAttendees, eq(eventAttendees.id, raffleDraws.attendeeId))
     .innerJoin(rafflePrizes, eq(rafflePrizes.id, raffleDraws.prizeId))
     .innerJoin(events, eq(events.id, raffleDraws.eventId))
-    .where(and(eq(raffleDraws.id, input.drawId), eq(raffleDraws.eventId, input.eventId), eq(raffleDraws.organizationId, input.organizationId), eq(rafflePrizes.organizationId, input.organizationId), eq(events.organizationId, input.organizationId)))
+    .where(and(eq(raffleDraws.id, input.drawId), eq(raffleDraws.eventId, input.eventId), eq(raffleDraws.organizationId, input.organizationId), eq(eventAttendees.organizationId, input.organizationId), eq(rafflePrizes.organizationId, input.organizationId), eq(events.organizationId, input.organizationId)))
     .limit(1);
   const scoped = rows[0];
   if (!scoped) throw Object.assign(new Error("Draw not found"), { status: 404 });
   if (scoped.draw.status === "invalidated") throw Object.assign(new Error("Draw invalidated"), { status: 409 });
+  if (!scoped.attendee.backupCode) throw Object.assign(new Error("Attendee not found"), { status: 404 });
 
   try {
     const email = await sendRaffleWinnerEmail({
@@ -646,7 +649,11 @@ export async function resendHcsWinnerEmail(input: {
       winnerName: scoped.draw.attendeeName,
       eventName: scoped.event.name,
       prizeName: scoped.prize.name,
+      registrationCode: scoped.attendee.backupCode,
+      redemptionCode: scoped.draw.attendeeCode,
       reason: input.reason,
+      instructions: scoped.prize.instructions,
+      claimDeadlineAt: scoped.prize.claimDeadlineAt,
       client,
     });
     await insertAudit(client, {
