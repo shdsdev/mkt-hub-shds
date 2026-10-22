@@ -63,7 +63,7 @@ export const themeColorOverrides = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     updatedBy: uuid("updated_by")
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: "cascade" }),
   },
   (table) => [unique("theme_color_overrides_theme_token_unique").on(table.themeId, table.token)],
 );

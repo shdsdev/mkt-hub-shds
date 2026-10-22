@@ -34,7 +34,7 @@ export const auditLogs = pgTable("audit_logs", {
     .references(() => organizations.id),
   userId: uuid("user_id")
     .notNull()
-    .references(() => authUsers.id),
+    .references(() => authUsers.id, { onDelete: "cascade" }),
   action: auditAction("action").notNull(),
   resourceType: text("resource_type").notNull(),
   resourceId: uuid("resource_id").notNull(),

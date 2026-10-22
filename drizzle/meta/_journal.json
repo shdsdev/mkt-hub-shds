@@ -379,6 +379,13 @@
       "when": 1792685019869,
       "tag": "0052_aromatic_human_robot",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1792692456323,
+      "tag": "0053_flaky_power_man",
+      "breakpoints": true
     }
   ]
 }

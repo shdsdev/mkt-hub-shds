@@ -83,9 +83,9 @@ export const questions = pgTable(
     normalizedText: text("normalized_text").notNull(),
     status: questionStatus("status").notNull().default("pending"),
     answerText: text("answer_text"),
-    approvedBy: uuid("approved_by").references(() => authUsers.id),
-    answeredBy: uuid("answered_by").references(() => authUsers.id),
-    publishedBy: uuid("published_by").references(() => authUsers.id),
+    approvedBy: uuid("approved_by").references(() => authUsers.id, { onDelete: "cascade" }),
+    answeredBy: uuid("answered_by").references(() => authUsers.id, { onDelete: "cascade" }),
+    publishedBy: uuid("published_by").references(() => authUsers.id, { onDelete: "cascade" }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     answeredAt: timestamp("answered_at", { withTimezone: true }),
     publishedAt: timestamp("published_at", { withTimezone: true }),
@@ -152,7 +152,7 @@ export const questionDuplicates = pgTable(
     targetQuestionId: uuid("target_question_id")
       .notNull()
       .references(() => questions.id, { onDelete: "cascade" }),
-    createdBy: uuid("created_by").notNull().references(() => authUsers.id),
+    createdBy: uuid("created_by").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("question_duplicates_pair_unique").on(table.sourceQuestionId, table.targetQuestionId)],

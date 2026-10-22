@@ -37,7 +37,7 @@ export const utmPresets = pgTable(
       .notNull()
       .default(sql`'[]'::jsonb`),
     status: utmTemplateStatus("status").notNull().default("active"),
-    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

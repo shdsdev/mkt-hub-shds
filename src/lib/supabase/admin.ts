@@ -33,6 +33,13 @@ export const invitationGateway: InvitationGateway = {
 
   async deleteUser(authUserId) {
     const { error } = await createAdminClient().auth.admin.deleteUser(authUserId);
-    if (error) throw new Error("Unable to delete the provisioned Auth user.");
+    if (error) {
+      console.error("Supabase Auth user deletion failed.", {
+        authUserId,
+        code: error.code,
+        message: error.message,
+      });
+      throw new Error("Unable to delete the provisioned Auth user.");
+    }
   },
 };

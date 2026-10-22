@@ -134,7 +134,7 @@ export const eventRegistrations = pgTable("event_registrations", {
   source: eventRegistrationSource("source").notNull().default("public"),
   reviewStatus: eventRegistrationReviewStatus("review_status").notNull().default("new"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
-  reviewedBy: uuid("reviewed_by").references(() => users.id),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "cascade" }),
   // Opaque, unguessable, revocable-by-update (design.md "Pass + cancel tokens") — no signing
   // secret, no expiry clock.
   cancelToken: text("cancel_token").notNull(),

@@ -47,7 +47,7 @@ export const userNotifications = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id").notNull().references(() => organizations.id),
-    recipientUserId: uuid("recipient_user_id").notNull().references(() => users.id),
+    recipientUserId: uuid("recipient_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     subjectId: uuid("subject_id").notNull(),
     type: internalNotificationType("type").notNull(),
     title: text("title").notNull(),
