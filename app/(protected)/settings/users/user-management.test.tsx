@@ -50,4 +50,46 @@ describe("UserManagement", () => {
 
     expect(container?.textContent).toContain("Acciones");
   });
+
+  it("opens a non-blocking deletion confirmation instead of calling window.confirm", () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() =>
+      root?.render(
+        <UserManagement
+          users={[
+            {
+              id: "7a29aa2a-4e37-4b15-97a0-1aa6fef2f36d",
+              organizationId: "org-1",
+              role: "MARKETING_USER",
+              status: "active",
+              email: "target@example.com",
+              createdAt: new Date("2026-01-01T00:00:00Z"),
+            },
+          ]}
+        />,
+      ),
+    );
+
+    const menuTrigger = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Acciones"),
+    );
+    expect(menuTrigger).toBeDefined();
+    act(() => menuTrigger?.click());
+
+    const actionButton = Array.from(document.body.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Eliminar definitivamente"),
+    );
+    expect(actionButton).toBeDefined();
+
+    act(() => actionButton?.click());
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(container.textContent).toContain("Confirmar eliminación");
+    confirmSpy.mockRestore();
+  });
 });

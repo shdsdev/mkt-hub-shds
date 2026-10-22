@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -231,6 +231,21 @@ function ManagedUserRow({ user }: { user: ManagedUser }) {
   );
   const [passwordState, passwordAction, passwordPending] = useActionState(sendPasswordSetupLinkAction, initialState);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteUserAction, initialState);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!deleteConfirmationOpen) return;
+
+    deleteDialogRef.current?.focus();
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setDeleteConfirmationOpen(false);
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [deleteConfirmationOpen]);
 
   return (
     <tr className="border-b border-border transition-colors last:border-0 hover:bg-muted/30">
@@ -291,25 +306,59 @@ function ManagedUserRow({ user }: { user: ManagedUser }) {
               </form>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <form
-              action={deleteAction}
-              onSubmit={(event) => {
-                if (!window.confirm(`¿Eliminar definitivamente a ${user.email}? Esta acción no se puede deshacer.`)) {
-                  event.preventDefault();
-                }
-              }}
+            <DropdownMenuItem
+              variant="destructive"
+              nativeButton
+              render={<button type="button" className="w-full" disabled={deletePending} />}
+              onClick={() => setDeleteConfirmationOpen(true)}
             >
-              <input type="hidden" name="targetUserId" value={user.id} />
-              <DropdownMenuItem variant="destructive" nativeButton render={<button type="submit" className="w-full" disabled={deletePending} />}>
-                {deletePending ? "Eliminando…" : "Eliminar definitivamente"}
-              </DropdownMenuItem>
-            </form>
+              Eliminar definitivamente
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         {(roleState.error || passwordState.error || statusState.error || deleteState.error) && (
           <p role="alert" className="mt-2 max-w-52 text-xs text-destructive">
             {roleState.error ?? passwordState.error ?? statusState.error ?? deleteState.error}
           </p>
+        )}
+        {deleteConfirmationOpen && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setDeleteConfirmationOpen(false);
+            }}
+          >
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby={`delete-user-title-${user.id}`}
+              aria-describedby={`delete-user-description-${user.id}`}
+              ref={deleteDialogRef}
+              tabIndex={-1}
+              className="w-full max-w-md rounded-xl border border-border bg-card p-6 text-left shadow-2xl"
+            >
+              <h2 id={`delete-user-title-${user.id}`} className="font-heading text-lg font-semibold">
+                Confirmar eliminación
+              </h2>
+              <p id={`delete-user-description-${user.id}`} className="mt-2 text-sm text-muted-foreground">
+                Se eliminará definitivamente la cuenta de {user.email} y todos sus datos relacionados. Esta acción no se puede deshacer.
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDeleteConfirmationOpen(false)} disabled={deletePending}>
+                  Cancelar
+                </Button>
+                <form
+                  action={deleteAction}
+                  onSubmit={() => setDeleteConfirmationOpen(false)}
+                >
+                  <input type="hidden" name="targetUserId" value={user.id} />
+                  <Button type="submit" variant="destructive" disabled={deletePending}>
+                    {deletePending ? "Eliminando…" : "Eliminar definitivamente"}
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </div>
         )}
       </td>
     </tr>
