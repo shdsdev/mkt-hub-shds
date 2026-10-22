@@ -232,6 +232,36 @@ describe("managed user lifecycle", () => {
 
     expect(deleteUser).toHaveBeenCalledWith("user-1");
   });
+
+  it("deletes Auth only after the organization lock transaction has completed", async () => {
+    let transactionCompleted = false;
+    transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => {
+      const result = await callback({ execute, select, update });
+      transactionCompleted = true;
+      return result;
+    });
+    select.mockReturnValueOnce(
+      query([
+        {
+          id: "user-1",
+          organizationId: "org-1",
+          role: "MARKETING_USER",
+          status: "active",
+          createdAt: new Date("2026-01-01T00:00:00Z"),
+          email: "user@example.com",
+        },
+      ]),
+    );
+    deleteUser.mockImplementation(async () => {
+      expect(transactionCompleted).toBe(true);
+    });
+
+    await expect(
+      deleteManagedUser({ organizationId: "org-1", actorId: "actor-1", targetUserId: "user-1" }),
+    ).resolves.toMatchObject({ ok: true });
+
+    expect(deleteUser).toHaveBeenCalledWith("user-1");
+  });
 });
 
 describe("managed user invitation", () => {

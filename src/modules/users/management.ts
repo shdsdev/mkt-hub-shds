@@ -111,7 +111,7 @@ export async function deleteManagedUser(input: {
   actorId: string;
   targetUserId: string;
 }): Promise<DeleteManagedUserResult> {
-  return db.transaction(async (tx) => {
+  const validation = await db.transaction(async (tx): Promise<DeleteManagedUserResult> => {
     await tx.execute(
       sql`select id from public.users where organization_id = ${input.organizationId} for update`,
     );
@@ -136,18 +136,22 @@ export async function deleteManagedUser(input: {
             eq(users.role, "ADMIN"),
             eq(users.status, "active"),
           ),
-        );
+      );
       if (activeAdminCount === 1) return { ok: false, reason: "last_active_admin" };
-    }
-
-    try {
-      await invitationGateway.deleteUser(target.id);
-    } catch {
-      return { ok: false, reason: "provider_failure" };
     }
 
     return { ok: true, user: target };
   });
+
+  if (!validation.ok) return validation;
+
+  try {
+    await invitationGateway.deleteUser(validation.user.id);
+  } catch {
+    return { ok: false, reason: "provider_failure" };
+  }
+
+  return validation;
 }
 
 async function mutateManagedUser(
