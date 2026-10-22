@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEmailContentDocument } from "./content-schema";
+import { parseEmailCampaignContent, parseEmailContentDocument } from "./content-schema";
 
 describe("email content document", () => {
   it("accepts the MVP block types", () => {
@@ -16,6 +16,15 @@ describe("email content document", () => {
         ],
       }).blocks,
     ).toHaveLength(6);
+  });
+
+  it("accepts an HTML document and normalizes legacy block documents", () => {
+    expect(parseEmailCampaignContent({ version: 1, mode: "html", bodyHtml: "<p>Hello</p>" })).toEqual({
+      version: 1,
+      mode: "html",
+      bodyHtml: "<p>Hello</p>",
+    });
+    expect(parseEmailContentDocument({ version: 1, blocks: [] }).mode).toBe("blocks");
   });
 
   it("rejects unsupported block types", () => {

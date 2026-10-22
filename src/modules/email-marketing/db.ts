@@ -11,7 +11,7 @@ import {
 import { organizations } from "@/modules/users/db";
 import { users } from "@/modules/users/db";
 import type { EmailSegmentDefinition } from "./segment-schema";
-import type { EmailContentDocument } from "./content-schema";
+import type { EmailCampaignContent } from "./content-schema";
 
 export const emailContactStatus = pgEnum("email_contact_status", [
   "subscribed",
@@ -116,7 +116,7 @@ export const emailTemplates = pgTable("email_templates", {
     .references(() => organizations.id),
   name: text("name").notNull(),
   status: emailTemplateStatus("status").notNull().default("draft"),
-  content: jsonb("content").$type<EmailContentDocument>().notNull(),
+  content: jsonb("content").$type<EmailCampaignContent>().notNull(),
   htmlSnapshot: text("html_snapshot").notNull(),
   version: integer("version").notNull().default(1),
   createdBy: uuid("created_by")
@@ -136,7 +136,7 @@ export const emailCampaigns = pgTable("email_campaigns", {
   subject: text("subject").notNull(),
   previewText: text("preview_text"),
   fromName: text("from_name"),
-  content: jsonb("content").$type<EmailContentDocument>().notNull(),
+  content: jsonb("content").$type<EmailCampaignContent>().notNull(),
   htmlSnapshot: text("html_snapshot").notNull(),
   segmentId: uuid("segment_id").references(() => emailSegments.id),
   eventId: uuid("event_id"),

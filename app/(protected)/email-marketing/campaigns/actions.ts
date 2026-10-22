@@ -7,7 +7,7 @@ import { isAdmin } from "@/modules/users";
 import { checkRateLimit, recordAudit } from "@/modules/audit";
 import {
   createEmailCampaign,
-  parseEmailContentDocument,
+  parseEmailCampaignContent,
   renderEmailHtml,
 } from "@/modules/email-marketing";
 
@@ -40,7 +40,7 @@ export async function createEmailCampaignAction(
 
   let content;
   try {
-    content = parseEmailContentDocument(JSON.parse(parsed.data.content));
+    content = parseEmailCampaignContent(JSON.parse(parsed.data.content));
   } catch {
     return { error: "El contenido de la campaña no es válido." };
   }

@@ -51,12 +51,30 @@ export const emailContentBlockSchema = z.discriminatedUnion("type", [
 
 export const emailContentDocumentSchema = z.object({
   version: z.literal(1),
+  mode: z.literal("blocks").default("blocks"),
   blocks: z.array(emailContentBlockSchema).max(50),
 });
 
+export const emailHtmlDocumentSchema = z.object({
+  version: z.literal(1),
+  mode: z.literal("html"),
+  bodyHtml: z.string().max(100_000),
+});
+
+export const emailCampaignContentSchema = z.discriminatedUnion("mode", [
+  emailContentDocumentSchema,
+  emailHtmlDocumentSchema,
+]);
+
 export type EmailContentBlock = z.infer<typeof emailContentBlockSchema>;
 export type EmailContentDocument = z.infer<typeof emailContentDocumentSchema>;
+export type EmailHtmlDocument = z.infer<typeof emailHtmlDocumentSchema>;
+export type EmailCampaignContent = z.infer<typeof emailCampaignContentSchema>;
 
 export function parseEmailContentDocument(input: unknown): EmailContentDocument {
-  return emailContentDocumentSchema.parse(input);
+  return emailContentDocumentSchema.parse({ mode: "blocks", ...(input as object) });
+}
+
+export function parseEmailCampaignContent(input: unknown): EmailCampaignContent {
+  return emailCampaignContentSchema.parse(input);
 }

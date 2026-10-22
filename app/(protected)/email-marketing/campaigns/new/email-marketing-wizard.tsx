@@ -2,6 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { CalendarClock, Columns2, Image, Mail, Minus, MousePointerClick, Plus, Save, Type } from "lucide-react";
+import CodeMirror from "@uiw/react-codemirror";
+import { html } from "@codemirror/lang-html";
 import { createEmailCampaignAction, type CreateEmailCampaignFormState } from "../actions";
 
 type Block =
@@ -24,16 +26,36 @@ const initialBlocks: Block[] = [
   { id: "cta", type: "button", label: "Botón", content: "Conocé más" },
 ];
 
+const initialHtml = `<h1 style="margin:0 0 16px;color:#1d2430">Hola {{first_name}}</h1>\n<p style="margin:0 0 16px;line-height:1.6">Tenemos algo nuevo para vos.</p>\n<p><a href="https://example.com" style="display:inline-block;padding:12px 18px;background:#ff6f2c;color:#fff;text-decoration:none;border-radius:8px">Conocé más</a></p>`;
+
+function previewHtml(document: { mode: "blocks" | "html"; bodyHtml?: string; blocks?: Block[] }): string {
+  const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  const body = document.mode === "html"
+    ? (document.bodyHtml ?? "")
+    : (document.blocks ?? []).map((block) => {
+      if (block.type === "text") return `<p style="line-height:1.6">${escape(block.content)}</p>`;
+      if (block.type === "button") return `<p><a href="https://example.com" style="display:inline-block;padding:12px 18px;background:#ff6f2c;color:#fff;text-decoration:none;border-radius:8px">${escape(block.content)}</a></p>`;
+      if (block.type === "divider") return "<hr />";
+      if (block.type === "columns") return `<table width="100%"><tr><td>${escape(block.content)}</td></tr></table>`;
+      return "<div style=\"height:96px;background:#eef1f5\"></div>";
+    }).join("");
+
+  return `<!doctype html><html><body style="margin:0;background:#f5f7fa;color:#1d2430;font-family:Arial,sans-serif"><main style="max-width:640px;margin:0 auto;padding:32px 20px;background:#fff">${body}</main><footer style="max-width:640px;margin:0 auto;padding:16px 20px;text-align:center;font:12px Arial,sans-serif;color:#667085">Darse de baja</footer></body></html>`;
+}
+
 export function EmailMarketingWizard() {
   const [state, formAction, pending] = useActionState<CreateEmailCampaignFormState, FormData>(createEmailCampaignAction, {});
   const [activeStep, setActiveStep] = useState<"audience" | "content" | "schedule" | "review">("content");
+  const [editorMode, setEditorMode] = useState<"blocks" | "html">("blocks");
   const [blocks, setBlocks] = useState(initialBlocks);
+  const [htmlBody, setHtmlBody] = useState(initialHtml);
   const [selectedId, setSelectedId] = useState("intro");
   const [feedback, setFeedback] = useState("");
 
   const selectedBlock = blocks.find((block) => block.id === selectedId) ?? blocks[0];
-  const contentDocument = {
+  const blockDocument = {
     version: 1 as const,
+    mode: "blocks" as const,
     blocks: blocks.map((block) => {
       if (block.type === "text") return { id: block.id, type: block.type, text: block.content };
       if (block.type === "button") return { id: block.id, type: block.type, label: block.content, href: "https://example.com" };
@@ -42,6 +64,9 @@ export function EmailMarketingWizard() {
       return { id: block.id, type: block.type };
     }),
   };
+  const contentDocument = editorMode === "html"
+    ? { version: 1 as const, mode: "html" as const, bodyHtml: htmlBody }
+    : blockDocument;
 
   function addBlock(type: Block["type"], label: string) {
     const id = `${type}-${blocks.length + 1}`;
@@ -56,7 +81,7 @@ export function EmailMarketingWizard() {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form action={formAction} className="flex min-h-[calc(100svh-7rem)] w-full min-w-0 flex-col gap-5">
       <input type="hidden" name="name" value="Nueva campaña" />
       <input type="hidden" name="subject" value="Tu próxima novedad" />
       <input type="hidden" name="content" value={JSON.stringify(contentDocument)} readOnly />
@@ -84,8 +109,8 @@ export function EmailMarketingWizard() {
       </header>
 
       {activeStep === "content" ? (
-        <section className="grid min-h-[620px] gap-4 lg:grid-cols-[190px_minmax(0,1fr)_270px]">
-          <aside className="rounded-2xl border border-border bg-card/50 p-4">
+        <section className="grid min-h-[620px] min-w-0 flex-1 gap-4 lg:min-h-0 lg:grid-cols-[240px_minmax(0,1fr)_340px]">
+           <aside className="min-h-0 overflow-y-auto rounded-2xl border border-border bg-card/50 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Bloques</p>
             <div className="mt-4 grid gap-2">
               {palette.map(({ type, label, icon: Icon }) => (
@@ -94,35 +119,41 @@ export function EmailMarketingWizard() {
                 </button>
               ))}
             </div>
-            <div className="mt-6 rounded-xl border border-dashed border-border p-3 text-xs leading-5 text-muted-foreground">Arrancá con bloques simples. El editor HTML avanzado llega en una fase posterior.</div>
-          </aside>
+             <div className="mt-6 rounded-xl border border-dashed border-border p-3 text-xs leading-5 text-muted-foreground">Podés empezar con bloques o editar directamente el HTML del cuerpo del email.</div>
+           </aside>
 
-          <div className="rounded-2xl border border-border bg-[#e9edf2] p-4 sm:p-7">
-            <div className="mx-auto max-w-[640px] overflow-hidden rounded-xl bg-white shadow-xl shadow-black/10">
-              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><span className="font-semibold text-slate-900">Marketing Hub</span><Mail size={16} className="text-orange-500" /></div>
-              <div className="space-y-4 p-6 text-slate-800">
-                {blocks.map((block) => (
-                  <button key={block.id} type="button" onClick={() => setSelectedId(block.id)} className={`block w-full rounded-lg p-3 text-left transition ${selectedId === block.id ? "outline outline-2 outline-orange-400 outline-offset-2" : "hover:bg-slate-50"}`}>
-                    {block.type === "text" && <p className="text-base leading-7">{block.content}</p>}
-                    {block.type === "button" && <span className="inline-flex rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white">{block.content}</span>}
-                    {block.type === "image" && <div className="flex h-24 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">Vista previa de imagen</div>}
-                    {block.type === "divider" && <hr className="border-slate-200" />}
-                    {block.type === "columns" && <div className="grid grid-cols-2 gap-3 text-sm"><span className="rounded bg-slate-100 p-3">Columna uno</span><span className="rounded bg-slate-100 p-3">Columna dos</span></div>}
-                  </button>
-                ))}
-              </div>
-              <div className="border-t border-slate-200 px-6 py-4 text-center text-xs text-slate-400">Enviado desde Marketing Hub · Darse de baja</div>
-            </div>
-          </div>
+           <div className="min-h-0 min-w-0 overflow-auto rounded-2xl border border-border bg-[#e9edf2] p-5 sm:p-8 lg:p-10">
+             <div className="w-full overflow-hidden rounded-xl bg-white shadow-xl shadow-black/10">
+               <iframe title="Vista previa del email" sandbox="" srcDoc={previewHtml({ ...contentDocument, blocks })} className="min-h-[620px] w-full border-0" />
+             </div>
+           </div>
 
-          <aside className="rounded-2xl border border-border bg-card/50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Propiedades</p>
-            <div className="mt-4 space-y-4">
-              <label className="block text-sm font-medium">Bloque seleccionado<input value={selectedBlock?.label ?? ""} readOnly className="mt-1.5 h-9 w-full rounded-lg border border-border bg-background/50 px-3 text-sm text-muted-foreground" /></label>
-              <label className="block text-sm font-medium">Contenido<textarea value={selectedBlock?.content ?? ""} onChange={(event) => updateSelectedContent(event.target.value)} rows={5} className="mt-1.5 w-full resize-y rounded-lg border border-border bg-background/50 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50" /></label>
-              <div className="rounded-xl border border-border bg-background/30 p-3 text-xs leading-5 text-muted-foreground">Variables disponibles: <code className="text-primary">{"{{first_name}}"}</code>, <code className="text-primary">{"{{event_name}}"}</code> y <code className="text-primary">{"{{event_date}}"}</code>.</div>
-            </div>
-          </aside>
+           <aside className="min-h-0 overflow-y-auto rounded-2xl border border-border bg-card/50 p-4">
+             <div className="flex items-center justify-between gap-3">
+               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Editor</p>
+               <div className="flex rounded-lg border border-border p-0.5" aria-label="Modo de edición">
+                 {(["blocks", "html"] as const).map((mode) => (
+                   <button key={mode} type="button" onClick={() => setEditorMode(mode)} className={`rounded-md px-2.5 py-1 text-xs transition-colors ${editorMode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                     {mode === "blocks" ? "Bloques" : "HTML"}
+                   </button>
+                 ))}
+               </div>
+             </div>
+             {editorMode === "html" ? (
+               <div className="mt-4 space-y-4">
+                 <div className="overflow-hidden rounded-lg border border-border">
+                   <CodeMirror value={htmlBody} height="420px" extensions={[html()]} onChange={setHtmlBody} theme="dark" basicSetup={{ lineNumbers: true, foldGutter: false }} />
+                 </div>
+                 <p className="text-xs leading-5 text-muted-foreground">Solo se guarda el cuerpo. Se eliminan scripts, iframes, formularios, eventos inline y URLs no seguras al guardar.</p>
+               </div>
+             ) : (
+               <div className="mt-4 space-y-4">
+                 <label className="block text-sm font-medium">Bloque seleccionado<input value={selectedBlock?.label ?? ""} readOnly className="mt-1.5 h-9 w-full rounded-lg border border-border bg-background/50 px-3 text-sm text-muted-foreground" /></label>
+                 <label className="block text-sm font-medium">Contenido<textarea value={selectedBlock?.content ?? ""} onChange={(event) => updateSelectedContent(event.target.value)} rows={5} className="mt-1.5 w-full resize-y rounded-lg border border-border bg-background/50 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50" /></label>
+               </div>
+             )}
+             <div className="mt-4 rounded-xl border border-border bg-background/30 p-3 text-xs leading-5 text-muted-foreground">Variables disponibles: <code className="text-primary">{"{{first_name}}"}</code>, <code className="text-primary">{"{{event_name}}"}</code> y <code className="text-primary">{"{{event_date}}"}</code>.</div>
+           </aside>
         </section>
       ) : (
         <section className="rounded-2xl border border-border bg-card/60 p-8 sm:p-12">

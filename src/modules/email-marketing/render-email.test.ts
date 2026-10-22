@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderEmailHtml } from "./render-email";
+import { renderEmailHtml, sanitizeEmailBodyHtml } from "./render-email";
 
 describe("renderEmailHtml", () => {
   it("escapes text and renders personalization", () => {
@@ -30,5 +30,28 @@ describe("renderEmailHtml", () => {
 
     expect(html).not.toContain("javascript:");
     expect(html).not.toContain("http://example.com");
+  });
+
+  it("sanitizes HTML mode while preserving safe inline email markup", () => {
+    const html = renderEmailHtml(
+      {
+        version: 1,
+        mode: "html",
+        bodyHtml: '<p style="color:#ff6f2c">Hi {{first_name}}</p><script>alert(1)</script><iframe src="https://evil.example"></iframe><a href="javascript:alert(1)">bad</a>',
+      },
+      { first_name: "Ana & Luis" },
+    );
+
+    expect(html).toContain('<p style="color:#ff6f2c">Hi Ana &amp; Luis</p>');
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<iframe");
+    expect(html).not.toContain("javascript:");
+    expect(html).toContain("unsubscribe_url");
+  });
+
+  it("removes inline event handlers and unsafe protocols", () => {
+    const html = sanitizeEmailBodyHtml('<p onclick="alert(1)">Text</p><img src="data:text/html,bad" onerror="alert(1)" />');
+
+    expect(html).toBe("<p>Text</p><img />");
   });
 });

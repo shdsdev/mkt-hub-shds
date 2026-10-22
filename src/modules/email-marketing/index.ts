@@ -18,7 +18,10 @@ export {
 } from "./service";
 export {
   parseEmailContentDocument,
+  parseEmailCampaignContent,
   type EmailContentBlock,
   type EmailContentDocument,
+  type EmailHtmlDocument,
+  type EmailCampaignContent,
 } from "./content-schema";
 export { renderEmailHtml, type EmailPersonalization } from "./render-email";

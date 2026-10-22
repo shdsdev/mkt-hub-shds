@@ -9,7 +9,7 @@ import {
   emailContactStatus,
 } from "./db";
 import { parseEmailSegmentDefinition } from "./segment-schema";
-import { parseEmailContentDocument, type EmailContentDocument } from "./content-schema";
+import { parseEmailCampaignContent, type EmailCampaignContent } from "./content-schema";
 import { renderEmailHtml } from "./render-email";
 export { transitionEmailCampaignStatus, type EmailCampaignStatus } from "./campaign-state";
 
@@ -150,7 +150,7 @@ export type CreateEmailCampaignInput = {
   createdBy: string;
   name: string;
   subject: string;
-  content: EmailContentDocument;
+  content: EmailCampaignContent;
   htmlSnapshot: string;
 };
 
@@ -172,4 +172,4 @@ export async function createEmailCampaign(input: CreateEmailCampaignInput): Prom
 }
 
 export { parseEmailSegmentDefinition };
-export { parseEmailContentDocument, renderEmailHtml };
+export { parseEmailCampaignContent, renderEmailHtml };

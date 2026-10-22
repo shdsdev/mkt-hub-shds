@@ -9,10 +9,12 @@ export default async function NewEmailCampaignPage() {
   if (!user || !isActive(user.profile) || !isAdmin(user.profile)) notFound();
 
   return (
-    <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 pb-10">
-      <Link href="/email-marketing" className="w-fit text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+    <main className="-m-6 flex min-h-[calc(100%+3rem)] w-[calc(100%+3rem)] min-w-0 flex-col gap-4 pb-10">
+      <div className="px-6 pt-4">
+        <Link href="/email-marketing" className="w-fit text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
         ← Volver a Email Marketing
-      </Link>
+        </Link>
+      </div>
       <EmailMarketingWizard />
     </main>
   );
