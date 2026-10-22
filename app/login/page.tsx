@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AtSign, Lock, QrCode } from "lucide-react";
 import { login, type LoginFormState } from "./actions";
@@ -9,6 +9,7 @@ import { BinaryLoader } from "@/components/binary-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import { GoogleIcon } from "@/components/icons/google-icon";
 import { FlutedGlassBackground } from "./fluted-glass-background";
 
@@ -32,11 +33,27 @@ export default function LoginPage() {
     initialRecoveryState,
   );
   const [showRecovery, setShowRecovery] = useState(false);
+  const [googlePending, setGooglePending] = useState(false);
+  const [googleError, setGoogleError] = useState<string>();
   const searchParams = useSearchParams();
   const authError = searchParams.get("error");
   const invitationError = authError === "invitation";
   const recoveryError = authError === "recovery";
-  const googleTooltipId = useId();
+  const googleAccessError = authError === "google_access";
+
+  async function handleGoogleSignIn() {
+    setGooglePending(true);
+    setGoogleError(undefined);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback?provider=google&next=/` },
+    });
+    if (error) {
+      setGooglePending(false);
+      setGoogleError("No se pudo iniciar sesión con Google.");
+    }
+  }
 
   return (
     <main className="relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
@@ -76,33 +93,21 @@ export default function LoginPage() {
             <p className="text-base text-muted-foreground">Ingresá con tu correo y contraseña.</p>
           </div>
 
-          {(invitationError || recoveryError) && (
+          {(invitationError || recoveryError || googleAccessError) && (
             <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive">
               {invitationError
                 ? "La invitación expiró o ya fue utilizada. Solicita un nuevo enlace para crear tu contraseña."
-                : "El enlace para crear tu contraseña no es válido o expiró. Solicita uno nuevo."}
+                : recoveryError
+                  ? "El enlace para crear tu contraseña no es válido o expiró. Solicita uno nuevo."
+                  : "Tu cuenta no tiene una invitación activa para Marketing Hub."}
             </p>
           )}
 
-          {/* Disabled until the Google OAuth provider is configured — kept visible as a preview of
-              what's coming rather than removed outright. Tooltip markup written directly (not the
-              shared <Tooltip>, whose inline wrapper span doesn't stretch to w-full) so the button
-              matches the other fields' width — see src/components/tooltip.tsx's docstring. */}
-          <span className="t-tt-wrap block w-full">
-            <Button
-              type="button"
-              size="lg"
-              className={cn(authButtonClassName, "t-tt-trigger")}
-              aria-describedby={googleTooltipId}
-              disabled
-            >
-              <GoogleIcon className="size-4" />
-              Continuar con Google
-            </Button>
-            <span className="t-tt" id={googleTooltipId} role="tooltip">
-              Próximamente
-            </span>
-          </span>
+          <Button type="button" size="lg" className={cn(authButtonClassName, "gap-2")} onClick={handleGoogleSignIn} disabled={googlePending} aria-busy={googlePending}>
+            {googlePending ? <BinaryLoader /> : <GoogleIcon className="size-4" />}
+            {googlePending ? "Conectando con Google…" : "Continuar con Google"}
+          </Button>
+          {googleError && <p role="alert" className="text-sm text-destructive">{googleError}</p>}
 
           <AuthSeparator />
 

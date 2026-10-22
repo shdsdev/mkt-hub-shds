@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   exchangeCodeForSession: vi.fn(),
   verifyOtp: vi.fn(),
+  signOut: vi.fn(),
+  getCurrentUser: vi.fn(),
+  isActive: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -10,9 +13,12 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: {
       exchangeCodeForSession: mocks.exchangeCodeForSession,
       verifyOtp: mocks.verifyOtp,
+      signOut: mocks.signOut,
     },
   }),
 }));
+vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
+vi.mock("@/modules/users", () => ({ isActive: mocks.isActive }));
 
 import { GET } from "./route";
 
@@ -45,6 +51,38 @@ describe("auth callback", () => {
     );
 
     expect(res.headers.get("location")).toBe("https://app.example.com/password-setup");
+  });
+
+  it("allows Google OAuth only when the active Marketing Hub profile exists", async () => {
+    mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
+    mocks.getCurrentUser.mockResolvedValue({ profile: { status: "active" } });
+    mocks.isActive.mockReturnValue(true);
+
+    const res = await GET(new Request("https://app.example.com/auth/callback?provider=google&code=code-1&next=/"));
+
+    expect(res.headers.get("location")).toBe("https://app.example.com/");
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("rejects Google OAuth when no Marketing Hub profile exists", async () => {
+    mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
+    mocks.getCurrentUser.mockResolvedValue(undefined);
+
+    const res = await GET(new Request("https://app.example.com/auth/callback?provider=google&code=code-1&next=/"));
+
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(res.headers.get("location")).toBe("https://app.example.com/login?error=google_access");
+  });
+
+  it("rejects Google OAuth when the Marketing Hub profile is inactive", async () => {
+    mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
+    mocks.getCurrentUser.mockResolvedValue({ profile: { status: "disabled" } });
+    mocks.isActive.mockReturnValue(false);
+
+    const res = await GET(new Request("https://app.example.com/auth/callback?provider=google&code=code-1&next=/"));
+
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(res.headers.get("location")).toBe("https://app.example.com/login?error=google_access");
   });
 
   it("verifies a token hash when the provider uses the invite or recovery format", async () => {
