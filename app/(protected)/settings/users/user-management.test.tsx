@@ -49,6 +49,12 @@ describe("UserManagement", () => {
     );
 
     expect(container?.textContent).toContain("Acciones");
+    expect(container?.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    expect(container?.textContent).not.toContain("Último acceso");
+    expect(container?.textContent).not.toContain("Dos pasos");
+    expect(container?.textContent).not.toContain("Guardar");
+    expect(container?.querySelector("table")?.className).toContain("table-fixed");
+    expect(container?.querySelector("table")?.className).not.toContain("min-w-[900px]");
   });
 
   it("opens a non-blocking deletion confirmation instead of calling window.confirm", () => {

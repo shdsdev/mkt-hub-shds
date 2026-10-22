@@ -22,7 +22,7 @@ export function SettingsLayout({
   const visibleNav = settingsNav.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-start">
+    <div className="mx-auto flex w-full max-w-[1600px] min-w-0 flex-col gap-8 lg:flex-row lg:items-start">
       <aside className="lg:w-56 lg:shrink-0">
         <HookSidebar
           aria-label="Secciones de configuración"

@@ -93,7 +93,7 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:px-8">
+    <div className="flex w-full min-w-0 flex-col gap-8">
       <div>
         <h1 className="font-heading text-xl font-semibold">Usuarios</h1>
         <p className="text-sm text-muted-foreground">Administra el acceso de tu organización.</p>
@@ -182,15 +182,18 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
           </div>
         </div>
 
-        <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
+        <div className="w-full min-w-0">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col />
+              <col className="w-64" />
+              <col className="w-24" />
+              <col className="w-36" />
+            </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left">
-                <th className="p-4"><input type="checkbox" aria-label="Seleccionar todos los usuarios" className="size-4 accent-primary" /></th>
                 <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Usuario</th>
                 <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Rol</th>
-                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Último acceso</th>
-                <th className="p-4 text-center font-medium uppercase tracking-wider text-muted-foreground">Dos pasos</th>
                 <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Alta</th>
                 <th className="p-4 text-right font-medium uppercase tracking-wider text-muted-foreground">Acciones</th>
               </tr>
@@ -224,6 +227,7 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
 
 function ManagedUserRow({ user }: { user: ManagedUser }) {
   const role = roleLabel(user.role) ?? "User";
+  const roleFormRef = useRef<HTMLFormElement>(null);
   const [roleState, roleAction, rolePending] = useActionState(changeUserRoleAction, initialState);
   const [statusState, statusAction, statusPending] = useActionState(
     user.status === "active" ? disableUserAction : reactivateUserAction,
@@ -249,8 +253,7 @@ function ManagedUserRow({ user }: { user: ManagedUser }) {
 
   return (
     <tr className="border-b border-border transition-colors last:border-0 hover:bg-muted/30">
-      <td className="p-4"><input type="checkbox" aria-label={`Seleccionar ${user.email}`} className="size-4 accent-primary" /></td>
-      <td className="p-4">
+      <td className="min-w-0 p-4">
         <div className="flex items-center gap-3">
           <Avatar size="lg" className="bg-primary/10 text-primary">
             <AvatarFallback className="bg-primary/10 font-semibold text-primary">{getInitials(user.email)}</AvatarFallback>
@@ -261,11 +264,17 @@ function ManagedUserRow({ user }: { user: ManagedUser }) {
           </div>
         </div>
       </td>
-      <td className="p-4">
-        <form action={roleAction} className="flex items-center gap-2">
+      <td className="p-4 align-middle">
+        <form ref={roleFormRef} action={roleAction}>
           <input type="hidden" name="targetUserId" value={user.id} />
-          <Select name="role" defaultValue={role}>
-            <SelectTrigger aria-label={`Rol de ${user.email}`} className="w-36">
+          <Select
+            name="role"
+            defaultValue={role}
+            onValueChange={(value) => {
+              if (value !== role) roleFormRef.current?.requestSubmit();
+            }}
+          >
+            <SelectTrigger aria-label={`Rol de ${user.email}`} className="w-full max-w-52" disabled={rolePending}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -277,13 +286,10 @@ function ManagedUserRow({ user }: { user: ManagedUser }) {
               </SelectGroup>
             </SelectContent>
           </Select>
-          <Button type="submit" variant="outline" size="sm" disabled={rolePending}>Guardar</Button>
         </form>
       </td>
-      <td className="p-4 text-sm font-medium text-foreground">—</td>
-      <td className="p-4 text-center text-sm text-muted-foreground">—</td>
       <td className="p-4 text-sm text-muted-foreground">{formatJoinedDate(user.createdAt)}</td>
-      <td className="p-4 text-right">
+      <td className="p-4 text-right align-middle">
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="sm" className="h-8 px-3 text-xs" />}>
             Acciones <ChevronDown data-icon="inline-end" />
