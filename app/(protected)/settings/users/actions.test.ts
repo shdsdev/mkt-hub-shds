@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   inviteManagedUser: vi.fn(),
   changeManagedUserRole: vi.fn(),
   setManagedUserStatus: vi.fn(),
+  deleteManagedUser: vi.fn(),
   listManagedUsers: vi.fn(),
   createClient: vi.fn(),
   resetPasswordForEmail: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("@/modules/users", () => ({
   inviteManagedUser: mocks.inviteManagedUser,
   changeManagedUserRole: mocks.changeManagedUserRole,
   setManagedUserStatus: mocks.setManagedUserStatus,
+  deleteManagedUser: mocks.deleteManagedUser,
   listManagedUsers: mocks.listManagedUsers,
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.createClient }));
@@ -40,6 +42,7 @@ import {
   disableUserAction,
   inviteUserAction,
   reactivateUserAction,
+  deleteUserAction,
 } from "./actions";
 
 const actor = {
@@ -101,6 +104,7 @@ describe("user-management server actions", () => {
       user: target,
       before: { role: "MARKETING_USER", status: "disabled" },
     });
+    mocks.deleteManagedUser.mockResolvedValue({ ok: true, user: target });
     mocks.listManagedUsers.mockResolvedValue([target]);
     mocks.createClient.mockResolvedValue({
       auth: { resetPasswordForEmail: mocks.resetPasswordForEmail },
@@ -193,6 +197,7 @@ describe("user-management server actions", () => {
     expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith("target@example.com", {
       redirectTo: "http://localhost:3000/auth/confirm?next=%2Fpassword-setup",
     });
+    mocks.deleteManagedUser.mockResolvedValue({ ok: true, user: target });
   });
 
   it("does not send a password setup link for an unavailable target", async () => {
@@ -290,5 +295,25 @@ describe("user-management server actions", () => {
     });
     expect(mocks.revalidatePath).toHaveBeenNthCalledWith(1, "/settings/users");
     expect(mocks.revalidatePath).toHaveBeenNthCalledWith(2, "/settings");
+  });
+
+  it("audits and revalidates a successful permanent deletion", async () => {
+    await expect(deleteUserAction({}, targetFormData())).resolves.toEqual({
+      success: "Usuario eliminado definitivamente.",
+    });
+
+    expect(mocks.deleteManagedUser).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      actorId: "actor-1",
+      targetUserId,
+    });
+    expect(mocks.recordAudit).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "actor-1",
+      action: "delete_user",
+      resourceType: "user",
+      resourceId: targetUserId,
+      before: { role: "MARKETING_USER", status: "active" },
+    });
   });
 });

@@ -20,10 +20,12 @@ export {
   listManagedUsers,
   changeManagedUserRole,
   setManagedUserStatus,
+  deleteManagedUser,
   inviteManagedUser,
   type ManagedUser,
   type ManagedRole,
   type ManagementMutationResult,
+  type DeleteManagedUserResult,
   type InviteManagedUserInput,
   type InviteManagedUserResult,
 } from "./management";

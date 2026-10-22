@@ -11,6 +11,7 @@ export const auditAction = pgEnum("audit_action", [
   "invite_user",
   "change_user_role",
   "disable_user",
+  "delete_user",
   "reactivate_user",
   "question_approve",
   "question_reject",

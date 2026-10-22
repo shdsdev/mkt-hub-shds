@@ -38,6 +38,7 @@ vi.mock("../../lib/supabase/admin", () => ({
 
 import {
   changeManagedUserRole,
+  deleteManagedUser,
   inviteManagedUser,
   setManagedUserStatus,
 } from "./management";
@@ -167,6 +168,69 @@ describe("managed user lifecycle", () => {
     ).resolves.toEqual({ ok: false, reason: "self_disable" });
 
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rejects deleting the acting user before deleting Auth", async () => {
+    select.mockReturnValueOnce(
+      query([
+        {
+          id: "actor-1",
+          organizationId: "org-1",
+          role: "ADMIN",
+          status: "active",
+          createdAt: new Date("2026-01-01T00:00:00Z"),
+          email: "admin@example.com",
+        },
+      ]),
+    );
+
+    await expect(
+      deleteManagedUser({ organizationId: "org-1", actorId: "actor-1", targetUserId: "actor-1" }),
+    ).resolves.toEqual({ ok: false, reason: "self_delete" });
+
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("rejects deleting the final active ADMIN", async () => {
+    select
+      .mockReturnValueOnce(
+        query([
+          {
+            id: "admin-1",
+            organizationId: "org-1",
+            role: "ADMIN",
+            status: "active",
+            createdAt: new Date("2026-01-01T00:00:00Z"),
+            email: "admin@example.com",
+          },
+        ]),
+      )
+      .mockReturnValueOnce(query([{ activeAdminCount: 1 }]));
+
+    await expect(
+      deleteManagedUser({ organizationId: "org-1", actorId: "actor-1", targetUserId: "admin-1" }),
+    ).resolves.toEqual({ ok: false, reason: "last_active_admin" });
+
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("deletes the Auth user for a valid target", async () => {
+    const target = {
+      id: "user-1",
+      organizationId: "org-1",
+      role: "MARKETING_USER",
+      status: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      email: "user@example.com",
+    };
+    select.mockReturnValueOnce(query([target]));
+    deleteUser.mockResolvedValue(undefined);
+
+    await expect(
+      deleteManagedUser({ organizationId: "org-1", actorId: "actor-1", targetUserId: "user-1" }),
+    ).resolves.toEqual({ ok: true, user: target });
+
+    expect(deleteUser).toHaveBeenCalledWith("user-1");
   });
 });
 

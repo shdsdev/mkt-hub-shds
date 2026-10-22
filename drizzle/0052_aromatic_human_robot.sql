@@ -1,0 +1,1 @@
+ALTER TYPE "public"."audit_action" ADD VALUE 'delete_user' BEFORE 'reactivate_user';

@@ -9,6 +9,7 @@ import { checkRateLimit, recordAudit } from "@/modules/audit";
 import { getCurrentUser } from "@/modules/auth";
 import {
   changeManagedUserRole,
+  deleteManagedUser,
   inviteManagedUser,
   listManagedUsers,
   isActive,
@@ -24,6 +25,8 @@ const INVALID_FORM_ERROR = "Los datos del usuario no son válidos.";
 const TARGET_UNAVAILABLE_ERROR = "El usuario no está disponible.";
 const SELF_DISABLE_ERROR = "No puedes desactivar tu propia cuenta.";
 const LAST_ACTIVE_ADMIN_ERROR = "Debe permanecer al menos un administrador activo.";
+const SELF_DELETE_ERROR = "No puedes eliminar tu propia cuenta.";
+const DELETE_PROVIDER_ERROR = "No se pudo eliminar el usuario definitivamente.";
 
 const inviteSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -55,6 +58,19 @@ function mapMutationFailure(result: Exclude<ManagementMutationResult, { ok: true
 function revalidateUserManagement() {
   revalidatePath("/settings/users");
   revalidatePath("/settings");
+}
+
+function mapDeleteFailure(reason: "target_not_found" | "self_delete" | "last_active_admin" | "provider_failure") {
+  switch (reason) {
+    case "target_not_found":
+      return TARGET_UNAVAILABLE_ERROR;
+    case "self_delete":
+      return SELF_DELETE_ERROR;
+    case "last_active_admin":
+      return LAST_ACTIVE_ADMIN_ERROR;
+    case "provider_failure":
+      return DELETE_PROVIDER_ERROR;
+  }
 }
 
 // The invitation link must point at the origin the ADMIN is actually using — in local development
@@ -182,6 +198,36 @@ export async function reactivateUserAction(
   formData: FormData,
 ): Promise<UserManagementFormState> {
   return setUserStatusAction(formData, "active", "reactivate_user", "Usuario reactivado.");
+}
+
+export async function deleteUserAction(
+  _state: UserManagementFormState,
+  formData: FormData,
+): Promise<UserManagementFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+  if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
+
+  const parsed = targetSchema.safeParse({ targetUserId: formData.get("targetUserId") });
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await deleteManagedUser({
+    organizationId: user.profile.organizationId,
+    actorId: user.id,
+    targetUserId: parsed.data.targetUserId,
+  });
+  if (!result.ok) return { error: mapDeleteFailure(result.reason) };
+
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "delete_user",
+    resourceType: "user",
+    resourceId: result.user.id,
+    before: { role: result.user.role, status: result.user.status },
+  });
+  revalidateUserManagement();
+  return { success: "Usuario eliminado definitivamente." };
 }
 
 async function setUserStatusAction(

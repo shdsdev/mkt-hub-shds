@@ -10,6 +10,7 @@ vi.mock("./actions", () => ({
   inviteUserAction: vi.fn(),
   reactivateUserAction: vi.fn(),
   sendPasswordSetupLinkAction: vi.fn(),
+  deleteUserAction: vi.fn(),
 }));
 
 import { UserManagement } from "./user-management";
@@ -47,6 +48,6 @@ describe("UserManagement", () => {
       ),
     );
 
-    expect(container?.textContent).toContain("Enviar enlace de acceso");
+    expect(container?.textContent).toContain("Acciones");
   });
 });

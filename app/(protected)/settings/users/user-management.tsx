@@ -1,7 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -14,6 +24,7 @@ import {
 import type { ManagedUser } from "@/modules/users";
 import {
   changeUserRoleAction,
+  deleteUserAction,
   disableUserAction,
   inviteUserAction,
   reactivateUserAction,
@@ -21,31 +32,68 @@ import {
   type UserManagementFormState,
 } from "./actions";
 
+const ITEMS_PER_PAGE = 6;
 const initialState: UserManagementFormState = {};
 
-function roleLabel(role: ManagedUser["role"]): "ADMIN" | "User" | "Reception" | "EventEditor" | undefined {
+type RoleValue = "ADMIN" | "User" | "Reception" | "EventEditor";
+
+function roleLabel(role: ManagedUser["role"]): RoleValue | undefined {
   if (role === "ADMIN") return "ADMIN";
   if (role === "MARKETING_USER") return "User";
   if (role === "RECEPTION") return "Reception";
   if (role === "EVENT_EDITOR") return "EventEditor";
 }
 
+function getInitials(email: string): string {
+  return email
+    .split("@")[0]
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function formatJoinedDate(value: Date): string {
+  return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(value);
+}
+
 export function UserManagement({ users }: { users: ManagedUser[] }) {
   const [inviteState, inviteAction, invitePending] = useActionState(inviteUserAction, initialState);
-  const [roleState, roleAction, rolePending] = useActionState(changeUserRoleAction, initialState);
-  const [disableState, disableAction, disablePending] = useActionState(disableUserAction, initialState);
-  const [reactivateState, reactivateAction, reactivatePending] = useActionState(
-    reactivateUserAction,
-    initialState,
-  );
-  const [passwordLinkState, passwordLinkAction, passwordLinkPending] = useActionState(
-    sendPasswordSetupLinkAction,
-    initialState,
-  );
-  const managedUsers = users.filter((user) => roleLabel(user.role));
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const filteredUsers = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return users.filter((user) => {
+      const role = roleLabel(user.role);
+      if (!role) return false;
+      const matchesSearch = !normalizedSearch || user.email.toLowerCase().includes(normalizedSearch);
+      const matchesRole = roleFilter === "all" || role === roleFilter;
+      const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [roleFilter, search, statusFilter, users]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const page = Math.min(currentPage, pageCount);
+  const currentUsers = filteredUsers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  function updateSearch(value: string) {
+    setSearch(value);
+    setCurrentPage(1);
+  }
+
+  function updateFilter(setter: (value: string) => void, value: string) {
+    setter(value);
+    setCurrentPage(1);
+  }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:px-8">
       <div>
         <h1 className="font-heading text-xl font-semibold">Usuarios</h1>
         <p className="text-sm text-muted-foreground">Administra el acceso de tu organización.</p>
@@ -64,21 +112,21 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Rol
             <Select name="role" defaultValue="User">
-              <SelectTrigger aria-label="Rol para la invitación" className="w-full sm:w-32">
+              <SelectTrigger aria-label="Rol para la invitación" className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                        <SelectItem value="ADMIN">ADMIN</SelectItem>
-                        <SelectItem value="User">User</SelectItem>
-                        <SelectItem value="Reception">Recepción</SelectItem>
-                        <SelectItem value="EventEditor">Editor de Eventos</SelectItem>
+                  <SelectItem value="ADMIN">ADMIN</SelectItem>
+                  <SelectItem value="User">User</SelectItem>
+                  <SelectItem value="Reception">Recepción</SelectItem>
+                  <SelectItem value="EventEditor">Editor de Eventos</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
           </label>
           <Button type="submit" disabled={invitePending}>
-            Invitar usuario
+            {invitePending ? "Enviando…" : "Invitar usuario"}
           </Button>
         </form>
         {(inviteState.error || inviteState.success) && (
@@ -88,96 +136,182 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
         )}
       </section>
 
-      <section className="flex flex-col gap-3">
-        <div>
-          <h2 className="font-heading font-medium">Usuarios de la organización</h2>
-          <p className="text-xs text-muted-foreground">Roles y estado de acceso actuales.</p>
+      <section className="flex flex-col gap-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-heading font-medium">Usuarios de la organización</h2>
+            <p className="text-xs text-muted-foreground">Roles y estado de acceso actuales.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative min-w-56">
+              <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" data-icon="inline-start" />
+              <Input
+                value={search}
+                onChange={(event) => updateSearch(event.target.value)}
+                placeholder="Buscar usuarios…"
+                aria-label="Buscar usuarios"
+                className="pl-9"
+              />
+            </div>
+            <Select value={roleFilter} onValueChange={(value) => updateFilter(setRoleFilter, value ?? "all")}>
+              <SelectTrigger aria-label="Filtrar por rol" className="w-full sm:w-40">
+                <SelectValue placeholder="Todos los roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="all">Todos los roles</SelectItem>
+                  <SelectItem value="ADMIN">ADMIN</SelectItem>
+                  <SelectItem value="User">User</SelectItem>
+                  <SelectItem value="Reception">Recepción</SelectItem>
+                  <SelectItem value="EventEditor">Editor de Eventos</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(value) => updateFilter(setStatusFilter, value ?? "all")}>
+              <SelectTrigger aria-label="Filtrar por estado" className="w-full sm:w-36">
+                <SelectValue placeholder="Todos los estados" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="active">Activos</SelectItem>
+                  <SelectItem value="disabled">Bloqueados</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <ul className="flex flex-col gap-3">
-          {managedUsers.map((user) => {
-            const role = roleLabel(user.role);
-            if (!role) return null;
 
-            return (
-              <li key={user.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium">{user.email}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {role} · {user.status}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <form action={roleAction} className="flex items-center gap-2">
-                    <input type="hidden" name="targetUserId" value={user.id} />
-                    <Select name="role" defaultValue={role}>
-                      <SelectTrigger aria-label={`Rol de ${user.email}`} className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="ADMIN">ADMIN</SelectItem>
-                          <SelectItem value="User">User</SelectItem>
-                          <SelectItem value="Reception">Recepción</SelectItem>
-                          <SelectItem value="EventEditor">Editor de Eventos</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <Button type="submit" variant="outline" size="sm" disabled={rolePending}>
-                      Guardar rol
-                    </Button>
-                  </form>
-                  {user.status === "active" ? (
-                    <form action={disableAction}>
-                      <input type="hidden" name="targetUserId" value={user.id} />
-                      <Button type="submit" variant="destructive" size="sm" disabled={disablePending}>
-                        Deshabilitar
-                      </Button>
-                    </form>
-                  ) : (
-                    <form action={reactivateAction}>
-                      <input type="hidden" name="targetUserId" value={user.id} />
-                      <Button type="submit" variant="outline" size="sm" disabled={reactivatePending}>
-                        Reactivar
-                      </Button>
-                    </form>
-                  )}
-                  {user.status === "active" && (
-                    <form action={passwordLinkAction}>
-                      <input type="hidden" name="targetUserId" value={user.id} />
-                      <Button type="submit" variant="outline" size="sm" disabled={passwordLinkPending}>
-                        {passwordLinkPending ? "Enviando…" : "Enviar enlace de acceso"}
-                      </Button>
-                    </form>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-        {managedUsers.length === 0 && (
-          <p className="text-sm text-muted-foreground">No hay usuarios para administrar.</p>
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50 text-left">
+                <th className="p-4"><input type="checkbox" aria-label="Seleccionar todos los usuarios" className="size-4 accent-primary" /></th>
+                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Usuario</th>
+                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Rol</th>
+                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Último acceso</th>
+                <th className="p-4 text-center font-medium uppercase tracking-wider text-muted-foreground">Dos pasos</th>
+                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Alta</th>
+                <th className="p-4 text-right font-medium uppercase tracking-wider text-muted-foreground">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentUsers.map((user) => <ManagedUserRow key={user.id} user={user} />)}
+            </tbody>
+          </table>
+        </div>
+
+        {currentUsers.length === 0 && (
+          <p className="p-8 text-center text-sm text-muted-foreground">No hay usuarios que coincidan con los filtros.</p>
         )}
-        {(roleState.error || roleState.success) && (
-          <p role={roleState.error ? "alert" : "status"} className="text-sm text-muted-foreground">
-            {roleState.error ?? roleState.success}
-          </p>
-        )}
-        {(disableState.error || disableState.success) && (
-          <p role={disableState.error ? "alert" : "status"} className="text-sm text-muted-foreground">
-            {disableState.error ?? disableState.success}
-          </p>
-        )}
-        {(reactivateState.error || reactivateState.success) && (
-          <p role={reactivateState.error ? "alert" : "status"} className="text-sm text-muted-foreground">
-            {reactivateState.error ?? reactivateState.success}
-          </p>
-        )}
-        {(passwordLinkState.error || passwordLinkState.success) && (
-          <p role={passwordLinkState.error ? "alert" : "status"} className="text-sm text-muted-foreground">
-            {passwordLinkState.error ?? passwordLinkState.success}
-          </p>
-        )}
+
+        <div className="flex items-center justify-between border-t border-border p-4 text-sm text-muted-foreground">
+          <span>{filteredUsers.length} usuario{filteredUsers.length === 1 ? "" : "s"}</span>
+          <div className="flex items-center gap-2">
+            <span>Página {page} de {pageCount}</span>
+            <Button type="button" variant="outline" size="icon" aria-label="Página anterior" disabled={page <= 1} onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}>
+              <ChevronLeft data-icon="inline-start" />
+            </Button>
+            <Button type="button" variant="outline" size="icon" aria-label="Página siguiente" disabled={page >= pageCount} onClick={() => setCurrentPage((value) => Math.min(pageCount, value + 1))}>
+              <ChevronRight data-icon="inline-start" />
+            </Button>
+          </div>
+        </div>
       </section>
     </div>
+  );
+}
+
+function ManagedUserRow({ user }: { user: ManagedUser }) {
+  const role = roleLabel(user.role) ?? "User";
+  const [roleState, roleAction, rolePending] = useActionState(changeUserRoleAction, initialState);
+  const [statusState, statusAction, statusPending] = useActionState(
+    user.status === "active" ? disableUserAction : reactivateUserAction,
+    initialState,
+  );
+  const [passwordState, passwordAction, passwordPending] = useActionState(sendPasswordSetupLinkAction, initialState);
+  const [deleteState, deleteAction, deletePending] = useActionState(deleteUserAction, initialState);
+
+  return (
+    <tr className="border-b border-border transition-colors last:border-0 hover:bg-muted/30">
+      <td className="p-4"><input type="checkbox" aria-label={`Seleccionar ${user.email}`} className="size-4 accent-primary" /></td>
+      <td className="p-4">
+        <div className="flex items-center gap-3">
+          <Avatar size="lg" className="bg-primary/10 text-primary">
+            <AvatarFallback className="bg-primary/10 font-semibold text-primary">{getInitials(user.email)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="truncate font-medium text-foreground">{user.email.split("@")[0]}</div>
+            <div className="truncate text-sm text-muted-foreground">{user.email}</div>
+          </div>
+        </div>
+      </td>
+      <td className="p-4">
+        <form action={roleAction} className="flex items-center gap-2">
+          <input type="hidden" name="targetUserId" value={user.id} />
+          <Select name="role" defaultValue={role}>
+            <SelectTrigger aria-label={`Rol de ${user.email}`} className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="ADMIN">ADMIN</SelectItem>
+                <SelectItem value="User">User</SelectItem>
+                <SelectItem value="Reception">Recepción</SelectItem>
+                <SelectItem value="EventEditor">Editor de Eventos</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Button type="submit" variant="outline" size="sm" disabled={rolePending}>Guardar</Button>
+        </form>
+      </td>
+      <td className="p-4 text-sm font-medium text-foreground">—</td>
+      <td className="p-4 text-center text-sm text-muted-foreground">—</td>
+      <td className="p-4 text-sm text-muted-foreground">{formatJoinedDate(user.createdAt)}</td>
+      <td className="p-4 text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="sm" className="h-8 px-3 text-xs" />}>
+            Acciones <ChevronDown data-icon="inline-end" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuGroup>
+              {user.status === "active" && (
+                <form action={passwordAction}>
+                  <input type="hidden" name="targetUserId" value={user.id} />
+                  <DropdownMenuItem nativeButton render={<button type="submit" className="w-full" disabled={passwordPending} />}>
+                    {passwordPending ? "Enviando…" : "Reenviar enlace"}
+                  </DropdownMenuItem>
+                </form>
+              )}
+              <form action={statusAction}>
+                <input type="hidden" name="targetUserId" value={user.id} />
+                <DropdownMenuItem nativeButton render={<button type="submit" className="w-full" disabled={statusPending} />}>
+                  {statusPending ? "Guardando…" : user.status === "active" ? "Bloquear usuario" : "Desbloquear usuario"}
+                </DropdownMenuItem>
+              </form>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <form
+              action={deleteAction}
+              onSubmit={(event) => {
+                if (!window.confirm(`¿Eliminar definitivamente a ${user.email}? Esta acción no se puede deshacer.`)) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              <input type="hidden" name="targetUserId" value={user.id} />
+              <DropdownMenuItem variant="destructive" nativeButton render={<button type="submit" className="w-full" disabled={deletePending} />}>
+                {deletePending ? "Eliminando…" : "Eliminar definitivamente"}
+              </DropdownMenuItem>
+            </form>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {(roleState.error || passwordState.error || statusState.error || deleteState.error) && (
+          <p role="alert" className="mt-2 max-w-52 text-xs text-destructive">
+            {roleState.error ?? passwordState.error ?? statusState.error ?? deleteState.error}
+          </p>
+        )}
+      </td>
+    </tr>
   );
 }

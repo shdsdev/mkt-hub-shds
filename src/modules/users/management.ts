@@ -20,6 +20,10 @@ export type ManagementMutationResult =
   | { ok: true; user: ManagedUser; before: { role: ManagedRole; status: UserStatus } }
   | { ok: false; reason: "target_not_found" | "self_disable" | "last_active_admin" };
 
+export type DeleteManagedUserResult =
+  | { ok: true; user: ManagedUser }
+  | { ok: false; reason: "target_not_found" | "self_delete" | "last_active_admin" | "provider_failure" };
+
 export type InviteManagedUserInput = {
   organizationId: string;
   email: string;
@@ -100,6 +104,50 @@ export async function setManagedUserStatus(input: {
   status: "active" | "disabled";
 }): Promise<ManagementMutationResult> {
   return mutateManagedUser(input, { status: input.status });
+}
+
+export async function deleteManagedUser(input: {
+  organizationId: string;
+  actorId: string;
+  targetUserId: string;
+}): Promise<DeleteManagedUserResult> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select id from public.users where organization_id = ${input.organizationId} for update`,
+    );
+
+    const [target] = await tx
+      .select(managedUserFields)
+      .from(profileUsers)
+      .innerJoin(authUsers, eq(profileUsers.id, authUsers.id))
+      .where(and(eq(profileUsers.id, input.targetUserId), eq(profileUsers.organizationId, input.organizationId)))
+      .limit(1);
+
+    if (!target) return { ok: false, reason: "target_not_found" };
+    if (input.actorId === input.targetUserId) return { ok: false, reason: "self_delete" };
+
+    if (target.role === "ADMIN" && target.status === "active") {
+      const [{ activeAdminCount }] = await tx
+        .select({ activeAdminCount: count() })
+        .from(users)
+        .where(
+          and(
+            eq(users.organizationId, input.organizationId),
+            eq(users.role, "ADMIN"),
+            eq(users.status, "active"),
+          ),
+        );
+      if (activeAdminCount === 1) return { ok: false, reason: "last_active_admin" };
+    }
+
+    try {
+      await invitationGateway.deleteUser(target.id);
+    } catch {
+      return { ok: false, reason: "provider_failure" };
+    }
+
+    return { ok: true, user: target };
+  });
 }
 
 async function mutateManagedUser(
