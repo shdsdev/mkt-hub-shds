@@ -252,18 +252,20 @@ export async function listAccessibleEvents(input: {
   if (isAdmin({ role: input.role })) {
     return listEvents(input.organizationId, { includeArchived: input.includeArchived });
   }
-  if (input.role !== "EVENT_EDITOR") return [];
+  if (input.role !== "EVENT_EDITOR" && input.role !== "RECEPTION") return [];
+
+  const assignments = input.role === "EVENT_EDITOR" ? eventEditors : eventReceptionists;
 
   const rows = await db
     .select({ event: events })
     .from(events)
-    .innerJoin(eventEditors, eq(eventEditors.eventId, events.id))
+    .innerJoin(assignments, eq(assignments.eventId, events.id))
     .where(
       input.includeArchived
-        ? and(eq(events.organizationId, input.organizationId), eq(eventEditors.userId, input.userId))
+        ? and(eq(events.organizationId, input.organizationId), eq(assignments.userId, input.userId))
         : and(
             eq(events.organizationId, input.organizationId),
-            eq(eventEditors.userId, input.userId),
+            eq(assignments.userId, input.userId),
             ne(events.status, "archived"),
           ),
     )

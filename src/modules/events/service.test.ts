@@ -63,6 +63,7 @@ import {
   restoreEvent,
   deleteEvent,
   listEvents,
+  listAccessibleEvents,
   getEvent,
   getPublishedEventBySlug,
   getPublishedEventBySlugPublic,
@@ -1523,6 +1524,19 @@ describe("events service — notifyEventWebhook", () => {
     await expect(
       notifyEventWebhook({ webhookUrl: "https://example.com/webhook", webhookSecret: "s" }, "registration.created", {}),
     ).resolves.toBeUndefined();
+  });
+
+  it("lists only assigned events for Reception", async () => {
+    selectMock.mockReturnValueOnce(selectChain([{ event: baseEvent }]));
+
+    await expect(
+      listAccessibleEvents({
+        organizationId: "org-1",
+        userId: "reception-1",
+        role: "RECEPTION",
+        includeArchived: true,
+      }),
+    ).resolves.toEqual([baseEvent]);
   });
 });
 

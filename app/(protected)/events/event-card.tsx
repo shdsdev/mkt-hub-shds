@@ -13,10 +13,11 @@ export function EventCard({ event, role = "ADMIN" }: { event: EventRow; role?: U
   const date = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(event.startsAt);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteEventAction, {});
   const isArchived = event.status === "archived";
+  const landingHref = role === "RECEPTION" ? `/events/${event.id}/registrations` : `/events/${event.id}/dashboard`;
 
   return (
     <article className="w-full max-w-4xl rounded-xl border border-border bg-card p-5 shadow-sm">
-      <Link href={`/events/${event.id}/dashboard`} className="group block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+      <Link href={landingHref} className="group block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <div className="flex items-start justify-between gap-4">
           <h2 className="font-heading text-lg font-semibold group-hover:text-primary">{event.name}</h2>
           <span className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs font-medium">{status}</span>
@@ -27,7 +28,7 @@ export function EventCard({ event, role = "ADMIN" }: { event: EventRow; role?: U
           <div><dt className="text-xs uppercase tracking-wide">Capacidad</dt><dd className="mt-1 text-foreground">{event.capacity ?? "Sin límite"}</dd></div>
         </dl>
       </Link>
-      {role !== "EVENT_EDITOR" ? <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+      {role === "ADMIN" ? <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <form action={isArchived ? restoreEventAction : archiveEventAction}>
           <input type="hidden" name="id" value={event.id} />
           <button type="submit" aria-label={isArchived ? "Restaurar evento" : "Archivar evento"} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted">

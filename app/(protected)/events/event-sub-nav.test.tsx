@@ -9,9 +9,15 @@ describe("EventSubNav", () => {
     expect(html.indexOf("Sorteo")).toBeLessThan(html.indexOf("Resultados"));
   });
 
-  it("keeps Sorteo hidden from reception users", () => {
+  it("shows only operational sections to reception users", () => {
     const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="registrations" role="RECEPTION" />);
     expect(html).not.toContain("Sorteo");
+    expect(html).not.toContain("Editar");
+    expect(html).not.toContain("Preguntas");
+    expect(html).not.toContain("Resultados");
+    expect(html).toContain("Registros");
+    expect(html).toContain("Check-in");
+    expect(html).toContain("Formulario interno");
   });
 
   it("shows every event section to event editors", () => {

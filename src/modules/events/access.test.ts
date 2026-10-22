@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { canRoleAccessCapability } from "./access-policy";
 
 describe("event access capabilities", () => {
-  it("allows Reception to read registrations and check-in only", () => {
+  it("allows Reception to read registrations, check-in, and the internal form only", () => {
     expect(canRoleAccessCapability("RECEPTION", "registrations")).toBe(true);
     expect(canRoleAccessCapability("RECEPTION", "check-in")).toBe(true);
-    expect(canRoleAccessCapability("RECEPTION", "questions")).toBe(true);
-    expect(canRoleAccessCapability("RECEPTION", "internal-form")).toBe(false);
+    expect(canRoleAccessCapability("RECEPTION", "internal-form")).toBe(true);
+    expect(canRoleAccessCapability("RECEPTION", "questions")).toBe(false);
     expect(canRoleAccessCapability("RECEPTION", "edit")).toBe(false);
     expect(canRoleAccessCapability("RECEPTION", "raffle")).toBe(false);
+    expect(canRoleAccessCapability("RECEPTION", "dashboard")).toBe(false);
   });
 
   it("allows Admin all event capabilities", () => {

@@ -93,4 +93,23 @@ describe("EventCard", () => {
     expect(container.querySelector('button[aria-label="Restaurar evento"]')).toBeTruthy();
     expect(container.querySelector('button[aria-label="Archivar evento"]')).toBeNull();
   });
+
+  it("routes Reception to registrations without admin actions", () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() =>
+      root?.render(
+        <EventCard
+          role="RECEPTION"
+          event={{ id: "event-1", status: "published", name: "Launch Day" } as never}
+        />,
+      ),
+    );
+
+    expect(container.querySelector("a")?.getAttribute("href")).toBe("/events/event-1/registrations");
+    expect(container.querySelector('button[aria-label="Archivar evento"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="Eliminar evento"]')).toBeNull();
+  });
 });

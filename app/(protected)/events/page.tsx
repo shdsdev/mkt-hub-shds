@@ -7,7 +7,7 @@ import { EventList } from "./event-list";
 
 export default async function EventsPage() {
   const user = await getCurrentUser();
-  if (!user || !isActive(user.profile) || (user.profile.role !== "ADMIN" && user.profile.role !== "EVENT_EDITOR")) notFound();
+  if (!user || !isActive(user.profile) || !["ADMIN", "EVENT_EDITOR", "RECEPTION"].includes(user.profile.role)) notFound();
 
   const events = await listAccessibleEvents({
     organizationId: user.profile.organizationId,

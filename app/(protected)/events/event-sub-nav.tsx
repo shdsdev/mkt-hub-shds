@@ -12,7 +12,11 @@ export function EventSubNav({ eventId, current, role }: { eventId: string; curre
     { key: "raffle", label: "Sorteo", href: `/events/${eventId}/raffle` },
     { key: "questions", label: "Preguntas", href: `/events/${eventId}/questions` },
     { key: "dashboard", label: "Resultados", href: `/events/${eventId}/dashboard` },
-  ].filter((tab) => role === "ADMIN" || role === "EVENT_EDITOR" || tab.key === "registrations" || tab.key === "check-in" || tab.key === "questions");
+  ].filter((tab) =>
+    role === "ADMIN" ||
+    role === "EVENT_EDITOR" ||
+    (role === "RECEPTION" && (tab.key === "registrations" || tab.key === "check-in" || tab.key === "internal-form")),
+  );
 
   return (
     <nav className="w-full overflow-x-auto border-b border-border text-sm">
