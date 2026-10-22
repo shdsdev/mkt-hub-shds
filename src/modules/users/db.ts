@@ -7,6 +7,7 @@ export const userRole = pgEnum("user_role", [
   "MARKETING_MANAGER",
   "MARKETING_USER",
   "VIEWER",
+  "EVENT_EDITOR",
 ]);
 
 export const userStatus = pgEnum("user_status", ["active", "disabled"]);

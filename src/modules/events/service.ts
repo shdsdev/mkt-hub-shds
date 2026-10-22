@@ -9,6 +9,7 @@ import {
   eventRegistrations,
   eventAttendees,
   eventReceptionists,
+  eventEditors,
   type AgendaItem,
   type RegistrationConsents,
   type RegistrationFormAnswers,
@@ -142,10 +143,11 @@ export type UpdateEventChanges = Partial<{
 export async function updateEvent(input: {
   id: string;
   organizationId: string;
+  actorId?: string;
   actorRole: UserRole;
   changes: UpdateEventChanges;
 }): Promise<EventMutationResult> {
-  if (!isAdmin({ role: input.actorRole })) return { ok: false, reason: "forbidden" };
+  if (!(await canEditEvent(input))) return { ok: false, reason: "forbidden" };
 
   const [event] = await db
     .update(events)
@@ -239,6 +241,34 @@ export async function listEvents(
         : and(eq(events.organizationId, organizationId), ne(events.status, "archived")),
     )
     .orderBy(desc(events.createdAt));
+}
+
+export async function listAccessibleEvents(input: {
+  organizationId: string;
+  userId: string;
+  role: UserRole;
+  includeArchived?: boolean;
+}): Promise<EventRow[]> {
+  if (isAdmin({ role: input.role })) {
+    return listEvents(input.organizationId, { includeArchived: input.includeArchived });
+  }
+  if (input.role !== "EVENT_EDITOR") return [];
+
+  const rows = await db
+    .select({ event: events })
+    .from(events)
+    .innerJoin(eventEditors, eq(eventEditors.eventId, events.id))
+    .where(
+      input.includeArchived
+        ? and(eq(events.organizationId, input.organizationId), eq(eventEditors.userId, input.userId))
+        : and(
+            eq(events.organizationId, input.organizationId),
+            eq(eventEditors.userId, input.userId),
+            ne(events.status, "archived"),
+          ),
+    )
+    .orderBy(desc(events.createdAt));
+  return rows.map(({ event }) => event);
 }
 
 export async function getEvent(id: string, organizationId: string): Promise<EventRow | undefined> {
@@ -833,6 +863,15 @@ export async function listEventReceptionistIds(eventId: string, organizationId: 
   return rows.map((row) => row.userId);
 }
 
+export async function listEventEditorIds(eventId: string, organizationId: string): Promise<string[]> {
+  const rows = await db
+    .select({ userId: eventEditors.userId })
+    .from(eventEditors)
+    .innerJoin(events, eq(events.id, eventEditors.eventId))
+    .where(and(eq(eventEditors.eventId, eventId), eq(events.organizationId, organizationId)));
+  return rows.map((row) => row.userId);
+}
+
 export type RegistrationReviewUpdateResult = EventRegistrationRow | { reason: "capacity" } | undefined;
 
 export async function updateRegistrationReviewStatus(input: {
@@ -930,6 +969,45 @@ export async function removeEventReceptionist(eventId: string, userId: string, o
     .delete(eventReceptionists)
     .where(and(eq(eventReceptionists.eventId, eventId), eq(eventReceptionists.userId, userId)));
   return true;
+}
+
+export async function assignEventEditor(eventId: string, userId: string, organizationId: string): Promise<boolean> {
+  const event = await getEvent(eventId, organizationId);
+  if (!event) return false;
+  await db.insert(eventEditors).values({ eventId, userId }).onConflictDoNothing();
+  return true;
+}
+
+export async function removeEventEditor(eventId: string, userId: string, organizationId: string): Promise<boolean> {
+  const event = await getEvent(eventId, organizationId);
+  if (!event) return false;
+  await db
+    .delete(eventEditors)
+    .where(and(eq(eventEditors.eventId, eventId), eq(eventEditors.userId, userId)));
+  return true;
+}
+
+async function canEditEvent(input: {
+  id: string;
+  organizationId: string;
+  actorId?: string;
+  actorRole: UserRole;
+}): Promise<boolean> {
+  if (isAdmin({ role: input.actorRole })) return true;
+  if (input.actorRole !== "EVENT_EDITOR" || !input.actorId) return false;
+  const [assignment] = await db
+    .select({ userId: eventEditors.userId })
+    .from(eventEditors)
+    .innerJoin(events, eq(events.id, eventEditors.eventId))
+    .where(
+      and(
+        eq(eventEditors.eventId, input.id),
+        eq(eventEditors.userId, input.actorId),
+        eq(events.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+  return Boolean(assignment);
 }
 
 // spec.md "Registrations Admin Search and Filter" — scoped to one event+organization, with an
@@ -1100,10 +1178,11 @@ async function isWebhookUrlSafe(urlString: string): Promise<boolean> {
 export async function setEventWebhookUrl(input: {
   id: string;
   organizationId: string;
+  actorId?: string;
   actorRole: UserRole;
   webhookUrl: string | null;
 }): Promise<SetEventWebhookResult> {
-  if (!isAdmin({ role: input.actorRole })) return { ok: false, reason: "forbidden" };
+  if (!(await canEditEvent(input))) return { ok: false, reason: "forbidden" };
 
   if (input.webhookUrl && !(await isWebhookUrlSafe(input.webhookUrl))) {
     return { ok: false, reason: "unsafe_url" };

@@ -1,17 +1,20 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
-import { getDefaultRegistrationFormConfig, listEvents } from "@/modules/events";
+import { getDefaultRegistrationFormConfig, listAccessibleEvents } from "@/modules/events";
 import { EventCreateForm } from "./event-create-form";
 import { EventList } from "./event-list";
 
-// ADMIN-only (spec.md "ADMIN-Only Event Authoring") — same notFound gate as
-// app/(protected)/settings/users/page.tsx and app/(protected)/admin/page.tsx.
 export default async function EventsPage() {
   const user = await getCurrentUser();
-  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) notFound();
+  if (!user || !isActive(user.profile) || (user.profile.role !== "ADMIN" && user.profile.role !== "EVENT_EDITOR")) notFound();
 
-  const events = await listEvents(user.profile.organizationId, { includeArchived: true });
+  const events = await listAccessibleEvents({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    role: user.profile.role,
+    includeArchived: true,
+  });
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -19,15 +22,19 @@ export default async function EventsPage() {
         <div>
           <h1 className="font-heading text-xl font-semibold">Eventos</h1>
           <p className="text-sm text-muted-foreground">
-            Crea y administra eventos. Solo un evento publicado es visible en su página pública.
+            {isAdmin(user.profile)
+              ? "Crea y administra eventos. Solo un evento publicado es visible en su página pública."
+              : "Administra los eventos que te asignó un administrador."}
           </p>
         </div>
-        <EventCreateForm
-          initialFormConfig={getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false })}
-        />
+        {isAdmin(user.profile) && (
+          <EventCreateForm
+            initialFormConfig={getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false })}
+          />
+        )}
       </div>
 
-      <EventList events={events} />
+      <EventList events={events} role={user.profile.role} />
     </div>
   );
 }

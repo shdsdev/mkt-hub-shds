@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import type { EventRow } from "@/modules/events";
+import type { UserRole } from "@/modules/users";
 import { EventCard } from "./event-card";
 
-export function EventList({ events }: { events: EventRow[] }) {
+export function EventList({ events, role = "ADMIN" }: { events: EventRow[]; role?: UserRole }) {
   const [showArchived, setShowArchived] = useState(false);
   const visibleEvents = events.filter((event) => showArchived ? event.status === "archived" : event.status !== "archived");
 
@@ -17,7 +18,7 @@ export function EventList({ events }: { events: EventRow[] }) {
       {visibleEvents.length === 0 ? (
         <p className="text-sm text-muted-foreground">{showArchived ? "No hay eventos archivados." : "Todavía no hay eventos."}</p>
       ) : (
-        <div className="grid gap-4">{visibleEvents.map((event) => <EventCard key={event.id} event={event} />)}</div>
+        <div className="grid gap-4">{visibleEvents.map((event) => <EventCard key={event.id} event={event} role={role} />)}</div>
       )}
     </div>
   );

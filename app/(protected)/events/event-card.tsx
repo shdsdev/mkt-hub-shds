@@ -3,11 +3,12 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import type { EventRow } from "@/modules/events";
+import type { UserRole } from "@/modules/users";
 import { archiveEventAction, deleteEventAction, restoreEventAction } from "./actions";
 
 const statusLabels = { draft: "Borrador", published: "Publicado", closed: "Cerrado", archived: "Archivado" } as const;
 
-export function EventCard({ event }: { event: EventRow }) {
+export function EventCard({ event, role = "ADMIN" }: { event: EventRow; role?: UserRole }) {
   const status = statusLabels[event.status as keyof typeof statusLabels] ?? event.status;
   const date = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(event.startsAt);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteEventAction, {});
@@ -26,7 +27,7 @@ export function EventCard({ event }: { event: EventRow }) {
           <div><dt className="text-xs uppercase tracking-wide">Capacidad</dt><dd className="mt-1 text-foreground">{event.capacity ?? "Sin límite"}</dd></div>
         </dl>
       </Link>
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+      {role !== "EVENT_EDITOR" ? <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <form action={isArchived ? restoreEventAction : archiveEventAction}>
           <input type="hidden" name="id" value={event.id} />
           <button type="submit" aria-label={isArchived ? "Restaurar evento" : "Archivar evento"} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted">
@@ -38,7 +39,7 @@ export function EventCard({ event }: { event: EventRow }) {
           <button type="submit" disabled={deletePending} aria-label="Eliminar evento" className="rounded-md border border-destructive/40 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50">Eliminar</button>
         </form>
         {deleteState.error ? <p role="alert" className="basis-full text-xs text-destructive">{deleteState.error}</p> : null}
-      </div>
+      </div> : null}
     </article>
   );
 }

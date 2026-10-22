@@ -19,4 +19,14 @@ describe("event access capabilities", () => {
     expect(canRoleAccessCapability("ADMIN", "raffle")).toBe(true);
     expect(canRoleAccessCapability("ADMIN", "questions")).toBe(true);
   });
+
+  it("allows Event Editor all event capabilities", () => {
+    expect(canRoleAccessCapability("EVENT_EDITOR", "registrations")).toBe(true);
+    expect(canRoleAccessCapability("EVENT_EDITOR", "check-in")).toBe(true);
+    expect(canRoleAccessCapability("EVENT_EDITOR", "internal-form")).toBe(true);
+    expect(canRoleAccessCapability("EVENT_EDITOR", "edit")).toBe(true);
+    expect(canRoleAccessCapability("EVENT_EDITOR", "raffle")).toBe(true);
+    expect(canRoleAccessCapability("EVENT_EDITOR", "questions")).toBe(true);
+    expect(canRoleAccessCapability("EVENT_EDITOR", "dashboard")).toBe(true);
+  });
 });

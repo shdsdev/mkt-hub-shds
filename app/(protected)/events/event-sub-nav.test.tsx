@@ -13,4 +13,15 @@ describe("EventSubNav", () => {
     const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="registrations" role="RECEPTION" />);
     expect(html).not.toContain("Sorteo");
   });
+
+  it("shows every event section to event editors", () => {
+    const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="edit" role="EVENT_EDITOR" />);
+    expect(html).toContain("Editar");
+    expect(html).toContain("Registros");
+    expect(html).toContain("Check-in");
+    expect(html).toContain("Formulario interno");
+    expect(html).toContain("Sorteo");
+    expect(html).toContain("Preguntas");
+    expect(html).toContain("Resultados");
+  });
 });

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import { isActive, isAdmin } from "@/modules/users";
-import { getEvent, getEventInsights } from "@/modules/events";
+import { isActive } from "@/modules/users";
+import { canAccessEvent, getEvent, getEventInsights } from "@/modules/events";
 import { EventSubNav } from "../../event-sub-nav";
 
 function formatConversion(conversion: number | null): string {
@@ -19,12 +19,12 @@ function StatTile({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-// ADMIN-only, same gate as app/(protected)/events/page.tsx.
 export default async function EventDashboardPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) notFound();
+  if (!user || !isActive(user.profile)) notFound();
 
   const { id } = await params;
+  if (!(await canAccessEvent({ userId: user.id, organizationId: user.profile.organizationId, role: user.profile.role, eventId: id, capability: "dashboard" }))) notFound();
   const [event, insights] = await Promise.all([
     getEvent(id, user.profile.organizationId),
     getEventInsights(id, user.profile.organizationId),

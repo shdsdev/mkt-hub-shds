@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   isActive: vi.fn(),
   isAdmin: vi.fn(),
+  canAccessEvent: vi.fn(),
   getEvent: vi.fn(),
   getEventEmbedUrl: vi.fn(() => "https://hub.example.com/events/embed/workshop-mayo"),
   getEventEmbedSnippet: vi.fn(() => "<iframe />"),
@@ -26,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   })),
   listManagedUsers: vi.fn(() => []),
   listEventReceptionistIds: vi.fn(() => []),
+  listEventEditorIds: vi.fn(() => []),
   notFound: vi.fn(),
 }));
 
@@ -38,6 +40,8 @@ vi.mock("@/modules/events", () => ({
   getEventLandingUrl: mocks.getEventLandingUrl,
   resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
   listEventReceptionistIds: mocks.listEventReceptionistIds,
+  listEventEditorIds: mocks.listEventEditorIds,
+  canAccessEvent: mocks.canAccessEvent,
 }));
 vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_ORIGIN: "https://hub.example.com" } }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
@@ -67,6 +71,7 @@ describe("EditEventPage", () => {
     mocks.getCurrentUser.mockResolvedValue({ profile: { organizationId: "org-1" } });
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(true);
+    mocks.canAccessEvent.mockResolvedValue(true);
     mocks.getEvent.mockResolvedValue(event);
   });
 

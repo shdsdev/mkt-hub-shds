@@ -23,10 +23,11 @@ import {
 
 const initialState: UserManagementFormState = {};
 
-function roleLabel(role: ManagedUser["role"]): "ADMIN" | "User" | "Reception" | undefined {
+function roleLabel(role: ManagedUser["role"]): "ADMIN" | "User" | "Reception" | "EventEditor" | undefined {
   if (role === "ADMIN") return "ADMIN";
   if (role === "MARKETING_USER") return "User";
   if (role === "RECEPTION") return "Reception";
+  if (role === "EVENT_EDITOR") return "EventEditor";
 }
 
 export function UserManagement({ users }: { users: ManagedUser[] }) {
@@ -71,6 +72,7 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
                         <SelectItem value="ADMIN">ADMIN</SelectItem>
                         <SelectItem value="User">User</SelectItem>
                         <SelectItem value="Reception">Recepción</SelectItem>
+                        <SelectItem value="EventEditor">Editor de Eventos</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -116,6 +118,7 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
                           <SelectItem value="ADMIN">ADMIN</SelectItem>
                           <SelectItem value="User">User</SelectItem>
                           <SelectItem value="Reception">Recepción</SelectItem>
+                          <SelectItem value="EventEditor">Editor de Eventos</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>

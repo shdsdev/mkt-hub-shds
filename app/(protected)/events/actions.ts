@@ -35,6 +35,13 @@ async function requireActiveAdmin() {
   return user;
 }
 
+async function requireActiveEventManager() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!isActive(user.profile) || (!isAdmin(user.profile) && user.profile.role !== "EVENT_EDITOR")) return undefined;
+  return user;
+}
+
 // `datetime-local` input values ("2026-11-01T18:00") parse fine via `z.coerce.date()`.
 const optionalInt = z
   .string()
@@ -235,6 +242,7 @@ export async function updateEventAction(
   const result = await updateEvent({
     id: id.data,
     organizationId: user.profile.organizationId,
+    actorId: user.id,
     actorRole: user.profile.role,
     changes: {
       name: parsed.data.name,
@@ -274,7 +282,7 @@ export async function saveEventTelegramChatIdAction(
   _prevState: EventFormState,
   formData: FormData,
 ): Promise<EventFormState> {
-  const user = await requireActiveAdmin();
+  const user = await requireActiveEventManager();
   if (!user) return { error: PERMISSION_ERROR };
 
   const parsed = z.object({
@@ -289,6 +297,7 @@ export async function saveEventTelegramChatIdAction(
   const result = await updateEvent({
     id: parsed.data.id,
     organizationId: user.profile.organizationId,
+    actorId: user.id,
     actorRole: user.profile.role,
     changes: { telegramChatId: parsed.data.telegramChatId || null },
   });
@@ -303,7 +312,7 @@ export async function saveEventTelegramMessageTemplateAction(
   _prevState: EventFormState,
   formData: FormData,
 ): Promise<EventFormState> {
-  const user = await requireActiveAdmin();
+  const user = await requireActiveEventManager();
   if (!user) return { error: PERMISSION_ERROR };
 
   const parsed = z.object({
@@ -320,6 +329,7 @@ export async function saveEventTelegramMessageTemplateAction(
   const result = await updateEvent({
     id: parsed.data.id,
     organizationId: user.profile.organizationId,
+    actorId: user.id,
     actorRole: user.profile.role,
     changes: { telegramMessageTemplate: parsed.data.template || null },
   });
@@ -382,7 +392,7 @@ export async function restoreEventAction(formData: FormData): Promise<void> {
 }
 
 export async function deleteEventAction(_prevState: EventFormState, formData: FormData): Promise<EventFormState> {
-  const user = await requireActiveAdmin();
+  const user = await requireActiveEventManager();
   if (!user) return { error: PERMISSION_ERROR };
   const id = z.string().uuid().safeParse(formData.get("id"));
   if (!id.success) return { error: NOT_FOUND_ERROR };
@@ -412,7 +422,7 @@ export async function setWebhookAction(
   _prevState: WebhookFormState,
   formData: FormData,
 ): Promise<WebhookFormState> {
-  const user = await requireActiveAdmin();
+  const user = await requireActiveEventManager();
   if (!user) return { error: PERMISSION_ERROR };
 
   const parsed = webhookUrlSchema.safeParse({
@@ -424,6 +434,7 @@ export async function setWebhookAction(
   const result = await setEventWebhookUrl({
     id: parsed.data.id,
     organizationId: user.profile.organizationId,
+    actorId: user.id,
     actorRole: user.profile.role,
     webhookUrl: parsed.data.webhookUrl || null,
   });

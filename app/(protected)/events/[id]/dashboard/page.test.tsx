@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   isActive: vi.fn(),
   isAdmin: vi.fn(),
+  canAccessEvent: vi.fn(),
   getEventInsights: vi.fn(),
   getEvent: vi.fn(),
   notFound: vi.fn(),
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
-vi.mock("@/modules/events", () => ({ getEventInsights: mocks.getEventInsights, getEvent: mocks.getEvent }));
+vi.mock("@/modules/events", () => ({ getEventInsights: mocks.getEventInsights, getEvent: mocks.getEvent, canAccessEvent: mocks.canAccessEvent }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 
 import EventDashboardPage from "./page";
@@ -32,6 +33,7 @@ describe("EventDashboardPage", () => {
     mocks.getCurrentUser.mockResolvedValue(adminUser);
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(true);
+    mocks.canAccessEvent.mockResolvedValue(true);
     mocks.getEvent.mockResolvedValue({ id: "event-1", name: "Workshop de Marketing" });
     mocks.notFound.mockImplementation(() => {
       throw new Error("NEXT_NOT_FOUND");
@@ -40,6 +42,7 @@ describe("EventDashboardPage", () => {
 
   it("returns notFound for a non-ADMIN user", async () => {
     mocks.isAdmin.mockReturnValue(false);
+    mocks.canAccessEvent.mockResolvedValue(false);
 
     await expect(EventDashboardPage({ params: params("event-1") })).rejects.toThrow("NEXT_NOT_FOUND");
     expect(mocks.getEventInsights).not.toHaveBeenCalled();

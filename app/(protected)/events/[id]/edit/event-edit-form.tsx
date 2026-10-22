@@ -22,6 +22,7 @@ import { getOptionalDateTimeError } from "@/lib/events/event-date-time";
 import { WebhookSettings } from "./webhook-settings";
 import { EmbedSettings } from "./embed-settings";
 import { ReceptionTeam } from "./reception-team";
+import { EditorTeam } from "./editor-team";
 
 const initialState: EventFormState = {};
 
@@ -32,6 +33,9 @@ export function EventEditForm({
   embedSnippet,
   receptionUsers,
   assignedReceptionistIds,
+  editorUsers,
+  assignedEditorIds,
+  canManageTeam,
 }: {
   event: EventRow;
   formConfig: RegistrationFormConfig;
@@ -39,6 +43,9 @@ export function EventEditForm({
   embedSnippet: string;
   receptionUsers: ManagedUser[];
   assignedReceptionistIds: string[];
+  editorUsers: ManagedUser[];
+  assignedEditorIds: string[];
+  canManageTeam: boolean;
 }) {
   const [state, formAction, pending] = useActionState(updateEventAction, initialState);
   const [telegramState, telegramAction, telegramPending] = useActionState(saveEventTelegramChatIdAction, initialState);
@@ -153,16 +160,21 @@ export function EventEditForm({
               {telegramTemplateState.success ? <p role="status" aria-live="polite" className="mt-2 text-sm text-muted-foreground">{telegramTemplateState.success}</p> : null}
             </form>
             <EmbedSettings embedUrl={embedUrl} embedSnippet={embedSnippet} />
-            <ReceptionTeam
-              eventId={event.id}
-              users={receptionUsers}
-              assignedIds={assignedReceptionistIds}
-            />
+            {canManageTeam ? (
+              <>
+                <ReceptionTeam
+                  eventId={event.id}
+                  users={receptionUsers}
+                  assignedIds={assignedReceptionistIds}
+                />
+                <EditorTeam eventId={event.id} users={editorUsers} assignedIds={assignedEditorIds} />
+              </>
+            ) : null}
           </div>
         </EventEditorTabPanel>
       </EventEditorTabs>
 
-      <div className="flex gap-3">
+      {canManageTeam ? <div className="flex gap-3">
         {event.status !== "published" ? (
           <form action={publishEventAction}>
             <input type="hidden" name="id" value={event.id} />
@@ -187,7 +199,7 @@ export function EventEditForm({
             </Button>
           </form>
         ) : null}
-      </div>
+      </div> : null}
 
     </div>
   );

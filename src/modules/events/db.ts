@@ -235,6 +235,20 @@ export const eventReceptionists = pgTable(
   (table) => [uniqueIndex("event_receptionists_event_user_unique").on(table.eventId, table.userId)],
 );
 
+export const eventEditors = pgTable(
+  "event_editors",
+  {
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("event_editors_event_user_unique").on(table.eventId, table.userId)],
+);
+
 export const eventsTables = {
   eventStatus,
   eventRegistrationStatus,
@@ -244,4 +258,5 @@ export const eventsTables = {
   eventRegistrations,
   eventAttendees,
   eventReceptionists,
+  eventEditors,
 } as const;

@@ -27,10 +27,10 @@ const LAST_ACTIVE_ADMIN_ERROR = "Debe permanecer al menos un administrador activ
 
 const inviteSchema = z.object({
   email: z.string().trim().email().max(254),
-  role: z.enum(["ADMIN", "User", "Reception"]),
+  role: z.enum(["ADMIN", "User", "Reception", "EventEditor"]),
 });
 const targetSchema = z.object({ targetUserId: z.string().uuid() });
-const roleChangeSchema = targetSchema.extend({ role: z.enum(["ADMIN", "User", "Reception"]) });
+const roleChangeSchema = targetSchema.extend({ role: z.enum(["ADMIN", "User", "Reception", "EventEditor"]) });
 
 export type UserManagementFormState = { error?: string; success?: string };
 
@@ -87,7 +87,7 @@ export async function inviteUserAction(
   const parsed = inviteSchema.safeParse({ email: formData.get("email"), role: formData.get("role") });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
-  const role: ManagedRole = parsed.data.role === "User" ? "MARKETING_USER" : parsed.data.role === "Reception" ? "RECEPTION" : "ADMIN";
+  const role: ManagedRole = parsed.data.role === "User" ? "MARKETING_USER" : parsed.data.role === "Reception" ? "RECEPTION" : parsed.data.role === "EventEditor" ? "EVENT_EDITOR" : "ADMIN";
   const result = await inviteManagedUser({
     organizationId: user.profile.organizationId,
     email: parsed.data.email,
@@ -148,7 +148,7 @@ export async function changeUserRoleAction(
   });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
-  const role: ManagedRole = parsed.data.role === "User" ? "MARKETING_USER" : parsed.data.role === "Reception" ? "RECEPTION" : "ADMIN";
+  const role: ManagedRole = parsed.data.role === "User" ? "MARKETING_USER" : parsed.data.role === "Reception" ? "RECEPTION" : parsed.data.role === "EventEditor" ? "EVENT_EDITOR" : "ADMIN";
   const result = await changeManagedUserRole({
     organizationId: user.profile.organizationId,
     actorId: user.id,
