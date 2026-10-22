@@ -75,6 +75,7 @@ import {
   checkInAttendee,
   recordEventVisit,
   listRegistrations,
+  getEventDashboardData,
   getEventInsights,
   addAttendeeToRegistration,
   updatePrimaryAttendee,
@@ -1262,15 +1263,23 @@ describe("events service — getEventInsights", () => {
   });
 
   it("computes visits/registrations/attendance/conversion", async () => {
-    const event = { ...baseEvent, visitCount: 100 };
+    const event = { ...baseEvent, visitCount: 100, capacity: 100 };
     selectMock
       .mockReturnValueOnce(selectChain([event]))
       .mockReturnValueOnce(selectChain([{ total: 40 }]))
-      .mockReturnValueOnce(selectChain([{ total: 10 }]));
+      .mockReturnValueOnce(selectChain([{ total: 10 }]))
+      .mockReturnValueOnce(selectChain([{ total: 42 }]));
 
     const result = await getEventInsights("event-1", "org-1");
 
-    expect(result).toEqual({ visits: 100, registrations: 40, attendance: 10, conversion: 0.4 });
+    expect(result).toEqual({
+      visits: 100,
+      registrations: 40,
+      attendance: 10,
+      conversion: 0.4,
+      confirmedSeats: 42,
+      capacity: 100,
+    });
   });
 
   it("returns a null conversion (not 0) when there have been no visits yet", async () => {
@@ -1278,10 +1287,87 @@ describe("events service — getEventInsights", () => {
     selectMock
       .mockReturnValueOnce(selectChain([event]))
       .mockReturnValueOnce(selectChain([{ total: 0 }]))
+      .mockReturnValueOnce(selectChain([{ total: 0 }]))
       .mockReturnValueOnce(selectChain([{ total: 0 }]));
 
     const result = await getEventInsights("event-1", "org-1");
     expect(result?.conversion).toBeNull();
+  });
+
+  it("returns confirmed seats separately from registration count", async () => {
+    const event = { ...baseEvent, capacity: 100 };
+    selectMock
+      .mockReturnValueOnce(selectChain([event]))
+      .mockReturnValueOnce(selectChain([{ total: 2 }]))
+      .mockReturnValueOnce(selectChain([{ total: 0 }]))
+      .mockReturnValueOnce(selectChain([{ total: 3 }]));
+
+    const result = await getEventInsights("event-1", "org-1");
+
+    expect(result?.confirmedSeats).toBe(3);
+    expect(result?.capacity).toBe(100);
+  });
+
+  it("returns a null capacity for unlimited events", async () => {
+    const event = { ...baseEvent, capacity: null };
+    selectMock
+      .mockReturnValueOnce(selectChain([event]))
+      .mockReturnValueOnce(selectChain([{ total: 2 }]))
+      .mockReturnValueOnce(selectChain([{ total: 0 }]))
+      .mockReturnValueOnce(selectChain([{ total: 2 }]));
+
+    const result = await getEventInsights("event-1", "org-1");
+
+    expect(result?.capacity).toBeNull();
+    expect(result?.confirmedSeats).toBe(2);
+  });
+});
+
+describe("events service — getEventDashboardData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns actionable status, attention, activity, and recent registration data", async () => {
+    const event = { ...baseEvent, id: "event-1" };
+    const registrations = [
+      { id: "reg-1", eventId: "event-1", organizationId: "org-1", status: "pending_review", reviewStatus: "new", createdAt: new Date("2026-10-22T10:00:00Z"), requestedMoreCompanions: true },
+      { id: "reg-2", eventId: "event-1", organizationId: "org-1", status: "confirmed", reviewStatus: "approved", createdAt: new Date("2026-10-21T10:00:00Z"), requestedMoreCompanions: false },
+      { id: "reg-3", eventId: "event-1", organizationId: "org-1", status: "waitlisted", reviewStatus: "new", createdAt: new Date("2026-10-20T10:00:00Z"), requestedMoreCompanions: false },
+      { id: "reg-4", eventId: "event-1", organizationId: "org-1", status: "cancelled", reviewStatus: "rejected", createdAt: new Date("2026-10-19T10:00:00Z"), requestedMoreCompanions: false },
+      { id: "reg-5", eventId: "event-1", organizationId: "org-1", status: "confirmed", reviewStatus: "approved", createdAt: new Date("2026-10-18T10:00:00Z"), requestedMoreCompanions: false },
+      { id: "reg-6", eventId: "event-1", organizationId: "org-1", status: "rejected", reviewStatus: "rejected", createdAt: new Date("2026-10-17T10:00:00Z"), requestedMoreCompanions: false },
+    ];
+    const attendees = [
+      { id: "att-1", registrationId: "reg-1", eventId: "event-1", isActive: true, checkedInAt: null, fullName: "Ada Lovelace", email: "ada@example.com" },
+      { id: "att-2", registrationId: "reg-2", eventId: "event-1", isActive: true, checkedInAt: null, fullName: "Alan Turing", email: "alan@example.com" },
+      { id: "att-3", registrationId: "reg-2", eventId: "event-1", isActive: true, checkedInAt: new Date("2026-10-22T11:00:00Z"), fullName: "Grace Hopper", email: "grace@example.com" },
+      { id: "att-4", registrationId: "reg-3", eventId: "event-1", isActive: true, checkedInAt: null, fullName: "Linus Torvalds", email: "linus@example.com" },
+      { id: "att-5", registrationId: "reg-5", eventId: "event-1", isActive: true, checkedInAt: null, fullName: "Margaret Hamilton", email: "margaret@example.com" },
+    ];
+    selectMock
+      .mockReturnValueOnce(selectChain([event]))
+      .mockReturnValueOnce(selectChain(registrations))
+      .mockReturnValueOnce(selectChain(attendees));
+
+    const result = await getEventDashboardData("event-1", "org-1");
+
+    expect(result?.statuses).toEqual(expect.arrayContaining([
+      { status: "pending_review", count: 1 },
+      { status: "confirmed", count: 2 },
+      { status: "waitlisted", count: 1 },
+      { status: "cancelled", count: 1 },
+      { status: "rejected", count: 1 },
+    ]));
+    expect(result?.attention).toEqual({
+      pendingReview: 1,
+      waitlisted: 1,
+      confirmedWithoutCheckIn: 2,
+      requestedCompanions: 1,
+    });
+    expect(result?.recentRegistrations).toHaveLength(5);
+    expect(result?.recentRegistrations[0]).toMatchObject({ id: "reg-1", primaryName: "Ada Lovelace", attendeeCount: 1 });
+    expect(result?.activity).toHaveLength(14);
   });
 });
 

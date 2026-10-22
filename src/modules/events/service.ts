@@ -1071,11 +1071,107 @@ export async function listRegistrations(
   );
 }
 
+export type EventDashboardStatus = "pending_review" | "confirmed" | "waitlisted" | "rejected" | "cancelled";
+
+export type EventDashboardData = {
+  activity: Array<{ date: string; label: string; registrations: number }>;
+  statuses: Array<{ status: EventDashboardStatus; count: number }>;
+  attention: {
+    pendingReview: number;
+    waitlisted: number;
+    confirmedWithoutCheckIn: number;
+    requestedCompanions: number;
+  };
+  recentRegistrations: Array<{
+    id: string;
+    createdAt: Date;
+    status: EventRegistrationRow["status"];
+    reviewStatus: EventRegistrationRow["reviewStatus"];
+    primaryName: string;
+    attendeeCount: number;
+  }>;
+};
+
+const EVENT_DASHBOARD_STATUS_ORDER: EventDashboardStatus[] = [
+  "pending_review",
+  "confirmed",
+  "waitlisted",
+  "rejected",
+  "cancelled",
+];
+
+function dashboardStatus(status: EventRegistrationRow["status"]): EventDashboardStatus {
+  return status === "checked_in" ? "confirmed" : status;
+}
+
+export async function getEventDashboardData(
+  eventId: string,
+  organizationId: string,
+): Promise<EventDashboardData | undefined> {
+  const event = await getEvent(eventId, organizationId);
+  if (!event) return undefined;
+
+  const registrations = await listRegistrations(eventId, organizationId);
+  const statusCounts = new Map<EventDashboardStatus, number>(
+    EVENT_DASHBOARD_STATUS_ORDER.map((status) => [status, 0]),
+  );
+  const activityCounts = new Map<string, number>();
+  const recentRegistrations = registrations.slice(0, 5).map((registration) => ({
+    id: registration.id,
+    createdAt: registration.createdAt,
+    status: registration.status,
+    reviewStatus: registration.reviewStatus,
+    primaryName: registration.attendees[0]?.fullName ?? "Sin nombre",
+    attendeeCount: registration.attendees.filter((attendee) => attendee.isActive).length,
+  }));
+
+  let pendingReview = 0;
+  let waitlisted = 0;
+  let confirmedWithoutCheckIn = 0;
+  let requestedCompanions = 0;
+
+  for (const registration of registrations) {
+    const status = dashboardStatus(registration.status);
+    statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
+    const date = registration.createdAt.toISOString().slice(0, 10);
+    activityCounts.set(date, (activityCounts.get(date) ?? 0) + 1);
+
+    if (registration.status === "pending_review") pendingReview += 1;
+    if (registration.status === "waitlisted") waitlisted += 1;
+    if (registration.status === "confirmed") {
+      confirmedWithoutCheckIn += registration.attendees.filter(
+        (attendee) => attendee.isActive && !attendee.checkedInAt,
+      ).length;
+    }
+    if (registration.requestedMoreCompanions && registration.status !== "cancelled") requestedCompanions += 1;
+  }
+
+  const today = new Date();
+  const activity = Array.from({ length: 14 }, (_, index) => {
+    const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - (13 - index)));
+    const dateKey = date.toISOString().slice(0, 10);
+    return {
+      date: dateKey,
+      label: new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", timeZone: "UTC" }).format(date),
+      registrations: activityCounts.get(dateKey) ?? 0,
+    };
+  });
+
+  return {
+    activity,
+    statuses: EVENT_DASHBOARD_STATUS_ORDER.map((status) => ({ status, count: statusCounts.get(status) ?? 0 })),
+    attention: { pendingReview, waitlisted, confirmedWithoutCheckIn, requestedCompanions },
+    recentRegistrations,
+  };
+}
+
 export type EventInsights = {
   visits: number;
   registrations: number;
   attendance: number;
   conversion: number | null;
+  confirmedSeats: number;
+  capacity: number | null;
 };
 
 // spec.md "ADMIN-Only Results Dashboard" — conversion mirrors
@@ -1088,29 +1184,45 @@ export async function getEventInsights(
   const event = await getEvent(eventId, organizationId);
   if (!event) return undefined;
 
-  const [registrationsRow] = await db
-    .select({ total: count() })
-    .from(eventRegistrations)
-    .where(and(eq(eventRegistrations.eventId, eventId), ne(eventRegistrations.status, "cancelled")));
-  const [attendanceRow] = await db
-    .select({ total: count() })
-    .from(eventAttendees)
-    .where(
-      and(
-        eq(eventAttendees.eventId, eventId),
-        eq(eventAttendees.isActive, true),
-        isNotNull(eventAttendees.checkedInAt),
+  const [[registrationsRow], [attendanceRow], [confirmedSeatsRow]] = await Promise.all([
+    db
+      .select({ total: count() })
+      .from(eventRegistrations)
+      .where(and(eq(eventRegistrations.eventId, eventId), ne(eventRegistrations.status, "cancelled"))),
+    db
+      .select({ total: count() })
+      .from(eventAttendees)
+      .where(
+        and(
+          eq(eventAttendees.eventId, eventId),
+          eq(eventAttendees.isActive, true),
+          isNotNull(eventAttendees.checkedInAt),
+        ),
       ),
-    );
+    db
+      .select({ total: count() })
+      .from(eventAttendees)
+      .innerJoin(eventRegistrations, eq(eventAttendees.registrationId, eventRegistrations.id))
+      .where(
+        and(
+          eq(eventAttendees.eventId, eventId),
+          eq(eventAttendees.isActive, true),
+          eq(eventRegistrations.status, "confirmed"),
+        ),
+      ),
+  ]);
 
   const registrations = registrationsRow?.total ?? 0;
   const attendance = attendanceRow?.total ?? 0;
+  const confirmedSeats = confirmedSeatsRow?.total ?? 0;
 
   return {
     visits: event.visitCount,
     registrations,
     attendance,
     conversion: event.visitCount === 0 ? null : registrations / event.visitCount,
+    confirmedSeats,
+    capacity: event.capacity,
   };
 }
 
