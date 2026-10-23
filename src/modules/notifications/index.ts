@@ -6,6 +6,7 @@ export {
   markUserNotificationRead,
   claimNotification,
   listReminderNotificationStatuses,
+  getReminderNotificationStatusCounts,
   markNotificationSent,
   markNotificationFailed,
   sendConfirmationEmail,

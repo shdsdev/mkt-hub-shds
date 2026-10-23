@@ -1,12 +1,13 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 
-const { insertMock, updateMock } = vi.hoisted(() => ({
+const { insertMock, updateMock, selectMock } = vi.hoisted(() => ({
   insertMock: vi.fn(),
   updateMock: vi.fn(),
+  selectMock: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({
-  db: { insert: insertMock, update: updateMock },
+  db: { insert: insertMock, update: updateMock, select: selectMock },
 }));
 
 // Isolated getters — `required()` throwing when unset is already covered by src/lib/env.test.ts;
@@ -20,6 +21,7 @@ vi.mock("@/lib/env", () => ({
 
 import {
   claimNotification,
+  getReminderNotificationStatusCounts,
   markNotificationSent,
   markNotificationFailed,
   sendConfirmationEmail,
@@ -144,6 +146,32 @@ describe("notifications service — status transitions", () => {
     expect(chain.set).toHaveBeenCalledWith(
       expect.objectContaining({ status: "failed", error: "Resend 500: boom" }),
     );
+  });
+});
+
+describe("notifications service — reminder status diagnostics", () => {
+  it("counts all reminder notification statuses without returning attendee data", async () => {
+    const chain = {
+      from: vi.fn(),
+      where: vi.fn(),
+      groupBy: vi.fn(),
+    };
+    chain.from.mockReturnValue(chain);
+    chain.where.mockReturnValue(chain);
+    chain.groupBy.mockResolvedValue([
+      { status: "pending", count: 2 },
+      { status: "failed", count: 3 },
+      { status: "sent", count: 4 },
+    ]);
+    selectMock.mockReturnValue(chain);
+
+    await expect(getReminderNotificationStatusCounts()).resolves.toEqual({
+      pending: 2,
+      failed: 3,
+      sent: 4,
+      resent: 0,
+      unknown: 0,
+    });
   });
 });
 

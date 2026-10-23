@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { env } from "@/lib/env";
 import type { EventEmailContent } from "@/lib/events/event-email-content";
@@ -105,6 +105,27 @@ export async function listReminderNotificationStatuses(
     .select({ attendeeId: notificationLog.subjectId, status: notificationLog.status })
     .from(notificationLog)
     .where(and(inArray(notificationLog.subjectId, attendeeIds), eq(notificationLog.notificationType, "reminder")));
+}
+
+export type ReminderNotificationStatusCounts = Record<"pending" | "failed" | "sent" | "resent" | "unknown", number>;
+
+export async function getReminderNotificationStatusCounts(): Promise<ReminderNotificationStatusCounts> {
+  const rows = await db
+    .select({ status: notificationLog.status, count: count() })
+    .from(notificationLog)
+    .where(eq(notificationLog.notificationType, "reminder"))
+    .groupBy(notificationLog.status);
+
+  const counts: ReminderNotificationStatusCounts = {
+    pending: 0,
+    failed: 0,
+    sent: 0,
+    resent: 0,
+    unknown: 0,
+  };
+
+  for (const row of rows) counts[row.status] = Number(row.count);
+  return counts;
 }
 
 export async function markNotificationSent(

@@ -164,4 +164,37 @@ describe("POST /api/jobs/event-reminders", () => {
     expect(second.status).toBe(200);
     expect(mocks.sendReminderEmail).toHaveBeenCalledTimes(2);
   });
+
+  it("reports provider failures without hiding them behind an ok response", async () => {
+    mocks.listDueReminderAttendees.mockResolvedValue([
+      {
+        event: { id: "event-1", name: "Workshop de Marketing" },
+        attendee: { id: "att-1", organizationId: "org-1", email: "ada@example.com", fullName: "Ada Lovelace", backupCode: "ABCD1234" },
+        cancelToken: "cancel-token-1",
+      },
+    ]);
+    mocks.sendReminderEmail.mockResolvedValue({ sent: false, reason: "provider_failure", error: "Resend 503" });
+
+    const response = await POST(requestWithAuth("Bearer test-secret"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: false, processed: 1, sent: 0, skipped: 0, failed: 1 });
+  });
+
+  it("contains a QR generation failure and reports it without aborting the batch", async () => {
+    mocks.listDueReminderAttendees.mockResolvedValue([
+      {
+        event: { id: "event-1", name: "Workshop de Marketing" },
+        attendee: { id: "att-1", organizationId: "org-1", email: "ada@example.com", fullName: "Ada Lovelace", backupCode: "ABCD1234" },
+        cancelToken: "cancel-token-1",
+      },
+    ]);
+    mocks.exportQrPng.mockRejectedValue(new Error("QR render failed"));
+
+    const response = await POST(requestWithAuth("Bearer test-secret"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: false, processed: 1, sent: 0, skipped: 0, failed: 1 });
+    expect(mocks.sendReminderEmail).not.toHaveBeenCalled();
+  });
 });

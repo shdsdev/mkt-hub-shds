@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { listDueReminderAttendees } from "@/modules/events";
-import { listReminderNotificationStatuses, summarizeReminderStatuses } from "@/modules/notifications";
+import {
+  getReminderNotificationStatusCounts,
+  listReminderNotificationStatuses,
+  summarizeReminderStatuses,
+} from "@/modules/notifications";
 
 export async function GET(request: NextRequest) {
   let secret: string;
@@ -22,6 +26,16 @@ export async function GET(request: NextRequest) {
   const summary = summarizeReminderStatuses(
     attendeeIds.map((attendeeId) => ({ attendeeId, status: statusByAttendeeId.get(attendeeId) })),
   );
+  const statusCounts = await getReminderNotificationStatusCounts();
+  const historyTotal = Object.values(statusCounts).reduce((total, value) => total + value, 0);
 
-  return NextResponse.json({ ok: true, reminders: summary });
+  return NextResponse.json({
+    ok: true,
+    reminders: summary,
+    history: {
+      total: historyTotal,
+      ...statusCounts,
+      blocked: statusCounts.pending + statusCounts.failed + statusCounts.unknown,
+    },
+  });
 }

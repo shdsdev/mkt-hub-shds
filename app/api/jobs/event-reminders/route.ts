@@ -25,27 +25,44 @@ export async function POST(request: NextRequest) {
   }
 
   const due = await listDueReminderAttendees();
-  await Promise.all(
+  const outcomes = await Promise.all(
     due.map(async ({ event, attendee, cancelToken }) => {
-      const qrPng = await exportQrPng(attendee.backupCode, {});
-      await sendReminderEmail({
-        organizationId: attendee.organizationId,
-        attendeeId: attendee.id,
-        to: attendee.email,
-        attendeeName: attendee.fullName,
-        eventName: event.name,
-        backupCode: attendee.backupCode,
-        qrPngBase64: qrPng.toString("base64"),
-        eventStartsAt: event.startsAt,
-        eventEndsAt: event.endsAt,
+      try {
+        const qrPng = await exportQrPng(attendee.backupCode, {});
+        const result = await sendReminderEmail({
+          organizationId: attendee.organizationId,
+          attendeeId: attendee.id,
+          to: attendee.email,
+          attendeeName: attendee.fullName,
+          eventName: event.name,
+          backupCode: attendee.backupCode,
+          qrPngBase64: qrPng.toString("base64"),
+          eventStartsAt: event.startsAt,
+          eventEndsAt: event.endsAt,
           eventLocation: event.location,
           eventLocationUrl: event.locationUrl,
-         manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${cancelToken}`,
-         emailContent: resolveEventEmailContent(event.emailContent),
-         agenda: event.agenda,
-       });
+          manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${cancelToken}`,
+          emailContent: resolveEventEmailContent(event.emailContent),
+          agenda: event.agenda,
+        });
+
+        if (result.sent) return "sent" as const;
+        if (result.reason === "already_sent") return "skipped" as const;
+        console.error("[event-reminders] provider failure", { attendeeId: attendee.id, error: result.error });
+        return "failed" as const;
+      } catch (error) {
+        console.error("[event-reminders] reminder processing failed", {
+          attendeeId: attendee.id,
+          error: error instanceof Error ? error.message : "Unknown reminder error",
+        });
+        return "failed" as const;
+      }
     }),
   );
 
-  return NextResponse.json({ ok: true, processed: due.length });
+  const sent = outcomes.filter((outcome) => outcome === "sent").length;
+  const skipped = outcomes.filter((outcome) => outcome === "skipped").length;
+  const failed = outcomes.filter((outcome) => outcome === "failed").length;
+
+  return NextResponse.json({ ok: failed === 0, processed: due.length, sent, skipped, failed });
 }

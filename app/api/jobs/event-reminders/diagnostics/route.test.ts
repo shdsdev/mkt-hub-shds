@@ -4,12 +4,14 @@ import type { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
   listDueReminderAttendees: vi.fn(),
   listReminderNotificationStatuses: vi.fn(),
+  getReminderNotificationStatusCounts: vi.fn(),
   summarizeReminderStatuses: vi.fn(),
 }));
 
 vi.mock("@/modules/events", () => ({ listDueReminderAttendees: mocks.listDueReminderAttendees }));
 vi.mock("@/modules/notifications", () => ({
   listReminderNotificationStatuses: mocks.listReminderNotificationStatuses,
+  getReminderNotificationStatusCounts: mocks.getReminderNotificationStatusCounts,
   summarizeReminderStatuses: mocks.summarizeReminderStatuses,
 }));
 
@@ -34,6 +36,13 @@ describe("GET /api/jobs/event-reminders/diagnostics", () => {
     mocks.listReminderNotificationStatuses.mockResolvedValue([
       { attendeeId: "att-2", status: "failed" },
     ]);
+    mocks.getReminderNotificationStatusCounts.mockResolvedValue({
+      pending: 2,
+      failed: 3,
+      sent: 4,
+      resent: 0,
+      unknown: 1,
+    });
     mocks.summarizeReminderStatuses.mockReturnValue({
       total: 2,
       missing: 1,
@@ -70,7 +79,17 @@ describe("GET /api/jobs/event-reminders/diagnostics", () => {
         sent: 0,
         blocked: 1,
       },
+      history: {
+        total: 10,
+        pending: 2,
+        failed: 3,
+        sent: 4,
+        resent: 0,
+        unknown: 1,
+        blocked: 6,
+      },
     });
     expect(mocks.listReminderNotificationStatuses).toHaveBeenCalledWith(["att-1", "att-2"]);
+    expect(mocks.getReminderNotificationStatusCounts).toHaveBeenCalledOnce();
   });
 });
