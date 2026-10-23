@@ -11,6 +11,7 @@ vi.mock("./actions", () => ({
 
 vi.mock("./qr-scanner", () => ({
   QrScanner: () => <div data-testid="qr-scanner" />,
+  useScannerCoordinator: () => ({ claim: vi.fn(), release: vi.fn(), activeOwner: null }),
 }));
 
 vi.mock("./manual-folio-dialog", async (importOriginal) => {

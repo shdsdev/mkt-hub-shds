@@ -50,7 +50,7 @@ vi.mock("@/modules/users", () => ({
 }));
 
 import { and, eq } from "drizzle-orm";
-import { events, eventRegistrations, eventAttendees } from "./db";
+import { events, eventRegistrations, eventAttendees, eventBenefits, eventBenefitRedemptions } from "./db";
 import {
   CROCKFORD_BASE32_ALPHABET,
   generateBackupCode,
@@ -83,7 +83,17 @@ import {
   regenerateEventWebhookSecret,
   notifyEventWebhook,
   deleteRejectedRegistration,
+  validateBenefitInput,
+  listEventBenefits,
+  listEventBenefitRedemptions,
+  saveEventBenefit,
+  saveEventBenefitsConfiguration,
+  deactivateEventBenefit,
+  lookupBenefitRedemption,
+  redeemBenefit,
+  annulBenefitRedemption,
 } from "./service";
+import { authUsers } from "@/db/auth-schema-ref";
 
 // Chainable mock builders matching the project's established pattern
 // (src/modules/users/management.test.ts `query()` helper).
@@ -106,6 +116,7 @@ function selectChain<T>(rows: T[]) {
   const chain = {
     from: vi.fn(),
     innerJoin: vi.fn(),
+    leftJoin: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
     limit: vi.fn(),
@@ -113,6 +124,7 @@ function selectChain<T>(rows: T[]) {
   };
   chain.from.mockReturnValue(chain);
   chain.innerJoin.mockReturnValue(chain);
+  chain.leftJoin.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
   chain.orderBy.mockReturnValue(chain);
   chain.limit.mockReturnValue(chain);
@@ -504,17 +516,259 @@ function txChain<T>(rows: T[]) {
     where: vi.fn(),
     orderBy: vi.fn(),
     limit: vi.fn(),
+    for: vi.fn(),
     values: vi.fn(),
     set: vi.fn(),
     returning: vi.fn(),
     then: (resolve: (value: T[]) => unknown) => Promise.resolve(rows).then(resolve),
   };
-  for (const key of ["from", "innerJoin", "where", "orderBy", "limit", "values", "set"]) {
+  for (const key of ["from", "innerJoin", "where", "orderBy", "limit", "for", "values", "set"]) {
     (chain[key] as ReturnType<typeof vi.fn>).mockReturnValue(chain);
   }
   (chain.returning as ReturnType<typeof vi.fn>).mockResolvedValue(rows);
   return chain;
 }
+
+describe("events service — benefit validation and redemption", () => {
+  const checkedInAttendee = {
+    id: "att-1",
+    eventId: "event-1",
+    registrationId: "reg-1",
+    passToken: "pass-1",
+    backupCode: "ABCD2345",
+    checkedInAt: new Date("2026-10-23T10:00:00Z"),
+    fullName: "Ada Lovelace",
+  };
+  const checkedInRegistration = {
+    id: "reg-1",
+    eventId: "event-1",
+    status: "checked_in" as const,
+  };
+  const configuredEvent = {
+    ...baseEvent,
+    benefitRedemptionScope: "attendee" as const,
+    benefitRedemptionStartedAt: null,
+  };
+  const gift = {
+    id: "benefit-1",
+    eventId: "event-1",
+    kind: "gift" as const,
+    name: "Welcome kit",
+    percentage: null,
+    quantity: 1,
+    active: true,
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("validates kind-specific fields and stock boundaries", () => {
+    expect(validateBenefitInput({ kind: "gift", name: "  ", percentage: null, quantity: 1 })).toEqual({
+      ok: false,
+      reason: "gift_name_required",
+    });
+    expect(validateBenefitInput({ kind: "discount", name: null, percentage: 101, quantity: -1 })).toEqual({
+      ok: false,
+      reason: "invalid_percentage",
+    });
+    expect(validateBenefitInput({ kind: "discount", percentage: 25, quantity: null })).toEqual({
+      ok: true,
+      value: { kind: "discount", name: null, percentage: 25, quantity: null },
+    });
+  });
+
+  it("lists, saves, and deactivates event benefits", async () => {
+    const saved = { ...gift, updatedAt: new Date() };
+    selectMock.mockReturnValueOnce(selectChain([gift]));
+    insertMock.mockReturnValueOnce(insertChain([saved]));
+    updateMock.mockReturnValueOnce(updateChain([{ ...saved, active: false }]));
+
+    await expect(listEventBenefits("event-1")).resolves.toEqual([gift]);
+    await expect(saveEventBenefit({ eventId: "event-1", kind: "gift", name: "Welcome kit", quantity: 1 })).resolves.toEqual({ ok: true, benefit: saved });
+    await expect(deactivateEventBenefit({ eventId: "event-1", benefitId: "benefit-1" })).resolves.toEqual({ ok: true, benefit: { ...saved, active: false } });
+    expect(insertMock).toHaveBeenCalledWith(eventBenefits);
+    expect(updateMock).toHaveBeenCalledWith(eventBenefits);
+  });
+
+  it("lists redemption history with the benefit and attendee labels", async () => {
+    const redemption = {
+      id: "redemption-1",
+      eventId: "event-1",
+      benefitId: "benefit-1",
+      scope: "attendee" as const,
+      attendeeId: "att-1",
+      registrationId: "reg-1",
+      actorId: "user-1",
+      status: "active" as const,
+      createdAt: new Date("2026-10-23T12:00:00Z"),
+      annulledAt: null,
+      annulledBy: null,
+      annulmentReason: null,
+    };
+    selectMock.mockReturnValueOnce(selectChain([{
+      redemption,
+      benefitName: "Welcome kit",
+      benefitKind: "gift",
+      benefitPercentage: null,
+      attendeeName: "Ada Lovelace",
+      actorName: "staff@example.com",
+    }]));
+
+    await expect(listEventBenefitRedemptions("event-1")).resolves.toEqual([{
+      ...redemption,
+      benefitName: "Welcome kit",
+      benefitKind: "gift",
+      benefitPercentage: null,
+      attendeeName: "Ada Lovelace",
+      actorName: "staff@example.com",
+    }]);
+    expect(selectMock).toHaveBeenCalledWith({
+      redemption: eventBenefitRedemptions,
+      benefitName: eventBenefits.name,
+      benefitKind: eventBenefits.kind,
+      benefitPercentage: eventBenefits.percentage,
+      attendeeName: eventAttendees.fullName,
+      actorName: authUsers.email,
+    });
+  });
+
+  it("looks up pass tokens and returns check-in, redemption, and available-benefit state", async () => {
+    selectMock
+      .mockReturnValueOnce(selectChain([checkedInAttendee]))
+      .mockReturnValueOnce(selectChain([checkedInRegistration]))
+      .mockReturnValueOnce(selectChain([configuredEvent]))
+      .mockReturnValueOnce(selectChain([]))
+      .mockReturnValueOnce(selectChain([gift]))
+      .mockReturnValueOnce(selectChain([{ count: "0" }]));
+
+    await expect(lookupBenefitRedemption({ eventId: "event-1", code: "pass-1" })).resolves.toMatchObject({
+      ok: true,
+      attendee: checkedInAttendee,
+      registration: checkedInRegistration,
+      redemption: null,
+      benefits: [gift],
+    });
+  });
+
+  it("requires check-in and enforces one active redemption by the configured scope", async () => {
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+    );
+    txSelectMock
+      .mockReturnValueOnce(txChain([configuredEvent]))
+      .mockReturnValueOnce(txChain([{ ...checkedInAttendee, checkedInAt: null }]))
+      .mockReturnValueOnce(txChain([checkedInRegistration]));
+
+    await expect(redeemBenefit({ eventId: "event-1", benefitId: "benefit-1", code: "pass-1", actorId: "user-1" })).resolves.toEqual({
+      ok: false,
+      reason: "not_checked_in",
+    });
+
+    txSelectMock
+      .mockReturnValueOnce(txChain([configuredEvent]))
+      .mockReturnValueOnce(txChain([checkedInAttendee]))
+      .mockReturnValueOnce(txChain([checkedInRegistration]))
+      .mockReturnValueOnce(txChain([{ id: "redemption-1", status: "active" }]));
+    await expect(redeemBenefit({ eventId: "event-1", benefitId: "benefit-1", code: "pass-1", actorId: "user-1" })).resolves.toEqual({
+      ok: false,
+      reason: "already_redeemed",
+    });
+  });
+
+  it("updates scope and catalog in one transaction and deactivates omitted benefits", async () => {
+    const existing = { ...gift, id: "benefit-1", active: true };
+    const omitted = { ...gift, id: "benefit-omitted", active: true };
+    const updated = { ...existing, name: "Updated", active: true };
+    const created = { ...gift, id: "benefit-2", active: true };
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+    );
+    txSelectMock
+      .mockReturnValueOnce(txChain([{ ...configuredEvent, benefitRedemptionStartedAt: null }]))
+      .mockReturnValueOnce(txChain([existing, omitted]));
+    txUpdateMock
+      .mockReturnValueOnce(txChain([updated]))
+      .mockReturnValueOnce(txChain([{ ...omitted, active: false }]))
+      .mockReturnValueOnce(txChain([{ ...configuredEvent, benefitRedemptionScope: "registration" }]));
+    txInsertMock.mockReturnValue(txChain([created]));
+
+    const result = await saveEventBenefitsConfiguration({
+      eventId: "event-1",
+      scope: "registration",
+      benefits: [
+        { benefitId: existing.id, kind: "gift", name: "Updated", quantity: 5, active: true },
+        { kind: "gift", name: "New", quantity: 3, active: true },
+      ],
+    });
+
+    expect(result).toEqual({ ok: true, event: expect.anything(), benefits: [updated, created, { ...omitted, active: false }] });
+    expect(transactionMock).toHaveBeenCalledOnce();
+    expect(txUpdateMock).toHaveBeenCalledWith(eventBenefits);
+  });
+
+  it("rejects a configuration scope change after redemption starts", async () => {
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+    );
+    txSelectMock.mockReturnValueOnce(selectChain([{ ...configuredEvent, benefitRedemptionStartedAt: new Date(), benefitRedemptionScope: "attendee" }]));
+
+    await expect(saveEventBenefitsConfiguration({
+      eventId: "event-1",
+      scope: "registration",
+      benefits: [],
+    })).resolves.toEqual({ ok: false, reason: "scope_locked" });
+  });
+
+  it("redeems atomically, locks scope on first success, rejects capped stock, and annuls without deleting history", async () => {
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+    );
+    const redemption = { ...gift, id: "redemption-1", status: "active" as const };
+    txSelectMock
+      .mockReturnValueOnce(txChain([configuredEvent]))
+      .mockReturnValueOnce(txChain([checkedInAttendee]))
+      .mockReturnValueOnce(txChain([checkedInRegistration]))
+      .mockReturnValueOnce(txChain([]))
+      .mockReturnValueOnce(txChain([gift]))
+      .mockReturnValueOnce(txChain([{ count: 0 }]));
+    txInsertMock.mockReturnValueOnce(txChain([redemption]));
+    txUpdateMock.mockReturnValueOnce(txChain([{ ...configuredEvent, benefitRedemptionStartedAt: expect.any(Date) }]));
+
+    await expect(redeemBenefit({ eventId: "event-1", benefitId: "benefit-1", code: "ABCD2345", actorId: "user-1" })).resolves.toEqual({ ok: true, redemption });
+    expect(txUpdateMock).toHaveBeenCalledWith(events);
+    expect(txUpdateMock).not.toHaveBeenCalledWith(eventAttendees);
+
+    txSelectMock
+      .mockReturnValueOnce(txChain([configuredEvent]))
+      .mockReturnValueOnce(txChain([checkedInAttendee]))
+      .mockReturnValueOnce(txChain([checkedInRegistration]))
+      .mockReturnValueOnce(txChain([]))
+      .mockReturnValueOnce(txChain([gift]))
+      .mockReturnValueOnce(txChain([{ count: 1 }]));
+    await expect(redeemBenefit({ eventId: "event-1", benefitId: "benefit-1", code: "pass-1", actorId: "user-1" })).resolves.toEqual({ ok: false, reason: "stock_exhausted" });
+
+    txSelectMock.mockReturnValueOnce(txChain([redemption]));
+    txUpdateMock.mockReturnValueOnce(txChain([{ ...redemption, status: "annulled", annulledBy: "user-2", annulmentReason: "Correction" }]));
+    await expect(annulBenefitRedemption({ eventId: "event-1", redemptionId: "redemption-1", actorId: "user-2", reason: "Correction" })).resolves.toMatchObject({ ok: true, redemption: { status: "annulled" } });
+    expect(txUpdateMock).toHaveBeenCalledWith(eventBenefitRedemptions);
+  });
+
+  it("does not annul a redemption belonging to another event", async () => {
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ select: txSelectMock, insert: txInsertMock, update: txUpdateMock }),
+    );
+    txSelectMock.mockReturnValueOnce(txChain([{ id: "redemption-1", eventId: "event-b", status: "active" }]));
+
+    await expect(annulBenefitRedemption({
+      eventId: "event-a",
+      redemptionId: "redemption-1",
+      actorId: "user-1",
+      reason: "Wrong event",
+    })).resolves.toEqual({ ok: false, reason: "not_found" });
+    expect(txUpdateMock).not.toHaveBeenCalled();
+  });
+});
 
 // tasks.md 3.3-3.8 — registerForEvent: companions, capacity/waitlist, concurrency lock,
 // duplicate-email mapping. design.md "Waitlist concurrency" / "Active-email uniqueness".

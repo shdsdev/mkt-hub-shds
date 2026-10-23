@@ -6,15 +6,22 @@ const mocks = vi.hoisted(() => ({
   isAdmin: vi.fn(),
   canAccessEvent: vi.fn(),
   getEvent: vi.fn(),
+  listEventBenefitRedemptions: vi.fn(),
   notFound: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
-vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, canAccessEvent: mocks.canAccessEvent }));
+vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, canAccessEvent: mocks.canAccessEvent, listEventBenefitRedemptions: mocks.listEventBenefitRedemptions }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("./check-in-form", () => ({
   CheckInForm: ({ eventId }: { eventId: string }) => <div data-event-id={eventId} />,
+}));
+vi.mock("./benefit-redemption-form", () => ({
+  BenefitRedemptionForm: ({ eventId }: { eventId: string }) => <div data-benefit-event-id={eventId} />,
+}));
+vi.mock("./qr-scanner", () => ({
+  ScannerCoordinatorProvider: ({ children }: { children: unknown }) => children,
 }));
 vi.mock("../../event-sub-nav", () => ({
   EventSubNav: ({ eventId, current }: { eventId: string; current: string }) => <div data-sub-nav-event-id={eventId} data-current={current} />,
@@ -39,6 +46,7 @@ describe("EventCheckInPage", () => {
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(false);
     mocks.canAccessEvent.mockResolvedValue(true);
+    mocks.listEventBenefitRedemptions.mockResolvedValue([]);
     mocks.notFound.mockImplementation(() => {
       throw new Error("NEXT_NOT_FOUND");
     });
@@ -65,7 +73,8 @@ describe("EventCheckInPage", () => {
     expect(mocks.getEvent).toHaveBeenCalledWith("event-1", "org-1");
     expect(JSON.stringify(result)).toContain("Workshop de Marketing");
     expect(JSON.stringify(result)).toContain("max-w-[1440px]");
-    expect(JSON.stringify(result)).toContain("mx-auto flex w-full max-w-4xl flex-col gap-6");
+    expect(JSON.stringify(result)).toContain("grid gap-6 lg:grid-cols-2");
+    expect(JSON.stringify(result).match(/"eventId":"event-1"/g)).toHaveLength(3);
     expect(mocks.canAccessEvent).toHaveBeenCalledWith(expect.objectContaining({ capability: "check-in" }));
     expect(JSON.stringify(result)).toContain('"current":"check-in"');
   });

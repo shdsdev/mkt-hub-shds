@@ -1,7 +1,34 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { decodeQrFrame } from "./qr-frame-decoder";
+
+type ScannerOwner = "check-in" | "benefit";
+type ScannerCoordinator = { activeOwner: ScannerOwner | null; claim: (owner: ScannerOwner) => void; release: (owner: ScannerOwner) => void };
+
+export function canOwnScanner(activeOwner: ScannerOwner | null, owner: ScannerOwner) {
+  return activeOwner === null || activeOwner === owner;
+}
+
+const ScannerCoordinatorContext = createContext<ScannerCoordinator>({
+  activeOwner: null,
+  claim: () => undefined,
+  release: () => undefined,
+});
+
+export function ScannerCoordinatorProvider({ children }: { children: ReactNode }) {
+  const [activeOwner, setActiveOwner] = useState<ScannerOwner | null>(null);
+  const value = {
+    activeOwner,
+    claim: (owner: ScannerOwner) => setActiveOwner(owner),
+    release: (owner: ScannerOwner) => setActiveOwner((current) => current === owner ? null : current),
+  };
+  return <ScannerCoordinatorContext.Provider value={value}>{children}</ScannerCoordinatorContext.Provider>;
+}
+
+export function useScannerCoordinator() {
+  return useContext(ScannerCoordinatorContext);
+}
 
 export function QrScanner({ active, onDetected, onError }: { active: boolean; onDetected: (code: string) => void; onError: (message: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);

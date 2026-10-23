@@ -10,6 +10,8 @@ describe("event access capabilities", () => {
     expect(canRoleAccessCapability("RECEPTION", "edit")).toBe(false);
     expect(canRoleAccessCapability("RECEPTION", "raffle")).toBe(false);
     expect(canRoleAccessCapability("RECEPTION", "dashboard")).toBe(false);
+    expect(canRoleAccessCapability("RECEPTION", "benefit-redemption")).toBe(true);
+    expect(canRoleAccessCapability("RECEPTION", "benefit-management")).toBe(false);
   });
 
   it("allows Admin all event capabilities", () => {
@@ -19,6 +21,8 @@ describe("event access capabilities", () => {
     expect(canRoleAccessCapability("ADMIN", "edit")).toBe(true);
     expect(canRoleAccessCapability("ADMIN", "raffle")).toBe(true);
     expect(canRoleAccessCapability("ADMIN", "questions")).toBe(true);
+    expect(canRoleAccessCapability("ADMIN", "benefit-redemption")).toBe(true);
+    expect(canRoleAccessCapability("ADMIN", "benefit-management")).toBe(true);
   });
 
   it("allows Event Editor all event capabilities", () => {
@@ -29,5 +33,12 @@ describe("event access capabilities", () => {
     expect(canRoleAccessCapability("EVENT_EDITOR", "raffle")).toBe(true);
     expect(canRoleAccessCapability("EVENT_EDITOR", "questions")).toBe(true);
     expect(canRoleAccessCapability("EVENT_EDITOR", "dashboard")).toBe(true);
+    expect(canRoleAccessCapability("EVENT_EDITOR", "benefit-redemption")).toBe(true);
+    expect(canRoleAccessCapability("EVENT_EDITOR", "benefit-management")).toBe(true);
+  });
+
+  it("does not grant benefit capabilities to unrelated roles", () => {
+    expect(canRoleAccessCapability("MARKETING_USER", "benefit-redemption")).toBe(false);
+    expect(canRoleAccessCapability("MARKETING_USER", "benefit-management")).toBe(false);
   });
 });

@@ -23,6 +23,8 @@ import { WebhookSettings } from "./webhook-settings";
 import { EmbedSettings } from "./embed-settings";
 import { ReceptionTeam } from "./reception-team";
 import { EditorTeam } from "./editor-team";
+import { EventBenefitsEditor } from "./event-benefits-editor";
+import type { BenefitRow } from "@/modules/events";
 
 const initialState: EventFormState = {};
 
@@ -36,6 +38,9 @@ export function EventEditForm({
   editorUsers,
   assignedEditorIds,
   canManageTeam,
+  canManageBenefits,
+  benefits,
+  remainingByBenefitId,
 }: {
   event: EventRow;
   formConfig: RegistrationFormConfig;
@@ -46,6 +51,9 @@ export function EventEditForm({
   editorUsers: ManagedUser[];
   assignedEditorIds: string[];
   canManageTeam: boolean;
+  canManageBenefits: boolean;
+  benefits: BenefitRow[];
+  remainingByBenefitId: Record<string, number>;
 }) {
   const [state, formAction, pending] = useActionState(updateEventAction, initialState);
   const [telegramState, telegramAction, telegramPending] = useActionState(saveEventTelegramChatIdAction, initialState);
@@ -62,6 +70,7 @@ export function EventEditForm({
           { id: "email", label: "Correos" },
           { id: "registration", label: "Formulario de registro" },
           { id: "integrations", label: "Integraciones" },
+          ...(canManageBenefits ? [{ id: "benefits", label: "Beneficios" }] : []),
         ]}
         formTabIds={["event", "landing", "email", "registration"]}
         renderMainForm={(children) => (
@@ -172,6 +181,17 @@ export function EventEditForm({
             ) : null}
           </div>
         </EventEditorTabPanel>
+        {canManageBenefits ? (
+          <EventEditorTabPanel id="benefits" active={false}>
+            <EventBenefitsEditor
+              eventId={event.id}
+              scope={event.benefitRedemptionScope}
+              scopeLocked={Boolean(event.benefitRedemptionStartedAt)}
+              benefits={benefits}
+              remainingByBenefitId={remainingByBenefitId}
+            />
+          </EventEditorTabPanel>
+        ) : null}
       </EventEditorTabs>
 
       {canManageTeam ? <div className="flex gap-3">

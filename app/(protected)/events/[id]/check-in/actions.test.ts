@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   canAccessEvent: vi.fn(),
   confirmAttendeeCheckIn: vi.fn(),
   lookupAttendeeForCheckIn: vi.fn(),
+  lookupBenefitRedemption: vi.fn(),
+  listEventBenefitRedemptions: vi.fn(),
+  redeemBenefit: vi.fn(),
   checkRateLimit: vi.fn(),
   recordAudit: vi.fn(),
 }));
@@ -23,9 +26,12 @@ vi.mock("@/modules/events", () => ({
   canAccessEvent: mocks.canAccessEvent,
   confirmAttendeeCheckIn: mocks.confirmAttendeeCheckIn,
   lookupAttendeeForCheckIn: mocks.lookupAttendeeForCheckIn,
+  lookupBenefitRedemption: mocks.lookupBenefitRedemption,
+  listEventBenefitRedemptions: mocks.listEventBenefitRedemptions,
+  redeemBenefit: mocks.redeemBenefit,
 }));
 
-import { checkInAction } from "./actions";
+import { checkInAction, listBenefitRedemptionsAction, lookupBenefitRedemptionAction, redeemBenefitAction } from "./actions";
 
 const activeUser = {
   id: "staff-1",
@@ -158,4 +164,75 @@ describe("checkInAction", () => {
     expect(mocks.notifyEventWebhook).not.toHaveBeenCalled();
     expect(mocks.getEvent).not.toHaveBeenCalled();
   });
+
+  it("looks up a benefit with the normalized backup-code contract for assigned reception", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ ...activeUser, profile: { ...activeUser.profile, role: "RECEPTION" } });
+    mocks.lookupBenefitRedemption.mockResolvedValue({ ok: true, benefits: [], redemption: null });
+
+    const result = await lookupBenefitRedemptionAction(formData(EVENT_ID, "abcd1234"));
+
+    expect(result).toEqual({ ok: true, result: { ok: true, benefits: [], redemption: null } });
+    expect(mocks.canAccessEvent).toHaveBeenCalledWith(expect.objectContaining({ capability: "benefit-redemption" }));
+    expect(mocks.lookupBenefitRedemption).toHaveBeenCalledWith({ eventId: EVENT_ID, code: "ABCD1234" });
+  });
+
+  it("rejects an unassigned reception user before benefit lookup", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ ...activeUser, profile: { ...activeUser.profile, role: "RECEPTION" } });
+    mocks.canAccessEvent.mockResolvedValue(false);
+
+    const result = await lookupBenefitRedemptionAction(formData(EVENT_ID, "ABCD1234"));
+
+    expect(result).toEqual({ ok: false, error: "No tienes permiso para operar los beneficios." });
+    expect(mocks.lookupBenefitRedemption).not.toHaveBeenCalled();
+  });
+
+  it("lists only the authorized event redemption history with an explicit permission state", async () => {
+    const history = [{ id: "redemption-1", eventId: EVENT_ID }];
+    mocks.listEventBenefitRedemptions.mockResolvedValue(history);
+
+    const result = await listBenefitRedemptionsAction(form({ eventId: EVENT_ID }));
+
+    expect(result).toEqual({ ok: true, history });
+    expect(mocks.canAccessEvent).toHaveBeenCalledWith(expect.objectContaining({ eventId: EVENT_ID, capability: "benefit-redemption" }));
+    expect(mocks.listEventBenefitRedemptions).toHaveBeenCalledWith(EVENT_ID);
+
+    mocks.canAccessEvent.mockResolvedValue(false);
+    const denied = await listBenefitRedemptionsAction(form({ eventId: EVENT_ID }));
+
+    expect(denied).toEqual({ ok: false, error: "No tienes permiso para operar los beneficios." });
+    expect(mocks.listEventBenefitRedemptions).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns explicit redemption messages and audits a successful redemption", async () => {
+    mocks.redeemBenefit.mockResolvedValue({ ok: true, redemption: { id: "redemption-1" } });
+
+    const result = await redeemBenefitAction(form({ eventId: EVENT_ID, benefitId: "22222222-2222-4222-8222-222222222222", code: "abcd1234" }));
+
+    expect(result).toEqual({ success: true, message: "Beneficio canjeado correctamente." });
+    expect(mocks.redeemBenefit).toHaveBeenCalledWith(expect.objectContaining({ code: "ABCD1234", actorId: "staff-1" }));
+    expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "create", resourceType: "event_benefit_redemption", resourceId: "redemption-1" }));
+  });
+
+  it("explains missing check-in, duplicate redemption, and exhausted stock", async () => {
+    for (const reason of ["not_checked_in", "already_redeemed", "stock_exhausted"] as const) {
+      mocks.redeemBenefit.mockResolvedValue({ ok: false, reason });
+      const result = await redeemBenefitAction(form({ eventId: EVENT_ID, benefitId: "22222222-2222-4222-8222-222222222222", code: "ABCD1234" }));
+      expect(result.error).toBeTruthy();
+    }
+  });
+
+  it("rejects redemption when the mutation rate limit is exhausted", async () => {
+    mocks.checkRateLimit.mockReturnValue(false);
+
+    const result = await redeemBenefitAction(form({ eventId: EVENT_ID, benefitId: "22222222-2222-4222-8222-222222222222", code: "ABCD1234" }));
+
+    expect(result).toEqual({ error: "Demasiadas acciones. Inténtalo de nuevo en breve." });
+    expect(mocks.redeemBenefit).not.toHaveBeenCalled();
+  });
+
+  function form(fields: Record<string, string>) {
+    const result = new FormData();
+    for (const [key, value] of Object.entries(fields)) result.set(key, value);
+    return result;
+  }
 });

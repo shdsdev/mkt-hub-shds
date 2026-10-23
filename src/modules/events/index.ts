@@ -4,8 +4,16 @@
 export { generateBackupCode, generateOpaqueToken, normalizeEmail } from "./service";
 export { canAccessEvent, canRoleAccessCapability, type EventCapability } from "./access";
 export { getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl } from "./embed";
-export { eventAttendees, eventRegistrations, events } from "./db";
-export type { RegistrationFormAnswers } from "./db";
+export {
+  eventAttendees,
+  eventRegistrations,
+  events,
+  eventBenefits,
+  eventBenefitRedemptions,
+} from "./db";
+export type {
+  RegistrationFormAnswers,
+} from "./db";
 export {
   CLIENT_BRAND_OPTIONS,
   INTEREST_OPTIONS,
@@ -84,4 +92,30 @@ export {
   type SetEventWebhookResult,
   type AgendaItem,
   type SponsorLogo,
+  type BenefitRow,
+  type BenefitKind,
+  type BenefitRedemptionScope,
+   type BenefitRedemptionRow,
+  type BenefitRedemptionHistoryRow,
+  type BenefitInput,
+  type BenefitValidationResult,
+  type BenefitMutationResult,
+  type BenefitScopeMutationResult,
+  type BenefitConfigurationInput,
+  type BenefitConfigurationMutationResult,
+  type BenefitLookupResult,
+  type RedeemBenefitResult,
+  type AnnulBenefitResult,
+} from "./service";
+export {
+  validateBenefitInput,
+  listEventBenefits,
+  listEventBenefitRedemptions,
+  saveEventBenefit,
+  deactivateEventBenefit,
+  setEventBenefitRedemptionScope,
+  saveEventBenefitsConfiguration,
+  lookupBenefitRedemption,
+  redeemBenefit,
+  annulBenefitRedemption,
 } from "./service";

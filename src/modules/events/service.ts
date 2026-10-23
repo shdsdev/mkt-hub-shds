@@ -3,6 +3,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { isIPv4, isIPv6 } from "node:net";
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { authUsers } from "@/db/auth-schema-ref";
 import { isAdmin, type UserRole } from "@/modules/users";
 import {
   events,
@@ -10,6 +11,8 @@ import {
   eventAttendees,
   eventReceptionists,
   eventEditors,
+  eventBenefits,
+  eventBenefitRedemptions,
   type AgendaItem,
   type RegistrationConsents,
   type RegistrationFormAnswers,
@@ -52,6 +55,355 @@ export function normalizeEmail(email: string): string {
 }
 
 export type EventRow = typeof events.$inferSelect;
+export type BenefitKind = "discount" | "gift";
+export type BenefitRedemptionScope = "attendee" | "registration";
+
+export type BenefitRow = typeof eventBenefits.$inferSelect;
+export type BenefitRedemptionRow = typeof eventBenefitRedemptions.$inferSelect;
+export type BenefitAvailability = BenefitRow & { remaining: number | null };
+export type BenefitInput = {
+  kind: BenefitKind;
+  name?: string | null;
+  percentage?: number | null;
+  quantity?: number | null;
+  active?: boolean;
+};
+
+export type BenefitValidationResult =
+  | { ok: true; value: Required<Pick<BenefitInput, "kind" | "name" | "percentage" | "quantity">> }
+  | { ok: false; reason: "gift_name_required" | "discount_percentage_required" | "invalid_percentage" | "invalid_quantity" };
+
+export function validateBenefitInput(input: BenefitInput): BenefitValidationResult {
+  const name = input.name?.trim() || null;
+  const percentage = input.percentage ?? null;
+  const quantity = input.quantity ?? null;
+
+  if (input.kind === "gift" && !name) return { ok: false, reason: "gift_name_required" };
+  if (input.kind === "discount" && percentage === null) return { ok: false, reason: "discount_percentage_required" };
+  if (input.kind === "discount" && percentage !== null && (percentage < 0 || percentage > 100 || !Number.isInteger(percentage))) {
+    return { ok: false, reason: "invalid_percentage" };
+  }
+  if (quantity !== null && (quantity < 0 || !Number.isInteger(quantity))) return { ok: false, reason: "invalid_quantity" };
+
+  return {
+    ok: true,
+    value: {
+      kind: input.kind,
+      name: input.kind === "gift" ? name : name,
+      percentage: input.kind === "discount" ? percentage : null,
+      quantity,
+    },
+  };
+}
+
+export type BenefitMutationResult =
+  | { ok: true; benefit: BenefitRow }
+  | { ok: false; reason: "gift_name_required" | "discount_percentage_required" | "invalid_percentage" | "invalid_quantity" | "not_found" };
+
+export async function listEventBenefits(eventId: string): Promise<BenefitRow[]> {
+  return db.select().from(eventBenefits).where(eq(eventBenefits.eventId, eventId)).orderBy(asc(eventBenefits.createdAt));
+}
+
+export type BenefitRedemptionHistoryRow = BenefitRedemptionRow & {
+  benefitName: string | null;
+  benefitKind: BenefitKind;
+  benefitPercentage: number | null;
+  attendeeName: string;
+  actorName: string | null;
+};
+
+export async function listEventBenefitRedemptions(eventId: string): Promise<BenefitRedemptionHistoryRow[]> {
+  const rows = await db
+    .select({
+      redemption: eventBenefitRedemptions,
+      benefitName: eventBenefits.name,
+      benefitKind: eventBenefits.kind,
+      benefitPercentage: eventBenefits.percentage,
+      attendeeName: eventAttendees.fullName,
+      actorName: authUsers.email,
+    })
+    .from(eventBenefitRedemptions)
+    .innerJoin(eventBenefits, eq(eventBenefits.id, eventBenefitRedemptions.benefitId))
+    .innerJoin(eventAttendees, eq(eventAttendees.id, eventBenefitRedemptions.attendeeId))
+    .leftJoin(authUsers, eq(authUsers.id, eventBenefitRedemptions.actorId))
+    .where(eq(eventBenefitRedemptions.eventId, eventId))
+    .orderBy(desc(eventBenefitRedemptions.createdAt));
+
+  return rows.map(({ redemption, benefitName, benefitKind, benefitPercentage, attendeeName, actorName }) => ({
+    ...redemption,
+    benefitName,
+    benefitKind,
+    benefitPercentage,
+    attendeeName,
+    actorName,
+  }));
+}
+
+export async function saveEventBenefit(input: BenefitInput & { eventId: string; benefitId?: string }): Promise<BenefitMutationResult> {
+  const validation = validateBenefitInput(input);
+  if (!validation.ok) return validation;
+
+  const values = { ...validation.value, active: input.active };
+  if (input.benefitId) {
+    const [benefit] = await db
+      .update(eventBenefits)
+      .set({ ...values, updatedAt: new Date() })
+      .where(and(eq(eventBenefits.id, input.benefitId), eq(eventBenefits.eventId, input.eventId)))
+      .returning();
+    return benefit ? { ok: true, benefit } : { ok: false, reason: "not_found" };
+  }
+
+  const [benefit] = await db.insert(eventBenefits).values({ eventId: input.eventId, ...values }).returning();
+  return { ok: true, benefit };
+}
+
+export async function deactivateEventBenefit(input: { eventId: string; benefitId: string }): Promise<BenefitMutationResult> {
+  const [benefit] = await db
+    .update(eventBenefits)
+    .set({ active: false, updatedAt: new Date() })
+    .where(and(eq(eventBenefits.id, input.benefitId), eq(eventBenefits.eventId, input.eventId)))
+    .returning();
+  return benefit ? { ok: true, benefit } : { ok: false, reason: "not_found" };
+}
+
+export type BenefitScopeMutationResult =
+  | { ok: true; event: EventRow }
+  | { ok: false; reason: "not_found" | "scope_locked" };
+
+export type BenefitConfigurationInput = {
+  eventId: string;
+  scope: BenefitRedemptionScope;
+  benefits: Array<BenefitInput & { benefitId?: string }>;
+};
+
+export type BenefitConfigurationMutationResult =
+  | { ok: true; event: EventRow; benefits: BenefitRow[] }
+  | { ok: false; reason: "not_found" | "scope_locked" | "gift_name_required" | "discount_percentage_required" | "invalid_percentage" | "invalid_quantity" };
+
+export async function saveEventBenefitsConfiguration(input: BenefitConfigurationInput): Promise<BenefitConfigurationMutationResult> {
+  return db.transaction(async (tx) => {
+    const [event] = await tx.select().from(events).where(eq(events.id, input.eventId)).limit(1);
+    if (!event) return { ok: false, reason: "not_found" };
+    if (event.benefitRedemptionStartedAt && event.benefitRedemptionScope !== input.scope) {
+      return { ok: false, reason: "scope_locked" };
+    }
+
+    const existingBenefits = await tx.select().from(eventBenefits).where(eq(eventBenefits.eventId, input.eventId));
+    const normalizedBenefits: Array<BenefitInput & { benefitId?: string }> = [];
+    for (const benefit of input.benefits) {
+      const validation = validateBenefitInput(benefit);
+      if (!validation.ok) return validation;
+      normalizedBenefits.push({ ...validation.value, active: benefit.active ?? true, benefitId: benefit.benefitId });
+    }
+
+    const savedBenefits: BenefitRow[] = [];
+    for (const benefit of normalizedBenefits) {
+      const values = {
+        kind: benefit.kind,
+        name: benefit.name ?? null,
+        percentage: benefit.percentage ?? null,
+        quantity: benefit.quantity ?? null,
+        active: benefit.active ?? true,
+        updatedAt: new Date(),
+      };
+      if (benefit.benefitId) {
+        const [updated] = await tx
+          .update(eventBenefits)
+          .set(values)
+          .where(and(eq(eventBenefits.id, benefit.benefitId), eq(eventBenefits.eventId, input.eventId)))
+          .returning();
+        if (!updated) return { ok: false, reason: "not_found" };
+        savedBenefits.push(updated);
+      } else {
+        const [created] = await tx.insert(eventBenefits).values({ eventId: input.eventId, ...values }).returning();
+        savedBenefits.push(created);
+      }
+    }
+
+    const submittedIds = normalizedBenefits.flatMap((benefit) => benefit.benefitId ? [benefit.benefitId] : []);
+    for (const benefit of existingBenefits) {
+      if (submittedIds.includes(benefit.id)) continue;
+      const [deactivated] = await tx
+        .update(eventBenefits)
+        .set({ active: false, updatedAt: new Date() })
+        .where(and(eq(eventBenefits.id, benefit.id), eq(eventBenefits.eventId, input.eventId)))
+        .returning();
+      if (deactivated) savedBenefits.push(deactivated);
+    }
+
+    const [updatedEvent] = await tx
+      .update(events)
+      .set({ benefitRedemptionScope: input.scope, updatedAt: new Date() })
+      .where(and(eq(events.id, input.eventId), or(isNull(events.benefitRedemptionStartedAt), eq(events.benefitRedemptionScope, input.scope))))
+      .returning();
+    if (!updatedEvent) return { ok: false, reason: "scope_locked" };
+    return { ok: true, event: updatedEvent, benefits: savedBenefits };
+  });
+}
+
+export async function setEventBenefitRedemptionScope(input: { eventId: string; scope: BenefitRedemptionScope }): Promise<BenefitScopeMutationResult> {
+  const [event] = await db.select().from(events).where(eq(events.id, input.eventId)).limit(1);
+  if (!event) return { ok: false, reason: "not_found" };
+  if (event.benefitRedemptionStartedAt && event.benefitRedemptionScope !== input.scope) return { ok: false, reason: "scope_locked" };
+
+  const [updated] = await db
+    .update(events)
+    .set({ benefitRedemptionScope: input.scope, updatedAt: new Date() })
+    .where(and(eq(events.id, input.eventId), isNull(events.benefitRedemptionStartedAt)))
+    .returning();
+  return updated ? { ok: true, event: updated } : { ok: false, reason: "scope_locked" };
+}
+
+export type BenefitLookupResult =
+  | { ok: false; reason: "not_found" }
+  | {
+      ok: true;
+      event: EventRow;
+      attendee: EventAttendeeRow;
+      registration: EventRegistrationRow;
+      redemption: BenefitRedemptionRow | null;
+      redemptionBenefit: BenefitRow | null;
+      benefits: BenefitAvailability[];
+    };
+
+function benefitCodeCondition(eventId: string, code: string) {
+  const normalized = code.trim();
+  return and(
+    eq(eventAttendees.eventId, eventId),
+    or(eq(eventAttendees.backupCode, normalized.toUpperCase()), eq(eventAttendees.passToken, normalized)),
+  );
+}
+
+export async function lookupBenefitRedemption(input: { eventId: string; code: string }): Promise<BenefitLookupResult> {
+  if (!input.code.trim()) return { ok: false, reason: "not_found" };
+  const [attendee] = await db.select().from(eventAttendees).where(benefitCodeCondition(input.eventId, input.code)).limit(1);
+  if (!attendee) return { ok: false, reason: "not_found" };
+  const [registration] = await db
+    .select()
+    .from(eventRegistrations)
+    .where(and(eq(eventRegistrations.id, attendee.registrationId), eq(eventRegistrations.eventId, input.eventId)))
+    .limit(1);
+  const [event] = await db.select().from(events).where(eq(events.id, input.eventId)).limit(1);
+  if (!registration || !event) return { ok: false, reason: "not_found" };
+
+  const effectiveSubject = event.benefitRedemptionScope === "registration"
+    ? eq(eventBenefitRedemptions.registrationId, registration.id)
+    : eq(eventBenefitRedemptions.attendeeId, attendee.id);
+  const [redemption] = await db
+    .select()
+    .from(eventBenefitRedemptions)
+    .where(and(eq(eventBenefitRedemptions.eventId, input.eventId), eq(eventBenefitRedemptions.status, "active"), effectiveSubject))
+    .limit(1);
+  const benefits = await db
+    .select()
+    .from(eventBenefits)
+    .where(and(eq(eventBenefits.eventId, input.eventId), eq(eventBenefits.active, true)))
+    .orderBy(asc(eventBenefits.createdAt));
+  const [redemptionBenefit] = redemption
+    ? await db.select().from(eventBenefits).where(eq(eventBenefits.id, redemption.benefitId)).limit(1)
+    : [undefined];
+  const benefitsWithAvailability = await Promise.all(benefits.map(async (benefit) => {
+    if (benefit.quantity === null) return { ...benefit, remaining: null };
+    const [stock] = await db
+      .select({ count: count() })
+      .from(eventBenefitRedemptions)
+      .where(and(eq(eventBenefitRedemptions.benefitId, benefit.id), eq(eventBenefitRedemptions.status, "active")));
+    return { ...benefit, remaining: Math.max(benefit.quantity - Number(stock?.count ?? 0), 0) };
+  }));
+  return { ok: true, event, attendee, registration, redemption: redemption ?? null, redemptionBenefit: redemptionBenefit ?? null, benefits: benefitsWithAvailability };
+}
+
+export type RedeemBenefitResult =
+  | { ok: true; redemption: BenefitRedemptionRow }
+  | { ok: false; reason: "not_found" | "not_configured" | "not_checked_in" | "already_redeemed" | "inactive_benefit" | "stock_exhausted" };
+
+export async function redeemBenefit(input: { eventId: string; benefitId: string; code: string; actorId: string }): Promise<RedeemBenefitResult> {
+  if (!input.code.trim()) return { ok: false, reason: "not_found" };
+  return db.transaction(async (tx) => {
+    const [event] = await tx.select().from(events).where(eq(events.id, input.eventId)).for("update");
+    if (!event) return { ok: false, reason: "not_found" };
+    if (!event.benefitRedemptionScope) return { ok: false, reason: "not_configured" };
+
+    const [attendee] = await tx.select().from(eventAttendees).where(benefitCodeCondition(input.eventId, input.code)).limit(1);
+    if (!attendee) return { ok: false, reason: "not_found" };
+    const [registration] = await tx
+      .select()
+      .from(eventRegistrations)
+      .where(and(eq(eventRegistrations.id, attendee.registrationId), eq(eventRegistrations.eventId, input.eventId)))
+      .limit(1);
+    if (!registration) return { ok: false, reason: "not_found" };
+    if (!attendee.checkedInAt) return { ok: false, reason: "not_checked_in" };
+
+    const subject = event.benefitRedemptionScope === "registration"
+      ? eq(eventBenefitRedemptions.registrationId, registration.id)
+      : eq(eventBenefitRedemptions.attendeeId, attendee.id);
+    const [existing] = await tx
+      .select()
+      .from(eventBenefitRedemptions)
+      .where(and(eq(eventBenefitRedemptions.eventId, input.eventId), eq(eventBenefitRedemptions.status, "active"), subject))
+      .limit(1);
+    if (existing) return { ok: false, reason: "already_redeemed" };
+
+    const [benefit] = await tx
+      .select()
+      .from(eventBenefits)
+      .where(and(eq(eventBenefits.id, input.benefitId), eq(eventBenefits.eventId, input.eventId)))
+      .for("update");
+    if (!benefit || !benefit.active) return { ok: false, reason: "inactive_benefit" };
+    if (benefit.quantity !== null) {
+      const [stock] = await tx
+        .select({ count: count() })
+        .from(eventBenefitRedemptions)
+        .where(and(eq(eventBenefitRedemptions.benefitId, benefit.id), eq(eventBenefitRedemptions.status, "active")));
+      if (Number(stock?.count ?? 0) >= benefit.quantity) return { ok: false, reason: "stock_exhausted" };
+    }
+
+    const [redemption] = await tx
+      .insert(eventBenefitRedemptions)
+      .values({
+        eventId: input.eventId,
+        benefitId: benefit.id,
+        scope: event.benefitRedemptionScope,
+        attendeeId: attendee.id,
+        registrationId: registration.id,
+        actorId: input.actorId,
+      })
+      .returning();
+    if (!event.benefitRedemptionStartedAt) {
+      await tx
+        .update(events)
+        .set({ benefitRedemptionStartedAt: new Date() })
+        .where(and(eq(events.id, input.eventId), isNull(events.benefitRedemptionStartedAt)))
+        .returning();
+    }
+    return { ok: true, redemption };
+  });
+}
+
+export type AnnulBenefitResult =
+  | { ok: true; redemption: BenefitRedemptionRow }
+  | { ok: false; reason: "not_found" | "already_annulled" | "annulment_reason_required" };
+
+export async function annulBenefitRedemption(input: { eventId: string; redemptionId: string; actorId: string; reason: string }): Promise<AnnulBenefitResult> {
+  const reason = input.reason.trim();
+  if (!reason) return { ok: false, reason: "annulment_reason_required" };
+  return db.transaction(async (tx) => {
+    const [redemption] = await tx
+      .select()
+      .from(eventBenefitRedemptions)
+      .where(and(eq(eventBenefitRedemptions.id, input.redemptionId), eq(eventBenefitRedemptions.eventId, input.eventId)))
+      .for("update");
+    if (!redemption) return { ok: false, reason: "not_found" };
+    if (redemption.eventId !== input.eventId) return { ok: false, reason: "not_found" };
+    if (redemption.status === "annulled") return { ok: false, reason: "already_annulled" };
+    const [updated] = await tx
+      .update(eventBenefitRedemptions)
+      .set({ status: "annulled", annulledAt: new Date(), annulledBy: input.actorId, annulmentReason: reason })
+      .where(and(eq(eventBenefitRedemptions.id, input.redemptionId), eq(eventBenefitRedemptions.eventId, input.eventId), eq(eventBenefitRedemptions.status, "active")))
+      .returning();
+    return updated ? { ok: true, redemption: updated } : { ok: false, reason: "not_found" };
+  });
+}
 
 export type EventMutationResult =
   | { ok: true; event: EventRow }

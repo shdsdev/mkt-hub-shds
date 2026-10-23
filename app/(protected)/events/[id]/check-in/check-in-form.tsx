@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
 import { lookupCheckInAction, confirmCheckInAction } from "./actions";
 import type { CheckInLookupResult } from "@/modules/events";
-import { QrScanner } from "./qr-scanner";
+import { QrScanner, useScannerCoordinator } from "./qr-scanner";
 import { ManualFolioDialog } from "./manual-folio-dialog";
 import { CheckInResultDialog } from "./check-in-result-dialog";
 
@@ -76,6 +76,7 @@ export function transitionCheckInState(state: CheckInState, action: CheckInState
 
 export function CheckInForm({ eventId, confirmationRequired }: { eventId: string; confirmationRequired: boolean }) {
   const [state, dispatch] = useReducer(transitionCheckInState, checkInState);
+  const scannerCoordinator = useScannerCoordinator();
   const scannerTriggerRef = useRef<HTMLButtonElement>(null);
   const scannerCancelRef = useRef<HTMLButtonElement>(null);
   const previousModeRef = useRef(state.mode);
@@ -86,6 +87,12 @@ export function CheckInForm({ eventId, confirmationRequired }: { eventId: string
     if (previousMode === "scanner" && state.mode !== "scanner") scannerTriggerRef.current?.focus();
     previousModeRef.current = state.mode;
   }, [state.mode]);
+
+  useEffect(() => {
+    if (state.mode === "scanner" && scannerCoordinator.activeOwner && scannerCoordinator.activeOwner !== "check-in") {
+      dispatch({ type: "capture-closed" });
+    }
+  }, [scannerCoordinator.activeOwner, state.mode]);
 
   async function lookup(code: string) {
     dispatch({ type: "lookup-started" });
@@ -110,6 +117,7 @@ export function CheckInForm({ eventId, confirmationRequired }: { eventId: string
   }
 
   function openScanner() {
+    scannerCoordinator.claim("check-in");
     dispatch({ type: "open-scanner" });
   }
 
@@ -118,6 +126,7 @@ export function CheckInForm({ eventId, confirmationRequired }: { eventId: string
   }
 
   function closeCapture() {
+    scannerCoordinator.release("check-in");
     dispatch({ type: "capture-closed" });
   }
 

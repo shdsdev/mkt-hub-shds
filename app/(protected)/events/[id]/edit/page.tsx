@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin, listManagedUsers } from "@/modules/users";
-import { canAccessEvent, getEvent, getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl, listEventEditorIds, listEventReceptionistIds, resolveRegistrationFormConfig } from "@/modules/events";
+import { canAccessEvent, getEvent, getEventEmbedSnippet, getEventEmbedUrl, getEventLandingUrl, listEventBenefitRedemptions, listEventBenefits, listEventEditorIds, listEventReceptionistIds, resolveRegistrationFormConfig } from "@/modules/events";
 import { env } from "@/lib/env";
 import { EventEditForm } from "./event-edit-form";
 import { EventSubNav } from "../../event-sub-nav";
@@ -20,6 +20,18 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
     listEventReceptionistIds(event.id, user.profile.organizationId),
     listEventEditorIds(event.id, user.profile.organizationId),
   ]);
+  const canManageBenefits = user.profile.role === "ADMIN" || user.profile.role === "EVENT_EDITOR";
+  const [benefits, benefitRedemptions] = canManageBenefits
+    ? await Promise.all([listEventBenefits(event.id), listEventBenefitRedemptions(event.id)])
+    : [[], []];
+  const remainingByBenefitId = Object.fromEntries(
+    benefits.map((benefit) => [
+      benefit.id,
+      benefit.quantity === null
+        ? 0
+        : Math.max(0, benefit.quantity - benefitRedemptions.filter((redemption) => redemption.benefitId === benefit.id && redemption.status === "active").length),
+    ]),
+  );
   const embedUrl = getEventEmbedUrl(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
   const embedSnippet = getEventEmbedSnippet(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
   const landingUrl = getEventLandingUrl(env.NEXT_PUBLIC_APP_ORIGIN, event.slug);
@@ -45,6 +57,9 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
           editorUsers={managedUsers.filter((managedUser) => managedUser.role === "EVENT_EDITOR")}
           assignedEditorIds={assignedEditorIds}
           canManageTeam={isAdmin(user.profile)}
+          canManageBenefits={canManageBenefits}
+          benefits={benefits}
+          remainingByBenefitId={remainingByBenefitId}
         />
       </div>
     </div>

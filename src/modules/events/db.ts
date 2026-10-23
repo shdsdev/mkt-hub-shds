@@ -53,6 +53,18 @@ export const eventRegistrationReviewStatus = pgEnum("event_registration_review_s
   "rejected",
 ]);
 
+export const benefitRedemptionScope = pgEnum("benefit_redemption_scope", [
+  "attendee",
+  "registration",
+]);
+
+export const benefitKind = pgEnum("benefit_kind", ["discount", "gift"]);
+
+export const benefitRedemptionStatus = pgEnum("benefit_redemption_status", [
+  "active",
+  "annulled",
+]);
+
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id")
@@ -82,6 +94,8 @@ export const events = pgTable("events", {
   collectJobTitle: boolean("collect_job_title").notNull().default(false),
   registrationFormConfig: jsonb("registration_form_config").$type<RegistrationFormConfig | null>(),
   emailContent: jsonb("email_content").$type<EventEmailContent | null>(),
+  benefitRedemptionScope: benefitRedemptionScope("benefit_redemption_scope"),
+  benefitRedemptionStartedAt: timestamp("benefit_redemption_started_at", { withTimezone: true }),
   telegramMessageTemplate: text("telegram_message_template"),
   // Acquisition source capture — column set and naming reused exactly from
   // `src/modules/links/db.ts` (design.md "Interfaces"), read/validated via `@/modules/utm`.
@@ -235,6 +249,63 @@ export const eventReceptionists = pgTable(
   (table) => [uniqueIndex("event_receptionists_event_user_unique").on(table.eventId, table.userId)],
 );
 
+export const eventBenefits = pgTable(
+  "event_benefits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    kind: benefitKind("kind").notNull(),
+    name: text("name"),
+    percentage: integer("percentage"),
+    quantity: integer("quantity"),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("event_benefits_percentage_range", sql`${table.percentage} between 0 and 100`),
+    check("event_benefits_quantity_non_negative", sql`${table.quantity} >= 0`),
+  ],
+);
+
+export const eventBenefitRedemptions = pgTable(
+  "event_benefit_redemptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    benefitId: uuid("benefit_id")
+      .notNull()
+      .references(() => eventBenefits.id),
+    scope: benefitRedemptionScope("scope").notNull(),
+    attendeeId: uuid("attendee_id")
+      .notNull()
+      .references(() => eventAttendees.id),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => eventRegistrations.id),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    status: benefitRedemptionStatus("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    annulledAt: timestamp("annulled_at", { withTimezone: true }),
+    annulledBy: uuid("annulled_by").references(() => users.id),
+    annulmentReason: text("annulment_reason"),
+  },
+  (table) => [
+    uniqueIndex("event_benefit_redemptions_event_attendee_active_unique")
+      .on(table.eventId, table.attendeeId)
+      .where(sql`${table.scope} = 'attendee' and ${table.status} = 'active'`),
+    uniqueIndex("event_benefit_redemptions_event_registration_active_unique")
+      .on(table.eventId, table.registrationId)
+      .where(sql`${table.scope} = 'registration' and ${table.status} = 'active'`),
+  ],
+);
+
 export const eventEditors = pgTable(
   "event_editors",
   {
@@ -257,6 +328,8 @@ export const eventsTables = {
   events,
   eventRegistrations,
   eventAttendees,
+  eventBenefits,
+  eventBenefitRedemptions,
   eventReceptionists,
   eventEditors,
 } as const;

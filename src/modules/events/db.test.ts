@@ -10,6 +10,11 @@ import {
   eventRegistrationStatus,
   eventRegistrationSource,
   eventRegistrationReviewStatus,
+  benefitRedemptionScope,
+  benefitKind,
+  benefitRedemptionStatus,
+  eventBenefits,
+  eventBenefitRedemptions,
 } from "./db";
 
 // Schema contract for the additive events-module migration (PR1 — design.md "Architecture
@@ -119,6 +124,69 @@ describe("events schema (additive events-module migration, PR1)", () => {
     expect(eventRegistrations.reviewedAt.notNull).toBe(false);
     expect(eventRegistrations.reviewedBy.notNull).toBe(false);
   });
+
+  it("defines benefit redemption enums and nullable event configuration", () => {
+    expect(benefitRedemptionScope.enumValues).toEqual(["attendee", "registration"]);
+    expect(benefitKind.enumValues).toEqual(["discount", "gift"]);
+    expect(benefitRedemptionStatus.enumValues).toEqual(["active", "annulled"]);
+    expect(events.benefitRedemptionScope.notNull).toBe(false);
+    expect(events.benefitRedemptionStartedAt.notNull).toBe(false);
+  });
+
+  it("defines event benefits with kind-specific fields and event ownership", () => {
+    expect(eventBenefits.eventId.notNull).toBe(true);
+    expect(eventBenefits.kind.notNull).toBe(true);
+    expect(eventBenefits.name.notNull).toBe(false);
+    expect(eventBenefits.percentage.notNull).toBe(false);
+    expect(eventBenefits.quantity.notNull).toBe(false);
+    expect(eventBenefits.active.notNull).toBe(true);
+    expect(eventBenefits.active.default).toBe(true);
+    expect(getTableConfig(eventBenefits).foreignKeys).toHaveLength(1);
+  });
+
+  it("defines redemption history with both effective-subject references and audit metadata", () => {
+    expect(eventBenefitRedemptions.eventId.notNull).toBe(true);
+    expect(eventBenefitRedemptions.benefitId.notNull).toBe(true);
+    expect(eventBenefitRedemptions.scope.notNull).toBe(true);
+    expect(eventBenefitRedemptions.attendeeId.notNull).toBe(true);
+    expect(eventBenefitRedemptions.registrationId.notNull).toBe(true);
+    expect(eventBenefitRedemptions.actorId.notNull).toBe(true);
+    expect(eventBenefitRedemptions.status.notNull).toBe(true);
+    expect(eventBenefitRedemptions.status.default).toBe("active");
+    expect(eventBenefitRedemptions.annulledAt.notNull).toBe(false);
+    expect(eventBenefitRedemptions.annulledBy.notNull).toBe(false);
+    expect(eventBenefitRedemptions.annulmentReason.notNull).toBe(false);
+    expect(getTableConfig(eventBenefitRedemptions).foreignKeys).toHaveLength(6);
+  });
+
+  it("prevents duplicate active redemptions for either effective subject", () => {
+    const { indexes } = getTableConfig(eventBenefitRedemptions);
+    const attendeeIndex = indexes.find(
+      (index) => index.config.name === "event_benefit_redemptions_event_attendee_active_unique",
+    );
+    const registrationIndex = indexes.find(
+      (index) => index.config.name === "event_benefit_redemptions_event_registration_active_unique",
+    );
+
+    expect(attendeeIndex?.config.unique).toBe(true);
+    expect(attendeeIndex?.config.where).toBeDefined();
+    expect(attendeeIndex?.config.where?.queryChunks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "scope" })]),
+    );
+    expect(attendeeIndex?.config.columns.map((column) => ("name" in column ? column.name : undefined))).toEqual([
+      "event_id",
+      "attendee_id",
+    ]);
+    expect(registrationIndex?.config.unique).toBe(true);
+    expect(registrationIndex?.config.where).toBeDefined();
+    expect(registrationIndex?.config.where?.queryChunks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "scope" })]),
+    );
+    expect(registrationIndex?.config.columns.map((column) => ("name" in column ? column.name : undefined))).toEqual([
+      "event_id",
+      "registration_id",
+    ]);
+  });
 });
 
 describe("events-module migration (additive)", () => {
@@ -134,6 +202,13 @@ describe("events-module migration (additive)", () => {
         sql.includes('CREATE TABLE "event_attendees"') &&
         sql.includes('CREATE TABLE "notification_log"')
       );
+    });
+  const benefitMigration = readdirSync(migrationDir)
+    .sort()
+    .find((name) => {
+      if (!name.endsWith(".sql")) return false;
+      const sql = readFileSync(path.join(migrationDir, name), "utf8");
+      return sql.includes('CREATE TABLE "event_benefits"') && sql.includes('CREATE TABLE "event_benefit_redemptions"');
     });
 
   it("finds the generated migration", () => {
@@ -171,5 +246,31 @@ describe("events-module migration (additive)", () => {
     expect(migration).toContain('ADD COLUMN "form_version" integer');
     expect(migration).toContain('ADD COLUMN "review_status"');
     expect(migration).not.toContain('DROP COLUMN');
+  });
+
+  it("creates the event benefit tables and redemption enums", () => {
+    expect(benefitMigration).toBeDefined();
+    const sql = readFileSync(path.join(migrationDir, benefitMigration!), "utf8");
+    expect(sql).toContain('CREATE TYPE "public"."benefit_redemption_scope" AS ENUM(\'attendee\', \'registration\')');
+    expect(sql).toContain('CREATE TYPE "public"."benefit_kind" AS ENUM(\'discount\', \'gift\')');
+    expect(sql).toContain('CREATE TYPE "public"."benefit_redemption_status" AS ENUM(\'active\', \'annulled\')');
+    expect(sql).toContain('CREATE TABLE "event_benefits"');
+    expect(sql).toContain('CREATE TABLE "event_benefit_redemptions"');
+    expect(sql).toContain('"scope" "benefit_redemption_scope" NOT NULL');
+  });
+
+  it("creates both active-redemption partial unique indexes without destructive changes", () => {
+    const sql = readFileSync(path.join(migrationDir, benefitMigration!), "utf8");
+    expect(sql).toContain('CREATE UNIQUE INDEX "event_benefit_redemptions_event_attendee_active_unique"');
+    expect(sql).toContain('CREATE UNIQUE INDEX "event_benefit_redemptions_event_registration_active_unique"');
+    expect(sql).toContain(
+      'WHERE "event_benefit_redemptions"."scope" = \'attendee\' AND "event_benefit_redemptions"."status" = \'active\'',
+    );
+    expect(sql).toContain(
+      'WHERE "event_benefit_redemptions"."scope" = \'registration\' AND "event_benefit_redemptions"."status" = \'active\'',
+    );
+    expect(sql).not.toContain("DROP TABLE");
+    expect(sql).not.toContain('DROP COLUMN "pass_token"');
+    expect(sql).not.toContain('DROP COLUMN "checked_in_at"');
   });
 });
