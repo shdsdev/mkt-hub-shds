@@ -52,3 +52,22 @@ describe("env — monitoring secrets", () => {
     expect(env.SENTRY_ALERTS_CLIENT_SECRET).toBe("hook-secret");
   });
 });
+
+describe("env — Google Analytics", () => {
+  const originalMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
+  afterEach(() => {
+    if (originalMeasurementId === undefined) delete process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+    else process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = originalMeasurementId;
+  });
+
+  it("returns an empty value when GA4 is not configured", () => {
+    delete process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+    expect(env.NEXT_PUBLIC_GA_MEASUREMENT_ID).toBe("");
+  });
+
+  it("exposes the configured measurement ID", () => {
+    process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = "G-TEST123";
+    expect(env.NEXT_PUBLIC_GA_MEASUREMENT_ID).toBe("G-TEST123");
+  });
+});

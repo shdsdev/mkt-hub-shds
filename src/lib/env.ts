@@ -52,6 +52,9 @@ export const env = {
   get NEXT_PUBLIC_APP_ORIGIN() {
     return required("NEXT_PUBLIC_APP_ORIGIN");
   },
+  get NEXT_PUBLIC_GA_MEASUREMENT_ID() {
+    return process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "";
+  },
   get SENTRY_DSN() {
     return process.env.SENTRY_DSN ?? "";
   },
