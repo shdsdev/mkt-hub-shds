@@ -1,0 +1,1 @@
+ALTER TABLE "ga4_event_outbox" ADD COLUMN "client_id" text NOT NULL;

@@ -18,6 +18,7 @@ async function persistTrackingEvent(event: BufferedTrackingEvent): Promise<void>
     if (event.ga4ConsentGranted && !event.isBot) {
       await tx.insert(ga4EventOutbox).values({
         trackingEventId: event.id!,
+        clientId: event.visitorHash,
         organizationId: event.organizationId,
         linkId: event.linkId,
         shortLinkId: event.shortLinkId,
@@ -39,6 +40,18 @@ export async function trackRedirect(input: TrackRedirectInput): Promise<void> {
 
 // Kept as a no-op compatibility boundary for callers that previously flushed the in-process buffer.
 export async function flushTrackingEvents(): Promise<void> {
+}
+
+export async function cancelGa4OutboxForClient(clientId: string): Promise<void> {
+  await db
+    .update(ga4EventOutbox)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(
+      and(
+        eq(ga4EventOutbox.clientId, clientId),
+        inArray(ga4EventOutbox.status, ["pending", "failed", "uncertain"]),
+      ),
+    );
 }
 
 // Includes buffered-but-not-yet-flushed events? No — only what's persisted. Acceptable: scan_rate

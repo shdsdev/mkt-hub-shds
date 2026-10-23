@@ -10,6 +10,7 @@ import {
   getOrgBreakdowns,
   previousPeriod,
   utcDayBounds,
+  getGa4MetricsForOrganization,
 } from "@/modules/analytics";
 
 const querySchema = z.object({
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
   const { from, to } = utcDayBounds(range);
   const { from: prevFrom, to: prevTo } = utcDayBounds(previousPeriod(range));
 
-  const [trend, previousTrend, totals, bestDay, bestLocation, breakdowns] = await Promise.all([
+  const [trend, previousTrend, totals, bestDay, bestLocation, breakdowns, ga4] = await Promise.all([
     getOrgTrendGrouped(orgId, eventType, parsed.data.granularity, from, to),
     // Same granularity/span as `trend`, so both arrays line up index-for-index for the trend
     // chart's current-vs-previous overlay without any date-alignment logic on the client.
@@ -48,7 +49,8 @@ export async function GET(request: NextRequest) {
     getOrgBestDay(orgId, eventType, range),
     getOrgBestLocation(orgId, eventType, range),
     getOrgBreakdowns(orgId, eventType, from, to),
+    getGa4MetricsForOrganization(eventType, parsed.data.from, parsed.data.to),
   ]);
 
-  return NextResponse.json({ trend, previousTrend, totals, bestDay, bestLocation, ...breakdowns });
+  return NextResponse.json({ trend, previousTrend, totals, bestDay, bestLocation, ...breakdowns, ga4 });
 }

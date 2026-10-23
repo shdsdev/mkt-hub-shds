@@ -7,6 +7,7 @@ import {
   setAnalyticsConsentCookie,
   type AnalyticsConsentState,
 } from "@/modules/analytics";
+import { cancelGa4OutboxForClient } from "@/modules/analytics";
 
 export async function POST(request: NextRequest) {
   const secret = env.ANALYTICS_CONSENT_SECRET;
@@ -36,7 +37,9 @@ export async function GET(request: NextRequest) {
   });
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const clientId = request.cookies.get("mh_vid")?.value;
+  if (clientId) await cancelGa4OutboxForClient(clientId);
   const response = new NextResponse(null, { status: 204 });
   response.cookies.set({
     name: ANALYTICS_CONSENT_COOKIE,

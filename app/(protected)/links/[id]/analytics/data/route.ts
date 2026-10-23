@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { getLink } from "@/modules/links";
-import { getAnalyticsForLinkGrouped, getAnalyticsTotalsForLink, utcDayBounds } from "@/modules/analytics";
+import { getAnalyticsForLinkGrouped, getAnalyticsTotalsForLink, getGa4MetricsForLink, utcDayBounds } from "@/modules/analytics";
 
 const querySchema = z.object({
   granularity: z.enum(["day", "week", "month"]),
@@ -24,10 +24,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!parsed.success) return new NextResponse(null, { status: 400 });
 
   const { from, to } = utcDayBounds(parsed.data);
-  const [buckets, totals] = await Promise.all([
+  const [buckets, totals, ga4] = await Promise.all([
     getAnalyticsForLinkGrouped(id, "link_click", parsed.data.granularity, from, to),
     getAnalyticsTotalsForLink(id, "link_click", from, to),
+    getGa4MetricsForLink(id, "link_click", parsed.data.from, parsed.data.to),
   ]);
 
-  return NextResponse.json({ buckets, totals });
+  return NextResponse.json({ buckets, totals, ga4 });
 }

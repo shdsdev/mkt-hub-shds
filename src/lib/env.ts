@@ -58,6 +58,21 @@ export const env = {
   get ANALYTICS_CONSENT_SECRET() {
     return process.env.ANALYTICS_CONSENT_SECRET ?? "";
   },
+  get GA4_PROPERTY_ID() {
+    return process.env.GA4_PROPERTY_ID ?? "";
+  },
+  get GA4_API_SECRET() {
+    return process.env.GA4_API_SECRET ?? "";
+  },
+  get GA4_SERVICE_ACCOUNT_EMAIL() {
+    return process.env.GA4_SERVICE_ACCOUNT_EMAIL ?? "";
+  },
+  get GA4_SERVICE_ACCOUNT_PRIVATE_KEY() {
+    return process.env.GA4_SERVICE_ACCOUNT_PRIVATE_KEY ?? "";
+  },
+  get GA4_JOB_SECRET() {
+    return process.env.GA4_JOB_SECRET ?? "";
+  },
   get SENTRY_DSN() {
     return process.env.SENTRY_DSN ?? "";
   },

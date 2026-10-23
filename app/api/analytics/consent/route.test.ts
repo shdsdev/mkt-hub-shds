@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   createConsentToken: vi.fn(),
+  cancelGa4OutboxForClient: vi.fn(),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/env", () => ({
 vi.mock("@/modules/analytics", () => ({
   ANALYTICS_CONSENT_COOKIE: "mh_analytics_consent",
   createConsentToken: mocks.createConsentToken,
+  cancelGa4OutboxForClient: mocks.cancelGa4OutboxForClient,
   getAnalyticsConsentState: vi.fn().mockReturnValue(undefined),
   setAnalyticsConsentCookie: (response: Response, token: string) => {
     response.headers.set("set-cookie", `mh_analytics_consent=${token}; Max-Age=15552000`);
@@ -24,6 +26,7 @@ import { DELETE, GET, POST } from "./route";
 function request(body: unknown): NextRequest {
   return {
     json: vi.fn().mockResolvedValue(body),
+    cookies: { get: () => undefined },
   } as unknown as NextRequest;
 }
 
@@ -58,7 +61,7 @@ describe("analytics consent route", () => {
   });
 
   it("clears consent when the user withdraws it", async () => {
-    const response = await DELETE();
+    const response = await DELETE(request({}));
 
     expect(response.status).toBe(204);
     expect(response.headers.get("set-cookie")).toContain("mh_analytics_consent=");

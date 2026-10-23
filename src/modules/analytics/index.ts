@@ -1,6 +1,7 @@
 // Public surface of the `analytics` module — the ONLY file other modules may import (ARCHITECTURE.md I-4).
 export {
   trackRedirect,
+  cancelGa4OutboxForClient,
   flushTrackingEvents,
   countEventsForShortLink,
   countEventsForQrCode,
@@ -27,6 +28,8 @@ export {
   type OrgBreakdowns,
 } from "./service";
 export { buildTrackingEvent, type TrackRedirectInput } from "./tracking-event";
+export { processGa4Outbox, type ProcessGa4OutboxResult } from "./outbox";
+export { getGa4MetricsForLink, getGa4MetricsForOrganization, type Ga4Metrics } from "./reports";
 export { resolveVisitor } from "./visitor";
 export {
   ANALYTICS_CONSENT_COOKIE,

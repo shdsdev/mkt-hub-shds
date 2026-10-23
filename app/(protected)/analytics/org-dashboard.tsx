@@ -26,6 +26,7 @@ type DashboardData = {
   devices: BreakdownRow[];
   countries: BreakdownRow[];
   referrers: BreakdownRow[];
+  ga4: { configured: boolean; available: boolean; eventCount: number; activeUsers: number; sessions: number };
 };
 
 function formatBestDayDate(date: string): string {
@@ -121,6 +122,22 @@ export function OrgDashboard() {
           comparisonLabel="período anterior"
         />
       </div>
+
+      <section className="rounded-lg border border-border bg-card p-4" aria-label="Google Analytics">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold">Google Analytics</h2>
+          <span className="text-xs text-muted-foreground">Datos con consentimiento</span>
+        </div>
+        {data?.ga4?.configured && data.ga4.available ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div><p className="text-xs text-muted-foreground">Eventos</p><p className="text-xl font-semibold">{data.ga4.eventCount.toLocaleString()}</p></div>
+            <div><p className="text-xs text-muted-foreground">Usuarios activos</p><p className="text-xl font-semibold">{data.ga4.activeUsers.toLocaleString()}</p></div>
+            <div><p className="text-xs text-muted-foreground">Sesiones</p><p className="text-xl font-semibold">{data.ga4.sessions.toLocaleString()}</p></div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{data?.ga4?.configured ? "Google Analytics no está disponible en este momento." : "Google Analytics aún no está configurado."}</p>
+        )}
+      </section>
 
       <OrgTrendChart
         trend={data?.trend}

@@ -6,6 +6,7 @@ import {
   getAnalyticsBreakdownsForLink,
   getAnalyticsForLinkGrouped,
   getAnalyticsTotalsForLink,
+  getGa4MetricsForLink,
   utcDayBounds,
 } from "@/modules/analytics";
 
@@ -40,11 +41,12 @@ export async function GET(
   const range = { from: parsed.data.from, to: parsed.data.to };
   const { from, to } = utcDayBounds(range);
 
-  const [buckets, breakdowns, totals] = await Promise.all([
+  const [buckets, breakdowns, totals, ga4] = await Promise.all([
     getAnalyticsForLinkGrouped(linkId, "qr_scan", parsed.data.granularity, from, to),
     getAnalyticsBreakdownsForLink(linkId, "qr_scan", from, to),
     getAnalyticsTotalsForLink(linkId, "qr_scan", from, to),
+    getGa4MetricsForLink(linkId, "qr_scan", parsed.data.from, parsed.data.to),
   ]);
 
-  return NextResponse.json({ buckets, ...breakdowns, totals });
+  return NextResponse.json({ buckets, ...breakdowns, totals, ga4 });
 }

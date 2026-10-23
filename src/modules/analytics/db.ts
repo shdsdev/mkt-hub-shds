@@ -89,6 +89,7 @@ export const ga4EventOutbox = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     trackingEventId: uuid("tracking_event_id").notNull(),
+    clientId: text("client_id").notNull(),
     organizationId: uuid("organization_id").notNull().references(() => organizations.id),
     linkId: uuid("link_id").notNull().references(() => links.id),
     shortLinkId: uuid("short_link_id").references(() => shortLinks.id),
