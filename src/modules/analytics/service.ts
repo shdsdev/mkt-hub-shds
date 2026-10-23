@@ -1,74 +1,44 @@
 import { count, countDistinct, eq, and, gte, lte, sql, asc, desc, sum, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { trackingEvents, trackingRollupDaily } from "./db";
-import { createTrackingBuffer } from "./buffer";
-import { isKnownBot } from "./bot";
+import { ga4EventOutbox, trackingEvents, trackingRollupDaily } from "./db";
 import { formatAnalyticsCsv } from "./csv";
 import { utcDayBounds, previousPeriod, daysBetween, type AnalyticsDateRange } from "./date-range";
 import { percentChange } from "./percent-change";
 import { getAnalyticsSource, type AnalyticsEventType } from "./source";
 import { getQrCode } from "@/modules/qr";
+import { buildTrackingEvent, type BufferedTrackingEvent, type TrackRedirectInput } from "./tracking-event";
 
-export type TrackEventInput = typeof trackingEvents.$inferInsert;
+export type { TrackRedirectInput } from "./tracking-event";
 
-const buffer = createTrackingBuffer<TrackEventInput>({
-  flush: async (events) => {
-    await db.insert(trackingEvents).values(events);
-  },
-  maxSize: 500,
-  flushIntervalMs: 1000,
-});
-
-// Force a final flush on shutdown so a container restart doesn't silently drop the last <1s of
-// buffered events. Guarded so re-registering across hot-reloads in dev doesn't stack listeners.
-const globalForShutdownHook = globalThis as unknown as { __trackingShutdownHookRegistered?: boolean };
-if (!globalForShutdownHook.__trackingShutdownHookRegistered) {
-  globalForShutdownHook.__trackingShutdownHookRegistered = true;
-  const flushAndExit = () => {
-    void buffer.flush().finally(() => process.exit(0));
-  };
-  process.on("SIGTERM", flushAndExit);
-  process.on("SIGINT", flushAndExit);
-}
-
-// Fire-and-forget from the caller's perspective — the 302 has already been sent by the time this
-// resolves (I-5). Never throws.
-export function trackRedirect(input: {
-  organizationId: string;
-  linkId: string;
-  shortLinkId: string;
-  qrCodeId?: string;
-  campaignId?: string | null;
-  sourceType: "link_click" | "qr_scan";
-  visitorHash: string;
-  userAgent: string | null;
-  deviceType?: string;
-  geoCountry?: string;
-  geoCity?: string;
-  geoRegion?: string;
-  referrer?: string;
-}): void {
-  const now = new Date();
-  buffer.enqueue({
-    organizationId: input.organizationId,
-    linkId: input.linkId,
-    shortLinkId: input.shortLinkId,
-    qrCodeId: input.qrCodeId,
-    campaignId: input.campaignId ?? undefined,
-    sourceType: input.sourceType,
-    isBot: isKnownBot(input.userAgent),
-    visitorHash: input.visitorHash,
-    sessionStartedAt: now,
-    deviceType: input.deviceType,
-    geoCountry: input.geoCountry,
-    geoCity: input.geoCity,
-    region: input.geoRegion,
-    referrer: input.referrer,
+async function persistTrackingEvent(event: BufferedTrackingEvent): Promise<void> {
+  await db.transaction(async (tx) => {
+    const { ga4ConsentGranted, ...trackingEvent } = event;
+    void ga4ConsentGranted;
+    await tx.insert(trackingEvents).values(trackingEvent);
+    if (event.ga4ConsentGranted && !event.isBot) {
+      await tx.insert(ga4EventOutbox).values({
+        trackingEventId: event.id!,
+        organizationId: event.organizationId,
+        linkId: event.linkId,
+        shortLinkId: event.shortLinkId,
+        sourceType: event.sourceType,
+      });
+    }
   });
 }
 
+// The redirect waits for this transaction before returning 302. A database failure is logged and
+// deliberately does not turn a user redirect into an error response.
+export async function trackRedirect(input: TrackRedirectInput): Promise<void> {
+  try {
+    await persistTrackingEvent(buildTrackingEvent(input));
+  } catch (error) {
+    console.error("[analytics] tracking event persistence failed:", error);
+  }
+}
+
+// Kept as a no-op compatibility boundary for callers that previously flushed the in-process buffer.
 export async function flushTrackingEvents(): Promise<void> {
-  await buffer.flush();
 }
 
 // Includes buffered-but-not-yet-flushed events? No — only what's persisted. Acceptable: scan_rate

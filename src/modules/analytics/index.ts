@@ -26,7 +26,19 @@ export {
   type BreakdownRow,
   type OrgBreakdowns,
 } from "./service";
+export { buildTrackingEvent, type TrackRedirectInput } from "./tracking-event";
 export { resolveVisitor } from "./visitor";
+export {
+  ANALYTICS_CONSENT_COOKIE,
+  ANALYTICS_CONSENT_MAX_AGE_SECONDS,
+  createConsentToken,
+  getAnalyticsConsentState,
+  getConsentStateFromToken,
+  hasAnalyticsConsent,
+  setAnalyticsConsentCookie,
+  verifyConsentToken,
+  type AnalyticsConsentState,
+} from "./consent";
 export { normalizeReferrer } from "./referrer";
 export { percentChange } from "./percent-change";
 export {

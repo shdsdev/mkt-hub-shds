@@ -21,6 +21,7 @@ afterEach(() => {
   localStorage.clear();
   root = undefined;
   container = undefined;
+  vi.restoreAllMocks();
 });
 
 function renderConsent() {
@@ -31,35 +32,59 @@ function renderConsent() {
 }
 
 describe("AnalyticsConsent", () => {
-  it("asks for analytics consent before loading Google Analytics", () => {
+  it("does not load GA4 from local storage until the server confirms consent", async () => {
+    localStorage.setItem("marketing-hub-analytics-consent", "granted");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: undefined }))));
+
     renderConsent();
+    await act(async () => {});
+
+    expect(container?.querySelector('script[src*="googletagmanager"]')).toBeNull();
+    expect(container?.textContent).toContain("analíticas");
+  });
+
+  it("asks for analytics consent before loading Google Analytics", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: undefined }))));
+    renderConsent();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
 
     expect(container?.textContent).toContain("analíticas");
     expect(container?.querySelector('script[src*="googletagmanager"]')).toBeNull();
   });
 
-  it("loads GA4 only after analytics consent is accepted", () => {
+  it("loads GA4 only after server-confirmed analytics consent is accepted", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ state: undefined })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
     renderConsent();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
 
     const acceptButton = Array.from(container?.querySelectorAll("button") ?? []).find((button) =>
       button.textContent?.includes("Aceptar"),
     );
-    act(() => acceptButton?.click());
+    await act(async () => acceptButton?.click());
+    await act(async () => {});
 
     expect(container?.querySelector('script[src*="id=G-TEST123"]')).not.toBeNull();
     expect(container?.textContent).not.toContain("Aceptar analíticas");
-    expect(localStorage.getItem("marketing-hub-analytics-consent")).toBe("granted");
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/analytics/consent", expect.objectContaining({ method: "POST" }));
   });
 
-  it("does not load GA4 after analytics consent is rejected", () => {
+  it("does not load GA4 after analytics consent is rejected", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ state: undefined })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
     renderConsent();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
 
     const rejectButton = Array.from(container?.querySelectorAll("button") ?? []).find((button) =>
       button.textContent?.includes("No, gracias"),
     );
-    act(() => rejectButton?.click());
+    await act(async () => rejectButton?.click());
 
     expect(container?.querySelector('script[src*="googletagmanager"]')).toBeNull();
-    expect(localStorage.getItem("marketing-hub-analytics-consent")).toBe("denied");
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/analytics/consent", expect.objectContaining({ method: "DELETE" }));
   });
 });

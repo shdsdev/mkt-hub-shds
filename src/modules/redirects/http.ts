@@ -1,9 +1,9 @@
-import { after } from "next/server";
 import { NextResponse, type NextRequest } from "next/server";
 import { UAParser } from "ua-parser-js";
 import geoip from "geoip-lite";
 import { resolveShortLinkByHostAndSlug, buildDestinationUrl } from "@/modules/links";
-import { flushTrackingEvents, trackRedirect, resolveVisitor, normalizeReferrer } from "@/modules/analytics";
+import { hasAnalyticsConsent, trackRedirect, resolveVisitor, normalizeReferrer } from "@/modules/analytics";
+import { env } from "@/lib/env";
 
 // Standard reverse-proxy headers — work identically behind Vercel, nginx, or Docker/Traefik. The
 // resolved IP is used only to derive a coarse country/city; it is never itself stored (I-8).
@@ -46,7 +46,7 @@ export async function handleRedirect(
   const geo = ip ? geoip.lookup(ip) : null;
   const referrer = normalizeReferrer(request.headers.get("referer"));
 
-  trackRedirect({
+  await trackRedirect({
     organizationId: resolved.link.organizationId,
     linkId: resolved.link.id,
     shortLinkId: resolved.shortLink.id,
@@ -58,8 +58,9 @@ export async function handleRedirect(
     geoCity: geo?.city,
     geoRegion: geo?.region,
     referrer,
+    consentGranted: env.ANALYTICS_CONSENT_SECRET
+      ? hasAnalyticsConsent(request, env.ANALYTICS_CONSENT_SECRET)
+      : false,
   });
-  after(flushTrackingEvents);
-
   return response;
 }

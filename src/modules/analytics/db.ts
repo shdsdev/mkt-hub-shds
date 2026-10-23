@@ -9,6 +9,7 @@ import {
   timestamp,
   primaryKey,
   unique,
+  index,
 } from "drizzle-orm/pg-core";
 import { organizations } from "@/modules/users/db";
 import { links, shortLinks } from "@/modules/links/db";
@@ -16,6 +17,14 @@ import { qrCodes } from "@/modules/qr/db";
 import { campaigns } from "@/modules/campaigns/db";
 
 export const trackingSourceType = pgEnum("tracking_source_type", ["qr_scan", "link_click"]);
+export const ga4DeliveryStatus = pgEnum("ga4_delivery_status", [
+  "pending",
+  "processing",
+  "received",
+  "failed",
+  "uncertain",
+  "cancelled",
+]);
 
 // Partitioned by created_at (DATABASE.md) — drizzle-kit can't express PARTITION BY, so the
 // generated migration's CREATE TABLE is hand-edited to add it plus the first partition. This
@@ -75,4 +84,27 @@ export const trackingRollupDaily = pgTable(
   (table) => [unique().on(table.linkId, table.date)],
 );
 
-export const analyticsTables = { trackingSourceType, trackingEvents, trackingRollupDaily } as const;
+export const ga4EventOutbox = pgTable(
+  "ga4_event_outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    trackingEventId: uuid("tracking_event_id").notNull(),
+    organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+    linkId: uuid("link_id").notNull().references(() => links.id),
+    shortLinkId: uuid("short_link_id").references(() => shortLinks.id),
+    sourceType: trackingSourceType("source_type").notNull(),
+    status: ga4DeliveryStatus("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    availableAt: timestamp("available_at", { withTimezone: true }).notNull().defaultNow(),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("ga4_event_outbox_tracking_event_unique").on(table.trackingEventId),
+    index("ga4_event_outbox_ready_idx").on(table.status, table.availableAt),
+  ],
+);
+
+export const analyticsTables = { trackingSourceType, ga4DeliveryStatus, trackingEvents, trackingRollupDaily, ga4EventOutbox } as const;

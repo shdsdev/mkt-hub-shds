@@ -55,6 +55,9 @@ export const env = {
   get NEXT_PUBLIC_GA_MEASUREMENT_ID() {
     return process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "";
   },
+  get ANALYTICS_CONSENT_SECRET() {
+    return process.env.ANALYTICS_CONSENT_SECRET ?? "";
+  },
   get SENTRY_DSN() {
     return process.env.SENTRY_DSN ?? "";
   },

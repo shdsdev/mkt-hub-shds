@@ -10,20 +10,38 @@ type AnalyticsConsentState = "granted" | "denied";
 export function AnalyticsConsent({ gaId }: { gaId: string }) {
   const [hydrated, setHydrated] = useState(false);
   const [consent, setConsent] = useState<AnalyticsConsentState>();
+  const [serverReady, setServerReady] = useState(false);
   const measurementId = MEASUREMENT_ID_PATTERN.test(gaId) ? gaId : "";
 
   useEffect(() => {
     const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
-    if (stored === "granted" || stored === "denied") setConsent(stored);
-    setHydrated(true);
+    void fetch("/api/analytics/consent")
+      .then((response) => response.json() as Promise<{ state?: AnalyticsConsentState }>)
+      .then(({ state }) => {
+        if (state === "granted" || state === "denied") setConsent(state);
+        else if (stored === "denied") setConsent("denied");
+      })
+      .catch(() => {
+        if (stored === "denied") setConsent("denied");
+      })
+      .finally(() => {
+        setHydrated(true);
+        setServerReady(true);
+      });
   }, []);
 
-  function updateConsent(nextConsent: AnalyticsConsentState) {
+  async function updateConsent(nextConsent: AnalyticsConsentState) {
+    const response = await fetch("/api/analytics/consent", {
+      method: nextConsent === "denied" ? "DELETE" : "POST",
+      headers: nextConsent === "granted" ? { "Content-Type": "application/json" } : undefined,
+      body: nextConsent === "granted" ? JSON.stringify({ state: nextConsent }) : undefined,
+    });
+    if (!response.ok) return;
     window.localStorage.setItem(CONSENT_STORAGE_KEY, nextConsent);
     setConsent(nextConsent);
   }
 
-  if (!measurementId || !hydrated || consent === "denied") return null;
+  if (!measurementId || !hydrated || !serverReady || consent === "denied") return null;
 
   if (consent === "granted") {
     return (
@@ -42,8 +60,15 @@ gtag('consent', 'default', {
   ad_personalization: 'denied'
 });
 gtag('js', new Date());
-gtag('config', '${measurementId}');`}
+	gtag('config', '${measurementId}');`}
         </Script>
+        <button
+          type="button"
+          className="fixed bottom-3 left-3 z-50 rounded-full border border-[#202020]/20 bg-white/95 px-3 py-2 text-xs text-[#202020] shadow-sm"
+          onClick={() => void updateConsent("denied")}
+        >
+          Cambiar privacidad
+        </button>
       </>
     );
   }
