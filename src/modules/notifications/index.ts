@@ -5,6 +5,7 @@ export {
   listUserNotifications,
   markUserNotificationRead,
   claimNotification,
+  listReminderNotificationStatuses,
   markNotificationSent,
   markNotificationFailed,
   sendConfirmationEmail,
@@ -23,6 +24,7 @@ export {
   type UserNotificationRow,
   type CreateInternalNotificationsInput,
 } from "./service";
+export { summarizeReminderStatuses, type ReminderStatusSummary } from "./reminder-diagnostics";
 export { buildRegistrationTelegramMessage, sendTelegramMessage, type TelegramReplyMarkup } from "./telegram";
 export {
   DEFAULT_TELEGRAM_TEMPLATE,

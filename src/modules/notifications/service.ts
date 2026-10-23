@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { env } from "@/lib/env";
 import type { EventEmailContent } from "@/lib/events/event-email-content";
@@ -94,6 +94,17 @@ export async function claimNotification(
     })
     .returning({ id: notificationLog.id });
   return row;
+}
+
+export async function listReminderNotificationStatuses(
+  attendeeIds: string[],
+): Promise<Array<{ attendeeId: string; status: NotificationLogRow["status"] }>> {
+  if (attendeeIds.length === 0) return [];
+
+  return db
+    .select({ attendeeId: notificationLog.subjectId, status: notificationLog.status })
+    .from(notificationLog)
+    .where(and(inArray(notificationLog.subjectId, attendeeIds), eq(notificationLog.notificationType, "reminder")));
 }
 
 export async function markNotificationSent(
