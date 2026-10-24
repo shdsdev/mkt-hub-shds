@@ -7,7 +7,7 @@ export function RegistrationActivityChart({ activity }: { activity: EventDashboa
   const hasRegistrations = activity.some((point) => point.registrations > 0);
 
   return (
-    <div className="h-72 rounded-xl border border-border bg-card p-4">
+    <div className="h-72">
       {hasRegistrations ? (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={activity} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
