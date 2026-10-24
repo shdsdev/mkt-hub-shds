@@ -8,5 +8,5 @@ export async function POST(request: NextRequest) {
   if (request.headers.get("authorization") !== `Bearer ${secret}`) return new NextResponse(null, { status: 401 });
 
   const result = await processGa4Outbox();
-  return NextResponse.json({ ok: true, ...result });
+  return NextResponse.json({ ok: !result.disabled && result.failed === 0 && result.uncertain === 0, ...result });
 }

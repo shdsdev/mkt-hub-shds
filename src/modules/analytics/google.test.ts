@@ -41,4 +41,13 @@ describe("Google Analytics Measurement Protocol", () => {
     await expect(sendMeasurementProtocolEvent(event, { measurementId: "G-TEST123", apiSecret: "secret" }, invalidPayload)).rejects.toMatchObject({ kind: "failed" });
     await expect(sendMeasurementProtocolEvent(event, { measurementId: "G-TEST123", apiSecret: "secret" }, unavailable)).rejects.toMatchObject({ kind: "uncertain" });
   });
+
+  it("times out a hanging Measurement Protocol request as uncertain", async () => {
+    const hanging = vi.fn().mockImplementation(() => new Promise<Response>(() => {}));
+
+    await expect(sendMeasurementProtocolEvent(event, { measurementId: "G-TEST123", apiSecret: "secret" }, hanging, 10)).rejects.toMatchObject({
+      kind: "uncertain",
+      message: "Measurement Protocol request timed out.",
+    });
+  });
 });

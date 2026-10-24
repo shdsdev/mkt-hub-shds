@@ -53,6 +53,7 @@ export type ProcessGa4OutboxResult = {
   received: number;
   failed: number;
   uncertain: number;
+  cancelled: number;
 };
 
 async function deliverClaimedRow(row: typeof ga4EventOutbox.$inferSelect): Promise<OutboxDeliveryState | "cancelled"> {
@@ -108,7 +109,7 @@ async function deliverClaimedRow(row: typeof ga4EventOutbox.$inferSelect): Promi
 }
 
 export async function processGa4Outbox(limit = 25): Promise<ProcessGa4OutboxResult> {
-  const result: ProcessGa4OutboxResult = { disabled: false, claimed: 0, received: 0, failed: 0, uncertain: 0 };
+  const result: ProcessGa4OutboxResult = { disabled: false, claimed: 0, received: 0, failed: 0, uncertain: 0, cancelled: 0 };
   if (!env.NEXT_PUBLIC_GA_MEASUREMENT_ID || !env.GA4_API_SECRET) return { ...result, disabled: true };
 
   const rows = await claimOutboxBatch(limit);
@@ -116,7 +117,7 @@ export async function processGa4Outbox(limit = 25): Promise<ProcessGa4OutboxResu
 
   for (const row of rows) {
     const status = await deliverClaimedRow(row);
-    if (status !== "cancelled") result[status] += 1;
+    result[status] += 1;
   }
 
   return result;

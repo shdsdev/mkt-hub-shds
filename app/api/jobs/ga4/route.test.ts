@@ -17,7 +17,7 @@ function requestWithAuth(authorization?: string): NextRequest {
 describe("POST /api/jobs/ga4", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mocks.processGa4Outbox.mockResolvedValue({ disabled: false, claimed: 1, received: 1, failed: 0, uncertain: 0 });
+    mocks.processGa4Outbox.mockResolvedValue({ disabled: false, claimed: 1, received: 1, failed: 0, uncertain: 0, cancelled: 0 });
   });
 
   afterAll(() => vi.restoreAllMocks());
@@ -33,6 +33,15 @@ describe("POST /api/jobs/ga4", () => {
     const response = await POST(requestWithAuth("Bearer test-secret"));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, disabled: false, claimed: 1, received: 1, failed: 0, uncertain: 0 });
+    expect(await response.json()).toEqual({ ok: true, disabled: false, claimed: 1, received: 1, failed: 0, uncertain: 0, cancelled: 0 });
+  });
+
+  it("reports a non-ok result when delivery failures occur", async () => {
+    mocks.processGa4Outbox.mockResolvedValue({ disabled: false, claimed: 2, received: 0, failed: 1, uncertain: 1, cancelled: 0 });
+
+    const response = await POST(requestWithAuth("Bearer test-secret"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: false, failed: 1, uncertain: 1 });
   });
 });

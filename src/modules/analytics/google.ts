@@ -1,5 +1,7 @@
 import { createSign } from "node:crypto";
 
+const MEASUREMENT_PROTOCOL_TIMEOUT_MS = 10_000;
+
 export type Ga4OutboxEvent = {
   id: string;
   clientId: string;
@@ -61,17 +63,33 @@ export async function sendMeasurementProtocolEvent(
   event: Ga4OutboxEvent,
   config: MeasurementProtocolConfig,
   fetcher: typeof fetch = fetch,
+  timeoutMs = MEASUREMENT_PROTOCOL_TIMEOUT_MS,
 ): Promise<{ kind: "received" }> {
   const request = buildMeasurementProtocolRequest(event, config.measurementId, config.apiSecret);
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   let response: Response;
   try {
-    response = await fetcher(request.url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request.body),
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        controller.abort();
+        reject(new Ga4DeliveryError("uncertain", "Measurement Protocol request timed out."));
+      }, timeoutMs);
     });
+    response = await Promise.race([
+      fetcher(request.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request.body),
+        signal: controller.signal,
+      }),
+      timeoutPromise,
+    ]);
   } catch (error) {
+    if (error instanceof Ga4DeliveryError) throw error;
     throw new Ga4DeliveryError("uncertain", error instanceof Error ? error.message : "Network failure");
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 
   if (response.ok) return { kind: "received" };
