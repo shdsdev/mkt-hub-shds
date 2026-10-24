@@ -16,6 +16,10 @@ function formatConfirmedSeats(confirmedSeats: number, capacity: number | null): 
   return capacity === null ? `${confirmedSeats}` : `${confirmedSeats} / ${capacity}`;
 }
 
+function formatCompanies(companies: number | null): string {
+  return companies === null ? "No se recopila" : `${companies}`;
+}
+
 function StatTile({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
@@ -112,9 +116,11 @@ export default async function EventDashboardPage({ params }: { params: Promise<{
       <EventSubNav eventId={id} current="dashboard" role={user.profile.role} />
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <h1 className="font-heading text-xl font-semibold">Resultados: {event.name}</h1>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
           <StatTile label="Visitas" value={insights.visits} />
           <StatTile label="Registros" value={insights.registrations} />
+          <StatTile label="Personas registradas" value={insights.people} />
+          <StatTile label="Empresas registradas" value={formatCompanies(insights.companies)} />
           <StatTile label="Asistencia" value={insights.attendance} />
           <StatTile label="Conversión" value={formatConversion(insights.conversion)} />
           <ConfirmedSeatsTile confirmedSeats={insights.confirmedSeats} capacity={insights.capacity} />

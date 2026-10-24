@@ -75,7 +75,7 @@ describe("EventDashboardPage", () => {
   });
 
   it("renders visits, registrations, attendance, and a formatted conversion rate", async () => {
-    mocks.getEventInsights.mockResolvedValue({ visits: 100, registrations: 40, attendance: 10, conversion: 0.4, confirmedSeats: 42, capacity: 100 });
+    mocks.getEventInsights.mockResolvedValue({ visits: 100, registrations: 40, people: 55, companies: 12, attendance: 10, conversion: 0.4, confirmedSeats: 42, capacity: 100 });
     mocks.getEventDashboardData.mockResolvedValue({
       activity: [],
       statuses: [],
@@ -89,6 +89,8 @@ describe("EventDashboardPage", () => {
     expect(json).toContain("Workshop de Marketing");
     expect(json).toContain("100");
     expect(json).toContain("40");
+    expect(json).toContain("55");
+    expect(json).toContain("12");
     expect(json).toContain("10");
     expect(json).toContain("40%");
     expect(json).toContain("42");
@@ -100,7 +102,7 @@ describe("EventDashboardPage", () => {
   });
 
   it("renders a dash (not 0%) for conversion when there have been no visits", async () => {
-    mocks.getEventInsights.mockResolvedValue({ visits: 0, registrations: 0, attendance: 0, conversion: null, confirmedSeats: 0, capacity: null });
+    mocks.getEventInsights.mockResolvedValue({ visits: 0, registrations: 0, people: 0, companies: null, attendance: 0, conversion: null, confirmedSeats: 0, capacity: null });
 
     const result = await EventDashboardPage({ params: params("event-1") });
 

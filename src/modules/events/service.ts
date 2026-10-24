@@ -20,6 +20,7 @@ import {
 } from "./db";
 import { getEffectiveRegistrationStatus } from "./registration-status";
 import { getCheckInResultKind, type CheckInResultKind } from "./check-in-result";
+import { resolveRegistrationFormConfig } from "./registration-form-config";
 import type { EventEmailContent } from "@/lib/events/event-email-content";
 import { DEFAULT_EVENT_REMINDER_OFFSET_MINUTES } from "@/lib/events/event-reminder";
 
@@ -1520,6 +1521,8 @@ export async function getEventDashboardData(
 export type EventInsights = {
   visits: number;
   registrations: number;
+  people: number;
+  companies: number | null;
   attendance: number;
   conversion: number | null;
   confirmedSeats: number;
@@ -1536,7 +1539,7 @@ export async function getEventInsights(
   const event = await getEvent(eventId, organizationId);
   if (!event) return undefined;
 
-  const [[registrationsRow], [attendanceRow], [confirmedSeatsRow]] = await Promise.all([
+  const [[registrationsRow], [attendanceRow], [confirmedSeatsRow], peopleRows] = await Promise.all([
     db
       .select({ total: count() })
       .from(eventRegistrations)
@@ -1562,15 +1565,37 @@ export async function getEventInsights(
           eq(eventRegistrations.status, "confirmed"),
         ),
       ),
+    db
+      .select({ company: eventAttendees.company })
+      .from(eventAttendees)
+      .innerJoin(eventRegistrations, eq(eventAttendees.registrationId, eventRegistrations.id))
+      .where(
+        and(
+          eq(eventAttendees.eventId, eventId),
+          eq(eventAttendees.isActive, true),
+          ne(eventRegistrations.status, "cancelled"),
+        ),
+      ),
   ]);
 
   const registrations = registrationsRow?.total ?? 0;
   const attendance = attendanceRow?.total ?? 0;
   const confirmedSeats = confirmedSeatsRow?.total ?? 0;
+  const people = peopleRows.length;
+  const collectsCompany = resolveRegistrationFormConfig(event).fields.company.visible;
+  const companies = collectsCompany
+    ? new Set(
+        peopleRows
+          .map(({ company }) => company?.trim().toLocaleLowerCase())
+          .filter((company): company is string => Boolean(company)),
+      ).size
+    : null;
 
   return {
     visits: event.visitCount,
     registrations,
+    people,
+    companies,
     attendance,
     conversion: event.visitCount === 0 ? null : registrations / event.visitCount,
     confirmedSeats,

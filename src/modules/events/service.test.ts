@@ -1517,18 +1517,27 @@ describe("events service — getEventInsights", () => {
   });
 
   it("computes visits/registrations/attendance/conversion", async () => {
-    const event = { ...baseEvent, visitCount: 100, capacity: 100 };
+    const event = {
+      ...baseEvent,
+      visitCount: 100,
+      capacity: 100,
+      collectCompany: true,
+      registrationFormConfig: null,
+    };
     selectMock
       .mockReturnValueOnce(selectChain([event]))
       .mockReturnValueOnce(selectChain([{ total: 40 }]))
       .mockReturnValueOnce(selectChain([{ total: 10 }]))
-      .mockReturnValueOnce(selectChain([{ total: 42 }]));
+      .mockReturnValueOnce(selectChain([{ total: 42 }]))
+      .mockReturnValueOnce(selectChain([{ company: " Shades " }, { company: "shades" }, { company: "Acme" }]));
 
     const result = await getEventInsights("event-1", "org-1");
 
     expect(result).toEqual({
       visits: 100,
       registrations: 40,
+      people: 3,
+      companies: 2,
       attendance: 10,
       conversion: 0.4,
       confirmedSeats: 42,
@@ -1542,7 +1551,8 @@ describe("events service — getEventInsights", () => {
       .mockReturnValueOnce(selectChain([event]))
       .mockReturnValueOnce(selectChain([{ total: 0 }]))
       .mockReturnValueOnce(selectChain([{ total: 0 }]))
-      .mockReturnValueOnce(selectChain([{ total: 0 }]));
+      .mockReturnValueOnce(selectChain([{ total: 0 }]))
+      .mockReturnValueOnce(selectChain([]));
 
     const result = await getEventInsights("event-1", "org-1");
     expect(result?.conversion).toBeNull();
@@ -1554,7 +1564,8 @@ describe("events service — getEventInsights", () => {
       .mockReturnValueOnce(selectChain([event]))
       .mockReturnValueOnce(selectChain([{ total: 2 }]))
       .mockReturnValueOnce(selectChain([{ total: 0 }]))
-      .mockReturnValueOnce(selectChain([{ total: 3 }]));
+      .mockReturnValueOnce(selectChain([{ total: 3 }]))
+      .mockReturnValueOnce(selectChain([]));
 
     const result = await getEventInsights("event-1", "org-1");
 
@@ -1568,12 +1579,29 @@ describe("events service — getEventInsights", () => {
       .mockReturnValueOnce(selectChain([event]))
       .mockReturnValueOnce(selectChain([{ total: 2 }]))
       .mockReturnValueOnce(selectChain([{ total: 0 }]))
-      .mockReturnValueOnce(selectChain([{ total: 2 }]));
+      .mockReturnValueOnce(selectChain([{ total: 2 }]))
+      .mockReturnValueOnce(selectChain([]));
+
 
     const result = await getEventInsights("event-1", "org-1");
 
     expect(result?.capacity).toBeNull();
     expect(result?.confirmedSeats).toBe(2);
+  });
+
+  it("returns no companies when the event does not collect company data", async () => {
+    const event = { ...baseEvent, collectCompany: false };
+    selectMock
+      .mockReturnValueOnce(selectChain([event]))
+      .mockReturnValueOnce(selectChain([{ total: 1 }]))
+      .mockReturnValueOnce(selectChain([{ total: 0 }]))
+      .mockReturnValueOnce(selectChain([{ total: 1 }]))
+      .mockReturnValueOnce(selectChain([{ company: "Acme" }]));
+
+    const result = await getEventInsights("event-1", "org-1");
+
+    expect(result?.people).toBe(1);
+    expect(result?.companies).toBeNull();
   });
 });
 
