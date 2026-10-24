@@ -96,7 +96,7 @@ describe("EventCard", () => {
     expect(container.querySelector('button[aria-label="Archivar evento"]')).toBeNull();
   });
 
-  it("routes Reception to registrations without admin actions", () => {
+  it("routes Reception to results without admin actions", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -110,7 +110,7 @@ describe("EventCard", () => {
       ),
     );
 
-    expect(container.querySelector("a")?.getAttribute("href")).toBe("/events/event-1/registrations");
+    expect(container.querySelector("a")?.getAttribute("href")).toBe("/events/event-1/dashboard");
     expect(container.querySelector('button[aria-label="Archivar evento"]')).toBeNull();
     expect(container.querySelector('button[aria-label="Eliminar evento"]')).toBeNull();
   });

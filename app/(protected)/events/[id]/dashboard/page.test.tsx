@@ -60,12 +60,36 @@ describe("EventDashboardPage", () => {
     });
   });
 
-  it("returns notFound for a non-ADMIN user", async () => {
+  it("returns notFound when the user lacks dashboard access", async () => {
     mocks.isAdmin.mockReturnValue(false);
     mocks.canAccessEvent.mockResolvedValue(false);
 
     await expect(EventDashboardPage({ params: params("event-1") })).rejects.toThrow("NEXT_NOT_FOUND");
     expect(mocks.getEventInsights).not.toHaveBeenCalled();
+  });
+
+  it("renders results with the dashboard tab active for assigned reception", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "reception-1", profile: { ...adminUser.profile, role: "RECEPTION" } });
+    mocks.getEventInsights.mockResolvedValue({ visits: 0, registrations: 0, people: 0, companies: null, attendance: 0, conversion: null, confirmedSeats: 0, capacity: null });
+
+    const result = await EventDashboardPage({ params: params("event-1") });
+
+    expect(mocks.canAccessEvent).toHaveBeenCalledWith({
+      userId: "reception-1", organizationId: "org-1", role: "RECEPTION", eventId: "event-1", capability: "dashboard",
+    });
+    expect(serializeResult(result)).toContain('"current":"dashboard","role":"RECEPTION"');
+    expect(serializeResult(result)).toContain("Workshop de Marketing");
+  });
+
+  it("does not query results for reception without event access", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, profile: { ...adminUser.profile, role: "RECEPTION" } });
+    mocks.canAccessEvent.mockResolvedValue(false);
+
+    await expect(EventDashboardPage({ params: params("event-1") })).rejects.toThrow("NEXT_NOT_FOUND");
+
+    expect(mocks.getEvent).not.toHaveBeenCalled();
+    expect(mocks.getEventInsights).not.toHaveBeenCalled();
+    expect(mocks.getEventDashboardData).not.toHaveBeenCalled();
   });
 
   it("returns notFound when the event is outside the organization", async () => {

@@ -13,7 +13,7 @@ export function EventCard({ event, role = "ADMIN" }: { event: EventRow; role?: U
   const date = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(event.startsAt);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteEventAction, {});
   const isArchived = event.status === "archived";
-  const landingHref = role === "RECEPTION" ? `/events/${event.id}/registrations` : `/events/${event.id}/dashboard`;
+  const landingHref = `/events/${event.id}/dashboard`;
 
   return (
     <article className="w-full max-w-4xl rounded-xl border border-border bg-card p-5 shadow-sm">

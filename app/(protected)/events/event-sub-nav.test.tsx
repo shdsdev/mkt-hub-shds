@@ -9,12 +9,13 @@ describe("EventSubNav", () => {
     expect(html.indexOf("Sorteo")).toBeLessThan(html.indexOf("Resultados"));
   });
 
-  it("shows only operational sections to reception users", () => {
-    const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="registrations" role="RECEPTION" />);
+  it("shows operational sections and active results to reception users", () => {
+    const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="dashboard" role="RECEPTION" />);
     expect(html).not.toContain("Sorteo");
     expect(html).not.toContain("Editar");
     expect(html).not.toContain("Preguntas");
-    expect(html).not.toContain("Resultados");
+    expect(html).toContain("Resultados");
+    expect(html).toMatch(/<a(?=[^>]*href="\/events\/event-1\/dashboard")(?=[^>]*aria-current="page")[^>]*>/);
     expect(html).toContain("Registros");
     expect(html).toContain("Check-in");
     expect(html).toContain("Formulario interno");

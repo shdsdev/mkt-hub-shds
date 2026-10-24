@@ -15,7 +15,7 @@ export function EventSubNav({ eventId, current, role }: { eventId: string; curre
   ].filter((tab) =>
     role === "ADMIN" ||
     role === "EVENT_EDITOR" ||
-    (role === "RECEPTION" && (tab.key === "registrations" || tab.key === "check-in" || tab.key === "internal-form")),
+    (role === "RECEPTION" && (tab.key === "registrations" || tab.key === "check-in" || tab.key === "internal-form" || tab.key === "dashboard")),
   );
 
   return (

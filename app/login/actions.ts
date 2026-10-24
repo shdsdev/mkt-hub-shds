@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser, signIn } from "@/modules/auth";
+import { getLoginDestination } from "../auth/login-destination";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -30,5 +31,5 @@ export async function login(
   }
 
   const user = await getCurrentUser();
-  redirect(user?.profile.role === "RECEPTION" ? "/events" : "/");
+  redirect(await getLoginDestination(user, "/"));
 }

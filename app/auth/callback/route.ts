@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/modules/auth";
+import { getLoginDestination } from "../login-destination";
 import { isActive } from "@/modules/users";
 
 // Consumes the Supabase invitation link: exchanges the one-time code for a session and routes the
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     try {
       const user = await getCurrentUser();
       if (!user || !isActive(user.profile)) throw new Error("Google profile is not authorized");
-      if (user.profile.role === "RECEPTION") next = "/events";
+      next = await getLoginDestination(user, next);
     } catch {
       await supabase.auth.signOut();
       return NextResponse.redirect(new URL("/login?error=google_access", request.url));
