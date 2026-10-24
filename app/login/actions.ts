@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { signIn } from "@/modules/auth";
+import { getCurrentUser, signIn } from "@/modules/auth";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -29,5 +29,6 @@ export async function login(
     return { error: result.error };
   }
 
-  redirect("/");
+  const user = await getCurrentUser();
+  redirect(user?.profile.role === "RECEPTION" ? "/events" : "/");
 }

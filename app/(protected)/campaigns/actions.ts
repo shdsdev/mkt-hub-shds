@@ -18,7 +18,7 @@ export async function createCampaignAction(
   formData: FormData,
 ): Promise<CreateCampaignFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) {
     return { error: RATE_LIMIT_ERROR };
   }
@@ -43,7 +43,7 @@ export async function createCampaignAction(
 
 export async function endCampaignAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
   const campaignId = z.string().uuid().parse(formData.get("campaignId"));

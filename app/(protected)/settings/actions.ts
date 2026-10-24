@@ -32,7 +32,7 @@ import { checkRateLimit } from "@/modules/audit";
 
 export async function updateUserThemeAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
   const themeId = z.string().min(1).parse(formData.get("themeId"));
@@ -110,7 +110,7 @@ export async function clearThemeColorOverrideAction(
 // Org-wide (not per-user) — pre-fills into every new QR code's logo step (create-qr-modal.tsx).
 export async function updateDefaultLogoAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
   const url = formData.get("logoUrl");
@@ -127,7 +127,7 @@ export async function createDomainAction(
   formData: FormData,
 ): Promise<CreateDomainFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const parsed = domainHostnameSchema.safeParse(formData.get("hostname"));
   if (!parsed.success) {
@@ -146,7 +146,7 @@ export async function updateDomainAction(
   formData: FormData,
 ): Promise<UpdateDomainFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const id = z.string().uuid().safeParse(formData.get("id"));
   const hostname = domainHostnameSchema.safeParse(formData.get("hostname"));
@@ -169,7 +169,7 @@ export async function reassignDomainShortLinksAction(
   formData: FormData,
 ): Promise<ReassignDomainFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const fromId = z.string().uuid().safeParse(formData.get("fromId"));
   const toId = z.string().uuid().safeParse(formData.get("toId"));
@@ -253,7 +253,7 @@ export async function createUtmPresetAction(
   formData: FormData,
 ): Promise<CreateUtmPresetFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const parsed = readUtmPresetForm(formData);
   if (!parsed.success) {
@@ -289,7 +289,7 @@ export async function updateUtmPresetAction(
   formData: FormData,
 ): Promise<CreateUtmPresetFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const id = z.string().uuid().safeParse(formData.get("id"));
   if (!id.success) {
@@ -327,7 +327,7 @@ export async function updateUtmPresetAction(
 
 export async function archiveUtmPresetAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const id = z.string().uuid().safeParse(formData.get("id"));
   if (!id.success) return;
@@ -343,7 +343,7 @@ export async function archiveUtmPresetAction(formData: FormData): Promise<void> 
 
 export async function deleteUtmPresetAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const id = z.string().uuid().safeParse(formData.get("id"));
   if (!id.success) return;
@@ -364,7 +364,7 @@ export async function deleteDomainAction(
   formData: FormData,
 ): Promise<DeleteDomainFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const id = z.string().uuid().parse(formData.get("id"));
   try {

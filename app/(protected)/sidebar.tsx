@@ -90,6 +90,7 @@ function NavItem({
 
 export function AppSidebar({ email, role }: { email: string; role: string }) {
   const pathname = usePathname();
+  const eventsOnly = role === "EVENT_EDITOR" || role === "RECEPTION";
   const qrShortLinksActive =
     pathname.startsWith("/links") || pathname.startsWith("/qr") || pathname.startsWith("/analytics");
   // Keep the first render structurally identical on the server and client. The pathname can be
@@ -110,7 +111,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
       </SidebarHeader>
 
       <SidebarContent className="mt-6 gap-6 px-4">
-        {role !== "EVENT_EDITOR" && <SidebarGroup className="p-0">
+        {!eventsOnly && <SidebarGroup className="p-0">
           <SidebarGroupLabel className="mb-1 h-auto px-0 py-1 text-xs text-sidebar-muted">
             General
           </SidebarGroupLabel>
@@ -132,7 +133,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
-              {role !== "EVENT_EDITOR" && <SidebarMenuItem>
+              {!eventsOnly && <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={qrShortLinksActive}
                   className="hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent active:text-sidebar-foreground"
@@ -147,7 +148,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
                   {qrShortLinksOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </SidebarMenuButton>
               </SidebarMenuItem>}
-              {qrShortLinksOpen && (
+              {!eventsOnly && qrShortLinksOpen && (
                 <SidebarMenuItem>
                   <SidebarMenuSub>
                     <SidebarMenuSubItem>
@@ -171,7 +172,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
                   </SidebarMenuSub>
                 </SidebarMenuItem>
               )}
-              {role !== "EVENT_EDITOR" && <NavItem href="/campaigns" idle={Megaphone} active={Volume2}>
+              {!eventsOnly && <NavItem href="/campaigns" idle={Megaphone} active={Volume2}>
                 Campañas
               </NavItem>}
               <NavItem href="/events" idle={Calendar} active={CalendarDays}>
@@ -181,7 +182,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {role !== "EVENT_EDITOR" && <SidebarGroup className="p-0">
+        {!eventsOnly && <SidebarGroup className="p-0">
           <SidebarGroupLabel className="mb-1 h-auto px-0 py-1 text-xs text-sidebar-muted">
             Sistema
           </SidebarGroupLabel>
@@ -234,7 +235,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
                   </span>
                 </div>
                 <DropdownMenuSeparator />
-                {role !== "EVENT_EDITOR" && <DropdownMenuItem
+                {!eventsOnly && <DropdownMenuItem
                   render={<Link href="/settings" />}
                   onMouseEnter={() => setSettingsHovered(true)}
                   onMouseLeave={() => setSettingsHovered(false)}
@@ -242,7 +243,7 @@ export function AppSidebar({ email, role }: { email: string; role: string }) {
                   <HoverMorphIcon idle={Settings} active={Settings2} size={16} hovered={settingsHovered} />
                   Configuración
                 </DropdownMenuItem>}
-                <DropdownMenuSeparator />
+                {!eventsOnly && <DropdownMenuSeparator />}
                 <form action={signOutAction}>
                   <DropdownMenuItem
                     variant="destructive"

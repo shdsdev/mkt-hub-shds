@@ -106,7 +106,7 @@ export async function createWebsiteQrCodeAction(
   formData: FormData,
 ): Promise<CreateWebsiteQrFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) {
     return { error: RATE_LIMIT_ERROR };
   }
@@ -307,7 +307,7 @@ export async function createStaticQrCodeAction(
   formData: FormData,
 ): Promise<CreateStaticQrFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) {
     return { error: RATE_LIMIT_ERROR };
   }
@@ -395,7 +395,7 @@ export async function createStaticQrCodeAction(
 // useActionState) since GroupSelect needs the created row's id/name back immediately to select it.
 export async function createFolderQuickAction(name: string): Promise<Folder | { error: string }> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
 
   const trimmed = name.trim();
@@ -416,7 +416,7 @@ export async function createFolderQuickAction(name: string): Promise<Folder | { 
 
 export async function createCampaignQuickAction(name: string): Promise<Campaign | { error: string }> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
 
   const trimmed = name.trim();
@@ -437,7 +437,7 @@ export async function createCampaignQuickAction(name: string): Promise<Campaign 
 
 export async function archiveQrCodeAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
   const id = z.string().uuid().parse(formData.get("id"));
@@ -459,7 +459,7 @@ export async function updateQrNameAction(
   formData: FormData,
 ): Promise<UpdateQrNameFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   if (!checkRateLimit(user.id)) {
     return { error: RATE_LIMIT_ERROR };
@@ -493,7 +493,7 @@ export async function updateQrMetadataAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
 
   const parsed = updateQrMetadataSchema.safeParse({
@@ -533,7 +533,7 @@ export async function updateDynamicQrUtmAction(
   formData: FormData,
 ): Promise<UpdateDynamicQrUtmFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
 
   const parsed = updateDynamicQrUtmSchema.safeParse({
@@ -757,7 +757,7 @@ export async function createBulkWebsiteQrCodesAction(
   input: CreateBulkWebsiteQrCodesActionInput,
 ): Promise<BulkQrImportSummary> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return emptyBulkQrImportSummary(RATE_LIMIT_ERROR);
 
   const parsed = bulkInputSchema.safeParse(input);

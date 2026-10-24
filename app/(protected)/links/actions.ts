@@ -30,7 +30,7 @@ export async function createLinkAction(
   formData: FormData,
 ): Promise<CreateLinkFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   if (!checkRateLimit(user.id)) {
     return { error: RATE_LIMIT_ERROR };
@@ -88,7 +88,7 @@ export async function applyUtmTemplateAction(
   formData: FormData,
 ): Promise<ApplyUtmTemplateFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const linkId = z.string().uuid().safeParse(formData.get("linkId"));
   const templateId = z.string().uuid().safeParse(formData.get("templateId"));
@@ -123,7 +123,7 @@ export async function createShortLinkAction(
   formData: FormData,
 ): Promise<CreateShortLinkFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   const rawSlug = (formData.get("slug") as string | null)?.trim();
   const parsed = createShortLinkSchema.safeParse({
@@ -160,7 +160,7 @@ export async function updateDestinationAction(
   formData: FormData,
 ): Promise<UpdateDestinationFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   if (!checkRateLimit(user.id)) {
     return { error: RATE_LIMIT_ERROR };
@@ -197,7 +197,7 @@ export async function updateDestinationAction(
 
 export async function archiveLinkAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
   const linkId = z.string().uuid().parse(formData.get("linkId"));
@@ -214,7 +214,7 @@ export async function archiveLinkAction(formData: FormData): Promise<void> {
 
 export async function archiveShortLinkAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
   const shortLinkId = z.string().uuid().parse(formData.get("shortLinkId"));
@@ -242,7 +242,7 @@ export async function recordPrintRunAction(
   formData: FormData,
 ): Promise<RecordPrintRunFormState> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || user.profile.role === "RECEPTION") redirect("/login");
 
   if (!checkRateLimit(user.id)) {
     return { error: RATE_LIMIT_ERROR };

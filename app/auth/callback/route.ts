@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     try {
       const user = await getCurrentUser();
       if (!user || !isActive(user.profile)) throw new Error("Google profile is not authorized");
+      if (user.profile.role === "RECEPTION") next = "/events";
     } catch {
       await supabase.auth.signOut();
       return NextResponse.redirect(new URL("/login?error=google_access", request.url));

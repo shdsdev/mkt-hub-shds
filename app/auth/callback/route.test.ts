@@ -64,6 +64,16 @@ describe("auth callback", () => {
     expect(mocks.signOut).not.toHaveBeenCalled();
   });
 
+  it("sends reception Google sign-ins to events instead of the requested module", async () => {
+    mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
+    mocks.getCurrentUser.mockResolvedValue({ profile: { status: "active", role: "RECEPTION" } });
+    mocks.isActive.mockReturnValue(true);
+
+    const res = await GET(new Request("https://app.example.com/auth/callback?provider=google&code=code-1&next=/settings"));
+
+    expect(res.headers.get("location")).toBe("https://app.example.com/events");
+  });
+
   it("rejects Google OAuth when no Marketing Hub profile exists", async () => {
     mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
     mocks.getCurrentUser.mockResolvedValue(undefined);

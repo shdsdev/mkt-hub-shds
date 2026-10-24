@@ -7,7 +7,7 @@ import { markUserNotificationRead } from "@/modules/notifications";
 
 export async function markNotificationReadAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user || !isActive(user.profile)) return;
+  if (!user || user.profile.role === "RECEPTION" || !isActive(user.profile)) return;
   const notificationId = String(formData.get("notificationId") ?? "");
   if (!notificationId) return;
 
