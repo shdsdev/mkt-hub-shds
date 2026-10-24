@@ -2,6 +2,8 @@
 export {
   trackRedirect,
   cancelGa4OutboxForClient,
+  createAnalyticsConsent,
+  revokeAnalyticsConsent,
   flushTrackingEvents,
   countEventsForShortLink,
   countEventsForQrCode,
@@ -35,6 +37,7 @@ export {
   ANALYTICS_CONSENT_COOKIE,
   ANALYTICS_CONSENT_MAX_AGE_SECONDS,
   createConsentToken,
+  getConsentIdFromToken,
   getAnalyticsConsentState,
   getConsentStateFromToken,
   hasAnalyticsConsent,

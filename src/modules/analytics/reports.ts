@@ -62,12 +62,17 @@ export async function getGa4MetricsForOrganization(
   sourceType: "qr_scan" | "link_click",
   startDate: string,
   endDate: string,
+  organizationId: string,
+  linkIds: string[],
 ): Promise<Ga4Metrics> {
   if (!env.GA4_PROPERTY_ID || !env.GA4_SERVICE_ACCOUNT_EMAIL || !env.GA4_SERVICE_ACCOUNT_PRIVATE_KEY) {
     return EMPTY_METRICS;
   }
+  if (linkIds.length === 0) {
+    return { configured: true, available: true, eventCount: 0, activeUsers: 0, sessions: 0 };
+  }
 
-  const cacheKey = `org:${sourceType}:${startDate}:${endDate}`;
+  const cacheKey = `org:${organizationId}:${sourceType}:${startDate}:${endDate}:${linkIds.slice().sort().join(",")}`;
   const cached = reportCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
@@ -81,7 +86,14 @@ export async function getGa4MetricsForOrganization(
         dateRanges: [{ startDate, endDate }],
         dimensions: [{ name: "eventName" }],
         metrics: [{ name: "eventCount" }, { name: "activeUsers" }, { name: "sessions" }],
-        dimensionFilter: { filter: { fieldName: "eventName", stringFilter: { matchType: "EXACT", value: eventName } } },
+        dimensionFilter: {
+          andGroup: {
+            expressions: [
+              { filter: { fieldName: "eventName", stringFilter: { matchType: "EXACT", value: eventName } } },
+              ...(linkIds.length > 0 ? [{ filter: { fieldName: "customEvent:mh_link_key", inListFilter: { values: linkIds } } }] : []),
+            ],
+          },
+        },
       },
     ) as { rows?: Array<{ metricValues?: Array<{ value?: string }> }> };
     const row = report.rows?.[0];

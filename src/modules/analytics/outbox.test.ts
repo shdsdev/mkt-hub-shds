@@ -4,7 +4,7 @@ vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/env", () => ({ env: {} }));
 
 import { Ga4DeliveryError } from "./google";
-import { nextOutboxDeliveryState } from "./outbox";
+import { nextOutboxDeliveryState, shouldProcessOutboxStatus } from "./outbox";
 
 describe("nextOutboxDeliveryState", () => {
   it("does not retry permanent Measurement Protocol errors", () => {
@@ -20,5 +20,11 @@ describe("nextOutboxDeliveryState", () => {
 
   it("stops retrying after the bounded attempt limit", () => {
     expect(nextOutboxDeliveryState(new Ga4DeliveryError("uncertain", "timeout"), 5)).toEqual({ status: "failed" });
+  });
+
+  it("only processes pending entries and never automatically resends uncertain ones", () => {
+    expect(shouldProcessOutboxStatus("pending")).toBe(true);
+    expect(shouldProcessOutboxStatus("uncertain")).toBe(false);
+    expect(shouldProcessOutboxStatus("processing")).toBe(false);
   });
 });

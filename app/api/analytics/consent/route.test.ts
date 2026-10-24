@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   createConsentToken: vi.fn(),
+  createAnalyticsConsent: vi.fn(),
+  revokeAnalyticsConsent: vi.fn(),
   cancelGa4OutboxForClient: vi.fn(),
 }));
 
@@ -14,6 +16,8 @@ vi.mock("@/lib/env", () => ({
 vi.mock("@/modules/analytics", () => ({
   ANALYTICS_CONSENT_COOKIE: "mh_analytics_consent",
   createConsentToken: mocks.createConsentToken,
+  createAnalyticsConsent: mocks.createAnalyticsConsent,
+  revokeAnalyticsConsent: mocks.revokeAnalyticsConsent,
   cancelGa4OutboxForClient: mocks.cancelGa4OutboxForClient,
   getAnalyticsConsentState: vi.fn().mockReturnValue(undefined),
   setAnalyticsConsentCookie: (response: Response, token: string) => {
@@ -26,7 +30,7 @@ import { DELETE, GET, POST } from "./route";
 function request(body: unknown): NextRequest {
   return {
     json: vi.fn().mockResolvedValue(body),
-    cookies: { get: () => undefined },
+    cookies: { get: (name: string) => name === "mh_vid" ? { value: "client-1" } : undefined },
   } as unknown as NextRequest;
 }
 
@@ -34,6 +38,7 @@ describe("analytics consent route", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.createConsentToken.mockReturnValue("signed-token");
+    mocks.createAnalyticsConsent.mockResolvedValue({ id: "consent-1" });
   });
 
   afterAll(() => vi.restoreAllMocks());
@@ -42,7 +47,7 @@ describe("analytics consent route", () => {
     const response = await POST(request({ state: "granted" }));
 
     expect(response.status).toBe(204);
-    expect(mocks.createConsentToken).toHaveBeenCalledWith("granted", expect.any(Date), "test-secret");
+    expect(mocks.createConsentToken).toHaveBeenCalledWith("granted", expect.any(Date), "test-secret", "consent-1");
     expect(response.headers.get("set-cookie")).toContain("mh_analytics_consent=signed-token");
   });
 

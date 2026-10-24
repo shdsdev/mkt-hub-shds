@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { UAParser } from "ua-parser-js";
 import geoip from "geoip-lite";
 import { resolveShortLinkByHostAndSlug, buildDestinationUrl } from "@/modules/links";
-import { hasAnalyticsConsent, trackRedirect, resolveVisitor, normalizeReferrer } from "@/modules/analytics";
+import { ANALYTICS_CONSENT_COOKIE, getConsentIdFromToken, hasAnalyticsConsent, trackRedirect, resolveVisitor, normalizeReferrer } from "@/modules/analytics";
 import { env } from "@/lib/env";
 
 // Standard reverse-proxy headers — work identically behind Vercel, nginx, or Docker/Traefik. The
@@ -45,6 +45,7 @@ export async function handleRedirect(
   const ip = resolveClientIp(request);
   const geo = ip ? geoip.lookup(ip) : null;
   const referrer = normalizeReferrer(request.headers.get("referer"));
+  const consentToken = request.cookies.get(ANALYTICS_CONSENT_COOKIE)?.value;
 
   await trackRedirect({
     organizationId: resolved.link.organizationId,
@@ -61,6 +62,9 @@ export async function handleRedirect(
     consentGranted: env.ANALYTICS_CONSENT_SECRET
       ? hasAnalyticsConsent(request, env.ANALYTICS_CONSENT_SECRET)
       : false,
+    analyticsConsentId: env.ANALYTICS_CONSENT_SECRET && consentToken
+      ? getConsentIdFromToken(consentToken, env.ANALYTICS_CONSENT_SECRET)
+      : undefined,
   });
   return response;
 }

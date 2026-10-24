@@ -13,16 +13,24 @@ vi.mock("./google", () => ({
   }),
 }));
 
-import { getGa4MetricsForLink } from "./reports";
+import { getGa4MetricsForLink, getGa4MetricsForOrganization } from "./reports";
 
 describe("GA4 reports", () => {
   it("maps Data API metric values into a dashboard-safe summary", async () => {
     await expect(getGa4MetricsForLink("link-1", "qr_scan", "2026-10-01", "2026-10-23")).resolves.toEqual({
       configured: true,
-      available: true,
       eventCount: 12,
       activeUsers: 8,
       sessions: 10,
+      available: true,
+    });
+  });
+
+  it("requires an authorized link set for organization reports", async () => {
+    await expect(getGa4MetricsForOrganization("qr_scan", "2026-10-01", "2026-10-23", "org-1", [])).resolves.toMatchObject({
+      configured: true,
+      available: true,
+      eventCount: 0,
     });
   });
 });

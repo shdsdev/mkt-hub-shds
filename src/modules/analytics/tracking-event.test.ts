@@ -14,6 +14,7 @@ describe("buildTrackingEvent", () => {
         visitorHash: "visitor-hash",
         userAgent: "Mozilla/5.0",
         consentGranted: true,
+        analyticsConsentId: "consent-1",
       },
       createdAt,
     );
@@ -21,6 +22,7 @@ describe("buildTrackingEvent", () => {
     expect(event.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(event.createdAt).toBe(createdAt);
     expect(event.ga4ConsentGranted).toBe(true);
+    expect(event.analyticsConsentId).toBe("consent-1");
     expect(event.isBot).toBe(false);
   });
 

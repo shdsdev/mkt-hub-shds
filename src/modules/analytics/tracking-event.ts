@@ -17,9 +17,10 @@ export type TrackRedirectInput = {
   geoRegion?: string;
   referrer?: string;
   consentGranted: boolean;
+  analyticsConsentId?: string;
 };
 
-export type BufferedTrackingEvent = typeof trackingEvents.$inferInsert & { ga4ConsentGranted: boolean };
+export type BufferedTrackingEvent = typeof trackingEvents.$inferInsert & { ga4ConsentGranted: boolean; analyticsConsentId?: string };
 
 export function buildTrackingEvent(input: TrackRedirectInput, now = new Date()): BufferedTrackingEvent {
   const isBot = isKnownBot(input.userAgent);
@@ -41,5 +42,6 @@ export function buildTrackingEvent(input: TrackRedirectInput, now = new Date()):
     referrer: input.referrer,
     createdAt: now,
     ga4ConsentGranted: input.consentGranted && !isBot,
+    analyticsConsentId: input.analyticsConsentId,
   };
 }

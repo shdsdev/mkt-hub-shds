@@ -1,24 +1,45 @@
 import { count, countDistinct, eq, and, gte, lte, sql, asc, desc, sum, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { ga4EventOutbox, trackingEvents, trackingRollupDaily } from "./db";
+import { analyticsConsents, ga4EventOutbox, trackingEvents, trackingRollupDaily } from "./db";
 import { formatAnalyticsCsv } from "./csv";
 import { utcDayBounds, previousPeriod, daysBetween, type AnalyticsDateRange } from "./date-range";
 import { percentChange } from "./percent-change";
 import { getAnalyticsSource, type AnalyticsEventType } from "./source";
 import { getQrCode } from "@/modules/qr";
 import { buildTrackingEvent, type BufferedTrackingEvent, type TrackRedirectInput } from "./tracking-event";
+import { ANALYTICS_CONSENT_MAX_AGE_SECONDS } from "./consent";
 
 export type { TrackRedirectInput } from "./tracking-event";
 
+export async function createAnalyticsConsent(clientId: string): Promise<{ id: string }> {
+  const [consent] = await db.insert(analyticsConsents).values({
+    clientId,
+    expiresAt: new Date(Date.now() + ANALYTICS_CONSENT_MAX_AGE_SECONDS * 1000),
+  }).returning({ id: analyticsConsents.id });
+  return consent;
+}
+
+export async function revokeAnalyticsConsent(consentId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.update(analyticsConsents).set({ revokedAt: new Date() }).where(eq(analyticsConsents.id, consentId));
+    await tx
+      .update(ga4EventOutbox)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(and(eq(ga4EventOutbox.consentId, consentId), inArray(ga4EventOutbox.status, ["pending", "processing", "failed", "uncertain"])));
+  });
+}
+
 async function persistTrackingEvent(event: BufferedTrackingEvent): Promise<void> {
   await db.transaction(async (tx) => {
-    const { ga4ConsentGranted, ...trackingEvent } = event;
+    const { ga4ConsentGranted, analyticsConsentId, ...trackingEvent } = event;
     void ga4ConsentGranted;
+    void analyticsConsentId;
     await tx.insert(trackingEvents).values(trackingEvent);
     if (event.ga4ConsentGranted && !event.isBot) {
       await tx.insert(ga4EventOutbox).values({
         trackingEventId: event.id!,
         clientId: event.visitorHash,
+        consentId: event.analyticsConsentId,
         organizationId: event.organizationId,
         linkId: event.linkId,
         shortLinkId: event.shortLinkId,

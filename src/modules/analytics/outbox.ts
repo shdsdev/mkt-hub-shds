@@ -1,11 +1,15 @@
-import { and, eq, lte, or, inArray } from "drizzle-orm";
+import { and, eq, gte, isNull, lte, inArray, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { env } from "@/lib/env";
-import { ga4EventOutbox } from "./db";
+import { analyticsConsents, ga4EventOutbox } from "./db";
 import { Ga4DeliveryError, sendMeasurementProtocolEvent, type Ga4OutboxEvent } from "./google";
 
 const LOCK_SECONDS = 120;
 const MAX_UNCERTAIN_ATTEMPTS = 5;
+
+export function shouldProcessOutboxStatus(status: "pending" | "processing" | "received" | "failed" | "uncertain" | "cancelled"): boolean {
+  return status === "pending";
+}
 
 export type OutboxDeliveryState = "received" | "failed" | "uncertain";
 
@@ -29,7 +33,6 @@ async function claimOutboxBatch(limit: number) {
       .where(
         or(
           and(eq(ga4EventOutbox.status, "pending"), lte(ga4EventOutbox.availableAt, now)),
-          and(eq(ga4EventOutbox.status, "processing"), lte(ga4EventOutbox.lockedUntil, now)),
         ),
       )
       .limit(limit)
@@ -52,14 +55,20 @@ export type ProcessGa4OutboxResult = {
   uncertain: number;
 };
 
-export async function processGa4Outbox(limit = 25): Promise<ProcessGa4OutboxResult> {
-  const result: ProcessGa4OutboxResult = { disabled: false, claimed: 0, received: 0, failed: 0, uncertain: 0 };
-  if (!env.NEXT_PUBLIC_GA_MEASUREMENT_ID || !env.GA4_API_SECRET) return { ...result, disabled: true };
+async function deliverClaimedRow(row: typeof ga4EventOutbox.$inferSelect): Promise<OutboxDeliveryState | "cancelled"> {
+  return db.transaction(async (tx) => {
+    const [consent] = row.consentId
+      ? await tx
+        .select({ id: analyticsConsents.id })
+        .from(analyticsConsents)
+        .where(and(eq(analyticsConsents.id, row.consentId), isNull(analyticsConsents.revokedAt), gte(analyticsConsents.expiresAt, new Date())))
+        .for("update")
+      : [];
+    if (!consent) {
+      await tx.update(ga4EventOutbox).set({ status: "cancelled", updatedAt: new Date() }).where(eq(ga4EventOutbox.id, row.id));
+      return "cancelled";
+    }
 
-  const rows = await claimOutboxBatch(limit);
-  result.claimed = rows.length;
-
-  for (const row of rows) {
     const event: Ga4OutboxEvent = {
       id: row.trackingEventId,
       clientId: row.clientId,
@@ -69,20 +78,20 @@ export async function processGa4Outbox(limit = 25): Promise<ProcessGa4OutboxResu
     };
     try {
       await sendMeasurementProtocolEvent(event, {
-        measurementId: env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
-        apiSecret: env.GA4_API_SECRET,
+        measurementId: env.NEXT_PUBLIC_GA_MEASUREMENT_ID!,
+        apiSecret: env.GA4_API_SECRET!,
       });
-      await db
+      await tx
         .update(ga4EventOutbox)
         .set({ status: "received", attempts: row.attempts + 1, lockedUntil: null, updatedAt: new Date() })
         .where(eq(ga4EventOutbox.id, row.id));
-      result.received += 1;
+      return "received";
     } catch (error) {
       const deliveryError = error instanceof Ga4DeliveryError
         ? error
         : new Ga4DeliveryError("uncertain", "Unexpected GA4 delivery error.");
       const next = nextOutboxDeliveryState(deliveryError, row.attempts + 1);
-      await db
+      await tx
         .update(ga4EventOutbox)
         .set({
           status: next.status,
@@ -93,8 +102,21 @@ export async function processGa4Outbox(limit = 25): Promise<ProcessGa4OutboxResu
           updatedAt: new Date(),
         })
         .where(eq(ga4EventOutbox.id, row.id));
-      result[next.status] += 1;
+      return next.status;
     }
+  });
+}
+
+export async function processGa4Outbox(limit = 25): Promise<ProcessGa4OutboxResult> {
+  const result: ProcessGa4OutboxResult = { disabled: false, claimed: 0, received: 0, failed: 0, uncertain: 0 };
+  if (!env.NEXT_PUBLIC_GA_MEASUREMENT_ID || !env.GA4_API_SECRET) return { ...result, disabled: true };
+
+  const rows = await claimOutboxBatch(limit);
+  result.claimed = rows.length;
+
+  for (const row of rows) {
+    const status = await deliverClaimedRow(row);
+    if (status !== "cancelled") result[status] += 1;
   }
 
   return result;

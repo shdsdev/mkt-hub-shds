@@ -12,6 +12,7 @@ import {
   utcDayBounds,
   getGa4MetricsForOrganization,
 } from "@/modules/analytics";
+import { listLinks } from "@/modules/links";
 
 const querySchema = z.object({
   surface: z.enum(["qr", "links"]),
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
   const { from, to } = utcDayBounds(range);
   const { from: prevFrom, to: prevTo } = utcDayBounds(previousPeriod(range));
 
+  const links = await listLinks(orgId);
   const [trend, previousTrend, totals, bestDay, bestLocation, breakdowns, ga4] = await Promise.all([
     getOrgTrendGrouped(orgId, eventType, parsed.data.granularity, from, to),
     // Same granularity/span as `trend`, so both arrays line up index-for-index for the trend
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
     getOrgBestDay(orgId, eventType, range),
     getOrgBestLocation(orgId, eventType, range),
     getOrgBreakdowns(orgId, eventType, from, to),
-    getGa4MetricsForOrganization(eventType, parsed.data.from, parsed.data.to),
+    getGa4MetricsForOrganization(eventType, parsed.data.from, parsed.data.to, orgId, links.map((link) => link.id)),
   ]);
 
   return NextResponse.json({ trend, previousTrend, totals, bestDay, bestLocation, ...breakdowns, ga4 });

@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { NextRequest, NextResponse } from "next/server";
 
 export const ANALYTICS_CONSENT_COOKIE = "mh_analytics_consent";
@@ -10,6 +10,7 @@ type ConsentPayload = {
   state: AnalyticsConsentState;
   issuedAt: number;
   expiresAt: number;
+  consentId?: string;
 };
 
 function encode(value: string): string {
@@ -28,6 +29,7 @@ export function createConsentToken(
   state: AnalyticsConsentState,
   now = new Date(),
   secret: string,
+  consentId?: string,
 ): string {
   const issuedAt = now.getTime();
   const payload: ConsentPayload = {
@@ -35,9 +37,21 @@ export function createConsentToken(
     state,
     issuedAt,
     expiresAt: issuedAt + ANALYTICS_CONSENT_MAX_AGE_SECONDS * 1000,
+    consentId: consentId ?? randomUUID(),
   };
   const encodedPayload = encode(JSON.stringify(payload));
   return `${encodedPayload}.${sign(encodedPayload, secret)}`;
+}
+
+export function getConsentIdFromToken(token: string, secret: string, now = new Date()): string | undefined {
+  try {
+    const [encodedPayload] = token.split(".");
+    if (!encodedPayload || getConsentStateFromToken(token, secret, now) !== "granted") return undefined;
+    const payload = JSON.parse(decode(encodedPayload)) as Partial<ConsentPayload>;
+    return typeof payload.consentId === "string" ? payload.consentId : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function verifyConsentToken(token: string, secret: string, now = new Date()): boolean {

@@ -26,6 +26,15 @@ export const ga4DeliveryStatus = pgEnum("ga4_delivery_status", [
   "cancelled",
 ]);
 
+export const analyticsConsents = pgTable("analytics_consents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: text("client_id").notNull(),
+  grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("analytics_consents_client_idx").on(table.clientId)]);
+
 // Partitioned by created_at (DATABASE.md) — drizzle-kit can't express PARTITION BY, so the
 // generated migration's CREATE TABLE is hand-edited to add it plus the first partition. This
 // declaration is for typed queries; it is NOT the source of the physical partitioning.
@@ -90,6 +99,7 @@ export const ga4EventOutbox = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     trackingEventId: uuid("tracking_event_id").notNull(),
     clientId: text("client_id").notNull(),
+    consentId: uuid("consent_id").references(() => analyticsConsents.id),
     organizationId: uuid("organization_id").notNull().references(() => organizations.id),
     linkId: uuid("link_id").notNull().references(() => links.id),
     shortLinkId: uuid("short_link_id").references(() => shortLinks.id),
@@ -108,4 +118,4 @@ export const ga4EventOutbox = pgTable(
   ],
 );
 
-export const analyticsTables = { trackingSourceType, ga4DeliveryStatus, trackingEvents, trackingRollupDaily, ga4EventOutbox } as const;
+export const analyticsTables = { trackingSourceType, ga4DeliveryStatus, analyticsConsents, trackingEvents, trackingRollupDaily, ga4EventOutbox } as const;
