@@ -11,6 +11,8 @@ export function AnalyticsConsent({ gaId }: { gaId: string }) {
   const [hydrated, setHydrated] = useState(false);
   const [consent, setConsent] = useState<AnalyticsConsentState>();
   const [serverReady, setServerReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const measurementId = MEASUREMENT_ID_PATTERN.test(gaId) ? gaId : "";
 
   useEffect(() => {
@@ -31,14 +33,25 @@ export function AnalyticsConsent({ gaId }: { gaId: string }) {
   }, []);
 
   async function updateConsent(nextConsent: AnalyticsConsentState) {
-    const response = await fetch("/api/analytics/consent", {
-      method: nextConsent === "denied" ? "DELETE" : "POST",
-      headers: nextConsent === "granted" ? { "Content-Type": "application/json" } : undefined,
-      body: nextConsent === "granted" ? JSON.stringify({ state: nextConsent }) : undefined,
-    });
-    if (!response.ok) return;
-    window.localStorage.setItem(CONSENT_STORAGE_KEY, nextConsent);
-    setConsent(nextConsent);
+    setSaving(true);
+    setSaveError(false);
+    try {
+      const response = await fetch("/api/analytics/consent", {
+        method: nextConsent === "denied" ? "DELETE" : "POST",
+        headers: nextConsent === "granted" ? { "Content-Type": "application/json" } : undefined,
+        body: nextConsent === "granted" ? JSON.stringify({ state: nextConsent }) : undefined,
+      });
+      if (!response.ok) {
+        setSaveError(true);
+        return;
+      }
+      window.localStorage.setItem(CONSENT_STORAGE_KEY, nextConsent);
+      setConsent(nextConsent);
+    } catch {
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (!measurementId || !hydrated || !serverReady || consent === "denied") return null;
@@ -80,14 +93,16 @@ gtag('js', new Date());
       data-analytics-consent-banner
     >
       <div>
-        <p className="text-sm font-semibold">Privacidad y analíticas</p>
+        <p className="text-sm font-semibold">Ayúdanos a mejorar este sitio</p>
         <p className="mt-1 text-xs leading-5 text-[#5a5752]">
-          Usamos Google Analytics para entender cómo se utiliza este formulario y mejorar la experiencia. No es necesario para registrarte.
+          ¿Nos permites recopilar información sobre cómo usas el sitio para mejorar tu experiencia? Es opcional y puedes cambiar de opinión cuando quieras.
         </p>
       </div>
+      {saveError ? <p className="text-xs font-medium text-[#A33B5D]" role="alert">No pudimos guardar tu elección. Inténtalo de nuevo.</p> : null}
       <div className="flex flex-wrap justify-end gap-2">
         <button
           type="button"
+          disabled={saving}
           className="rounded-full border border-[#202020]/20 px-3 py-2 text-xs font-medium transition-colors hover:bg-[#202020]/5"
           onClick={() => updateConsent("denied")}
         >
@@ -95,10 +110,11 @@ gtag('js', new Date());
         </button>
         <button
           type="button"
+          disabled={saving}
           className="rounded-full bg-[#202020] px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-85"
           onClick={() => updateConsent("granted")}
         >
-          Aceptar analíticas
+          {saving ? "Guardando..." : "Sí, acepto"}
         </button>
       </div>
     </aside>
