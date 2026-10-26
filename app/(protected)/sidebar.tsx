@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Moon, Sun } from "lucide-react";
 import {
   LayoutDashboard,
   Gauge,
@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
 import { signOutAction } from "./actions";
+import { updateUserThemeAction } from "./settings/actions";
 import { DEFAULT_THEME_ID, THEMES } from "@/modules/users";
 
 function initials(email: string): string {
@@ -238,6 +239,17 @@ export function AppSidebar({ email, role, theme }: { email: string; role: string
                     <span className="block truncate text-xs text-muted-foreground">{role}</span>
                   </span>
                 </div>
+                <DropdownMenuSeparator />
+                <form action={updateUserThemeAction}>
+                  <input type="hidden" name="themeId" value={targetThemeId} />
+                  <DropdownMenuItem
+                    nativeButton
+                    render={<button type="submit" className="w-full" />}
+                  >
+                    {targetThemeId === "dark" ? <Moon size={16} /> : <Sun size={16} />}
+                    {targetThemeId === "dark" ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
+                  </DropdownMenuItem>
+                </form>
                 <DropdownMenuSeparator />
                 {!eventsOnly && <DropdownMenuItem
                   render={<Link href="/settings" />}
