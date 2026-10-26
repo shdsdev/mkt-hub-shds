@@ -38,6 +38,7 @@ export async function updateUserThemeAction(formData: FormData): Promise<void> {
 
   const themeId = z.string().min(1).parse(formData.get("themeId"));
   if (!isValidThemeId(themeId)) return;
+  if (!isAdmin(user.profile) && themeId !== "light" && themeId !== "dark") return;
 
   await updateTheme(user.id, themeId);
   revalidatePath("/", "layout");

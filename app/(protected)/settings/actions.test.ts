@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   // Unused-by-UTM actions but imported by settings/actions.ts top-level.
   updateTheme: vi.fn(),
   isValidThemeId: vi.fn(),
+  isAdmin: vi.fn(),
   updateDefaultLogo: vi.fn(),
   setThemeColorOverride: vi.fn(),
   clearThemeColorOverride: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock("@/modules/utm", () => ({
 vi.mock("@/modules/users", () => ({
   updateTheme: mocks.updateTheme,
   isValidThemeId: mocks.isValidThemeId,
+  isAdmin: mocks.isAdmin,
   updateDefaultLogo: mocks.updateDefaultLogo,
   setThemeColorOverride: mocks.setThemeColorOverride,
   clearThemeColorOverride: mocks.clearThemeColorOverride,
@@ -48,6 +50,7 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
 import {
+  updateUserThemeAction,
   createUtmPresetAction,
   updateUtmPresetAction,
   archiveUtmPresetAction,
@@ -242,5 +245,47 @@ describe("theme color override server actions", () => {
     const result = await clearThemeColorOverrideAction({}, formData);
 
     expect(result.error).toBeTruthy();
+  });
+});
+
+describe("user theme server action", () => {
+  function userWithRole(role: string) {
+    return { ...user, profile: { ...user.profile, role } };
+  }
+
+  function formDataWithTheme(themeId: string) {
+    const formData = new FormData();
+    formData.set("themeId", themeId);
+    return formData;
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.isValidThemeId.mockReturnValue(true);
+    mocks.checkRateLimit.mockReturnValue(true);
+  });
+
+  it.each(["MARKETING_USER", "EVENT_EDITOR", "RECEPTION"])(
+    "%s can select light and dark only",
+    async (role) => {
+      mocks.getCurrentUser.mockResolvedValue(userWithRole(role));
+      mocks.isAdmin.mockReturnValue(false);
+
+      await updateUserThemeAction(formDataWithTheme("dark"));
+      expect(mocks.updateTheme).toHaveBeenCalledWith("actor-1", "dark");
+
+      mocks.updateTheme.mockClear();
+      await updateUserThemeAction(formDataWithTheme("midnight"));
+      expect(mocks.updateTheme).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows admin to select a special theme", async () => {
+    mocks.getCurrentUser.mockResolvedValue(userWithRole("ADMIN"));
+    mocks.isAdmin.mockReturnValue(true);
+
+    await updateUserThemeAction(formDataWithTheme("midnight"));
+
+    expect(mocks.updateTheme).toHaveBeenCalledWith("actor-1", "midnight");
   });
 });
