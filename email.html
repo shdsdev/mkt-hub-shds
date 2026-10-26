@@ -1,0 +1,3731 @@
+<!doctype html>
+
+<html lang="es-MX">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta name="theme-color" content="#F2EFE9" />
+
+    <meta
+      name="description"
+      content="Shades + Spaces — Experience Lab. Talleres presenciales de motorización, automatización y cortinería en Guadalajara. 6 de noviembre de 2026."
+    />
+
+    <title>Shades + Spaces | Experience Lab · Guadalajara</title>
+    <!-- Responsive V2 | Palette B; preserves Marketing HUB registration iframe -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ==========================================
+
+
+
+       SHADES SPACES
+
+
+
+       ESTILOS GENERALES
+
+
+
+       ========================================== */
+
+      :root {
+        --paper: #f2efe9;
+
+        --cream: #fffcf7;
+
+        --ink: #15434a;
+
+        --muted: #426b61;
+
+        --line: #e0dcd4;
+
+        --blue: #37645b;
+
+        --aqua: #9cd4c6;
+
+        --coral: #e97558;
+
+        --serif: "Space Grotesk", "Inter", Arial, sans-serif;
+
+        --sans: "Inter", Arial, sans-serif;
+
+        --heading: "Space Grotesk", "Inter", Arial, sans-serif;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+
+        background: var(--paper);
+
+        color: var(--ink);
+
+        font-family: var(--sans);
+
+        -webkit-font-smoothing: antialiased;
+
+        font-optical-sizing: auto;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      a {
+        color: inherit;
+
+        text-decoration: none;
+      }
+
+      img {
+        display: block;
+
+        width: 100%;
+
+        height: 100%;
+
+        object-fit: cover;
+      }
+
+      ::selection {
+        background: #9cd4c6;
+
+        color: #15434a;
+      }
+
+      .bm {
+        color: #e97558;
+      }
+
+      .bms {
+        color: #feffff;
+
+        font-weight: 700;
+
+        font-style: italic;
+      }
+
+      .smll {
+        color: #ffffff;
+      }
+
+      .eyebrow {
+        display: block;
+
+        font: 700 10px var(--heading);
+
+        letter-spacing: 0.2em;
+
+        text-transform: uppercase;
+      }
+
+      .textlink {
+        display: inline-block;
+
+        border-bottom: 1px solid currentColor;
+
+        padding-bottom: 8px;
+
+        font: 700 11px var(--heading);
+
+        letter-spacing: 0.13em;
+
+        text-transform: uppercase;
+      }
+
+      /* ==========================================
+
+
+
+       BARRA SUPERIOR
+
+
+
+       ========================================== */
+
+      .announcement {
+        background: #15434a;
+
+        color: #e97558;
+
+        text-align: center;
+
+        padding: 11px 16px;
+
+        font: 600 10px var(--heading);
+
+        letter-spacing: 0.16em;
+
+        text-transform: uppercase;
+      }
+
+      .nav {
+        position: sticky;
+
+        z-index: 40;
+
+        top: 0;
+
+        background: rgba(242, 239, 233, 0.94);
+
+        backdrop-filter: blur(20px);
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        gap: 24px;
+
+        padding: 23px 5%;
+
+        border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+      }
+
+      .logo {
+        font: 800 21px var(--heading);
+
+        letter-spacing: -0.08em;
+
+        white-space: nowrap;
+      }
+
+      .logo span {
+        font-weight: 400;
+
+        letter-spacing: 0.13em;
+
+        font-size: 10px;
+
+        display: block;
+
+        margin-top: 1px;
+      }
+
+      .navlinks {
+        display: flex;
+
+        gap: 30px;
+
+        align-items: center;
+      }
+
+      .navlinks a:not(.pill) {
+        font-size: 12px;
+
+        font-weight: 600;
+      }
+
+      .navlinks a:not(.pill):hover {
+        color: var(--blue);
+      }
+
+      .pill {
+        display: inline-flex;
+
+        justify-content: center;
+
+        align-items: center;
+
+        gap: 12px;
+
+        background: var(--ink);
+
+        color: white;
+
+        padding: 15px 21px;
+
+        font: 700 11px var(--heading);
+
+        letter-spacing: 0.09em;
+
+        text-transform: uppercase;
+
+        border: 1px solid var(--ink);
+
+        transition: 0.25s;
+      }
+
+      .pill:hover {
+        background: var(--blue);
+
+        border-color: var(--blue);
+
+        transform: translateY(-2px);
+      }
+
+      .menu-toggle {
+        display: none;
+
+        background: none;
+
+        border: 0;
+
+        font-size: 24px;
+      }
+
+      /* ==========================================
+
+
+
+       HERO
+
+
+
+       ========================================== */
+
+      .hero {
+        padding: 60px 5% 75px;
+      }
+
+      .hero h1 {
+        font: 700 clamp(76px, 12vw, 202px)/0.89 var(--heading);
+
+        letter-spacing: -0.06em;
+
+        margin: 25px 0 28px;
+
+        text-transform: uppercase;
+      }
+
+      .hero h1 em {
+        font-family: var(--serif);
+
+        font-style: italic;
+
+        font-weight: 300;
+
+        letter-spacing: -0.06em;
+
+        text-transform: none;
+      }
+
+      .hero-meta {
+        display: flex;
+
+        justify-content: space-between;
+
+        gap: 20px;
+
+        border-top: 1px solid #b6c7bc;
+
+        padding: 17px 0 0;
+
+        font: 600 11px var(--heading);
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.12em;
+      }
+
+      .hero-photo {
+        position: relative;
+
+        margin-top: 32px;
+
+        width: 100%;
+
+        aspect-ratio: 2/1;
+
+        border-radius: 32px;
+
+        overflow: hidden;
+      }
+
+      .hero-photo img {
+        position: absolute;
+
+        inset: 0;
+
+        width: 100%;
+
+        height: 100%;
+
+        object-fit: cover;
+
+        object-position: center 70%;
+      }
+
+      .photo-shade {
+        position: absolute;
+
+        inset: 0;
+
+        background: linear-gradient(
+          90deg,
+          rgba(21, 67, 74, 0.61),
+          transparent 70%
+        );
+      }
+
+      .hero-caption {
+        position: absolute;
+
+        left: 5%;
+
+        bottom: 9%;
+
+        max-width: 650px;
+
+        color: #fff;
+      }
+
+      .hero-caption h2 {
+        font: 300 clamp(36px, 5.3vw, 76px)/1.08 var(--serif);
+
+        letter-spacing: -0.045em;
+
+        margin: 16px 0 25px;
+      }
+
+      .hero-caption .pill {
+        background: #fff;
+
+        border-color: #fff;
+
+        color: var(--ink);
+      }
+
+      .hero-caption .pill:hover {
+        background: var(--aqua);
+      }
+
+      /* ==========================================
+
+
+
+       EXPERIENCIA
+
+
+
+       ========================================== */
+
+      .intro {
+        padding: 140px 6% 150px;
+
+        background: var(--cream);
+
+        display: grid;
+
+        grid-template-columns: 1fr 1.35fr;
+
+        gap: 12%;
+
+        align-items: start;
+      }
+
+      .intro h2,
+      .section-title {
+        font: 300 clamp(43px, 6.3vw, 94px)/1.06 var(--serif);
+
+        letter-spacing: -0.055em;
+
+        margin: 17px 0 0;
+      }
+
+      .intro-copy {
+        max-width: 640px;
+      }
+
+      .intro-copy p {
+        font-size: clamp(18px, 2vw, 26px);
+
+        line-height: 1.55;
+
+        margin: 0 0 30px;
+      }
+
+      .intro-copy .small {
+        font-size: 14px;
+
+        color: var(--muted);
+
+        max-width: 500px;
+      }
+
+      /* ==========================================
+
+
+
+       TALLERES
+
+
+
+       ========================================== */
+
+      .workshops {
+        padding: 115px 5% 130px;
+      }
+
+      .section-head {
+        display: flex;
+
+        justify-content: space-between;
+
+        align-items: end;
+
+        gap: 25px;
+
+        margin-bottom: 55px;
+      }
+
+      .section-head .section-title {
+        max-width: 790px;
+      }
+
+      .section-head p {
+        font-size: 14px;
+
+        line-height: 1.7;
+
+        max-width: 260px;
+
+        color: var(--muted);
+      }
+
+      .cards {
+        display: grid;
+
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+
+        gap: 22px;
+      }
+
+      .workcard {
+        min-width: 0;
+      }
+
+      .card-photo {
+        height: clamp(270px, 33vw, 470px);
+
+        background: #d8e3da;
+
+        overflow: hidden;
+
+        border-radius: 32px;
+
+        position: relative;
+      }
+
+      .card-photo img {
+        transition: transform 0.7s ease;
+      }
+
+      .workcard:hover img {
+        transform: scale(1.045);
+      }
+
+      .photo-index {
+        position: absolute;
+
+        top: 18px;
+
+        left: 19px;
+
+        border-radius: 32px;
+
+        background: rgba(255, 255, 255, 0.75);
+
+        padding: 9px 12px;
+
+        font: 700 10px var(--heading);
+
+        letter-spacing: 0.1em;
+      }
+
+      .workcard .tag {
+        font: 700 10px var(--heading);
+
+        letter-spacing: 0.14em;
+
+        margin-top: 23px;
+
+        color: var(--blue);
+      }
+
+      .workcard h3 {
+        font: 300 clamp(27px, 3vw, 43px)/1.17 var(--serif);
+
+        letter-spacing: -0.03em;
+
+        margin: 9px 0 12px;
+      }
+
+      .workcard p {
+        color: var(--muted);
+
+        font-size: 14px;
+
+        line-height: 1.8;
+
+        max-width: 420px;
+      }
+
+      /* ==========================================
+
+
+
+       HISTORIA
+
+
+
+       ========================================== */
+
+      .story {
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+
+        min-height: 700px;
+
+        background: #dbe9de;
+      }
+
+      .story-img {
+        min-height: 620px;
+      }
+
+      .story-copy {
+        padding: 13% 12%;
+
+        display: flex;
+
+        flex-direction: column;
+
+        justify-content: center;
+      }
+
+      .story-copy h2 {
+        font: 300 clamp(48px, 6vw, 90px)/1.04 var(--serif);
+
+        letter-spacing: -0.06em;
+
+        margin: 25px 0;
+      }
+
+      .story-copy p {
+        max-width: 520px;
+
+        line-height: 1.85;
+
+        font-size: 16px;
+      }
+
+      .story-copy .textlink {
+        align-self: start;
+
+        margin-top: 25px;
+      }
+
+      /* ==========================================
+
+
+
+       BENEFICIOS
+
+
+
+       ========================================== */
+
+      .benefits {
+        background: var(--cream);
+
+        padding: 120px 6%;
+      }
+
+      .benefits-grid {
+        display: grid;
+
+        grid-template-columns: 1.1fr 1fr;
+
+        gap: 12%;
+      }
+
+      .benefits-list {
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+
+        gap: 50px 35px;
+
+        align-content: center;
+      }
+
+      .benefits-list h3 {
+        font: 600 19px var(--heading);
+
+        margin: 16px 0 8px;
+      }
+
+      .benefits-list p {
+        color: var(--muted);
+
+        font-size: 14px;
+
+        line-height: 1.75;
+      }
+
+      .benefits-list .num {
+        color: var(--coral);
+
+        font: 700 12px var(--heading);
+      }
+
+      /* ==========================================
+
+
+
+       DESCUENTO
+
+
+
+       ========================================== */
+
+      .discount {
+        background: #dbe9de;
+
+        color: var(--ink);
+
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+
+        min-height: 610px;
+      }
+
+      .discount-photo {
+        min-height: 520px;
+      }
+
+      .discount-content {
+        padding: 10% 11%;
+
+        display: flex;
+
+        flex-direction: column;
+
+        justify-content: center;
+      }
+
+      .discount h2 {
+        font: 300 clamp(46px, 5.4vw, 79px)/1.04 var(--serif);
+
+        letter-spacing: -0.05em;
+
+        margin: 16px 0;
+      }
+
+      .discount .percent {
+        font: 300 clamp(58px, 8.5vw, 132px)/1 var(--heading);
+
+        letter-spacing: -0.06em;
+
+        margin: 20px 0;
+      }
+
+      .discount p {
+        font-size: 15px;
+
+        line-height: 1.7;
+      }
+
+      .discount small {
+        color: #37645b;
+
+        line-height: 1.7;
+
+        font-size: 11px;
+
+        margin-top: 15px;
+      }
+
+      .discount .pill {
+        background: #fffcf7;
+
+        color: var(--ink);
+
+        align-self: flex-start;
+
+        border-color: #fffcf7;
+
+        margin-top: 20px;
+      }
+
+      .discount .pill:hover {
+        background: var(--aqua);
+      }
+
+      /* ==========================================
+
+
+
+       PASOS
+
+
+
+       ========================================== */
+
+      .steps {
+        background: var(--paper);
+
+        padding: 105px 6%;
+      }
+
+      .step-grid {
+        display: grid;
+
+        grid-template-columns: repeat(3, 1fr);
+
+        gap: 25px;
+
+        margin-top: 60px;
+      }
+
+      .step {
+        border-top: 1px solid #a9beb3;
+
+        padding-top: 24px;
+      }
+
+      .step b {
+        font: 300 58px var(--serif);
+
+        color: var(--coral);
+      }
+
+      .step h3 {
+        font: 600 23px var(--heading);
+
+        margin: 18px 0 9px;
+      }
+
+      .step p {
+        max-width: 310px;
+
+        font-size: 14px;
+
+        color: var(--muted);
+
+        line-height: 1.8;
+      }
+
+      /* ==========================================
+
+
+
+       DETALLES
+
+
+
+       ========================================== */
+
+      .details {
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+
+        background: #dbe9de;
+      }
+
+      .details-photo {
+        min-height: 580px;
+      }
+
+      .details-text {
+        padding: 13% 12%;
+
+        display: flex;
+
+        flex-direction: column;
+
+        justify-content: center;
+      }
+
+      .details h2 {
+        font: 300 clamp(50px, 6vw, 84px)/1.04 var(--serif);
+
+        margin: 15px 0 30px;
+      }
+
+      .details dl {
+        margin: 0;
+      }
+
+      .details dl div {
+        border-top: 1px solid #b0c6ba;
+
+        padding: 17px 0;
+
+        display: grid;
+
+        grid-template-columns: 100px 1fr;
+
+        gap: 15px;
+      }
+
+      .details dt {
+        font: 700 10px var(--heading);
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.15em;
+      }
+
+      .details dd {
+        margin: 0;
+
+        font-size: 15px;
+      }
+
+      .details dd a {
+        text-decoration: underline;
+
+        text-underline-offset: 3px;
+      }
+
+      .details dd a:hover {
+        color: var(--blue);
+      }
+
+      .details p {
+        color: #426b61;
+
+        font-size: 13px;
+
+        line-height: 1.8;
+      }
+
+      /* ==========================================
+
+
+
+       FAQ
+
+
+
+       ========================================== */
+
+      .faq {
+        padding: 120px 6%;
+
+        background: var(--cream);
+
+        display: grid;
+
+        grid-template-columns: 0.9fr 1.1fr;
+
+        gap: 10%;
+      }
+
+      .faq h2 {
+        font: 300 clamp(44px, 6vw, 84px)/1.05 var(--serif);
+
+        margin: 18px 0;
+      }
+
+      .faq-items details {
+        border-top: 1px solid var(--line);
+
+        padding: 22px 0;
+      }
+
+      .faq-items details:last-child {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .faq-items summary {
+        list-style: none;
+
+        cursor: pointer;
+
+        display: flex;
+
+        justify-content: space-between;
+
+        gap: 20px;
+
+        font-size: 15px;
+
+        font-weight: 600;
+      }
+
+      .faq-items summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .faq-items summary::after {
+        content: "+";
+
+        font-size: 22px;
+
+        font-weight: 400;
+      }
+
+      .faq-items details[open] summary::after {
+        content: "−";
+      }
+
+      .faq-items p {
+        max-width: 570px;
+
+        font-size: 14px;
+
+        line-height: 1.8;
+
+        color: var(--muted);
+
+        margin-bottom: 0;
+      }
+
+      /* ==========================================
+
+
+
+       CONTADOR REGRESIVO DEFINITIVO
+
+
+
+       ========================================== */
+
+      #shades-countdown {
+        width: 100%;
+
+        padding: 100px 0;
+
+        background: #f2efe9;
+
+        color: #15434a;
+
+        overflow: hidden;
+
+        font-family: "Inter", Arial, sans-serif;
+      }
+
+      #shades-countdown .sc-wrap {
+        width: 100%;
+
+        max-width: 1100px;
+
+        margin: 0 auto;
+
+        padding: 0 24px;
+
+        display: flex;
+
+        flex-direction: column;
+
+        align-items: center;
+
+        text-align: center;
+      }
+
+      #shades-countdown .sc-eyebrow {
+        display: block;
+
+        margin: 0 0 18px;
+
+        color: #37645b;
+
+        font-size: 11px;
+
+        font-weight: 700;
+
+        letter-spacing: 0.2em;
+
+        text-transform: uppercase;
+      }
+
+      #shades-countdown .sc-title {
+        margin: 0;
+
+        max-width: 950px;
+
+        font-size: clamp(40px, 6vw, 82px);
+
+        font-weight: 300;
+
+        letter-spacing: -0.05em;
+
+        line-height: 1.08;
+
+        text-align: center;
+      }
+
+      #shades-countdown .sc-intro {
+        max-width: 680px;
+
+        margin: 24px auto 40px;
+
+        color: #426b61;
+
+        font-size: 19px;
+
+        line-height: 1.6;
+
+        text-align: center;
+      }
+
+      #shades-countdown .sc-grid {
+        display: grid;
+
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+
+        gap: 18px;
+
+        width: 100%;
+
+        max-width: 760px;
+
+        margin: 0 auto 32px;
+      }
+
+      #shades-countdown .sc-box {
+        width: 100%;
+
+        min-width: 0;
+
+        min-height: 145px;
+
+        padding: 20px 8px;
+
+        border-radius: 24px;
+
+        background: #15434a;
+
+        color: #fffcf7;
+
+        display: flex;
+
+        flex-direction: column;
+
+        align-items: center;
+
+        justify-content: center;
+
+        text-align: center;
+      }
+
+      #shades-countdown .sc-number {
+        display: block;
+
+        margin: 0;
+
+        font-size: clamp(40px, 4.5vw, 64px);
+
+        font-weight: 600;
+
+        letter-spacing: -0.04em;
+
+        line-height: 1;
+
+        font-variant-numeric: tabular-nums;
+
+        color: #fffcf7;
+      }
+
+      .sc-number-sg {
+        display: block;
+
+        margin: 0;
+
+        font-size: clamp(40px, 4.5vw, 64px);
+
+        font-weight: 600;
+
+        letter-spacing: -0.04em;
+
+        line-height: 1;
+
+        font-variant-numeric: tabular-nums;
+
+        color: #e97558;
+      }
+
+      #shades-countdown .sc-label {
+        display: block;
+
+        margin-top: 12px;
+
+        color: #9cd4c6;
+
+        font-size: 10px;
+
+        font-weight: 500;
+
+        letter-spacing: 0.12em;
+
+        line-height: 1.3;
+
+        text-transform: uppercase;
+
+        white-space: nowrap;
+      }
+
+      #shades-countdown .sc-date {
+        max-width: 650px;
+
+        margin: 0 auto 10px;
+
+        color: #37645b;
+
+        font-size: 15px;
+
+        line-height: 1.8;
+
+        text-align: center;
+      }
+
+      #shades-countdown .sc-note {
+        max-width: 650px;
+
+        margin: 0 auto;
+
+        color: #426b61;
+
+        font-size: 14px;
+
+        line-height: 1.7;
+
+        text-align: center;
+      }
+
+      /* ==========================================
+
+
+
+       REGISTRO
+
+
+
+       ========================================== */
+
+      .register {
+        padding: 125px 6%;
+
+        background: var(--paper);
+
+        scroll-margin-top: 30px;
+      }
+
+      .reg-wrap {
+        display: grid;
+
+        grid-template-columns: 0.8fr 1.4fr;
+
+        gap: 10%;
+
+        align-items: start;
+      }
+
+      .reg-copy h2 {
+        font: 300 clamp(48px, 6vw, 90px)/1.02 var(--serif);
+
+        letter-spacing: -0.055em;
+
+        margin: 17px 0 25px;
+      }
+
+      .reg-copy p {
+        font-size: 16px;
+
+        line-height: 1.8;
+
+        max-width: 500px;
+
+        color: #426b61;
+      }
+
+      .reg-card {
+        padding: 0;
+
+        background: none;
+
+        border: 0;
+
+        box-shadow: none;
+      }
+
+      .reg-card iframe {
+        display: block;
+
+        width: 100%;
+
+        min-height: 760px;
+
+        border: 0;
+
+        overflow: hidden;
+      }
+
+      /* ==========================================
+
+
+
+       FOOTER
+
+
+
+       ========================================== */
+
+      .footer {
+        background: #e6ddd2;
+
+        color: #15434a;
+
+        padding: 65px 6% 30px;
+      }
+
+      .footer-logo {
+        font: 800 clamp(52px, 10vw, 150px)/1 var(--heading);
+
+        letter-spacing: -0.06em;
+      }
+
+      .footer-bottom {
+        border-top: 1px solid #15434a;
+
+        margin-top: 65px;
+
+        padding-top: 24px;
+
+        display: flex;
+
+        justify-content: space-between;
+
+        gap: 20px;
+
+        font-size: 12px;
+
+        color: #15434a;
+      }
+
+      .footer a {
+        text-decoration: underline;
+
+        text-underline-offset: 3px;
+      }
+
+      /* ==========================================
+
+
+
+       ANIMACIONES
+
+
+
+       ========================================== */
+
+      .fade {
+        opacity: 0;
+
+        transform: translateY(28px);
+
+        transition:
+          opacity 0.75s,
+          transform 0.75s;
+      }
+
+      .fade.visible {
+        opacity: 1;
+
+        transform: none;
+      }
+
+      /* ==========================================
+
+
+
+       RESPONSIVE TABLET
+
+
+
+       ========================================== */
+
+      @media (max-width: 900px) {
+        .hero {
+          padding-top: 42px;
+        }
+
+        .hero h1 {
+          font-size: clamp(63px, 13vw, 116px);
+        }
+
+        .intro,
+        .story,
+        .benefits-grid,
+        .discount,
+        .details,
+        .faq,
+        .reg-wrap {
+          grid-template-columns: 1fr;
+        }
+
+        .intro {
+          padding: 85px 6%;
+
+          gap: 40px;
+        }
+
+        .section-head {
+          align-items: start;
+
+          flex-direction: column;
+        }
+
+        .cards {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .workcard:last-child {
+          grid-column: 1/-1;
+        }
+
+        .story-img,
+        .details-photo {
+          min-height: 470px;
+
+          height: 470px;
+        }
+
+        .story-copy,
+        .details-text {
+          padding: 80px 8%;
+        }
+
+        .discount-photo {
+          min-height: 390px;
+
+          height: 390px;
+        }
+
+        .discount-content {
+          padding: 75px 8%;
+        }
+
+        .benefits {
+          padding: 90px 6%;
+        }
+
+        .faq {
+          gap: 35px;
+        }
+
+        .reg-wrap {
+          gap: 40px;
+        }
+
+        .register {
+          padding: 85px 6%;
+        }
+
+        #shades-countdown {
+          padding: 80px 0;
+        }
+
+        #shades-countdown .sc-grid {
+          max-width: 650px;
+
+          gap: 12px;
+        }
+
+        #shades-countdown .sc-box {
+          min-height: 125px;
+
+          border-radius: 20px;
+        }
+      }
+
+      /* ==========================================
+
+
+
+       RESPONSIVE MÓVIL
+
+
+
+       ========================================== */
+
+      @media (max-width: 600px) {
+        .hero {
+          padding: 35px 5% 55px;
+        }
+
+        .hero h1 {
+          font-size: clamp(56px, 15vw, 92px);
+
+          margin: 22px 0;
+        }
+
+        .hero-meta {
+          font-size: 9px;
+
+          flex-wrap: wrap;
+        }
+
+        .hero-photo {
+          margin-top: 24px;
+
+          aspect-ratio: auto;
+
+          height: 550px;
+
+          border-radius: 20px;
+        }
+
+        .hero-caption {
+          left: 7%;
+
+          right: 7%;
+
+          bottom: 8%;
+        }
+
+        .hero-caption h2 {
+          font-size: 44px;
+        }
+
+        .intro {
+          padding: 78px 6%;
+        }
+
+        .intro h2,
+        .section-title {
+          font-size: 50px;
+        }
+
+        .workshops {
+          padding: 85px 5%;
+        }
+
+        .cards {
+          grid-template-columns: 1fr;
+        }
+
+        .workcard:last-child {
+          grid-column: auto;
+        }
+
+        .card-photo {
+          height: 380px;
+        }
+
+        .section-head {
+          margin-bottom: 35px;
+        }
+
+        .story-img,
+        .details-photo {
+          height: 390px;
+
+          min-height: 0;
+        }
+
+        .story-copy h2,
+        .details h2 {
+          font-size: 54px;
+        }
+
+        .benefits-list {
+          gap: 22px;
+
+          grid-template-columns: 1fr;
+        }
+
+        .step-grid {
+          grid-template-columns: 1fr;
+
+          gap: 15px;
+
+          margin-top: 38px;
+        }
+
+        .steps {
+          padding: 80px 6%;
+        }
+
+        .discount h2 {
+          font-size: 52px;
+        }
+
+        .discount .percent {
+          font-size: 78px;
+        }
+
+        .faq {
+          padding: 85px 6%;
+        }
+
+        .register {
+          padding: 80px 5% 100px;
+        }
+
+        .footer-logo {
+          font-size: 15vw;
+        }
+
+        .footer-bottom {
+          flex-direction: column;
+        }
+
+        /* CONTADOR MÓVIL */
+
+        #shades-countdown {
+          padding: 65px 0;
+        }
+
+        #shades-countdown .sc-wrap {
+          padding: 0 20px;
+        }
+
+        #shades-countdown .sc-eyebrow {
+          margin-bottom: 16px;
+
+          font-size: 9px;
+        }
+
+        #shades-countdown .sc-title {
+          font-size: clamp(30px, 8vw, 46px);
+
+          line-height: 1.1;
+        }
+
+        #shades-countdown .sc-intro {
+          max-width: 350px;
+
+          margin: 20px auto 30px;
+
+          font-size: 16px;
+        }
+
+        #shades-countdown .sc-grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+
+          width: 100%;
+
+          max-width: 360px;
+
+          gap: 7px;
+
+          margin: 0 auto 28px;
+        }
+
+        #shades-countdown .sc-box {
+          min-height: 90px;
+
+          padding: 12px 2px;
+
+          border-radius: 14px;
+        }
+
+        #shades-countdown .sc-number {
+          font-size: clamp(22px, 6.5vw, 36px);
+        }
+
+        #shades-countdown .sc-label {
+          margin-top: 9px;
+
+          font-size: 7px;
+
+          letter-spacing: 0;
+        }
+
+        #shades-countdown .sc-date {
+          max-width: 350px;
+
+          font-size: 14px;
+
+          line-height: 1.7;
+        }
+
+        #shades-countdown .sc-note {
+          max-width: 350px;
+
+          font-size: 13px;
+
+          line-height: 1.7;
+        }
+      }
+
+      @media (max-width: 360px) {
+        #shades-countdown .sc-wrap {
+          padding: 0 16px;
+        }
+
+        #shades-countdown .sc-grid {
+          gap: 5px;
+        }
+
+        #shades-countdown .sc-box {
+          min-height: 82px;
+
+          padding: 10px 1px;
+
+          border-radius: 12px;
+        }
+
+        #shades-countdown .sc-number {
+          font-size: 22px;
+        }
+
+        #shades-countdown .sc-label {
+          font-size: 6px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        .fade {
+          opacity: 1;
+
+          transform: none;
+
+          transition: none;
+        }
+
+        .card-photo img,
+        .pill {
+          transition: none;
+        }
+      }
+
+      /* ══════════════════════════════════════════════
+
+   SHADES + SPACES · PALETA B APROBADA
+
+   Connected Spaces | Design tokens v1.0
+
+   Original symbol silhouette applied as an alpha mask,
+
+   not redrawn or distorted. Source: user-approved icon.
+
+   ══════════════════════════════════════════════ */
+
+      :root {
+        --brand-deep: #15434a;
+
+        --brand-sand: #f2efe9;
+
+        --brand-coral: #e97558;
+
+        --brand-mint: #9cd4c6;
+
+        --brand-ivory: #fffcf7;
+
+        --brand-sage: #527f73;
+
+        --coral-text: #e97558;
+
+        --brand-symbol-mask: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF4AAABwCAYAAACXdMcoAAAEvElEQVR4nO2dXYimYxjHfy/Tiqx8lc3HYllrFCsf0UYkEVrsgbVygBxscuCjTetj2LIpJ0JxsNJiSzhgFQYHNjFWJCLfu74PrEJsItI4eObVNM077z0zz//6X9Pev/O5/tf85up+n3me573vzujoKMk52Zj9nqpwJ7n4RcB2Y/56YEhReDdF0RaZZ87/R1U4u/j55vy/VYWziz/AnP+HqnB28QvM+b+rCmcXv8ic/6uqcHbxR5vzf1IVzn456W7uCOBbReHM4ucjXGMLGQD+VRTOvNScYc7/DpF0yC3+bHP+V8rimcWfb87/VFk8q/hBYKm5h4+VxbOKv8zdAPCRsnjWq5rPgCXmHjrK4hknfjl+6R+oAzKKX+1uAHhLHZBN/JnARe4mgDfVAdnEr3E3MMYWdUAm8cuBi91NAO8CP6pDMolf525gjFciQrKIHwJOcjcxxgsRIRmu408HtrqbGGMbsDgiyD3xHfJIB3g2Ksgt/hFz/kSeiQpyir8VuNaYP5G3Eb45NhGX+KuBe0zZvdgUGeb4cF0JPB0dWsBewJ9RYdETfwU5pd9PoHSInfjrgIejwqbJscDnkYFRE7+evNI3ESwd9BN/ILABWKEMmSWnEHg102VAWPtS4Dlh/TZ4EoN00Cw13SnPLh3gXldw2xN/E3BfyzVVPAR86Apva43PfMUyGTtpXoiVvZTaj9lM/JHAVcBdLfUSyTqM0mH6E38YzTPRFcB5ko70bAWWuZvoN/HH0DygOA24Ud5NDGvdDUAz8XcDu9Pcq9gXOAhYCBxn7EvFCAEPsgsY6owmeAS1C/KA+0HILksVb6KKN1HFm6jiTVTxJqp4E1W8iSreRBVvooo3UcWbqOJNVPEmqngTVbyJKt5EFW+iijdRxZuo4k1U8SaqeBNVvIkq3kQVb6KKN1HFm6jiTVTxJgaAo9xN0BxJMeJuomWGaTYu3Q78APwM/Ebz1f1tA4h3jS4k204eM+EJ4DXgDQqcKr9gXMpK4HJ3EzNkI83mQi9P9wcz7En2BUH7gLXIGpovUe+caQH3xN/J3JK+mkb4rHFO/KHA1/j/+CXcTsufQ85feq05v4TngVtolsNWcU38YgS/TMvcADyoKu6auJtNuaUsQ7wfpmPiDwe+iQ4tZBi4EuFRc10ctwyuN2SW8DhwIQHSIX7i9wD+igwsZAPBJzVET3ymnVW7PIrheIzoiX8HODUysA+bMW1UFyk+03blXUJ3Vx1P5FKzKjCrhKWYpEOs+AynmXW5BuNGcBAn/lzg4KCsfmwEHnM3ESX+kqCcfuwgyZFHUeIvCMrpxx3AL+4mIOaq5njM6+kYI/hPRf6fiIk/JyCjhFTPdSPEnxWQ0Y8twEvuJsYTsdTYH+rS/He62d3EeNTiB4FPlAGFSA/FnQnqpSbDfZnb3A1Mhlr8ieL6JTzlbmAy1OJPENfvx+s0bzKkQy1+UFy/H8Pm/J4oxe+D//7Mq+b8nijFZ3gL+X13A71Qil8orF3Ci+b8KVGKP0RYu4S00w5a8QuEtUvI8I9bT5Ti9xfWLuFLc/6UKMXvJ6xdwvfm/ClRit9bWLuEHeb8KVGK31NYe86jFD9PWHvOo7wt7L4Pn+5W8Hj+A5dB08Ez62vHAAAAAElFTkSuQmCC");
+      }
+
+      body {
+        background: var(--brand-sand);
+      }
+
+      .skip-link {
+        position: absolute;
+
+        top: -100px;
+
+        left: 20px;
+
+        z-index: 999;
+
+        padding: 12px 18px;
+
+        background: var(--brand-deep);
+
+        color: #fff;
+      }
+
+      .skip-link:focus {
+        top: 10px;
+      }
+
+      .identity-nav {
+        max-width: 100%;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        gap: 20px;
+
+        padding: 18px 5%;
+
+        background: var(--brand-sand);
+
+        border-bottom: 1px solid #d6ded4;
+      }
+
+      .identity-lockup {
+        display: flex;
+
+        align-items: center;
+
+        gap: 11px;
+
+        color: var(--brand-deep);
+
+        min-width: 0;
+      }
+
+      .identity-symbol {
+        display: inline-block;
+
+        aspect-ratio: 94/112;
+
+        width: 38px;
+
+        flex: none;
+
+        background: var(--brand-coral);
+
+        -webkit-mask: var(--brand-symbol-mask) center/contain no-repeat;
+
+        mask: var(--brand-symbol-mask) center/contain no-repeat;
+      }
+
+      .identity-name {
+        font:
+          600 20px/1 "Space Grotesk",
+          Arial,
+          sans-serif;
+
+        letter-spacing: -0.065em;
+
+        display: flex;
+
+        flex-direction: column;
+      }
+
+      .identity-note {
+        font:
+          700 9px/1.3 "Inter",
+          Arial,
+          sans-serif;
+
+        letter-spacing: 0.16em;
+
+        text-transform: uppercase;
+
+        color: var(--brand-sage);
+
+        margin-top: 3px;
+      }
+
+      .identity-nav-cta {
+        font:
+          700 11px "Inter",
+          Arial,
+          sans-serif;
+
+        letter-spacing: 0.08em;
+
+        text-transform: uppercase;
+
+        background: var(--brand-deep);
+
+        color: #fff;
+
+        border-radius: 5px;
+
+        padding: 13px 18px;
+
+        transition: background 0.25s;
+      }
+
+      .identity-nav-cta:hover {
+        background: #286960;
+      }
+
+      .eyebrow,
+      .tag,
+      .workcard .tag,
+      .num {
+        letter-spacing: 0.13em;
+      }
+
+      /* Coral needs a darker accessible tone for small text on light backgrounds. */
+
+      .bm,
+      .benefits-list .num,
+      .step b {
+        color: var(--coral-text);
+      }
+
+      .announcement {
+        color: var(--brand-mint);
+      }
+
+      .announcement .announcement-dot {
+        color: var(--brand-coral);
+      }
+
+      .hero h1 .bm,
+      .footer-logo .bm {
+        color: var(--coral-text);
+      }
+
+      .hero h1 {
+        overflow-wrap: anywhere;
+      }
+
+      .photo-index {
+        background: rgba(255, 252, 247, 0.9);
+      }
+
+      .hero-photo {
+        background: var(--brand-deep);
+      }
+
+      .hero-caption .pill {
+        background: var(--brand-ivory);
+
+        color: var(--brand-deep);
+
+        border-color: var(--brand-ivory);
+      }
+
+      .hero-caption .eyebrow {
+        color: #fff;
+      }
+
+      .story-copy .bm,
+      .intro h2 .bm,
+      .benefits .bm,
+      .steps .bm {
+        color: var(--coral-text);
+      }
+
+      .discount small,
+      .discount .smll {
+        color: var(--brand-deep) !important;
+      }
+
+      .discount .percent .bm {
+        color: var(--coral-text);
+      }
+
+      .pill {
+        border-radius: 6px;
+      }
+
+      .pill:hover,
+      .identity-nav-cta:hover {
+        transform: translateY(-1px);
+      }
+
+      .footer {
+        background: #e6ddd2;
+      }
+
+      .footer .identity-symbol {
+        width: 70px;
+      }
+
+      .footer-identity {
+        display: flex;
+
+        align-items: center;
+
+        gap: 20px;
+
+        flex-wrap: wrap;
+      }
+
+      .footer-identity .identity-name {
+        font-size: clamp(37px, 5vw, 68px);
+      }
+
+      .footer-identity .identity-note {
+        font-size: 10px;
+
+        letter-spacing: 0.14em;
+      }
+
+      .section-accent {
+        height: 5px;
+
+        width: 56px;
+
+        background: var(--brand-coral);
+
+        border-radius: 100px;
+
+        margin-top: 16px;
+      }
+
+      /* Interface/accessibility improvements without altering registration logic. */
+
+      a:focus-visible,
+      button:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--brand-coral);
+
+        outline-offset: 4px;
+      }
+
+      @media (max-width: 600px) {
+        .identity-nav {
+          padding: 15px 5%;
+        }
+
+        .identity-name {
+          font-size: 17px;
+        }
+
+        .identity-symbol {
+          width: 32px;
+        }
+
+        .identity-nav-cta {
+          font-size: 9px;
+
+          padding: 11px 12px;
+        }
+
+        .footer-identity .identity-symbol {
+          width: 40px;
+        }
+
+        .hero h1 {
+          font-size: clamp(50px, 12.5vw, 86px);
+        }
+      }
+
+      @media print {
+        .identity-nav-cta,
+        .pill {
+          -webkit-print-color-adjust: exact;
+
+          print-color-adjust: exact;
+        }
+      }
+
+      /* =============================================================
+   SHADES + SPACES / RESPONSIVE SYSTEM v2.0
+   Official Connected Spaces palette (B), Space Grotesk + Inter.
+   The artwork geometry, event copy, registration and QR logic
+   are not modified. Target: 320px -> ultrawide desktops.
+   ============================================================= */
+      :root {
+        --page-gutter: clamp(18px, 5vw, 88px);
+        --responsive-section: clamp(66px, 8vw, 130px);
+        --readable-width: 66ch;
+      }
+      html {
+        scroll-padding-top: 92px;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+      body {
+        min-width: 280px;
+      }
+      main,
+      section,
+      footer,
+      header,
+      .intro > *,
+      .benefits-grid > *,
+      .story > *,
+      .discount > *,
+      .details > *,
+      .faq > *,
+      .reg-wrap > * {
+        min-width: 0;
+      }
+      img {
+        max-width: 100%;
+      }
+      :is(h1, h2, h3, p, dd, dt, a, summary) {
+        overflow-wrap: break-word;
+      }
+      h1,
+      h2,
+      h3 {
+        text-wrap: balance;
+      }
+      p {
+        text-wrap: pretty;
+      }
+      :where(p, li, dd) {
+        line-height: 1.7;
+      }
+      :where(
+        .section-title,
+        .intro h2,
+        .story-copy h2,
+        .discount h2,
+        .details h2,
+        .faq h2,
+        .reg-copy h2
+      ) {
+        font-family: "Space Grotesk", "Inter", Arial, sans-serif;
+        font-weight: 400;
+        line-height: 1.13;
+        letter-spacing: -0.043em;
+      }
+      .eyebrow,
+      .workcard .tag,
+      .photo-index {
+        font-size: clamp(10px, 0.8vw, 12px);
+        line-height: 1.5;
+        letter-spacing: 0.11em;
+      }
+      .announcement {
+        line-height: 1.55;
+        letter-spacing: 0.095em;
+      }
+      .identity-nav {
+        padding: 15px var(--page-gutter);
+      }
+      .identity-lockup {
+        gap: 12px;
+      }
+      .identity-name {
+        line-height: 1.03;
+        font-family: "Space Grotesk", "Inter", sans-serif;
+      }
+      .identity-note {
+        line-height: 1.45;
+        letter-spacing: 0.1em;
+      }
+      .identity-nav-cta {
+        white-space: nowrap;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .hero {
+        padding: clamp(30px, 4.5vw, 70px) var(--page-gutter)
+          clamp(62px, 7vw, 110px);
+      }
+      .hero h1.hero-wordmark {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 0.2em;
+        row-gap: 0.06em;
+        font-size: clamp(52px, 9.1vw, 166px);
+        font-weight: 600;
+        line-height: 1.045;
+        letter-spacing: -0.065em;
+        margin: clamp(22px, 3vw, 42px) 0 clamp(22px, 3.3vw, 38px);
+        text-transform: uppercase;
+        text-wrap: nowrap;
+        overflow-wrap: normal;
+      }
+      .hero-word {
+        display: inline-block;
+        white-space: nowrap;
+      }
+      .hero-wordmark em {
+        font-weight: 300;
+      }
+      .hero-meta {
+        line-height: 1.65;
+        row-gap: 10px;
+      }
+      .hero-photo {
+        border-radius: clamp(18px, 2.3vw, 32px);
+      }
+      .hero-caption h2 {
+        max-width: 17ch;
+        font-weight: 400;
+        line-height: 1.16;
+        letter-spacing: -0.035em;
+      }
+      .hero-caption {
+        max-width: min(72%, 720px);
+      }
+      .intro,
+      .benefits,
+      .steps,
+      .faq,
+      .register {
+        padding-block: var(--responsive-section);
+      }
+      .workshops {
+        padding: var(--responsive-section) var(--page-gutter);
+      }
+      .intro {
+        padding-inline: var(--page-gutter);
+        column-gap: clamp(36px, 5vw, 110px);
+      }
+      .intro h2,
+      .section-title {
+        font-size: clamp(38px, 5.5vw, 86px);
+        line-height: 1.12;
+      }
+      .intro-copy p {
+        font-size: clamp(17px, 1.65vw, 23px);
+        line-height: 1.58;
+      }
+      .intro-copy .small {
+        font-size: 15px;
+        line-height: 1.8;
+      }
+      .section-head {
+        align-items: start;
+      }
+      .section-head p {
+        max-width: 35ch;
+        line-height: 1.7;
+      }
+      .workcard h3 {
+        font-size: clamp(26px, 2.7vw, 40px);
+        line-height: 1.2;
+        font-weight: 400;
+      }
+      .workcard p {
+        font-size: 15px;
+        line-height: 1.75;
+      }
+      .benefits {
+        padding-inline: var(--page-gutter);
+      }
+      .benefits-list {
+        gap: clamp(24px, 3vw, 52px);
+      }
+      .story-copy,
+      .details-text,
+      .discount-content {
+        padding: clamp(40px, 7vw, 120px);
+      }
+      .story-copy h2,
+      .details h2,
+      .discount h2,
+      .faq h2,
+      .reg-copy h2 {
+        font-size: clamp(37px, 5.2vw, 76px);
+        line-height: 1.12;
+        font-weight: 400;
+      }
+      .story-copy p,
+      .discount-content p {
+        line-height: 1.74;
+      }
+      .discount .percent {
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: clamp(44px, 6vw, 92px);
+        line-height: 1.1;
+        font-weight: 500;
+        letter-spacing: -0.055em;
+        overflow-wrap: normal;
+      }
+      .discount .percent .bm {
+        display: block;
+        text-wrap: balance;
+      }
+      .discount small {
+        font-size: 12px;
+        line-height: 1.7;
+        max-width: 60ch;
+      }
+      .steps {
+        padding-inline: var(--page-gutter);
+      }
+      .step-grid {
+        gap: clamp(18px, 2vw, 34px);
+      }
+      .step h3 {
+        line-height: 1.3;
+      }
+      .details dd {
+        line-height: 1.65;
+        overflow-wrap: anywhere;
+      }
+      .faq {
+        padding-inline: var(--page-gutter);
+      }
+      .faq-items summary {
+        line-height: 1.5;
+        align-items: flex-start;
+      }
+      .faq-items summary::after {
+        flex: none;
+      }
+      #shades-countdown .sc-title {
+        line-height: 1.17;
+        letter-spacing: -0.044em;
+        font-weight: 400;
+      }
+      #shades-countdown .sc-grid {
+        gap: clamp(8px, 1.5vw, 18px);
+      }
+      #shades-countdown .sc-box {
+        min-width: 0;
+      }
+      #shades-countdown .sc-number,
+      #shades-countdown .sc-number-sg {
+        display: block;
+        font-size: clamp(28px, 4.4vw, 64px);
+        font-weight: 600;
+        line-height: 1.05;
+        font-variant-numeric: tabular-nums;
+      }
+      #shades-countdown .sc-number-sg {
+        color: var(--brand-coral);
+      }
+      .register {
+        padding-inline: var(--page-gutter);
+      }
+      .reg-wrap {
+        gap: clamp(34px, 5vw, 90px);
+      }
+      .reg-copy p {
+        line-height: 1.74;
+      }
+      .reg-card,
+      .reg-card [data-event-registration-embed],
+      .reg-card iframe {
+        max-width: 100%;
+        min-width: 0;
+      }
+      .footer {
+        padding: clamp(58px, 6vw, 90px) var(--page-gutter) 34px;
+      }
+      .footer-bottom {
+        flex-wrap: wrap;
+        line-height: 1.6;
+      }
+      a:focus-visible,
+      button:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--brand-coral);
+        outline-offset: 4px;
+      }
+
+      /* Intermediate tablets and compact laptops: no crowded split-columns. */
+      @media (max-width: 1080px) {
+        .intro,
+        .story,
+        .benefits-grid,
+        .discount,
+        .details,
+        .faq,
+        .reg-wrap {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .intro,
+        .faq,
+        .reg-wrap,
+        .benefits-grid {
+          row-gap: 32px;
+        }
+        .benefits-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .story-img,
+        .discount-photo,
+        .details-photo {
+          height: clamp(320px, 48vw, 530px);
+          min-height: 0;
+        }
+        .story-copy,
+        .details-text,
+        .discount-content {
+          padding: clamp(40px, 7vw, 92px) var(--page-gutter);
+        }
+        .section-head {
+          flex-direction: column;
+          align-items: start;
+        }
+        .section-head p {
+          max-width: 58ch;
+        }
+        .cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 22px;
+        }
+        .workcard:last-child {
+          grid-column: 1 / -1;
+        }
+        .reg-wrap {
+          gap: 28px;
+        }
+      }
+
+      /* Phone and portrait-oriented tablet: editorial rhythm, no overlays. */
+      @media (max-width: 700px) {
+        :root {
+          --page-gutter: clamp(18px, 5.2vw, 32px);
+          --responsive-section: clamp(58px, 13vw, 85px);
+        }
+        .identity-nav {
+          padding: 14px var(--page-gutter);
+          gap: 10px;
+        }
+        .identity-symbol {
+          width: 30px;
+        }
+        .identity-name {
+          font-size: 17px;
+          letter-spacing: -0.06em;
+        }
+        .identity-note {
+          font-size: 8px;
+          letter-spacing: 0.07em;
+        }
+        .identity-nav-cta {
+          font-size: 10px;
+          padding: 10px 11px;
+          letter-spacing: 0.035em;
+        }
+        .announcement {
+          font-size: 10px;
+          letter-spacing: 0.07em;
+          padding: 10px 16px;
+        }
+        .hero {
+          padding-top: 27px;
+          padding-bottom: 56px;
+        }
+        .hero h1.hero-wordmark {
+          font-size: clamp(42px, 11.8vw, 74px);
+          line-height: 1.07;
+          letter-spacing: -0.06em;
+          margin: 20px 0 23px;
+          row-gap: 0;
+          column-gap: 0.2em;
+        }
+        .hero-meta {
+          display: grid;
+          gap: 4px;
+          padding-top: 14px;
+          font-size: 10px;
+          letter-spacing: 0.06em;
+        }
+        .hero-meta > * {
+          min-width: 0;
+        }
+        .hero-photo {
+          aspect-ratio: auto;
+          height: auto;
+          margin-top: 22px;
+          border-radius: 20px;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+        .hero-photo img {
+          position: relative;
+          inset: auto;
+          width: 100%;
+          height: clamp(230px, 68vw, 390px);
+          object-position: center;
+          flex: none;
+        }
+        .photo-shade {
+          display: none;
+        }
+        .hero-caption {
+          position: relative;
+          inset: auto;
+          max-width: none;
+          width: 100%;
+          padding: clamp(24px, 6vw, 38px);
+          background: var(--brand-deep);
+          color: #fff;
+        }
+        .hero-caption h2 {
+          font-size: clamp(28px, 6.4vw, 44px);
+          font-weight: 400;
+          line-height: 1.2;
+          letter-spacing: -0.03em;
+          max-width: 20ch;
+          margin: 14px 0 22px;
+        }
+        .hero-caption .pill {
+          max-width: 100%;
+          font-size: 11px;
+        }
+        .intro h2,
+        .section-title {
+          font-size: clamp(34px, 8.5vw, 57px);
+          line-height: 1.17;
+        }
+        .intro-copy p {
+          font-size: clamp(17px, 4.5vw, 20px);
+          line-height: 1.65;
+        }
+        .intro-copy .small {
+          font-size: 15px;
+          line-height: 1.8;
+        }
+        .section-head {
+          gap: 20px;
+          margin-bottom: 34px;
+        }
+        .cards {
+          grid-template-columns: minmax(0, 1fr);
+          row-gap: 38px;
+        }
+        .workcard:last-child {
+          grid-column: auto;
+        }
+        .card-photo {
+          height: clamp(285px, 80vw, 430px);
+          border-radius: 20px;
+        }
+        .workcard .tag {
+          margin-top: 15px;
+        }
+        .workcard h3 {
+          font-size: clamp(26px, 6.5vw, 34px);
+          line-height: 1.23;
+        }
+        .workcard p {
+          font-size: 15px;
+          line-height: 1.75;
+        }
+        .story-img,
+        .discount-photo,
+        .details-photo {
+          height: clamp(260px, 76vw, 410px);
+        }
+        .story-copy h2,
+        .details h2,
+        .discount h2,
+        .faq h2,
+        .reg-copy h2 {
+          font-size: clamp(33px, 8.5vw, 54px);
+          line-height: 1.17;
+          letter-spacing: -0.045em;
+        }
+        .story-copy,
+        .discount-content,
+        .details-text {
+          padding: 46px var(--page-gutter) 58px;
+        }
+        .story-copy h2 {
+          margin: 15px 0 18px;
+        }
+        .benefits-list {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 24px;
+        }
+        .benefits-list > div {
+          padding-bottom: 15px;
+          border-bottom: 1px solid #d8ded5;
+        }
+        .benefits-list h3 {
+          margin: 10px 0 8px;
+          font-size: 18px;
+        }
+        .discount .percent {
+          font-size: clamp(37px, 9.5vw, 58px);
+          line-height: 1.13;
+          margin: 20px 0 23px;
+        }
+        .discount small {
+          font-size: 12px;
+          line-height: 1.72;
+        }
+        .step-grid {
+          grid-template-columns: minmax(0, 1fr);
+          margin-top: 28px;
+          gap: 25px;
+        }
+        .step b {
+          font-size: 44px;
+          line-height: 1.1;
+        }
+        .step h3 {
+          font-size: 21px;
+          margin: 12px 0 8px;
+        }
+        .details dl div {
+          grid-template-columns: minmax(84px, 28%) minmax(0, 1fr);
+          column-gap: 14px;
+          padding: 15px 0;
+        }
+        .details dt {
+          font-size: 10px;
+          line-height: 1.5;
+        }
+        .details dd {
+          font-size: 14px;
+        }
+        .faq {
+          gap: 24px;
+        }
+        .faq-items details {
+          padding: 18px 0;
+        }
+        .faq-items summary {
+          font-size: 15px;
+          line-height: 1.55;
+        }
+        .faq-items p {
+          font-size: 14px;
+          line-height: 1.75;
+        }
+        #shades-countdown {
+          padding-block: 65px;
+        }
+        #shades-countdown .sc-title {
+          font-size: clamp(32px, 7.7vw, 50px);
+          line-height: 1.19;
+        }
+        #shades-countdown .sc-intro {
+          font-size: 16px;
+          line-height: 1.6;
+        }
+        #shades-countdown .sc-grid {
+          max-width: 500px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+        #shades-countdown .sc-box {
+          padding: 13px 5px;
+          min-height: 96px;
+          border-radius: 14px;
+        }
+        #shades-countdown .sc-number,
+        #shades-countdown .sc-number-sg {
+          font-size: clamp(25px, 6vw, 38px);
+        }
+        #shades-countdown .sc-label {
+          font-size: 9px;
+          margin-top: 9px;
+          letter-spacing: 0.02em;
+          white-space: normal;
+        }
+        .register {
+          padding-bottom: 75px;
+        }
+        .reg-copy p {
+          font-size: 15px;
+        }
+        .reg-card iframe {
+          min-height: 780px;
+        }
+        .footer .footer-identity .identity-name {
+          font-size: clamp(31px, 8vw, 47px);
+          line-height: 1;
+        }
+        .footer .footer-identity .identity-symbol {
+          width: clamp(39px, 10vw, 65px);
+        }
+        .footer-bottom {
+          margin-top: 46px;
+          gap: 16px;
+        }
+      }
+
+      /* Very small devices: keep all words and controls visible. */
+      @media (max-width: 390px) {
+        .identity-note {
+          display: none;
+        }
+        .identity-nav-cta {
+          font-size: 10px;
+        }
+        .hero h1.hero-wordmark {
+          font-size: clamp(39px, 12vw, 47px);
+          line-height: 1.11;
+          letter-spacing: -0.058em;
+        }
+        .hero-caption {
+          padding: 23px 20px 27px;
+        }
+        .hero-caption h2 {
+          font-size: clamp(27px, 7.3vw, 33px);
+        }
+        .intro h2,
+        .section-title {
+          font-size: clamp(31px, 8.9vw, 37px);
+        }
+        .story-copy h2,
+        .details h2,
+        .discount h2,
+        .faq h2,
+        .reg-copy h2 {
+          font-size: clamp(30px, 8.5vw, 35px);
+        }
+        .discount .percent {
+          font-size: clamp(34px, 9.5vw, 42px);
+        }
+        .details dl div {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+        .details dt {
+          color: var(--brand-sage);
+        }
+        #shades-countdown .sc-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+        #shades-countdown .sc-box {
+          min-height: 102px;
+          border-radius: 16px;
+        }
+        #shades-countdown .sc-number,
+        #shades-countdown .sc-number-sg {
+          font-size: clamp(38px, 11vw, 48px);
+        }
+        #shades-countdown .sc-label {
+          font-size: 10px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .hero *,
+        .pill,
+        .workcard img {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#experiencia">Saltar al contenido</a>
+
+    <header class="identity-nav" aria-label="Identidad de Shades + Spaces">
+      <div
+        class="identity-lockup"
+        aria-label="Shades + Spaces, una iniciativa de Shades de México"
+      >
+        <span class="identity-symbol" aria-hidden="true"></span>
+
+        <span
+          ><span class="identity-name"
+            ><span>shades</span><span>spaces</span></span
+          ><span class="identity-note"
+            >Una iniciativa de Shades de México</span
+          ></span
+        >
+      </div>
+
+      <a class="identity-nav-cta" href="#registro">Reserva tu lugar ↗</a>
+    </header>
+
+    <!-- BARRA SUPERIOR -->
+
+    <div class="announcement">
+      GUADALAJARA · 06 NOVIEMBRE 2026 · ACCESO GRATUITO CON REGISTRO
+    </div>
+
+    <main>
+      <!-- ==========================================
+
+
+
+         HERO
+
+
+
+         ========================================== -->
+
+      <section class="hero" id="inicio">
+        <span class="eyebrow">
+          SHADES DE MÉXICO PRESENTA · PRIMERA EDICIÓN
+        </span>
+
+        <h1 class="hero-wordmark" aria-label="SHADES SPACES">
+          <span class="hero-word bm">SHADES</span
+          ><span class="hero-word">SPAC<em>E</em>S.</span>
+        </h1>
+
+        <div class="hero-meta">
+          <span> Experience Lab / <em>Edición BMIGHTY · DRAPERY</em> </span>
+
+          <span>
+            <b>Descubre · Aprende · Conecta</b>
+          </span>
+        </div>
+
+        <div class="hero-photo">
+          <img
+            src="https://static.wixstatic.com/media/3c9ca2_b4ec524a43024dab997e3acf414ef86e~mv2.webp"
+            alt="Interior contemporáneo con textiles y diseño arquitectónico"
+            fetchpriority="high"
+          />
+
+          <div class="photo-shade"></div>
+
+          <div class="hero-caption">
+            <span class="eyebrow">
+              UN ENCUENTRO PARA PROFESIONALES DE LA CORTINERÍA
+            </span>
+
+            <h2>La tecnología se entiende mejor cuando la experimentas.</h2>
+
+            <a class="pill" href="#registro"> Reserva tu lugar ↗ </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         EXPERIENCIA
+
+
+
+         ========================================== -->
+
+      <section class="intro" id="experiencia">
+        <div class="fade">
+          <span class="eyebrow"> 01 / LA EXPERIENCIA </span>
+
+          <h2>
+            Más allá de una
+
+            <span class="bm">capacitación.</span>
+          </h2>
+        </div>
+
+        <div class="intro-copy fade">
+          <p>
+            Un espacio para aprender, conectar y descubrir nuevas posibilidades.
+          </p>
+
+          <p class="small">
+            <strong>Shades Spaces</strong> es una iniciativa de
+
+            <strong>Shades de México</strong> creada para acercar la tecnología
+            y la innovación a los profesionales de la cortinería a través de
+            experiencias prácticas, demostraciones y contacto directo con
+            nuestros especialistas de <strong>BMIGHTY</strong>, nuestra marca de
+            motores y automatización, y <strong>Shades Drapery</strong>, nuestra
+            marca de cortinas y cortineros. Cada edición reúne conocimiento,
+            soluciones y oportunidades para impulsar el crecimiento de tu
+            negocio.
+          </p>
+
+          <a href="#talleres" class="textlink"> Explora los talleres ↗ </a>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         TALLERES
+
+
+
+         ========================================== -->
+
+      <section class="workshops" id="talleres">
+        <div class="section-head fade">
+          <div>
+            <span class="eyebrow"> 02 / QUÉ VAS A DESCUBRIR </span>
+
+            <h2 class="section-title">
+              Tres talleres.<br />
+
+              Muchas posibilidades.
+            </h2>
+          </div>
+
+          <p>
+            Aprende de especialistas y observa soluciones en funcionamiento
+            durante una misma jornada.
+          </p>
+        </div>
+
+        <div class="cards">
+          <!-- TALLER 01 -->
+
+          <article class="workcard fade">
+            <div class="card-photo">
+              <img
+                loading="lazy"
+                src="https://static.wixstatic.com/media/3c9ca2_9157a43b1d224504837d9acc4cbbc664~mv2.png"
+                alt="Interior con ventana y sistema de cortinas"
+              />
+
+              <span class="photo-index">TALLER / 01</span>
+            </div>
+
+            <div class="tag">BMIGHTY / MOTORIZACIÓN</div>
+
+            <h3>Motoriza tu persiana.</h3>
+
+            <p>
+              Convierte una persiana manual en una motorizada con motor de
+              batería de 28 mm: de la instalación a la programación, hasta
+              dejarla lista para usarse.
+            </p>
+          </article>
+
+          <!-- TALLER 02 -->
+
+          <article class="workcard fade">
+            <div class="card-photo">
+              <img
+                loading="lazy"
+                src="https://static.wixstatic.com/media/3c9ca2_580b2b39f4494681ba204584401a2451~mv2.png"
+                alt="Espacio arquitectónico contemporáneo"
+              />
+
+              <span class="photo-index">TALLER / 02</span>
+            </div>
+
+            <div class="tag">BMIGHTY / CONECTIVIDAD</div>
+
+            <h3>Soluciones Wi-Fi.</h3>
+
+            <p>
+              Explora posibilidades de conectividad y automatización, así como
+              los principales aspectos de configuración y puesta en marcha.
+              Motores Wi-Fi e interfaces.
+            </p>
+          </article>
+
+          <!-- TALLER 03 -->
+
+          <article class="workcard fade">
+            <div class="card-photo">
+              <img
+                loading="lazy"
+                src="https://static.wixstatic.com/media/3c9ca2_42006cd813f6447485a7d6ff0470615e~mv2.png"
+                alt="Texturas, acabados y cortinería en un interior elegante"
+              />
+
+              <span class="photo-index">TALLER / 03</span>
+            </div>
+
+            <div class="tag">DRAPERY / INSUMOS</div>
+
+            <h3>Armado de Cortineros Drapery.</h3>
+
+            <p>
+              Descubre paso a paso cómo armar un cortinero manual y uno
+              motorizado, desde la selección de sus componentes hasta su
+              instalación y funcionamiento. Conoce los sistemas, accesorios y
+              soluciones de Shades Drapery para llevar tus proyectos de
+              cortinería al siguiente nivel.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         HISTORIA
+
+
+
+         ========================================== -->
+
+      <section class="story">
+        <div class="story-img">
+          <img
+            loading="lazy"
+            src="https://static.wixstatic.com/media/3c9ca2_8f914c160caa48549e72c796b28e9316~mv2.webp"
+            alt="Interior con diseño de ventana y cortinas"
+          />
+        </div>
+
+        <div class="story-copy fade">
+          <span class="eyebrow"> 03 / APRENDER ES CONECTAR </span>
+
+          <h2>
+            De la duda a la
+
+            <span class="bm">confianza.</span>
+          </h2>
+
+          <p>
+            Creemos que la mejor manera de comprender una solución es verla
+            funcionar, hacer preguntas y contar con acompañamiento técnico.
+          </p>
+
+          <p>
+            Queremos que termines el día con nuevas ideas, mayor seguridad y el
+            respaldo de
+
+            <strong>BMIGHTY</strong> en motorización y de
+
+            <strong>Shades Drapery</strong> en cortineros e insumos, respaldados
+            por <strong>Shades de México</strong>, para tus siguientes
+            proyectos.
+          </p>
+
+          <a class="textlink" href="#registro"> Quiero asistir ↗ </a>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         BENEFICIOS
+
+
+
+         ========================================== -->
+
+      <section class="benefits">
+        <div class="benefits-grid">
+          <div class="fade">
+            <span class="eyebrow"> 04 / POR QUÉ PARTICIPAR </span>
+
+            <h2 class="section-title">
+              Una <span class="bm">experiencia</span>
+
+              que aporta valor.
+            </h2>
+          </div>
+
+          <div class="benefits-list fade">
+            <div>
+              <span class="num">01</span>
+
+              <h3>Aprende de especialistas.</h3>
+
+              <p>
+                Resuelve preguntas con el equipo técnico y comercial de ambas
+                marcas.
+              </p>
+            </div>
+
+            <div>
+              <span class="num">02</span>
+
+              <h3>Tecnología sin miedo.</h3>
+
+              <p>
+                Comprende cómo las soluciones motorizadas pueden integrarse a
+                tus proyectos.
+              </p>
+            </div>
+
+            <div>
+              <span class="num">03</span>
+
+              <h3>Explora productos.</h3>
+
+              <p>
+                Acércate a motores, sistemas, materiales y aplicaciones reales.
+              </p>
+            </div>
+
+            <div>
+              <span class="num">04</span>
+
+              <h3>Amplía tus conexiones.</h3>
+
+              <p>
+                Comparte experiencias y descubre oportunidades para tu negocio.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         BENEFICIO COMERCIAL
+
+
+
+         ========================================== -->
+
+      <section class="discount" id="beneficio">
+        <div class="discount-photo">
+          <img
+            loading="lazy"
+            src="https://static.wixstatic.com/media/3c9ca2_3189839ba3d24593b51a0a6d31131112~mv2.png"
+            alt="Detalle de un interior contemporáneo"
+          />
+        </div>
+
+        <div class="discount-content fade">
+          <span class="eyebrow"> 05 / BENEFICIO PARA ASISTENTES </span>
+
+          <h2>Tu asistencia tiene beneficios.</h2>
+
+          <div class="percent">
+            <span class="bm">Hasta 15% off</span>
+          </div>
+
+          <p>
+            Descuento especial previsto para asistentes registrados que validen
+            su participación y realicen compras elegibles en las mesas de venta
+            del evento.
+          </p>
+
+          <a class="pill" href="#registro"> Quiero registrarme ↗ </a>
+
+          <small class="smll">
+            Rango promocional sujeto a confirmación comercial. Los productos
+            participantes, porcentaje aplicable, vigencia y restricciones serán
+            definidos en las bases oficiales. El registro no garantiza por sí
+            solo un descuento del 15%.
+          </small>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         FUNCIONAMIENTO DEL QR
+
+
+
+         ========================================== -->
+
+      <section class="steps">
+        <span class="eyebrow"> CÓMO FUNCIONARÁ EL BENEFICIO </span>
+
+        <h2 class="section-title">
+          <span class="bm">Tu QR.</span>
+
+          Tu acceso.<br />
+
+          Tu beneficio.
+        </h2>
+
+        <div class="step-grid">
+          <div class="step fade">
+            <b>01.</b>
+
+            <h3>Regístrate.</h3>
+
+            <p>
+              Solicita tu lugar y el de tus acompañantes. Cada asistente tendrá
+              su propio QR cuando se confirme la inscripción.
+            </p>
+          </div>
+
+          <div class="step fade">
+            <b>02.</b>
+
+            <h3>Valida tu asistencia.</h3>
+
+            <p>
+              Presenta tu QR al llegar para registrar tu entrada al workshop.
+            </p>
+          </div>
+
+          <div class="step fade">
+            <b>03.</b>
+
+            <h3>Visita las mesas de venta.</h3>
+
+            <p>
+              Presenta nuevamente tu QR para verificar que asististe y consultar
+              el descuento que corresponda a tu compra.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         INFORMACIÓN DEL EVENTO
+
+
+
+         ========================================== -->
+
+      <section class="details" id="detalles">
+        <div class="details-text fade">
+          <span class="eyebrow"> 06 / INFORMACIÓN DEL EVENTO </span>
+
+          <h2>Nos vemos en Guadalajara.</h2>
+
+          <dl>
+            <div>
+              <dt>Fecha</dt>
+
+              <dd>Viernes 6 de noviembre de 2026</dd>
+            </div>
+
+            <div>
+              <dt>Horario</dt>
+
+              <dd>09:00 am a 3:00 pm</dd>
+            </div>
+
+            <div>
+              <dt>Ubicación</dt>
+
+              <dd>
+                <a
+                  href="https://maps.app.goo.gl/ervEXv4tc2Auncau9"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Hotel Victoria Ejecutivo | Av. Adolfo López Mateos Sur 1360,
+                  Col. Chapalita
+                </a>
+              </dd>
+            </div>
+
+            <div>
+              <dt>Ciudad</dt>
+
+              <dd>Guadalajara, Jalisco</dd>
+            </div>
+
+            <div>
+              <dt>Acceso</dt>
+
+              <dd>Gratuito · Con registro confirmado · CUPO LIMITADO</dd>
+            </div>
+
+            <div>
+              <dt>Formato</dt>
+
+              <dd>Workshop general y demostraciones</dd>
+            </div>
+          </dl>
+
+          <p>
+            ¿Tienes alguna duda o comentario? Cuéntanos; estamos aquí para
+            ayudarte lo antes posible.
+          </p>
+        </div>
+
+        <div class="details-photo">
+          <img
+            loading="lazy"
+            src="https://static.wixstatic.com/media/3c9ca2_097706857e5249d294b4d5bec9bedb00~mv2.png"
+            alt="Ambiente arquitectónico contemporáneo"
+          />
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         PREGUNTAS FRECUENTES
+
+
+
+         ========================================== -->
+
+      <section class="faq" id="preguntas">
+        <div class="fade">
+          <span class="eyebrow"> 07 / PREGUNTAS FRECUENTES </span>
+
+          <h2>Antes de asistir.</h2>
+        </div>
+
+        <div class="faq-items fade">
+          <details>
+            <summary>¿El evento tiene costo?</summary>
+
+            <p>
+              No. El acceso es gratuito con registro previo y confirmación,
+              sujeto al cupo disponible.
+            </p>
+          </details>
+
+          <details>
+            <summary>¿Necesito experiencia previa con motores?</summary>
+
+            <p>
+              No necesitas dominar la motorización. El contenido contempla
+              profesionales con distintos niveles de experiencia.
+            </p>
+          </details>
+
+          <details>
+            <summary>¿Puedo registrar acompañantes?</summary>
+
+            <p>
+              Sí. Los lugares están sujetos a disponibilidad. Cada acompañante
+              debe realizar su propia inscripción y contar con su código QR.
+              Cada asistente puede registrar solo un acompañante. Si necesitas
+              más accesos, marca la casilla correspondiente en tu registro y nos
+              pondremos en contacto contigo.
+            </p>
+          </details>
+
+          <details>
+            <summary>¿Cómo funciona el descuento?</summary>
+
+            <p>
+              Al llegar al workshop, presenta tu código QR para registrar y
+              validar tu asistencia. En el transcurso de la capacitación,
+              acércate a nuestras mesas de venta, donde podrás activar tu
+              descuento especial de hasta un 15% en productos participantes.
+              Beneficio exclusivo para asistentes. Aplican términos y
+              condiciones de la promoción.
+            </p>
+          </details>
+
+          <details>
+            <summary>¿Dónde será?</summary>
+
+            <p>
+              El workshop se llevará a cabo en el
+
+              <strong>Hotel Victoria Ejecutivo Guadalajara</strong>, ubicado en
+              Av. Adolfo López Mateos Sur 1360, Col. Chapalita, C.P. 44510,
+              Guadalajara, Jalisco.
+            </p>
+          </details>
+
+          <details>
+            <summary>¿Los talleres son simultáneos?</summary>
+
+            <p>
+              No. Los tres talleres están previstos de forma secuencial para que
+              todos los asistentes puedan conocer los temas.
+            </p>
+          </details>
+
+          <details>
+            <summary>¿Vienes de otra ciudad y necesitas hospedaje?</summary>
+
+            <p>
+              ¡También pensamos en tu estancia! Contamos con
+
+              <strong>tarifas preferenciales para los asistentes</strong>
+
+              de Shades Spaces en el Hotel Victoria Ejecutivo Guadalajara, sede
+              de nuestro evento.
+            </p>
+
+            <p>
+              Podrás hospedarte en el mismo lugar donde se realizará el
+              workshop, para mayor comodidad. Si necesitas información sobre las
+              tarifas y reservaciones, comunícate con nuestro equipo
+              organizador.
+            </p>
+
+            <p>
+              <small>
+                Tarifas sujetas a disponibilidad y condiciones del hotel.
+              </small>
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         CONTADOR REGRESIVO
+
+
+
+         HTML CORREGIDO
+
+
+
+         ========================================== -->
+
+      <section
+        id="shades-countdown"
+        aria-label="Cuenta regresiva para SHADES SPACES"
+      >
+        <div class="sc-wrap">
+          <span class="sc-eyebrow"> CUENTA REGRESIVA </span>
+
+          <h2 class="sc-title">No te quedes fuera de <b>SHADES SPACES.</b></h2>
+
+          <p class="sc-intro">Reserva tu lugar, <b>Cupo limitado.</b></p>
+
+          <div class="sc-grid" role="timer" aria-live="off">
+            <div class="sc-box">
+              <span class="sc-number" data-count="days">00</span>
+
+              <small class="sc-label">DÍAS</small>
+            </div>
+
+            <div class="sc-box">
+              <span class="sc-number" data-count="hours">00</span>
+
+              <small class="sc-label">HORAS</small>
+            </div>
+
+            <div class="sc-box">
+              <span class="sc-number" data-count="minutes">00</span>
+
+              <small class="sc-label">MINUTOS</small>
+            </div>
+
+            <div class="sc-box">
+              <span class="sc-number-sg" data-count="seconds">00</span>
+
+              <small class="sc-label">SEGUNDOS</small>
+            </div>
+          </div>
+
+          <p class="sc-date">
+            6 de noviembre de 2026 · 09:00 h · Guadalajara, Jalisco
+          </p>
+
+          <p class="sc-note">
+            Una experiencia profesional respaldada por <b>Shades de México.</b>
+          </p>
+        </div>
+      </section>
+
+      <!-- ==========================================
+
+
+
+         FORMULARIO DE REGISTRO
+
+
+
+         ========================================== -->
+
+      <section class="register" id="registro">
+        <div class="reg-wrap">
+          <div class="reg-copy fade">
+            <span class="eyebrow"> 08 / TU LUGAR TE ESPERA </span>
+
+            <h2>El siguiente paso empieza aquí.</h2>
+
+            <p>
+              Reserva tu lugar en Shades Spaces — Experience Lab, Edición
+              BMIGHTY · DRAPERY. Descubre, aprende y conecta con nuevas
+              posibilidades para tus proyectos.
+            </p>
+
+            <p>
+              <strong>
+                6 de noviembre · Guadalajara · Acceso gratuito cupo limitado
+              </strong>
+            </p>
+          </div>
+
+          <div class="reg-card fade">
+            <div data-event-registration-embed>
+              <iframe
+                id="shades-registration-frame"
+                src="https://shmx.men/events/embed/registro-experience"
+                style="
+                  width: 100%;
+
+                  min-height: 760px;
+
+                  border: 0;
+
+                  overflow: hidden;
+                "
+                scrolling="no"
+                loading="lazy"
+                title="Formulario de registro"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==========================================
+
+
+
+       FOOTER
+
+
+
+       ========================================== -->
+
+    <footer class="footer">
+      <div class="eyebrow">CONOCE · APRENDE · CONECTA</div>
+
+      <div class="footer-identity">
+        <span class="identity-symbol" aria-hidden="true"></span
+        ><span
+          ><span class="identity-name"
+            ><span>shades</span><span>spaces</span></span
+          ><span class="identity-note"
+            >Una iniciativa de Shades de México</span
+          ></span
+        >
+      </div>
+
+      <div class="footer-bottom">
+        <span>
+          © 2026 SHADES DE MÉXICO · Experience Lab — Edición BMIGHTY · DRAPERY
+        </span>
+
+        <span>
+          Guadalajara, Jalisco ·
+
+          <a href="#registro">Registro</a> ·
+
+          <a href="#preguntas">Preguntas frecuentes</a>
+        </span>
+      </div>
+    </footer>
+
+    <!-- ==========================================
+
+
+
+       JAVASCRIPT
+
+
+
+       ========================================== -->
+
+    <script>
+      /* ==========================================
+
+
+
+       ANIMACIONES DE ENTRADA
+
+
+
+       ========================================== */
+
+      (function () {
+        const elements = document.querySelectorAll(".fade");
+
+        if (!("IntersectionObserver" in window)) {
+          elements.forEach((el) => el.classList.add("visible"));
+
+          return;
+        }
+
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("visible");
+
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+
+          { threshold: 0.08 },
+        );
+
+        elements.forEach((el) => observer.observe(el));
+      })();
+
+      /* ==========================================
+
+
+
+       ATRIBUCIÓN DE CAMPAÑAS
+
+
+
+       WIX → MARKETING HUB
+
+
+
+       ========================================== */
+
+      (function () {
+        const frame = document.getElementById("shades-registration-frame");
+
+        if (!frame) return;
+
+        const formUrl = "https://shmx.men/events/embed/registro-experience";
+        const attributionKeys = [
+          "utm_source",
+          "utm_medium",
+          "utm_campaign",
+          "utm_content",
+          "utm_term",
+          "utm_id",
+        ];
+
+        function updateFormUrl(params) {
+          const query = new URLSearchParams();
+
+          for (const key of attributionKeys) {
+            if (params && params[key]) {
+              query.set(key, String(params[key]));
+            }
+          }
+
+          frame.src = query.toString() ? `${formUrl}?${query.toString()}` : formUrl;
+        }
+
+        window.addEventListener("message", function (event) {
+          if (event.source !== window.parent) return;
+
+          const data = event.data;
+          if (!data || data.type !== "shades:utm") return;
+
+          updateFormUrl(data.params);
+        });
+
+        if (window.parent !== window) {
+          window.parent.postMessage({ type: "shades:ready" }, "*");
+        }
+
+        const pageParams = Object.fromEntries(new URLSearchParams(window.location.search));
+        if (Object.keys(pageParams).length > 0) {
+          updateFormUrl(pageParams);
+        }
+      })();
+
+      /* ==========================================
+
+
+
+       CONTADOR REGRESIVO
+
+
+
+       6 NOV 2026 - 09:00 GUADALAJARA
+
+
+
+       ========================================== */
+
+      (function () {
+        "use strict";
+
+        const section = document.getElementById("shades-countdown");
+
+        if (!section) return;
+
+        const eventTime = new Date("2026-11-06T09:00:00-06:00").getTime();
+
+        const elements = {
+          days: section.querySelector('[data-count="days"]'),
+
+          hours: section.querySelector('[data-count="hours"]'),
+
+          minutes: section.querySelector('[data-count="minutes"]'),
+
+          seconds: section.querySelector('[data-count="seconds"]'),
+        };
+
+        const format = (value) => String(value).padStart(2, "0");
+
+        let intervalId;
+
+        function updateCountdown() {
+          const distance = Math.max(0, eventTime - Date.now());
+
+          const days = Math.floor(distance / 86400000);
+
+          const hours = Math.floor((distance % 86400000) / 3600000);
+
+          const minutes = Math.floor((distance % 3600000) / 60000);
+
+          const seconds = Math.floor((distance % 60000) / 1000);
+
+          elements.days.textContent = format(days);
+
+          elements.hours.textContent = format(hours);
+
+          elements.minutes.textContent = format(minutes);
+
+          elements.seconds.textContent = format(seconds);
+
+          if (distance === 0) {
+            clearInterval(intervalId);
+
+            const intro = section.querySelector(".sc-intro");
+
+            if (intro) {
+              intro.textContent = "¡La experiencia SHADES SPACES ha comenzado!";
+            }
+          }
+        }
+
+        updateCountdown();
+
+        if (eventTime > Date.now()) {
+          intervalId = setInterval(updateCountdown, 1000);
+        }
+      })();
+
+      /* ==========================================
+
+
+
+       AJUSTE DE ALTURA DEL FORMULARIO
+
+
+
+       MARKETING HUB
+
+
+
+       ========================================== */
+
+      (function () {
+        const frame = document.getElementById("shades-registration-frame");
+
+        if (!frame) return;
+
+        const origin = new URL(frame.src).origin;
+
+        window.addEventListener("message", function (event) {
+          if (event.origin !== origin || event.source !== frame.contentWindow) {
+            return;
+          }
+
+          const data = event.data;
+
+          if (
+            !data ||
+            data.type !== "event-registration:resize" ||
+            !Number.isFinite(data.height) ||
+            data.height < 320 ||
+            data.height > 10000
+          ) {
+            return;
+          }
+
+          frame.style.height = Math.ceil(data.height) + "px";
+
+          frame.style.minHeight = "0";
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getPrimaryAttendee, getRegistrationTableValues } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
 
 vi.mock("@/lib/env", () => ({ env: { DATABASE_URL: "postgres://localhost:5432/test" } }));
 vi.mock("@/modules/users", () => ({ isAdmin: () => true }));
@@ -60,6 +60,11 @@ describe("registration table model", () => {
     } as never;
 
     expect(getRegistrationTableValues(partiallyCheckedIn).status).toBe("Confirmado");
+  });
+
+  it("identifies paid Meta registrations from source and medium", () => {
+    expect(isMetaAdsRegistration({ ...registrationData, utmSource: "facebook", utmMedium: "paid_social" } as never)).toBe(true);
+    expect(isMetaAdsRegistration({ ...registrationData, utmSource: "facebook", utmMedium: "social" } as never)).toBe(false);
   });
 
   it("reports check-in only after every attendee is validated", () => {

@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
-import { Tag } from "lucide-react";
+import { Megaphone, Tag } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
-import { getPrimaryAttendee, getRegistrationTableValues } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
 import { RegistrationDetailSheet } from "./registration-detail-sheet";
 import { formatRegistrationDate } from "./registration-date";
 
@@ -112,6 +112,12 @@ export function RegistrationsTable({
                   <td className="max-w-56 px-4 py-3">
                     <strong className="block truncate font-medium">{primary?.fullName ?? "—"}</strong>
                     {primary?.email ? <span className="block truncate text-xs text-muted-foreground">{primary.email}</span> : null}
+                    {isMetaAdsRegistration(registration) ? (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-200">
+                        <Megaphone className="size-3" aria-hidden="true" />
+                        Meta Ads
+                      </span>
+                    ) : null}
                   </td>
                   <td className="max-w-48 truncate px-4 py-3">{primary?.company ?? "—"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{values.state}</td>

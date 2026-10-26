@@ -8,6 +8,13 @@ export function getPrimaryAttendee(registration: RegistrationWithAttendees) {
   return registration.attendees[0];
 }
 
+export function isMetaAdsRegistration(registration: RegistrationWithAttendees): boolean {
+  const source = registration.utmSource?.trim().toLowerCase();
+  const medium = registration.utmMedium?.trim().toLowerCase();
+  const isMetaSource = source === "facebook" || source === "instagram" || source === "meta";
+  return isMetaSource && Boolean(medium && /paid|ads|cpc|ppc/.test(medium));
+}
+
 export function getRegistrationTableValues(registration: RegistrationWithAttendees) {
   const [primary, ...companions] = registration.attendees;
   const primaryCheckedIn = Boolean(primary?.checkedInAt);
