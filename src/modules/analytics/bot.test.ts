@@ -9,6 +9,8 @@ describe("isKnownBot", () => {
     expect(isKnownBot("TelegramBot (like TwitterBot)")).toBe(true);
     expect(isKnownBot("Mozilla/5.0 (compatible; Discordbot/2.0)")).toBe(true);
     expect(isKnownBot("LinkedInBot/1.0")).toBe(true);
+    expect(isKnownBot("meta-externalagent/1.1")).toBe(true);
+    expect(isKnownBot("facebookcatalog/1.0")).toBe(true);
   });
 
   it("flags common search engine bots", () => {

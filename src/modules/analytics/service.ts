@@ -114,7 +114,7 @@ export async function countEventsForQrCodes(
       : await db
           .select({ linkId: trackingEvents.linkId, count: count() })
           .from(trackingEvents)
-          .where(and(inArray(trackingEvents.linkId, linkIds), eq(trackingEvents.sourceType, "qr_scan")))
+          .where(and(inArray(trackingEvents.linkId, linkIds), eq(trackingEvents.sourceType, "qr_scan"), eq(trackingEvents.isBot, false)))
           .groupBy(trackingEvents.linkId);
   const countsByLinkId = new Map(counts.map((row) => [row.linkId, row.count]));
   return new Map(qrCodes.map((qr) => [qr.id, qr.linkId ? (countsByLinkId.get(qr.linkId) ?? 0) : 0]));
@@ -127,7 +127,7 @@ export async function countUniqueScansForQrCode(qrCodeId: string): Promise<numbe
   const [row] = await db
     .select({ count: countDistinct(trackingEvents.visitorHash) })
     .from(trackingEvents)
-    .where(and(eq(trackingEvents.linkId, qr.linkId), eq(trackingEvents.sourceType, "qr_scan")));
+    .where(and(eq(trackingEvents.linkId, qr.linkId), eq(trackingEvents.sourceType, "qr_scan"), eq(trackingEvents.isBot, false)));
   return row?.count ?? 0;
 }
 
@@ -137,7 +137,7 @@ export async function countQrScansForLink(linkId: string): Promise<number> {
   const [row] = await db
     .select({ count: count() })
     .from(trackingEvents)
-    .where(and(eq(trackingEvents.linkId, linkId), eq(trackingEvents.sourceType, "qr_scan")));
+    .where(and(eq(trackingEvents.linkId, linkId), eq(trackingEvents.sourceType, "qr_scan"), eq(trackingEvents.isBot, false)));
   return row?.count ?? 0;
 }
 
@@ -145,7 +145,7 @@ export async function countUniqueQrScansForLink(linkId: string): Promise<number>
   const [row] = await db
     .select({ count: countDistinct(trackingEvents.visitorHash) })
     .from(trackingEvents)
-    .where(and(eq(trackingEvents.linkId, linkId), eq(trackingEvents.sourceType, "qr_scan")));
+    .where(and(eq(trackingEvents.linkId, linkId), eq(trackingEvents.sourceType, "qr_scan"), eq(trackingEvents.isBot, false)));
   return row?.count ?? 0;
 }
 
@@ -162,6 +162,7 @@ export async function countUniqueEventsForLink(
       and(
         eq(trackingEvents.linkId, linkId),
         eq(trackingEvents.sourceType, eventType),
+        eq(trackingEvents.isBot, false),
         gte(trackingEvents.createdAt, from),
         lte(trackingEvents.createdAt, to),
       ),

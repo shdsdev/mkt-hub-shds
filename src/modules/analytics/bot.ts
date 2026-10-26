@@ -3,6 +3,8 @@
 const KNOWN_BOT_PATTERNS = [
   "whatsapp",
   "facebookexternalhit",
+  "meta-externalagent",
+  "facebookcatalog",
   "slackbot",
   "telegrambot",
   "twitterbot",
