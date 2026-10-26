@@ -37,7 +37,7 @@ import { AppSidebar } from "./sidebar";
 
 describe("sidebar role visibility", () => {
   it.each(["RECEPTION", "EVENT_EDITOR"])("shows only the events module for %s", (role) => {
-    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role={role} theme="light" />);
+    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role={role} targetThemeId="dark" />);
     expect(html).toContain('href="/events"');
     expect(html).toContain("Cerrar sesión");
     expect(html).toContain("user@example.com");
@@ -48,7 +48,7 @@ describe("sidebar role visibility", () => {
   });
 
   it("preserves administrator modules and settings", () => {
-    const html = renderToStaticMarkup(<AppSidebar email="admin@example.com" role="ADMIN" theme="light" />);
+    const html = renderToStaticMarkup(<AppSidebar email="admin@example.com" role="ADMIN" targetThemeId="dark" />);
     for (const href of ["/", "/notifications", "/events", "/campaigns", "/audit", "/settings", "/settings/users"]) {
       expect(html).toContain(`href="${href}"`);
     }
@@ -56,17 +56,17 @@ describe("sidebar role visibility", () => {
   });
 
   it("offers the dark mode quick action from light mode", () => {
-    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role="RECEPTION" theme="light" />);
+    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role="RECEPTION" targetThemeId="dark" />);
     expect(html).toContain("Cambiar a modo oscuro");
   });
 
   it("offers the light mode quick action from dark mode", () => {
-    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role="EVENT_EDITOR" theme="dark" />);
+    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role="EVENT_EDITOR" targetThemeId="light" />);
     expect(html).toContain("Cambiar a modo claro");
   });
 
   it("offers the light mode quick action to admins using a special dark theme", () => {
-    const html = renderToStaticMarkup(<AppSidebar email="admin@example.com" role="ADMIN" theme="midnight" />);
+    const html = renderToStaticMarkup(<AppSidebar email="admin@example.com" role="ADMIN" targetThemeId="light" />);
     expect(html).toContain("Cambiar a modo claro");
   });
 });
