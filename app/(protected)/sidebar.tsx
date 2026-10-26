@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
 import { signOutAction } from "./actions";
+import { DEFAULT_THEME_ID, THEMES } from "@/modules/users";
 
 function initials(email: string): string {
   return email.slice(0, 2).toUpperCase();
@@ -88,9 +89,12 @@ function NavItem({
   );
 }
 
-export function AppSidebar({ email, role }: { email: string; role: string }) {
+export function AppSidebar({ email, role, theme }: { email: string; role: string; theme?: string | null }) {
   const pathname = usePathname();
   const eventsOnly = role === "EVENT_EDITOR" || role === "RECEPTION";
+  const currentTheme = THEMES.find((item) => item.id === theme)
+    ?? THEMES.find((item) => item.id === DEFAULT_THEME_ID)!;
+  const targetThemeId = currentTheme.mode === "dark" ? "light" : "dark";
   const qrShortLinksActive =
     pathname.startsWith("/links") || pathname.startsWith("/qr") || pathname.startsWith("/analytics");
   // Keep the first render structurally identical on the server and client. The pathname can be
