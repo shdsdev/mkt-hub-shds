@@ -99,6 +99,35 @@ describe("addCompanionAction", () => {
     expect(mocks.addAttendeeToRegistration).not.toHaveBeenCalled();
   });
 
+  it("allows an assigned receptionist to add a companion", async () => {
+    const receptionist = { ...adminUser, id: "reception-1", profile: { ...adminUser.profile, role: "RECEPTION" } };
+    mocks.getCurrentUser.mockResolvedValue(receptionist);
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.listEventReceptionistIds.mockResolvedValue([receptionist.id]);
+    mocks.addAttendeeToRegistration.mockResolvedValue({
+      ok: true,
+      registrationStatus: "waitlisted",
+      attendee: { id: "att-2", organizationId: "org-1", email: "alan@example.com", fullName: "Alan Turing", passToken: "t", backupCode: "b" },
+    });
+
+    const result = await addCompanionAction({}, formData());
+
+    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "b" } });
+    expect(mocks.addAttendeeToRegistration).toHaveBeenCalled();
+  });
+
+  it("rejects a receptionist who is not assigned to the event", async () => {
+    const receptionist = { ...adminUser, id: "reception-1", profile: { ...adminUser.profile, role: "RECEPTION" } };
+    mocks.getCurrentUser.mockResolvedValue(receptionist);
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.listEventReceptionistIds.mockResolvedValue(["another-receptionist"]);
+
+    const result = await addCompanionAction({}, formData());
+
+    expect(result.error).toBeTruthy();
+    expect(mocks.addAttendeeToRegistration).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid input without calling the service", async () => {
     const result = await addCompanionAction({}, formData({ email: "not-an-email" }));
     expect(result.error).toBeTruthy();

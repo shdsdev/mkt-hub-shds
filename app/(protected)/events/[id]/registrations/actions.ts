@@ -202,15 +202,15 @@ export async function updateRegistrationReviewStatusAction(
   return { success: "Estado de revisión actualizado." };
 }
 
-// Admin feedback round: a "master form" to add more companions to a registration that was
+// Staff feedback round: a "master form" to add more companions to a registration that was
 // already submitted (not the public registration form — that stays scoped to the person
-// registering themselves). ADMIN-only, same gate shape as app/(protected)/events/actions.ts.
+// registering themselves). ADMINs can manage any event; RECEPTION can manage assigned events.
 export async function addCompanionAction(
   _prevState: AddCompanionFormState,
   formData: FormData,
 ): Promise<AddCompanionFormState> {
   const user = await getCurrentUser();
-  if (!user || !isActive(user.profile) || !isAdmin(user.profile)) return { error: PERMISSION_ERROR };
+  if (!user || !isActive(user.profile) || (!isAdmin(user.profile) && user.profile.role !== "RECEPTION")) return { error: PERMISSION_ERROR };
 
   const parsed = schema.safeParse({
     registrationId: formData.get("registrationId"),
@@ -223,6 +223,14 @@ export async function addCompanionAction(
     occupation: formData.get("occupation"),
   });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  if (!isAdmin(user.profile)) {
+    const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+    const receptionistIds = event
+      ? await listEventReceptionistIds(parsed.data.eventId, user.profile.organizationId)
+      : [];
+    if (!event || !receptionistIds.includes(user.id)) return { error: PERMISSION_ERROR };
+  }
 
   const result = await addAttendeeToRegistration({
     registrationId: parsed.data.registrationId,
