@@ -130,4 +130,23 @@ describe("RegistrationsPage", () => {
      expect(JSON.stringify(result)).toContain('"registrations"');
      expect(JSON.stringify(result)).toContain('"eventId":"event-1"');
   });
+
+  it("paginates the filtered registrations using the URL state", async () => {
+    mocks.listRegistrations.mockResolvedValue(Array.from({ length: 26 }, (_, index) => ({
+      id: `reg-${index + 1}`,
+      status: "confirmed",
+      createdAt: new Date(`2026-10-${String(26 - index).padStart(2, "0")}T12:00:00Z`),
+      utmSource: null,
+      source: "public",
+      attendees: [{ id: `att-${index + 1}`, fullName: `Contacto ${index + 1}`, email: `contacto${index + 1}@example.com`, checkedInAt: null }],
+    })));
+
+    const result = await RegistrationsPage({
+      params: params("event-1"),
+      searchParams: searchParams({ page: "2", pageSize: "25" }),
+    });
+
+    expect(JSON.stringify(result)).toContain('"id":"reg-26"');
+    expect(JSON.stringify(result)).toContain('"children":["Página ",2," de ",2]');
+  });
 });

@@ -1419,7 +1419,9 @@ export async function listRegistrations(
   return statusFiltered.filter((registration) =>
     registration.attendees.some(
       (attendee) =>
-        attendee.fullName.toLowerCase().includes(needle) || attendee.email.toLowerCase().includes(needle),
+        attendee.fullName.toLowerCase().includes(needle) ||
+        attendee.email.toLowerCase().includes(needle) ||
+        (attendee.company ?? "").toLowerCase().includes(needle),
     ),
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
@@ -48,6 +48,10 @@ export function RegistrationsTable({
 }: Props) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
+  const [isDragging, setIsDragging] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef({ active: false, moved: false, startX: 0, startScrollLeft: 0 });
+  const suppressClickRef = useRef(false);
   const selectedRegistration = registrations.find(({ id }) => id === selectedId) ?? null;
 
   useEffect(() => {
@@ -58,7 +62,50 @@ export function RegistrationsTable({
   }, [router]);
 
   function selectRegistration(id: string) {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     setSelectedId(id);
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "touch") return;
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, select, textarea")) return;
+
+    const container = event.currentTarget;
+    dragRef.current = {
+      active: true,
+      moved: false,
+      startX: event.clientX,
+      startScrollLeft: container.scrollLeft,
+    };
+    container.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag.active) return;
+
+    const distance = event.clientX - drag.startX;
+    if (Math.abs(distance) > 4) {
+      drag.moved = true;
+      setIsDragging(true);
+    }
+    event.currentTarget.scrollLeft = drag.startScrollLeft - distance;
+  }
+
+  function endPointerDrag(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag.active) return;
+
+    if (drag.moved) suppressClickRef.current = true;
+    dragRef.current.active = false;
+    setIsDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
   function handleRowKeyDown(event: React.KeyboardEvent<HTMLTableRowElement>, id: string) {
@@ -69,21 +116,28 @@ export function RegistrationsTable({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div
+        ref={scrollRef}
+        className={`overflow-x-auto rounded-lg border border-border touch-pan-y ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endPointerDrag}
+        onPointerCancel={endPointerDrag}
+      >
           <table className="min-w-[1240px] w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-border text-xs text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">Empresa</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
-              <th className="px-4 py-3 font-medium">Fecha</th>
-              <th className="px-4 py-3 font-medium">Tipo de cliente</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Revisión</th>
-              <th className="px-4 py-3 font-medium">Fuente</th>
-              <th className="px-4 py-3 font-medium">Marca</th>
-              <th className="px-4 py-3 font-medium">Seguimiento</th>
-              <th className="px-4 py-3 font-medium">Acciones</th>
+            <tr className="border-b border-border bg-background text-xs text-muted-foreground">
+              <th className="sticky left-0 top-0 z-30 bg-background px-4 py-3 font-medium">Nombre</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Empresa</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Estado</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Fecha</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Tipo de cliente</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Status</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Revisión</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Fuente</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Marca</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Seguimiento</th>
+              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -109,7 +163,7 @@ export function RegistrationsTable({
                   onClick={() => selectRegistration(registration.id)}
                   onKeyDown={(event) => handleRowKeyDown(event, registration.id)}
                 >
-                  <td className="max-w-56 px-4 py-3">
+                  <td className="sticky left-0 z-10 max-w-56 bg-background px-4 py-3">
                     <strong className="block truncate font-medium">{primary?.fullName ?? "—"}</strong>
                     {primary?.email ? <span className="block truncate text-xs text-muted-foreground">{primary.email}</span> : null}
                   </td>
