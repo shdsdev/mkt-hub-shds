@@ -11,7 +11,7 @@ const { transaction, select, update, execute, createProfile, inviteNewUser, dele
 }));
 
 vi.mock("../../db/client", () => ({
-  db: { transaction, select },
+  db: { transaction, select, update },
 }));
 
 vi.mock("../../db/auth-schema-ref", () => ({
@@ -41,6 +41,7 @@ import {
   deleteManagedUser,
   inviteManagedUser,
   setManagedUserStatus,
+  setManagedUserTheme,
 } from "./management";
 
 function query<T>(rows: T[]) {
@@ -51,6 +52,7 @@ function query<T>(rows: T[]) {
     orderBy: vi.fn(),
     limit: vi.fn(),
     returning: vi.fn(),
+    set: vi.fn(),
     then: (resolve: (value: T[]) => unknown) => Promise.resolve(rows).then(resolve),
   };
 
@@ -60,6 +62,7 @@ function query<T>(rows: T[]) {
   result.orderBy.mockReturnValue(result);
   result.limit.mockReturnValue(result);
   result.returning.mockReturnValue(result);
+  result.set.mockReturnValue(result);
   return result;
 }
 
@@ -167,6 +170,25 @@ describe("managed user lifecycle", () => {
       }),
     ).resolves.toEqual({ ok: false, reason: "self_disable" });
 
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("updates a theme only for a target in the actor organization", async () => {
+    select.mockReturnValueOnce(query([{ id: "user-1", organizationId: "org-1", theme: "midnight", email: "user@example.com" }]));
+    const updateQuery = query([]);
+    update.mockReturnValueOnce(updateQuery);
+
+    await expect(setManagedUserTheme({
+      organizationId: "org-1", targetUserId: "user-1", theme: "dark",
+    })).resolves.toEqual({ ok: true, before: "midnight", after: "dark" });
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it("does not update a theme for a target outside the actor organization", async () => {
+    select.mockReturnValueOnce(query([]));
+    await expect(setManagedUserTheme({
+      organizationId: "org-1", targetUserId: "user-2", theme: "light",
+    })).resolves.toEqual({ ok: false, reason: "target_not_found" });
     expect(update).not.toHaveBeenCalled();
   });
 

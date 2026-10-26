@@ -18,7 +18,7 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <SidebarProvider className="h-svh overflow-hidden">
+    <SidebarProvider className="app-shell h-svh overflow-hidden">
       <AppSidebar email={user.email} role={user.profile.role} />
       <main className="flex-1 overflow-y-auto md:bg-sidebar md:p-2">
         <div className="content-frame gradient-border-frame flex h-full flex-col overflow-hidden rounded-xl bg-background">

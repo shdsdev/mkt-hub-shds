@@ -36,7 +36,8 @@ describe("CheckInForm idle surface", () => {
     expect(html).toContain("Validar acceso");
     expect(html.match(/Escanear QR/g)).toHaveLength(1);
     expect(html.match(/Ingresar código/g)).toHaveLength(1);
-    expect(html).toContain("min-h-[min(72dvh,44rem)]");
+    expect(html).toContain("p-6 sm:p-7");
+    expect(html).not.toContain("min-h-[min(72dvh,44rem)]");
   });
 });
 

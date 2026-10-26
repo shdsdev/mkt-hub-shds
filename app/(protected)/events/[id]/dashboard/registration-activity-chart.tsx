@@ -15,18 +15,18 @@ export function RegistrationActivityChart({ activity }: { activity: EventDashboa
             <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
             <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
             <Tooltip
-              cursor={{ fill: "var(--accent)", fillOpacity: 0.08 }}
+              cursor={{ fill: "var(--accent)", fillOpacity: 0.14 }}
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
                 return (
                   <div className="rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-lg">
                     <p className="text-muted-foreground">{label}</p>
-                    <p className="font-medium text-accent-foreground">Registros: {payload[0]?.value}</p>
+                    <p className="font-medium text-foreground">Registros: {payload[0]?.value}</p>
                   </div>
                 );
               }}
             />
-            <Bar dataKey="registrations" name="Registros" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="registrations" name="Registros" fill="var(--accent)" stroke="var(--accent-foreground)" strokeOpacity={0.16} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       ) : (

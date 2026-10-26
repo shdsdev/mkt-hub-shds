@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ManagedUser } from "@/modules/users";
+import type { ManagedUser, Theme } from "@/modules/users";
 import {
   changeUserRoleAction,
   deleteUserAction,
@@ -29,6 +29,7 @@ import {
   inviteUserAction,
   reactivateUserAction,
   sendPasswordSetupLinkAction,
+  setUserThemeAction,
   type UserManagementFormState,
 } from "./actions";
 
@@ -59,7 +60,7 @@ function formatJoinedDate(value: Date): string {
   return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(value);
 }
 
-export function UserManagement({ users }: { users: ManagedUser[] }) {
+export function UserManagement({ users, themes = [] }: { users: ManagedUser[]; themes?: Theme[] }) {
   const [inviteState, inviteAction, invitePending] = useActionState(inviteUserAction, initialState);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -187,19 +188,21 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
             <colgroup>
               <col />
               <col className="w-64" />
-              <col className="w-24" />
+               <col className="w-40" />
+               <col className="w-24" />
               <col className="w-36" />
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left">
                 <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Usuario</th>
                 <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Rol</th>
+                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Tema</th>
                 <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Alta</th>
                 <th className="p-4 text-right font-medium uppercase tracking-wider text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {currentUsers.map((user) => <ManagedUserRow key={user.id} user={user} />)}
+               {currentUsers.map((user) => <ManagedUserRow key={user.id} user={user} themes={themes} />)}
             </tbody>
           </table>
         </div>
@@ -225,10 +228,12 @@ export function UserManagement({ users }: { users: ManagedUser[] }) {
   );
 }
 
-function ManagedUserRow({ user }: { user: ManagedUser }) {
+function ManagedUserRow({ user, themes }: { user: ManagedUser; themes: Theme[] }) {
   const role = roleLabel(user.role) ?? "User";
   const roleFormRef = useRef<HTMLFormElement>(null);
   const [roleState, roleAction, rolePending] = useActionState(changeUserRoleAction, initialState);
+  const themeFormRef = useRef<HTMLFormElement>(null);
+  const [themeState, themeAction, themePending] = useActionState(setUserThemeAction, initialState);
   const [statusState, statusAction, statusPending] = useActionState(
     user.status === "active" ? disableUserAction : reactivateUserAction,
     initialState,
@@ -288,6 +293,15 @@ function ManagedUserRow({ user }: { user: ManagedUser }) {
           </Select>
         </form>
       </td>
+      <td className="p-4 align-middle">
+        <form ref={themeFormRef} action={themeAction}>
+          <input type="hidden" name="targetUserId" value={user.id} />
+          <Select name="theme" defaultValue={user.theme ?? "light"} onValueChange={(value) => { if (value && value !== (user.theme ?? "light")) themeFormRef.current?.requestSubmit(); }}>
+            <SelectTrigger aria-label={`Tema de ${user.email}`} className="w-full max-w-36" disabled={themePending}><SelectValue /></SelectTrigger>
+            <SelectContent><SelectGroup>{themes.map((theme) => <SelectItem key={theme.id} value={theme.id}>{theme.label}</SelectItem>)}</SelectGroup></SelectContent>
+          </Select>
+        </form>
+      </td>
       <td className="p-4 text-sm text-muted-foreground">{formatJoinedDate(user.createdAt)}</td>
       <td className="p-4 text-right align-middle">
         <DropdownMenu>
@@ -322,9 +336,9 @@ function ManagedUserRow({ user }: { user: ManagedUser }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {(roleState.error || passwordState.error || statusState.error || deleteState.error) && (
+        {(roleState.error || themeState.error || passwordState.error || statusState.error || deleteState.error) && (
           <p role="alert" className="mt-2 max-w-52 text-xs text-destructive">
-            {roleState.error ?? passwordState.error ?? statusState.error ?? deleteState.error}
+            {roleState.error ?? themeState.error ?? passwordState.error ?? statusState.error ?? deleteState.error}
           </p>
         )}
         {deleteConfirmationOpen && (

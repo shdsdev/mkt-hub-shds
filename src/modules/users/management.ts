@@ -5,6 +5,7 @@ import { authUsers } from "../../db/auth-schema-ref";
 import { invitationGateway } from "../../lib/supabase/admin";
 import { users } from "./db";
 import { createProfile, type Profile, type UserStatus } from "./service";
+import { isValidThemeId } from "./theme-registry";
 
 // Distinct runtime name for `public.users`, because joining it to `auth.users` produces two SQL
 // tables both named `users` and every unqualified reference becomes ambiguous.
@@ -12,6 +13,7 @@ const profileUsers = alias(users, "profile_users");
 
 export type ManagedUser = Pick<Profile, "id" | "organizationId" | "role" | "status" | "createdAt"> & {
   email: string;
+  theme?: Profile["theme"];
 };
 
 export type ManagedRole = "ADMIN" | "MARKETING_USER" | "RECEPTION" | "EVENT_EDITOR";
@@ -40,6 +42,7 @@ const managedUserFields = {
   organizationId: profileUsers.organizationId,
   role: profileUsers.role,
   status: profileUsers.status,
+  theme: profileUsers.theme,
   createdAt: profileUsers.createdAt,
   email: sql<string>`coalesce(${authUsers.email}, '')`,
 };
@@ -104,6 +107,27 @@ export async function setManagedUserStatus(input: {
   status: "active" | "disabled";
 }): Promise<ManagementMutationResult> {
   return mutateManagedUser(input, { status: input.status });
+}
+
+export async function setManagedUserTheme(input: {
+  organizationId: string;
+  targetUserId: string;
+  theme: string;
+}): Promise<{ ok: true; before: string | null; after: string } | { ok: false; reason: "target_not_found" | "invalid_theme" }> {
+  if (!isValidThemeId(input.theme)) return { ok: false, reason: "invalid_theme" };
+
+  const [target] = await db
+    .select({ id: users.id, theme: users.theme })
+    .from(users)
+    .where(and(eq(users.id, input.targetUserId), eq(users.organizationId, input.organizationId)))
+    .limit(1);
+  if (!target) return { ok: false, reason: "target_not_found" };
+
+  await db
+    .update(users)
+    .set({ theme: input.theme })
+    .where(and(eq(users.id, input.targetUserId), eq(users.organizationId, input.organizationId)));
+  return { ok: true, before: target.theme, after: input.theme };
 }
 
 export async function deleteManagedUser(input: {

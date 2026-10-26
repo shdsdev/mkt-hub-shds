@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Dialog } from "@base-ui/react/dialog";
 import { CalendarDays, ChevronDown, CircleHelp, Clock3, Info, LoaderCircle, Minus, Pause, Play, Plus, Sparkles, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -220,12 +220,12 @@ function DrawModeSettings({ eventId, raffleId, drawMode }: { eventId: string; ra
         { value: "automatic" as const, title: "Sortear siguiente premio", description: "El sistema toma el primer premio pendiente según el orden configurado.", tooltip: "Usá este modo cuando quieras respetar el orden de la lista sin elegir un premio cada vez.", button: "Usar modo Automático" },
       ]).map((option) => {
         const selected = drawMode === option.value;
-        return <form key={option.value} action={action} className={`rounded-xl border p-4 transition ${selected ? "border-primary bg-primary/10" : "border-border/70 bg-background/20"}`}>
+        return <form key={option.value} action={action} className={`rounded-xl border p-4 transition ${selected ? "border-accent bg-accent/10" : "border-border/70 bg-background/20"}`}>
           <input type="hidden" name="eventId" value={eventId} />
           <input type="hidden" name="raffleId" value={raffleId} />
           <input type="hidden" name="drawMode" value={option.value} />
           <button type="submit" role="radio" aria-checked={selected} disabled={selected} className="flex w-full items-start gap-3 text-left disabled:cursor-default">
-            <span aria-hidden="true" className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${selected ? "border-primary" : "border-muted-foreground/50"}`}><span className={`size-2.5 rounded-full bg-primary transition ${selected ? "scale-100" : "scale-0"}`} /></span>
+            <span aria-hidden="true" className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${selected ? "border-accent" : "border-muted-foreground/50"}`}><span className={`size-2.5 rounded-full bg-accent transition ${selected ? "scale-100" : "scale-0"}`} /></span>
             <span className="min-w-0"><span className="flex items-center gap-2 font-semibold">{option.title}<Tooltip label={option.tooltip}><CircleHelp className="size-3.5 text-muted-foreground" aria-hidden="true" /></Tooltip></span><span className="mt-1 block text-sm leading-5 text-muted-foreground">{option.description}</span><span className="mt-3 block text-xs font-semibold text-primary">{selected ? "Modo seleccionado" : option.button}</span></span>
           </button>
         </form>;
@@ -245,7 +245,7 @@ function AutomaticDrawControl({ eventId, prizes, draws }: { eventId: string; pri
   const nextPrize = nextAvailablePrize(prizes);
   const hasPendingDraw = draws.some((draw) => draw.status === "pending_reveal" || draw.status === "revealed");
 
-  return <section className="rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-sm sm:p-6">
+  return <section className="light-raffle-surface rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-sm sm:p-6">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Modo automático activo</p>
@@ -274,11 +274,11 @@ function PrizeCard({ eventId, raffleId, prize, draws, filterOptions, drawMode }:
   const prizeDraws = draws.filter((draw) => draw.prizeId === prize.id).toReversed();
   const isPaused = prize.status === "paused";
 
-  return <section className="overflow-hidden rounded-2xl border border-border bg-card/70 shadow-sm">
+  return <section className="light-raffle-surface overflow-hidden rounded-2xl border border-border bg-card/70 shadow-sm">
     <header className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex min-w-0 items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/60">
-        <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${isPaused ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary"}`}><Sparkles className="size-4" aria-hidden="true" /></span>
-        <span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-primary/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">Premio</span><span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">{statusLabels[prize.status]}</span></span><span className="mt-2 block truncate font-heading text-xl font-semibold tracking-tight">{prize.name}</span><span className="mt-1 block text-sm text-muted-foreground">{prize.drawnQuantity} de {prize.quantity} unidades sorteadas</span></span>
+        <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${isPaused ? "bg-muted text-muted-foreground" : "bg-accent text-accent-foreground"}`}><Sparkles className="size-4" aria-hidden="true" /></span>
+        <span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-accent px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent-foreground">Premio</span><span className="rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground">{statusLabels[prize.status]}</span></span><span className="mt-2 block truncate font-heading text-xl font-semibold tracking-tight">{prize.name}</span><span className="mt-1 block text-sm text-muted-foreground">{prize.drawnQuantity} de {prize.quantity} unidades sorteadas</span></span>
         <ChevronDown className={`ml-auto size-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -437,7 +437,7 @@ export function RaffleManagement({ event, raffle, prizes, draws, audit, filterOp
             <form action={stageAction} className="flex flex-wrap items-center gap-2">
               <input type="hidden" name="eventId" value={event.id} />
               <SubmitButton type="submit" variant="secondary" pendingLabel="Generando…">Generar enlace de escenario</SubmitButton>
-              {stageState.stageUrl ? <Button render={<a href={stageState.stageUrl} target="_blank" rel="noreferrer" title="Abre la pantalla pública para proyectar el sorteo" />} variant="outline">Abrir pantalla</Button> : null}
+              {stageState.stageUrl ? <a className={buttonVariants({ variant: "default", className: "bg-[#242424] text-white hover:bg-[#393e41]" })} href={stageState.stageUrl} target="_blank" rel="noreferrer" title="Abre la pantalla pública para proyectar el sorteo">Abrir pantalla</a> : null}
             </form>
             <p className="max-w-md text-xs leading-5 text-muted-foreground">Genera un enlace público para proyectar el sorteo. Después selecciona «Abrir pantalla» en una pantalla del auditorio.</p>
           </div>

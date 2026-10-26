@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-page-custom-font -- Google Fonts are intentionally loaded in the root App Router layout. */
 import type { Metadata } from "next";
 import { getCurrentUser } from "@/modules/auth";
-import { DEFAULT_THEME_ID, getThemeColorOverrides, buildThemeOverrideStyle } from "@/modules/users";
+import { DEFAULT_THEME_ID, getThemeColorOverrides, buildThemeOverrideStyle, THEMES } from "@/modules/users";
 import { AuraBackground, type AuraThemeId } from "@/components/aura-background";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -16,6 +16,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const themeId = user?.profile.theme ?? DEFAULT_THEME_ID;
   const auraThemeIds: AuraThemeId[] = ["nightfall", "greydlu", "aston", "signature", "midnight", "arctic-frost"];
   const auraTheme = auraThemeIds.find((id) => id === themeId);
+  const colorMode = THEMES.find((theme) => theme.id === themeId)?.mode ?? "light";
   // ADMIN color overrides (2026-10-15 design) — a per-token delta on top of the fixed
   // [data-app-theme="..."] CSS block. Rendered as its own <style> tag with an `html[data-app-theme=
   // "..."]` selector (element + attribute = higher specificity than the plain attribute selector
@@ -28,7 +29,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       data-app-theme={themeId}
-      className="dark h-full"
+      className={`${colorMode === "dark" ? "dark " : ""}h-full`}
       suppressHydrationWarning
     >
       <head>

@@ -122,7 +122,7 @@ describe("EventDashboardPage", () => {
     expect(json).toContain("Actividad de registros");
     expect(json).toContain("Requiere atención");
     expect(json).toContain("Últimos registros");
-    expect(json).toContain("text-accent\"");
+    expect(json).toContain("bg-accent text-accent-foreground");
   });
 
   it("renders a dash (not 0%) for conversion when there have been no visits", async () => {

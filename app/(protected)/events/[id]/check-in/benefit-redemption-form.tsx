@@ -151,7 +151,7 @@ export function BenefitRedemptionForm({ eventId, initialLookup, history, canAnnu
   const canRedeem = Boolean(scopeConfigured && state.lookup?.attendee.checkedInAt && !state.lookup.redemption && state.selectedBenefitId && !state.pending);
 
   return (
-    <section className="flex min-h-[min(72dvh,44rem)] flex-col justify-center rounded-2xl border border-border bg-card p-5 sm:p-8">
+    <section className="flex flex-col rounded-2xl border border-border bg-card p-6 sm:p-7">
       <div className="max-w-xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Beneficios operativos</p>
         <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-5xl">Validar beneficio</h2>

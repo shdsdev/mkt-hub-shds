@@ -13,9 +13,9 @@ export function LandingLink({ landingUrl }: { landingUrl: string }) {
   }
 
   return (
-    <section aria-labelledby="landing-link-heading" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <section aria-labelledby="landing-link-heading" className="light-landing-surface flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
       <div>
-        <h2 id="landing-link-heading" className="text-sm font-medium">Landing pública</h2>
+        <h2 id="landing-link-heading" className="text-sm font-semibold">Landing pública</h2>
         <p className="text-xs text-muted-foreground">Revisá o compartí la página pública de este evento.</p>
       </div>
       <Input readOnly value={landingUrl} aria-label="URL de la landing pública" />
@@ -24,7 +24,7 @@ export function LandingLink({ landingUrl }: { landingUrl: string }) {
           href={landingUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className="inline-flex h-9 items-center justify-center rounded-lg bg-accent px-3.5 text-sm font-semibold text-accent-foreground hover:bg-accent/85"
         >
           Ver landing
         </a>

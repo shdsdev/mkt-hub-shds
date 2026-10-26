@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./actions", () => ({
   changeUserRoleAction: vi.fn(),
+  setUserThemeAction: vi.fn(),
   disableUserAction: vi.fn(),
   inviteUserAction: vi.fn(),
   reactivateUserAction: vi.fn(),

@@ -147,13 +147,13 @@ describe("theme-overrides", () => {
 
     it("emits one CSS custom property declaration per overridden token", () => {
       expect(buildThemeOverrideStyle({ primary: "#111111", background: "#faf8f2" })).toBe(
-        "--primary:#111111;--background:#faf8f2;",
+        "--primary:#111111;--primary-foreground:#ffffff;--background:#faf8f2;",
       );
     });
 
     it("emits every token when all three are overridden", () => {
       const style = buildThemeOverrideStyle({ primary: "#111111", accent: "#222222", background: "#333333" });
-      expect(style).toBe("--primary:#111111;--accent:#222222;--background:#333333;");
+      expect(style).toBe("--primary:#111111;--primary-foreground:#ffffff;--accent:#222222;--accent-foreground:#ffffff;--background:#333333;");
     });
   });
 });

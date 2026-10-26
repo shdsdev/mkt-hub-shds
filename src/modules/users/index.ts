@@ -20,6 +20,7 @@ export {
   listManagedUsers,
   changeManagedUserRole,
   setManagedUserStatus,
+  setManagedUserTheme,
   deleteManagedUser,
   inviteManagedUser,
   type ManagedUser,

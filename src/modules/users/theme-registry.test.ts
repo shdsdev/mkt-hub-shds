@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { HIDDEN_THEME_IDS, isValidThemeId, THEMES, VISIBLE_THEMES } from "./theme-registry";
+import { DEFAULT_THEME_ID, HIDDEN_THEME_IDS, isValidThemeId, THEMES, VISIBLE_THEMES } from "./theme-registry";
 
 describe("theme-registry", () => {
+  it("uses Light as the default and exposes Light and Dark first", () => {
+    expect(DEFAULT_THEME_ID).toBe("light");
+    expect(VISIBLE_THEMES.slice(0, 2).map((theme) => theme.id)).toEqual(["light", "dark"]);
+  });
+
+  it("keeps the requested primary palette swatches", () => {
+    expect(THEMES.find((theme) => theme.id === "light")?.swatch).toEqual(["#242424", "#f3fe64", "#f4f3ef"]);
+    expect(THEMES.find((theme) => theme.id === "dark")?.swatch).toEqual(["#f5f3f0", "#ff6a2b", "#050505"]);
+  });
+
+  it("uses Light as the default and exposes Light and Dark as primary themes", () => {
+    expect(DEFAULT_THEME_ID).toBe("light");
+    expect(VISIBLE_THEMES.slice(0, 2).map((theme) => theme.id)).toEqual(["light", "dark"]);
+  });
+
+  it("keeps the requested primary palette swatches", () => {
+    expect(THEMES.find((theme) => theme.id === "light")?.swatch).toEqual(["#242424", "#f3fe64", "#f4f3ef"]);
+    expect(THEMES.find((theme) => theme.id === "dark")?.swatch).toEqual(["#f5f3f0", "#ff6a2b", "#050505"]);
+  });
+
   it("includes arctic-frost in THEMES with its swatch", () => {
     const arcticFrost = THEMES.find((theme) => theme.id === "arctic-frost");
     expect(arcticFrost).toBeDefined();

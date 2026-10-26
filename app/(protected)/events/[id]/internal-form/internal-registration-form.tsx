@@ -55,7 +55,7 @@ export function InternalRegistrationForm({ eventId }: { eventId: string }) {
         </div>
         <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
           <Input aria-label="Buscar registro por nombre, correo o folio" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, correo o folio" />
-          <Button type="submit" disabled={pending || !query.trim()}>Buscar</Button>
+          <Button type="submit" disabled={pending || !query.trim()} className="bg-[#242424] text-white hover:bg-[#393e41] disabled:bg-[#242424] disabled:text-white">Buscar</Button>
         </form>
       </section>
       {message ? <p role="status" aria-live="polite" className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">{message}</p> : null}

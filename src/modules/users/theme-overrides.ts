@@ -76,6 +76,18 @@ export async function clearThemeColorOverride(
 
 const TOKEN_ORDER: ThemeColorOverrideToken[] = ["primary", "accent", "background"];
 
+function channel(value: string) {
+  const normalized = Number.parseInt(value, 16) / 255;
+  return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+}
+
+function getReadableForeground(hex: string) {
+  const luminance = 0.2126 * channel(hex.slice(1, 3)) + 0.7152 * channel(hex.slice(3, 5)) + 0.0722 * channel(hex.slice(5, 7));
+  const whiteContrast = 1.05 / (luminance + 0.05);
+  const blackContrast = (luminance + 0.05) / 0.05;
+  return whiteContrast >= blackContrast ? "#ffffff" : "#242424";
+}
+
 // Renders a theme's override rows as inline CSS custom property declarations
 // (`--primary:#hex;...`) for app/layout.tsx to splice onto <html style="...">. Source order wins
 // over the static [data-app-theme="..."] stylesheet block by plain CSS specificity rules already
@@ -88,7 +100,10 @@ export function buildThemeOverrideStyle(
   let style = "";
   for (const token of TOKEN_ORDER) {
     const hex = overrides[token];
-    if (hex) style += `--${token}:${hex};`;
+    if (hex) {
+      style += `--${token}:${hex};`;
+      if (token !== "background") style += `--${token}-foreground:${getReadableForeground(hex)};`;
+    }
   }
   return style;
 }

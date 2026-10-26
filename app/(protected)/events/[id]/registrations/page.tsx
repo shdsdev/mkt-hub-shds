@@ -82,14 +82,15 @@ export default async function RegistrationsPage({
       </form>
 
        <div className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 text-sm" aria-label="Filtrar registros por situación">
-         <Link href={filterHref(undefined)} className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${!status ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+         <Link href={filterHref(undefined)} aria-current={!status ? "page" : undefined} className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${!status ? "registration-filter-active font-medium" : "registration-filter-option text-muted-foreground"}`}>
            Todos
         </Link>
         {Object.entries(STATUS_LABELS).map(([value, label]) => (
           <Link
             key={value}
             href={filterHref(value as EventRegistrationRow["status"])}
-            className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${status === value ? "bg-card font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            aria-current={status === value ? "page" : undefined}
+            className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${status === value ? "registration-filter-active font-medium" : "registration-filter-option text-muted-foreground"}`}
           >
            {label}
            </Link>

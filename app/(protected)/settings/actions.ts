@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/modules/auth";
 import {
   updateTheme,
   isValidThemeId,
+  isAdmin,
   updateDefaultLogo,
   setThemeColorOverride,
   clearThemeColorOverride,
@@ -32,7 +33,7 @@ import { checkRateLimit } from "@/modules/audit";
 
 export async function updateUserThemeAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user || user.profile.role === "RECEPTION") redirect("/login");
+  if (!user || !isAdmin(user.profile)) redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
   const themeId = z.string().min(1).parse(formData.get("themeId"));

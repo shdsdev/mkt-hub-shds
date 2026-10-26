@@ -15,6 +15,7 @@ import {
   isActive,
   isAdmin,
   setManagedUserStatus,
+  setManagedUserTheme,
   type ManagementMutationResult,
   type ManagedRole,
 } from "@/modules/users";
@@ -34,6 +35,7 @@ const inviteSchema = z.object({
 });
 const targetSchema = z.object({ targetUserId: z.string().uuid() });
 const roleChangeSchema = targetSchema.extend({ role: z.enum(["ADMIN", "User", "Reception", "EventEditor"]) });
+const themeChangeSchema = targetSchema.extend({ theme: z.string().min(1) });
 
 export type UserManagementFormState = { error?: string; success?: string };
 
@@ -198,6 +200,40 @@ export async function reactivateUserAction(
   formData: FormData,
 ): Promise<UserManagementFormState> {
   return setUserStatusAction(formData, "active", "reactivate_user", "Usuario reactivado.");
+}
+
+export async function setUserThemeAction(
+  _state: UserManagementFormState,
+  formData: FormData,
+): Promise<UserManagementFormState> {
+  const user = await requireActiveAdmin();
+  if (!user) return { error: PERMISSION_ERROR };
+  if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
+
+  const parsed = themeChangeSchema.safeParse({
+    targetUserId: formData.get("targetUserId"),
+    theme: formData.get("theme"),
+  });
+  if (!parsed.success) return { error: INVALID_FORM_ERROR };
+
+  const result = await setManagedUserTheme({
+    organizationId: user.profile.organizationId,
+    targetUserId: parsed.data.targetUserId,
+    theme: parsed.data.theme,
+  });
+  if (!result.ok) return { error: result.reason === "invalid_theme" ? "El tema seleccionado no es válido." : TARGET_UNAVAILABLE_ERROR };
+
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    action: "change_user_theme",
+    resourceType: "user",
+    resourceId: parsed.data.targetUserId,
+    before: { theme: result.before },
+    after: { theme: result.after },
+  });
+  revalidateUserManagement();
+  return { success: "Tema actualizado." };
 }
 
 export async function deleteUserAction(

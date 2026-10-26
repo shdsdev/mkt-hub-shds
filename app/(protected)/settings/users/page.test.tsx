@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   isActive: vi.fn(),
   isAdmin: vi.fn(),
   listManagedUsers: vi.fn(),
+  THEMES: [],
   notFound: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ vi.mock("@/modules/users", () => ({
   isActive: mocks.isActive,
   isAdmin: mocks.isAdmin,
   listManagedUsers: mocks.listManagedUsers,
+  THEMES: mocks.THEMES,
 }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("./user-management", () => ({

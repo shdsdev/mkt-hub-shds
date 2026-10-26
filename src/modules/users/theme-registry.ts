@@ -6,18 +6,21 @@ export type Theme = {
   id: string;
   label: string;
   swatch: [primary: string, accent: string, background: string];
+  mode: "light" | "dark";
 };
 
 export const THEMES: Theme[] = [
-  { id: "midnight", label: "Midnight", swatch: ["#e074c9", "#8845f4", "#0b0b0a"] },
-  { id: "signature", label: "Signature", swatch: ["#ff0055", "#00e2ee", "#1c1213"] },
-  { id: "nightfall", label: "Nightfall", swatch: ["#5da9e0", "#7fd9c4", "#100e0b"] },
-  { id: "greydlu", label: "Greydlu", swatch: ["#d4d4d8", "#d0f23c", "#100e0b"] },
-  { id: "aston", label: "Aston", swatch: ["#2dd4bf", "#d0f23c", "#100e0b"] },
-  { id: "arctic-frost", label: "Arctic Frost", swatch: ["#3772FF", "#FF7F11", "#faf8f2"] },
+  { id: "light", label: "Light", swatch: ["#242424", "#f3fe64", "#f4f3ef"], mode: "light" },
+  { id: "dark", label: "Dark", swatch: ["#f5f3f0", "#ff6a2b", "#050505"], mode: "dark" },
+  { id: "midnight", label: "Midnight", swatch: ["#e074c9", "#8845f4", "#0b0b0a"], mode: "dark" },
+  { id: "signature", label: "Signature", swatch: ["#ff0055", "#00e2ee", "#1c1213"], mode: "dark" },
+  { id: "nightfall", label: "Nightfall", swatch: ["#5da9e0", "#7fd9c4", "#100e0b"], mode: "dark" },
+  { id: "greydlu", label: "Greydlu", swatch: ["#d4d4d8", "#d0f23c", "#100e0b"], mode: "dark" },
+  { id: "aston", label: "Aston", swatch: ["#2dd4bf", "#d0f23c", "#100e0b"], mode: "dark" },
+  { id: "arctic-frost", label: "Arctic Frost", swatch: ["#3772FF", "#FF7F11", "#faf8f2"], mode: "light" },
 ];
 
-export const DEFAULT_THEME_ID = "midnight";
+export const DEFAULT_THEME_ID = "light";
 
 // 2026-10-15: hidden from the settings picker, but still fully defined in CSS/aura-background and
 // still a valid stored preference — a user who already has one of these set sees no change.

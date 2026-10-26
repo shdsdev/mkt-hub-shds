@@ -180,7 +180,7 @@ export default async function EventDashboardPage({ params }: { params: Promise<{
                 ].map((item) => (
                   <Link key={item.label} href={item.href} className="flex items-center justify-between gap-3 py-3 outline-none transition-colors first:pt-0 last:pb-0 hover:text-foreground focus-visible:text-foreground">
                     <span className="text-sm text-muted-foreground">{item.label}</span>
-                    <span className={`font-heading text-lg font-semibold ${item.value > 0 ? "text-accent" : "text-muted-foreground"}`}>{item.value}</span>
+                    <span className={`inline-flex size-8 items-center justify-center rounded-md p-0 font-heading text-lg font-semibold ${item.value > 0 ? "bg-accent text-accent-foreground" : "text-muted-foreground"}`}>{item.value}</span>
                   </Link>
                 ))}
               </div>

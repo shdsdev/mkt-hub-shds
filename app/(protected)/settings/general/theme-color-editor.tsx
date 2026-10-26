@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Theme, ThemeColorOverrideToken } from "@/modules/users";
+import type { Theme, ThemeColorOverrideToken, ThemeColorOverrides } from "@/modules/users";
 import {
   setThemeColorOverrideAction,
   clearThemeColorOverrideAction,
@@ -25,12 +25,14 @@ function ColorField({
   themeId,
   token,
   defaultHex,
+  overrideHex,
 }: {
   themeId: string;
   token: ThemeColorOverrideToken;
   defaultHex: string;
+  overrideHex?: string;
 }) {
-  const [hex, setHex] = useState(defaultHex);
+  const [hex, setHex] = useState(overrideHex ?? defaultHex);
   const [setState, setAction, setPending] = useActionState(setThemeColorOverrideAction, initialState);
   const [clearState, clearAction, clearPending] = useActionState(clearThemeColorOverrideAction, initialState);
   const isValid = HEX_PATTERN.test(hex);
@@ -91,7 +93,7 @@ function ColorField({
 // CSS custom property per theme stays fixed in globals.css. One independent mini-form per token
 // (not one combined form), matching this file's existing per-field form convention
 // (user-management.tsx's role/disable/reactivate forms).
-export function ThemeColorEditor({ theme }: { theme: Theme }) {
+export function ThemeColorEditor({ theme, overrides }: { theme: Theme; overrides?: Partial<ThemeColorOverrides[string]> }) {
   const [open, setOpen] = useState(false);
   const [primary, accent, background] = theme.swatch;
 
@@ -113,9 +115,9 @@ export function ThemeColorEditor({ theme }: { theme: Theme }) {
             Solo los 3 colores principales del tema. El resto de la interfaz queda sin cambios.
           </Dialog.Description>
           <div className="mt-4 flex flex-col gap-3">
-            <ColorField themeId={theme.id} token="primary" defaultHex={primary} />
-            <ColorField themeId={theme.id} token="accent" defaultHex={accent} />
-            <ColorField themeId={theme.id} token="background" defaultHex={background} />
+            <ColorField themeId={theme.id} token="primary" defaultHex={primary} overrideHex={overrides?.primary} />
+            <ColorField themeId={theme.id} token="accent" defaultHex={accent} overrideHex={overrides?.accent} />
+            <ColorField themeId={theme.id} token="background" defaultHex={background} overrideHex={overrides?.background} />
           </div>
           <div className="mt-4 flex justify-end">
             <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
