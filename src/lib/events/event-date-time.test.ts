@@ -3,6 +3,7 @@ import {
   combineDateTimeLocal,
   combineOptionalDateTimeLocal,
   getOptionalDateTimeError,
+  parseDateTimeLocal,
   splitDateTimeLocal,
 } from "./event-date-time";
 
@@ -16,6 +17,10 @@ describe("event local date/time helpers", () => {
 
   it("combines required date and time values into datetime-local format", () => {
     expect(combineDateTimeLocal("2026-10-13", "14:29")).toBe("2026-10-13T14:29");
+  });
+
+  it("converts a Mexico City local datetime into the UTC instant stored by the database", () => {
+    expect(parseDateTimeLocal("2026-11-06T09:00")).toEqual(new Date("2026-11-06T15:00:00.000Z"));
   });
 
   it("returns an empty value when the optional end date/time is blank", () => {

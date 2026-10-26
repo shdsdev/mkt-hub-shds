@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { DEFAULT_EVENT_REMINDER_OFFSET_MINUTES } from "@/lib/events/event-reminder";
+import { parseDateTimeLocal } from "@/lib/events/event-date-time";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
@@ -42,7 +43,15 @@ async function requireActiveEventManager() {
   return user;
 }
 
-// `datetime-local` input values ("2026-11-01T18:00") parse fine via `z.coerce.date()`.
+const eventDateTimeField = z.string().trim().min(1).transform((value, context) => {
+  try {
+    return parseDateTimeLocal(value);
+  } catch {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "La fecha y hora del evento no son válidas." });
+    return z.NEVER;
+  }
+});
+
 const optionalInt = z
   .string()
   .trim()
@@ -134,8 +143,8 @@ const eventFieldsSchema = z.object({
     }, "La URL debe usar http o https.")
     .optional()
     .or(z.literal("")),
-  startsAt: z.coerce.date(),
-  endsAt: z.coerce.date().optional(),
+  startsAt: eventDateTimeField,
+  endsAt: eventDateTimeField.optional(),
   capacity: optionalInt,
   reminderOffsetMinutes: optionalInt,
   checkInConfirmationRequired: z.coerce.boolean().default(true),
