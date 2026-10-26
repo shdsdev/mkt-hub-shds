@@ -2,7 +2,6 @@ import { and, asc, count, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../../db/client";
 import { authUsers } from "../../db/auth-schema-ref";
-import { invitationGateway } from "../../lib/supabase/admin";
 import { users } from "./db";
 import { createProfile, type Profile, type UserStatus } from "./service";
 import { isValidThemeId } from "./theme-registry";
@@ -59,6 +58,7 @@ export async function listManagedUsers(organizationId: string): Promise<ManagedU
 export async function inviteManagedUser(
   input: InviteManagedUserInput,
 ): Promise<InviteManagedUserResult> {
+  const { invitationGateway } = await import("../../lib/supabase/admin");
   const existing = await listManagedUsers(input.organizationId);
   if (existing.some((user) => user.email.toLowerCase() === input.email.toLowerCase())) {
     return { ok: false, reason: "duplicate" };
@@ -170,6 +170,7 @@ export async function deleteManagedUser(input: {
   if (!validation.ok) return validation;
 
   try {
+    const { invitationGateway } = await import("../../lib/supabase/admin");
     await invitationGateway.deleteUser(validation.user.id);
   } catch {
     return { ok: false, reason: "provider_failure" };
