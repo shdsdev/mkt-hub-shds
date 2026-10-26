@@ -11,6 +11,13 @@ export function shouldProcessOutboxStatus(status: "pending" | "processing" | "re
   return status === "pending";
 }
 
+export function isAnalyticsConsentActive(
+  consent: { revokedAt: Date | null; expiresAt: Date },
+  now = new Date(),
+): boolean {
+  return consent.revokedAt === null && consent.expiresAt > now;
+}
+
 export type OutboxDeliveryState = "received" | "failed" | "uncertain";
 
 export function nextOutboxDeliveryState(
@@ -60,12 +67,12 @@ async function deliverClaimedRow(row: typeof ga4EventOutbox.$inferSelect): Promi
   return db.transaction(async (tx) => {
     const [consent] = row.consentId
       ? await tx
-        .select({ id: analyticsConsents.id })
+        .select({ id: analyticsConsents.id, revokedAt: analyticsConsents.revokedAt, expiresAt: analyticsConsents.expiresAt })
         .from(analyticsConsents)
         .where(and(eq(analyticsConsents.id, row.consentId), isNull(analyticsConsents.revokedAt), gte(analyticsConsents.expiresAt, new Date())))
         .for("update")
       : [];
-    if (!consent) {
+    if (!consent || !isAnalyticsConsentActive(consent)) {
       await tx.update(ga4EventOutbox).set({ status: "cancelled", updatedAt: new Date() }).where(eq(ga4EventOutbox.id, row.id));
       return "cancelled";
     }

@@ -4,7 +4,7 @@ vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/env", () => ({ env: {} }));
 
 import { Ga4DeliveryError } from "./google";
-import { nextOutboxDeliveryState, shouldProcessOutboxStatus } from "./outbox";
+import { isAnalyticsConsentActive, nextOutboxDeliveryState, shouldProcessOutboxStatus } from "./outbox";
 
 describe("nextOutboxDeliveryState", () => {
   it("does not retry permanent Measurement Protocol errors", () => {
@@ -26,5 +26,13 @@ describe("nextOutboxDeliveryState", () => {
     expect(shouldProcessOutboxStatus("pending")).toBe(true);
     expect(shouldProcessOutboxStatus("uncertain")).toBe(false);
     expect(shouldProcessOutboxStatus("processing")).toBe(false);
+  });
+
+  it("delivers only while consent is unrevoked and unexpired", () => {
+    const now = new Date("2026-10-26T16:00:00.000Z");
+
+    expect(isAnalyticsConsentActive({ revokedAt: null, expiresAt: new Date("2026-10-27T16:00:00.000Z") }, now)).toBe(true);
+    expect(isAnalyticsConsentActive({ revokedAt: null, expiresAt: new Date("2026-10-26T15:59:59.000Z") }, now)).toBe(false);
+    expect(isAnalyticsConsentActive({ revokedAt: new Date("2026-10-25T16:00:00.000Z"), expiresAt: new Date("2026-10-27T16:00:00.000Z") }, now)).toBe(false);
   });
 });
