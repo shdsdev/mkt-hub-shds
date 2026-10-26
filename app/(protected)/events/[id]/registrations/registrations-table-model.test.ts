@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getPrimaryAttendee, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationSourceLabel, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
 
 vi.mock("@/lib/env", () => ({ env: { DATABASE_URL: "postgres://localhost:5432/test" } }));
 vi.mock("@/modules/users", () => ({ isAdmin: () => true }));
@@ -65,6 +65,13 @@ describe("registration table model", () => {
   it("identifies paid Meta registrations from source and medium", () => {
     expect(isMetaAdsRegistration({ ...registrationData, utmSource: "facebook", utmMedium: "paid_social" } as never)).toBe(true);
     expect(isMetaAdsRegistration({ ...registrationData, utmSource: "facebook", utmMedium: "social" } as never)).toBe(false);
+  });
+
+  it("labels the registration source with useful fallbacks", () => {
+    expect(getRegistrationSourceLabel({ ...registrationData, utmSource: "facebook", utmMedium: "paid_social" } as never)).toBe("Meta Ads");
+    expect(getRegistrationSourceLabel({ ...registrationData, utmSource: "google", utmMedium: "cpc" } as never)).toBe("google");
+    expect(getRegistrationSourceLabel({ ...registrationData, utmSource: null, source: "admin_added" } as never)).toBe("Admin");
+    expect(getRegistrationSourceLabel({ ...registrationData, utmSource: null, source: "public" } as never)).toBe("Sin atribución");
   });
 
   it("reports check-in only after every attendee is validated", () => {

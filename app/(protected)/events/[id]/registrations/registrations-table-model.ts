@@ -15,6 +15,13 @@ export function isMetaAdsRegistration(registration: RegistrationWithAttendees): 
   return isMetaSource && Boolean(medium && /paid|ads|cpc|ppc/.test(medium));
 }
 
+export function getRegistrationSourceLabel(registration: RegistrationWithAttendees): string {
+  if (isMetaAdsRegistration(registration)) return "Meta Ads";
+  if (registration.utmSource?.trim()) return registration.utmSource.trim();
+  if (registration.source === "admin_added") return "Admin";
+  return "Sin atribución";
+}
+
 export function getRegistrationTableValues(registration: RegistrationWithAttendees) {
   const [primary, ...companions] = registration.attendees;
   const primaryCheckedIn = Boolean(primary?.checkedInAt);

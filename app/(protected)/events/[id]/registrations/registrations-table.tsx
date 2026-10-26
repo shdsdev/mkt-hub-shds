@@ -6,7 +6,7 @@ import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import { Megaphone, Tag } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
-import { getPrimaryAttendee, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationSourceLabel, getRegistrationTableValues } from "./registrations-table-model";
 import { RegistrationDetailSheet } from "./registration-detail-sheet";
 import { formatRegistrationDate } from "./registration-date";
 
@@ -80,7 +80,7 @@ export function RegistrationsTable({
               <th className="px-4 py-3 font-medium">Tipo de cliente</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Revisión</th>
-              <th className="px-4 py-3 font-medium">Respuestas</th>
+              <th className="px-4 py-3 font-medium">Fuente</th>
               <th className="px-4 py-3 font-medium">Marca</th>
               <th className="px-4 py-3 font-medium">Seguimiento</th>
               <th className="px-4 py-3 font-medium">Acciones</th>
@@ -112,12 +112,6 @@ export function RegistrationsTable({
                   <td className="max-w-56 px-4 py-3">
                     <strong className="block truncate font-medium">{primary?.fullName ?? "—"}</strong>
                     {primary?.email ? <span className="block truncate text-xs text-muted-foreground">{primary.email}</span> : null}
-                    {isMetaAdsRegistration(registration) ? (
-                      <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-200">
-                        <Megaphone className="size-3" aria-hidden="true" />
-                        Meta Ads
-                      </span>
-                    ) : null}
                   </td>
                   <td className="max-w-48 truncate px-4 py-3">{primary?.company ?? "—"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{values.state}</td>
@@ -137,10 +131,15 @@ export function RegistrationsTable({
                       {reviewStatusLabels[registration.reviewStatus]}
                     </span>
                   </td>
-                  <td className="max-w-64 px-4 py-3 text-xs text-muted-foreground">
-                    {Object.values(registration.customFormAnswers).length > 0
-                      ? Object.values(registration.customFormAnswers).map((answer) => `${answer.label}: ${Array.isArray(answer.value) ? answer.value.join(", ") : String(answer.value ?? "—")}`).join(" · ")
-                      : "—"}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {getRegistrationSourceLabel(registration) === "Meta Ads" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/40 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-200">
+                        <Megaphone className="size-3.5" aria-hidden="true" />
+                        Meta Ads
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">{getRegistrationSourceLabel(registration)}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">{values.isClient ? "Cliente" : "No cliente"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
