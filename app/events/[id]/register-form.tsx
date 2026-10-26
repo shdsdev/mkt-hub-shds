@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getRegistrationFormSteps, type RegistrationStepId } from "@/lib/events/registration-form-steps";
 import { registerForEventAction, type RegisterFormState } from "./actions";
 import { restoreFormValues, snapshotFormValues, type FormValueSnapshot } from "@/lib/forms/form-values";
+import { getCompanionContactErrors } from "@/lib/events/companion-contact-validation";
 
 const initialState: RegisterFormState = {};
 const occupationOptions = [
@@ -110,6 +111,29 @@ export function RegisterForm({
   const hasPreferenceStep = steps.some((step) => step.id === "preferences");
   const fieldErrors = { ...clientFieldErrors, ...state.fieldErrors };
 
+  function getContactErrors(form: HTMLFormElement): Record<string, string> {
+    const data = new FormData(form);
+    return getCompanionContactErrors({
+      primaryEmail: String(data.get("email") ?? ""),
+      companionEmail: String(data.get("companionEmail") ?? ""),
+      primaryPhone: String(data.get("phone") ?? ""),
+      companionPhone: String(data.get("companionPhone") ?? ""),
+    });
+  }
+
+  function updateContactErrors(form: HTMLFormElement) {
+    setClientFieldErrors((current) => {
+      const next = { ...current };
+      delete next.companionEmail;
+      delete next.companionPhone;
+      return { ...next, ...getContactErrors(form) };
+    });
+  }
+
+  function focusField(form: HTMLFormElement, name: string) {
+    form.querySelector<HTMLElement>(`[name="${name}"]`)?.focus();
+  }
+
   useEffect(() => {
     if (!state.error || !formRef.current || !submittedValuesRef.current) return;
     restoreFormValues(formRef.current, submittedValuesRef.current);
@@ -120,6 +144,14 @@ export function RegisterForm({
   }
 
   function continueMobileStep() {
+    if (formRef.current) {
+      const contactErrors = getContactErrors(formRef.current);
+      if (Object.keys(contactErrors).length > 0) {
+        setClientFieldErrors((current) => ({ ...current, ...contactErrors }));
+        focusField(formRef.current, Object.keys(contactErrors)[0]);
+        return;
+      }
+    }
     const sections = formRef.current
       ? Array.from(formRef.current.querySelectorAll<HTMLElement>(`[data-mobile-step="${activeStepId}"]`))
       : [];
@@ -160,6 +192,13 @@ export function RegisterForm({
   }
 
   function handleFormSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const contactErrors = getContactErrors(event.currentTarget);
+    if (Object.keys(contactErrors).length > 0) {
+      event.preventDefault();
+      setClientFieldErrors((current) => ({ ...current, ...contactErrors }));
+      focusField(event.currentTarget, Object.keys(contactErrors)[0]);
+      return;
+    }
     const invalidControl = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select"))
       .find((control) => !control.checkValidity());
     if (!invalidControl) {
@@ -240,11 +279,11 @@ export function RegisterForm({
            <input name="fullName" required aria-required="true" maxLength={255} placeholder="Ej. María González" className={fieldClass} />
          </Field>
           <Field label="Correo" required error={fieldErrors.email} help="Te enviaremos aquí la confirmación y tu pase de acceso.">
-           <input name="email" type="email" required aria-required="true" maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} />
+           <input name="email" type="email" required aria-required="true" maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
          </Field>
          {formConfig.fields.phone.visible ? (
             <Field label="Teléfono" required={formConfig.fields.phone.required} error={fieldErrors.phone} help="Usaremos este número solo para comunicarnos sobre el evento.">
-             <input name="phone" required={formConfig.fields.phone.required} aria-required={formConfig.fields.phone.required} maxLength={50} placeholder="Ej. +52 55 1234 5678" className={fieldClass} />
+             <input name="phone" required={formConfig.fields.phone.required} aria-required={formConfig.fields.phone.required} maxLength={50} placeholder="Ej. +52 55 1234 5678" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
            </Field>
          ) : null}
          {formConfig.fields.company.visible ? (
@@ -351,11 +390,11 @@ export function RegisterForm({
              <input name="companionFullName" required aria-required="true" maxLength={255} placeholder="Ej. Ana López" className={fieldClass} />
            </Field>
             <Field label="Correo del acompañante" required error={fieldErrors.companionEmail} help="Te enviaremos su confirmación y pase de acceso a este correo.">
-             <input name="companionEmail" type="email" required aria-required="true" maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} />
+             <input name="companionEmail" type="email" required aria-required="true" maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
            </Field>
            {formConfig.fields.phone.visible ? (
               <Field label="Teléfono del acompañante" required={formConfig.fields.phone.required} error={fieldErrors.companionPhone} help="Usaremos este número solo para comunicarnos sobre el evento.">
-               <input name="companionPhone" required={formConfig.fields.phone.required} maxLength={50} placeholder="Ej. +52 55 1234 5678" className={fieldClass} />
+               <input name="companionPhone" required={formConfig.fields.phone.required} maxLength={50} placeholder="Ej. +52 55 1234 5678" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
              </Field>
         ) : null}
            {formConfig.fields.company.visible ? (

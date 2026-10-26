@@ -24,6 +24,7 @@ import {
 import { listManagedUsers } from "@/modules/users";
 import { exportQrPng } from "@/modules/qr";
 import { resolveEventEmailContent } from "@/lib/events/event-email-content";
+import { getCompanionContactErrors } from "@/lib/events/companion-contact-validation";
 import { parseRegistrationFormAnswers } from "../registration-form-answers";
 
 const EVENT_UNAVAILABLE_ERROR = "Este evento ya no está disponible.";
@@ -227,6 +228,16 @@ export async function registerForEventAction(
   }
   const companionFieldError = companionsData[0] && validateConfiguredFields(companionsData[0], formConfig.fields);
   if (companionFieldError) return { error: companionFieldError.replace(/^El |^La /, "El acompañante: ") };
+
+  const contactErrors = getCompanionContactErrors({
+    primaryEmail: primaryParsed.data.email,
+    companionEmail: companionsData[0]?.email ?? "",
+    primaryPhone: primaryParsed.data.phone ?? "",
+    companionPhone: companionsData[0]?.phone ?? "",
+  });
+  if (Object.keys(contactErrors).length > 0) {
+    return { error: INVALID_COMPANION_ERROR, fieldErrors: contactErrors };
+  }
 
   if (!isAccepted(formData, "privacyAccepted") || !isAccepted(formData, "termsAccepted")) {
     return {
