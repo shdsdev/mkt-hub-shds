@@ -21,6 +21,21 @@ type Props = {
   initialSelectedId?: string;
 };
 
+function statusBadgeClass(status: string): string {
+  if (status === "Check-in") return "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-200";
+  if (status === "Pendientes") return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-200";
+  if (status === "Confirmadas") return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200";
+  if (status === "Rechazadas" || status === "Canceladas") return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-200";
+  return "border-border bg-muted text-foreground";
+}
+
+function reviewBadgeClass(status: string): string {
+  if (status === "Nuevo") return "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-200";
+  if (status === "Aprobado") return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200";
+  if (status === "Rechazado") return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-200";
+  return "border-border bg-muted text-foreground";
+}
+
 export function RegistrationsTable({
   registrations,
   eventId,
@@ -106,8 +121,16 @@ export function RegistrationsTable({
                   <td className="px-4 py-3 whitespace-nowrap">
                     {primary?.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation); return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : <span className="text-muted-foreground">—</span>}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{displayStatus}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{reviewStatusLabels[registration.reviewStatus]}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass(displayStatus)}`}>
+                      {displayStatus}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${reviewBadgeClass(reviewStatusLabels[registration.reviewStatus])}`}>
+                      {reviewStatusLabels[registration.reviewStatus]}
+                    </span>
+                  </td>
                   <td className="max-w-64 px-4 py-3 text-xs text-muted-foreground">
                     {Object.values(registration.customFormAnswers).length > 0
                       ? Object.values(registration.customFormAnswers).map((answer) => `${answer.label}: ${Array.isArray(answer.value) ? answer.value.join(", ") : String(answer.value ?? "—")}`).join(" · ")

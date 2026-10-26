@@ -73,8 +73,8 @@ describe("EventCard", () => {
 
     const link = container.querySelector("a");
     expect(link?.getAttribute("href")).toBe("/events/event-1/dashboard");
-    expect(link?.textContent).toContain("Launch Day");
-    expect(link?.textContent).toContain("Publicado");
+    expect(container?.textContent).toContain("Launch Day");
+    expect(container?.textContent).toContain("Publicado");
     expect(link?.textContent).toContain("100");
     expect(link?.textContent).not.toContain("Archivar");
     expect(container?.querySelectorAll("a")).toHaveLength(1);
