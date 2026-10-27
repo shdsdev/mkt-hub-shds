@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   isAdmin: vi.fn(),
   addAttendeeToRegistration: vi.fn(),
   getEvent: vi.fn(),
+  resolveRegistrationFormConfig: vi.fn((event) => event.registrationFormConfig),
   listRegistrations: vi.fn(),
   listEventReceptionistIds: vi.fn(),
   listManagedUsers: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock("@/modules/events", () => ({
   listEventReceptionistIds: mocks.listEventReceptionistIds,
   notifyEventWebhook: mocks.notifyEventWebhook,
   OCCUPATION_OPTIONS: mocks.OCCUPATION_OPTIONS,
+  resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
   updateRegistrationReviewStatus: mocks.updateRegistrationReviewStatus,
   deleteRejectedRegistration: mocks.deleteRejectedRegistration,
 }));
@@ -69,6 +71,7 @@ function formData(fields: Record<string, string> = {}) {
   fd.set("eventId", EVENT_ID);
   fd.set("fullName", "Alan Turing");
   fd.set("email", "alan@example.com");
+  fd.set("phone", "+52 33 1234 5678");
   fd.set("occupation", "architect-decorator");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
@@ -88,6 +91,9 @@ describe("addCompanionAction", () => {
       startsAt: new Date("2026-11-06T15:00:00Z"),
       endsAt: new Date("2026-11-06T21:00:00Z"),
       location: "Hotel Victoria Ejecutivo Guadalajara",
+      collectCompany: true,
+      collectJobTitle: false,
+      registrationFormConfig: { version: 1, fields: { phone: { visible: true, required: true }, company: { visible: true, required: false }, jobTitle: { visible: false, required: false }, state: { visible: false, required: false } }, companion: { enabled: true }, clientBrands: { enabled: false, options: [] }, interests: { enabled: false, options: [] }, consent: { privacy: { url: "/privacy", text: "Privacidad" }, terms: { url: "/terms", text: "Términos" }, marketing: { enabled: false, text: "Marketing" } }, customFields: [], customFieldsVersion: 1 },
     });
     mocks.notifyEventWebhook.mockResolvedValue(undefined);
   });
@@ -131,6 +137,12 @@ describe("addCompanionAction", () => {
   it("rejects invalid input without calling the service", async () => {
     const result = await addCompanionAction({}, formData({ email: "not-an-email" }));
     expect(result.error).toBeTruthy();
+    expect(mocks.addAttendeeToRegistration).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty phone when the event requires it", async () => {
+    const result = await addCompanionAction({}, formData({ phone: "   " }));
+    expect(result.error).toBe("El teléfono es obligatorio.");
     expect(mocks.addAttendeeToRegistration).not.toHaveBeenCalled();
   });
 

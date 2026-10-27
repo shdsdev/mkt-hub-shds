@@ -17,7 +17,7 @@ const occupations = [
   ["installer-technician", "Instalador o técnico"],
 ] as const;
 
-export function InternalRegistrationForm({ eventId }: { eventId: string }) {
+export function InternalRegistrationForm({ eventId, phoneRequired }: { eventId: string; phoneRequired: boolean }) {
   const [query, setQuery] = useState("");
   const [registration, setRegistration] = useState<RegistrationWithAttendees>();
   const [message, setMessage] = useState<string>();
@@ -75,7 +75,7 @@ export function InternalRegistrationForm({ eventId }: { eventId: string }) {
                 <input type="hidden" name="registrationId" value={registration.id} />
                 <Input aria-label="Nombre completo del titular" name="fullName" defaultValue={primary.fullName} placeholder="Nombre completo" required />
                 <Input aria-label="Correo del titular" name="email" type="email" defaultValue={primary.email} placeholder="Correo" required />
-                <Input aria-label="Teléfono del titular" name="phone" defaultValue={primary.phone ?? ""} placeholder="Teléfono" />
+                <Input aria-label="Teléfono del titular" name="phone" defaultValue={primary.phone ?? ""} placeholder="Teléfono" required={phoneRequired} aria-required={phoneRequired} />
                 <Input aria-label="Empresa del titular" name="company" defaultValue={primary.company ?? ""} placeholder="Empresa" />
                 <Input aria-label="Puesto del titular" name="jobTitle" defaultValue={primary.jobTitle ?? ""} placeholder="Puesto" />
                 <Select name="occupation" defaultValue={primary.occupation ?? "installer-technician"}>
@@ -94,7 +94,7 @@ export function InternalRegistrationForm({ eventId }: { eventId: string }) {
                 <input type="hidden" name="registrationId" value={registration.id} />
                 <Input aria-label="Nombre completo del acompañante" name="fullName" placeholder="Nombre completo" required />
                 <Input aria-label="Correo del acompañante" name="email" type="email" placeholder="Correo" required />
-                <Input aria-label="Teléfono del acompañante" name="phone" placeholder="Teléfono" />
+                <Input aria-label="Teléfono del acompañante" name="phone" placeholder="Teléfono" required={phoneRequired} aria-required={phoneRequired} />
                 <Input aria-label="Puesto del acompañante" name="jobTitle" placeholder="Puesto" />
                 <Select name="occupation" defaultValue="installer-technician">
                   <SelectTrigger aria-label="Actividad profesional del acompañante"><SelectValue placeholder="Actividad profesional" /></SelectTrigger>

@@ -13,6 +13,7 @@ import {
   listRegistrations,
   notifyEventWebhook,
   OCCUPATION_OPTIONS,
+  resolveRegistrationFormConfig,
   updateRegistrationReviewStatus,
   type AddAttendeeToRegistrationResult,
 } from "@/modules/events";
@@ -224,8 +225,12 @@ export async function addCompanionAction(
   });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
+  const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+  if (event && resolveRegistrationFormConfig(event).fields.phone.required && !parsed.data.phone?.trim()) {
+    return { error: "El teléfono es obligatorio." };
+  }
+
   if (!isAdmin(user.profile)) {
-    const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
     const receptionistIds = event
       ? await listEventReceptionistIds(parsed.data.eventId, user.profile.organizationId)
       : [];
@@ -248,7 +253,6 @@ export async function addCompanionAction(
 
   if (!result.ok) return { error: REASON_MESSAGES[result.reason] };
 
-  const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
   if (event) {
     void notifyEventWebhook(event, "registration.created", {
       registrationId: parsed.data.registrationId,

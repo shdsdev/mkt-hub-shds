@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { recordAudit } from "@/modules/audit";
 import { getCurrentUser } from "@/modules/auth";
-import { addAttendeeToRegistration, getEvent, listRegistrations, updatePrimaryAttendee, type AddAttendeeToRegistrationResult, type RegistrationWithAttendees } from "@/modules/events";
+import { addAttendeeToRegistration, getEvent, listRegistrations, resolveRegistrationFormConfig, updatePrimaryAttendee, type AddAttendeeToRegistrationResult, type RegistrationWithAttendees } from "@/modules/events";
 import { isActive, isAdmin } from "@/modules/users";
 import { OCCUPATION_OPTIONS } from "@/modules/events";
 
@@ -60,6 +60,9 @@ export async function addInternalCompanionAction(formData: FormData): Promise<In
   if (!eventId.success || !registrationId.success || !attendee.success) return { error: "Revisa los datos del acompañante." };
   const context = await requireAdmin(eventId.data);
   if (!context) return { error: "No tienes permiso para usar este formulario." };
+  if (resolveRegistrationFormConfig(context.event).fields.phone.required && !attendee.data.phone?.trim()) {
+    return { error: "El teléfono es obligatorio." };
+  }
   const registration = (await listRegistrations(eventId.data, context.user.profile.organizationId)).find(
     (candidate) => candidate.id === registrationId.data,
   );
@@ -98,6 +101,9 @@ export async function updatePrimaryAttendeeAction(formData: FormData): Promise<I
   if (!eventId.success || !registrationId.success || !attendee.success) return { error: "Revisa los datos del titular." };
   const context = await requireAdmin(eventId.data);
   if (!context) return { error: "No tienes permiso para usar este formulario." };
+  if (resolveRegistrationFormConfig(context.event).fields.phone.required && !attendee.data.phone?.trim()) {
+    return { error: "El teléfono es obligatorio." };
+  }
   const updated = await updatePrimaryAttendee({ registrationId: registrationId.data, organizationId: context.user.profile.organizationId, attendee: { ...attendee.data, phone: attendee.data.phone || undefined, company: attendee.data.company || undefined, jobTitle: attendee.data.jobTitle || undefined } });
   if (!updated.ok) return { error: updated.reason === "duplicate_email" ? "Ya existe un asistente activo con ese correo en este evento." : "No se encontró el titular." };
   await recordAudit({ organizationId: context.user.profile.organizationId, userId: context.user.id, action: "create", resourceType: "event_attendee", resourceId: updated.attendee.id, after: { registrationId: registrationId.data, updated: true } });

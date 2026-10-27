@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import { canAccessEvent, getEvent } from "@/modules/events";
+import { canAccessEvent, getEvent, resolveRegistrationFormConfig } from "@/modules/events";
 import { isActive } from "@/modules/users";
 import { EventSubNav } from "../../event-sub-nav";
 import { InternalRegistrationForm } from "./internal-registration-form";
@@ -21,7 +21,7 @@ export default async function InternalEventFormPage({ params }: { params: Promis
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Formulario interno: {event.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Administración de registros y acompañantes.</p>
         </div>
-        <InternalRegistrationForm eventId={event.id} />
+        <InternalRegistrationForm eventId={event.id} phoneRequired={resolveRegistrationFormConfig(event).fields.phone.required} />
       </div>
     </div>
   );
