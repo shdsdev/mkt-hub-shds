@@ -186,19 +186,19 @@ export function UserManagement({ users, themes = [] }: { users: ManagedUser[]; t
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain">
           <table className="w-full min-w-[720px] table-fixed text-sm">
             <colgroup>
-              <col />
-              <col className="w-64" />
-               <col className="w-40" />
-               <col className="w-24" />
-              <col className="w-36" />
+              <col className="w-52" />
+              <col className="w-48" />
+              <col className="w-32" />
+              <col className="w-24" />
+              <col className="w-32" />
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left">
-                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Usuario</th>
-                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Rol</th>
-                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Tema</th>
-                <th className="p-4 font-medium uppercase tracking-wider text-muted-foreground">Alta</th>
-                <th className="p-4 text-right font-medium uppercase tracking-wider text-muted-foreground">Acciones</th>
+                <th className="whitespace-nowrap p-4 font-medium uppercase tracking-wider text-muted-foreground">Usuario</th>
+                <th className="whitespace-nowrap p-4 font-medium uppercase tracking-wider text-muted-foreground">Rol</th>
+                <th className="whitespace-nowrap p-4 font-medium uppercase tracking-wider text-muted-foreground">Tema</th>
+                <th className="whitespace-nowrap p-4 font-medium uppercase tracking-wider text-muted-foreground">Alta</th>
+                <th className="whitespace-nowrap p-4 text-right font-medium uppercase tracking-wider text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody>

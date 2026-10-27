@@ -194,7 +194,7 @@ export function RegistrationsTable({
       </div>
       <div
         ref={scrollRef}
-        className={`hidden max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-border touch-pan-x sm:block ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
+        className={`hidden max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-border touch-auto sm:block ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endPointerDrag}

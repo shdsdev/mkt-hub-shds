@@ -75,10 +75,10 @@ function NavItem({
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={active}
-        className="data-active:bg-accent data-active:text-accent-foreground data-active:hover:bg-accent"
+        className="hover:text-white data-active:bg-accent data-active:text-accent-foreground data-active:hover:bg-accent"
         render={<Link href={href} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} />}
       >
-        <span className={hovered ? "text-accent" : undefined}>
+        <span className={hovered ? "text-white" : undefined}>
           <HoverMorphIcon idle={idle} active={activeIcon} size={16} hovered={hovered} />
         </span>
         <span>{children}</span>
@@ -288,12 +288,12 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
               {!eventsOnly && <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={qrShortLinksActive}
-                  className="data-active:bg-accent data-active:text-accent-foreground data-active:hover:bg-accent"
+                    className="hover:text-white data-active:bg-accent data-active:text-accent-foreground data-active:hover:bg-accent"
                   onClick={() => setQrShortLinksOpen((open) => !open)}
                   onMouseEnter={() => setQrGroupHovered(true)}
                   onMouseLeave={() => setQrGroupHovered(false)}
                 >
-                  <span className={qrGroupHovered ? "text-accent" : undefined}>
+                  <span className={qrGroupHovered ? "text-white" : undefined}>
                     <HoverMorphIcon idle={QrCode} active={ScanLine} size={16} hovered={qrGroupHovered} />
                   </span>
                   <span className="flex-1">QR Short Links</span>
