@@ -75,13 +75,13 @@ describe("EventCard", () => {
     expect(link?.getAttribute("href")).toBe("/events/event-1/dashboard");
     expect(container?.textContent).toContain("Launch Day");
     expect(container?.textContent).toContain("Publicado");
-    expect(link?.textContent).toContain("100");
+    expect(container?.textContent).toContain("100");
     expect(link?.textContent).not.toContain("Archivar");
     expect(container?.querySelectorAll("a")).toHaveLength(1);
     expect(container?.querySelector('button[aria-label="Archivar evento"]')).toBeTruthy();
     expect(container?.querySelector('button[aria-label="Eliminar evento"]')).toBeTruthy();
-    expect(link?.textContent).toContain("Contexto");
-    expect(link?.textContent).toContain("Sin contexto");
+    expect(container?.textContent).toContain("Contexto");
+    expect(container?.textContent).toContain("Sin contexto");
     expect(link?.className).not.toContain("min-h-56");
   });
 

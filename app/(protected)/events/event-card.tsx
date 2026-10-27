@@ -18,19 +18,24 @@ export function EventCard({ event, role = "ADMIN" }: { event: EventRow; role?: U
   const landingHref = `/events/${event.id}/dashboard`;
 
   return (
-    <article className="w-full rounded-xl border border-border bg-card p-5 shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-accent hover:shadow-[0_0_0_1px_var(--accent)]">
-      <div className="flex items-start justify-between gap-4">
-        <h2 className="font-heading text-lg font-semibold text-foreground">{event.name}</h2>
-        <span className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs font-medium">{status}</span>
-      </div>
-      <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
-        <Link href={landingHref} className="min-w-0 flex-1 rounded-lg !text-foreground outline-none hover:!bg-transparent hover:!text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-          <dl className="grid gap-4 text-sm text-muted-foreground sm:grid-cols-[1fr_1.6fr_0.7fr]">
+    <article className="relative w-full rounded-xl border border-border bg-card p-5 shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-accent hover:shadow-[0_0_0_1px_var(--accent)]">
+      <Link href={landingHref} aria-label={`Abrir evento ${event.name}`} className="absolute inset-0 z-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <span className="sr-only">Abrir evento {event.name}</span>
+      </Link>
+      <div className="relative z-10 pointer-events-none">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="font-heading text-lg font-semibold text-foreground">{event.name}</h2>
+          <span className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs font-medium">{status}</span>
+        </div>
+        <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
+          <dl className="grid w-full gap-4 text-sm text-muted-foreground sm:grid-cols-[1fr_1.6fr_0.7fr]">
             <div><dt className="text-xs uppercase tracking-wide">Fecha del evento</dt><dd className="mt-1 text-foreground">{date}</dd></div>
             <div><dt className="text-xs uppercase tracking-wide">Contexto</dt><dd className="mt-1 line-clamp-2 text-foreground">{event.description || "Sin contexto"}</dd></div>
             <div><dt className="text-xs uppercase tracking-wide">Capacidad</dt><dd className="mt-1 text-foreground">{event.capacity ?? "Sin límite"}</dd></div>
           </dl>
-        </Link>
+        </div>
+      </div>
+      <div className="relative z-20 mt-3 flex justify-end gap-3 pointer-events-auto sm:absolute sm:right-5 sm:bottom-5 sm:mt-0">
         {role === "ADMIN" ? <div className="flex shrink-0 items-center gap-3">
         <form action={isArchived ? restoreEventAction : archiveEventAction}>
           <input type="hidden" name="id" value={event.id} />
