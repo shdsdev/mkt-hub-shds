@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
-import { Megaphone, Tag } from "lucide-react";
+import { Instagram, Mail, Megaphone, MessageCircle, Search, ShieldCheck, Tag } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
-import { getPrimaryAttendee, getRegistrationSourceLabel, getRegistrationTableValues } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationSourceBadgeClass, getRegistrationSourceLabel, getRegistrationTableValues } from "./registrations-table-model";
 import { RegistrationDetailSheet } from "./registration-detail-sheet";
 import { formatRegistrationDate } from "./registration-date";
 
@@ -35,6 +35,25 @@ function reviewBadgeClass(status: string): string {
   if (status === "Aprobado") return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200";
   if (status === "Rechazado") return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-200";
   return "border-border bg-muted text-foreground";
+}
+
+function SourceIcon({ source }: { source: string }) {
+  const normalized = source.toLowerCase();
+  const Icon = normalized.includes("whatsapp")
+    ? MessageCircle
+    : normalized.includes("instagram")
+      ? Instagram
+      : normalized.includes("google")
+        ? Search
+        : normalized.includes("email") || normalized.includes("mail")
+          ? Mail
+          : normalized.includes("admin")
+            ? ShieldCheck
+            : normalized === "meta ads"
+              ? Megaphone
+              : Tag;
+
+  return <Icon className="size-3.5" aria-hidden="true" />;
 }
 
 export function RegistrationsTable({
@@ -243,14 +262,15 @@ export function RegistrationsTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {getRegistrationSourceLabel(registration) === "Meta Ads" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/40 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-200">
-                        <Megaphone className="size-3.5" aria-hidden="true" />
-                        Meta Ads
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">{getRegistrationSourceLabel(registration)}</span>
-                    )}
+                    {(() => {
+                      const sourceLabel = getRegistrationSourceLabel(registration);
+                      return (
+                        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${getRegistrationSourceBadgeClass(sourceLabel)}`}>
+                          <SourceIcon source={sourceLabel} />
+                          {sourceLabel}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">{values.isClient ? "Cliente" : "No cliente"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getPrimaryAttendee, getRegistrationSourceLabel, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationSourceBadgeClass, getRegistrationSourceLabel, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
 
 vi.mock("@/lib/env", () => ({ env: { DATABASE_URL: "postgres://localhost:5432/test" } }));
 vi.mock("@/modules/users", () => ({ isAdmin: () => true }));
@@ -72,6 +72,15 @@ describe("registration table model", () => {
     expect(getRegistrationSourceLabel({ ...registrationData, utmSource: "google", utmMedium: "cpc" } as never)).toBe("google");
     expect(getRegistrationSourceLabel({ ...registrationData, utmSource: null, source: "admin_added" } as never)).toBe("Admin");
     expect(getRegistrationSourceLabel({ ...registrationData, utmSource: null, source: "public" } as never)).toBe("Sin atribución");
+  });
+
+  it("assigns channel colors to registration source badges", () => {
+    expect(getRegistrationSourceBadgeClass("whatsapp")).toContain("emerald");
+    expect(getRegistrationSourceBadgeClass("Instagram")).toContain("pink");
+    expect(getRegistrationSourceBadgeClass("google")).toContain("amber");
+    expect(getRegistrationSourceBadgeClass("email")).toContain("violet");
+    expect(getRegistrationSourceBadgeClass("Admin")).toContain("cyan");
+    expect(getRegistrationSourceBadgeClass("Sin atribución")).toContain("muted");
   });
 
   it("reports check-in only after every attendee is validated", () => {
