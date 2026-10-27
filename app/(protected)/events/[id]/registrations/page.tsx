@@ -3,13 +3,11 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive } from "@/modules/users";
 import { canAccessEvent, getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
-import { MEXICAN_STATES } from "@/lib/events/mexican-states";
-import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EventSubNav } from "../../event-sub-nav";
 import { RegistrationsTable } from "./registrations-table";
 import { REVIEW_STATUS_LABELS } from "./review-status";
 import { getPrimaryAttendee, getRegistrationSourceLabel } from "./registrations-table-model";
+import { RegistrationFilters } from "./registration-filters";
 
 const STATUS_LABELS: Record<EventRegistrationRow["status"], string> = {
   pending_review: "Pendientes",
@@ -21,7 +19,6 @@ const STATUS_LABELS: Record<EventRegistrationRow["status"], string> = {
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
-const OCCUPATION_FILTER_OPTIONS = ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"] as const;
 type SortOption = "recent" | "oldest" | "name" | "company";
 
 function parsePageSize(value: string | undefined): number {
@@ -96,6 +93,9 @@ export default async function RegistrationsPage({
   };
   const exportHref = `/events/${id}/registrations/export${buildQuery(currentQuery)}`;
   const pageHref = (nextPage: number) => `/events/${id}/registrations${buildQuery({ ...currentQuery, page: String(nextPage) })}`;
+  const pageNumbers = Array.from(new Set([1, currentPage - 1, currentPage, currentPage + 1, pageCount]))
+    .filter((page) => page > 0 && page <= pageCount)
+    .sort((left, right) => left - right);
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6">
@@ -114,37 +114,16 @@ export default async function RegistrationsPage({
       </div>
 
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-card/40 p-3">
-       <form className="grid w-full grid-cols-1 gap-2 text-sm md:grid-cols-[minmax(220px,1fr)_auto_repeat(4,minmax(140px,auto))]">
-          <input type="hidden" name="status" value={status ?? ""} />
-          <input type="hidden" name="sort" value={sort} />
-          <input type="hidden" name="pageSize" value={pageSize} />
-        <input
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder="Buscar nombre, correo o empresa"
-          className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/30"
-        />
-        <button type="submit" className="h-10 rounded-md border border-border px-4 transition-colors hover:bg-card">
-          Buscar
-        </button>
-        <Select name="reviewStatus" defaultValue={reviewStatus ?? null}>
-          <SelectTrigger className="h-10 min-w-40" aria-label="Filtrar por revisión"><SelectValue placeholder="Todas las revisiones" /></SelectTrigger>
-          <SelectContent><SelectGroup>{Object.entries(REVIEW_STATUS_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectGroup></SelectContent>
-        </Select>
-        <Select name="source" defaultValue={source ?? null}>
-          <SelectTrigger className="h-10 min-w-40" aria-label="Filtrar por fuente"><SelectValue placeholder="Todas las fuentes" /></SelectTrigger>
-          <SelectContent><SelectGroup>{["Meta Ads", "facebook", "instagram", "google", "Admin", "Sin atribución"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectGroup></SelectContent>
-        </Select>
-        <Select name="occupation" defaultValue={occupation ?? null}>
-          <SelectTrigger className="h-10 min-w-44" aria-label="Filtrar por actividad"><SelectValue placeholder="Todas las actividades" /></SelectTrigger>
-          <SelectContent><SelectGroup>{OCCUPATION_FILTER_OPTIONS.map((value) => <SelectItem key={value} value={value}>{getOccupationPresentation(value).label}</SelectItem>)}</SelectGroup></SelectContent>
-        </Select>
-        <Select name="state" defaultValue={state ?? null}>
-          <SelectTrigger className="h-10 min-w-40" aria-label="Filtrar por estado"><SelectValue placeholder="Todos los estados" /></SelectTrigger>
-          <SelectContent><SelectGroup>{MEXICAN_STATES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectGroup></SelectContent>
-        </Select>
-      </form>
-
+       <RegistrationFilters
+         status={status}
+         q={q}
+         reviewStatus={reviewStatus}
+         source={source}
+         occupation={occupation}
+         state={state}
+         sort={sort}
+         pageSize={pageSize}
+       />
        <div className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 text-sm" aria-label="Filtrar registros por situación">
          <Link href={filterHref(undefined)} aria-current={!status ? "page" : undefined} className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${!status ? "registration-filter-active font-medium" : "registration-filter-option text-muted-foreground"}`}>
            Todos
@@ -160,34 +139,6 @@ export default async function RegistrationsPage({
            </Link>
          ))}
        </div>
-       <form method="get" className="flex flex-wrap items-end justify-start gap-3 text-sm">
-         <input type="hidden" name="status" value={status ?? ""} />
-         <input type="hidden" name="q" value={q ?? ""} />
-         <input type="hidden" name="reviewStatus" value={reviewStatus ?? ""} />
-         <input type="hidden" name="source" value={source ?? ""} />
-         <input type="hidden" name="occupation" value={occupation ?? ""} />
-         <input type="hidden" name="state" value={state ?? ""} />
-         <div className="flex items-center gap-2">
-           <label htmlFor="registration-sort" className="text-muted-foreground">Ordenar</label>
-           <Select name="sort" defaultValue={sort}>
-             <SelectTrigger id="registration-sort" className="h-9 min-w-36" aria-label="Ordenar registros"><SelectValue /></SelectTrigger>
-             <SelectContent><SelectGroup>
-               <SelectItem value="recent">Más recientes</SelectItem>
-               <SelectItem value="oldest">Más antiguos</SelectItem>
-               <SelectItem value="name">Nombre</SelectItem>
-               <SelectItem value="company">Empresa</SelectItem>
-             </SelectGroup></SelectContent>
-           </Select>
-         </div>
-         <div className="flex items-center gap-2">
-           <label htmlFor="registration-page-size" className="text-muted-foreground">Mostrar</label>
-           <Select name="pageSize" defaultValue={String(pageSize)}>
-             <SelectTrigger id="registration-page-size" className="h-9 min-w-20" aria-label="Registros por página"><SelectValue /></SelectTrigger>
-             <SelectContent><SelectGroup>{PAGE_SIZE_OPTIONS.map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}</SelectGroup></SelectContent>
-           </Select>
-         </div>
-         <button type="submit" className="h-9 rounded-md border border-border px-3 transition-colors hover:bg-card">Aplicar</button>
-       </form>
        </div>
 
       {paginatedRegistrations.length === 0 ? (
@@ -207,8 +158,20 @@ export default async function RegistrationsPage({
       {sortedRegistrations.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <span>Mostrando {pageStart + 1}–{Math.min(pageStart + pageSize, sortedRegistrations.length)} de {sortedRegistrations.length}</span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
             <Link href={pageHref(Math.max(1, currentPage - 1))} aria-disabled={currentPage === 1} className={`rounded-md border border-border px-3 py-2 ${currentPage === 1 ? "pointer-events-none opacity-40" : "hover:bg-card"}`}>Anterior</Link>
+            <div className="hidden items-center gap-1 sm:flex" aria-label="Seleccionar página">
+              {pageNumbers.map((page) => (
+                <Link
+                  key={page}
+                  href={pageHref(page)}
+                  aria-current={page === currentPage ? "page" : undefined}
+                  className={`inline-flex size-9 items-center justify-center rounded-md border border-border ${page === currentPage ? "bg-primary font-semibold text-primary-foreground" : "hover:bg-card"}`}
+                >
+                  {page}
+                </Link>
+              ))}
+            </div>
             <span>Página {currentPage} de {pageCount}</span>
             <Link href={pageHref(Math.min(pageCount, currentPage + 1))} aria-disabled={currentPage === pageCount} className={`rounded-md border border-border px-3 py-2 ${currentPage === pageCount ? "pointer-events-none opacity-40" : "hover:bg-card"}`}>Siguiente</Link>
           </div>
