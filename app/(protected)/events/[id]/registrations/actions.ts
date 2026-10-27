@@ -141,7 +141,8 @@ export async function updateRegistrationReviewStatusAction(
 
   const registrations = await listRegistrations(parsed.data.eventId, user.profile.organizationId);
   const fullRegistration = registrations.find((candidate) => candidate.id === parsed.data.registrationId);
-  const primary = fullRegistration?.attendees[0];
+  const confirmationAttendees = fullRegistration?.attendees.filter((attendee) => attendee.isActive !== false) ?? [];
+  const primary = confirmationAttendees[0];
   const href = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/${event.id}/registrations?registrationId=${parsed.data.registrationId}`;
   const recipientIds = [...new Set([
     ...receptionistIds,
@@ -157,25 +158,29 @@ export async function updateRegistrationReviewStatusAction(
     href,
     dedupeKey: `registration-decision:${parsed.data.registrationId}:${parsed.data.reviewStatus}`,
   })).catch(() => undefined);
-  if (primary && parsed.data.reviewStatus === "approved") {
-    const qrPng = await exportQrPng(primary.backupCode, {});
+  if (confirmationAttendees.length > 0 && parsed.data.reviewStatus === "approved") {
     try {
-      await sendConfirmationEmail({
-        organizationId: primary.organizationId,
-        attendeeId: primary.id,
-        to: primary.email,
-        attendeeName: primary.fullName,
-        eventName: event.name,
-        backupCode: primary.backupCode,
-        qrPngBase64: qrPng.toString("base64"),
-        eventStartsAt: event.startsAt,
-        eventEndsAt: event.endsAt,
-        eventLocation: event.location,
-        eventLocationUrl: event.locationUrl,
-        manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${registration.cancelToken}`,
-        emailContent: resolveEventEmailContent(event.emailContent),
-        agenda: event.agenda,
-      });
+      await Promise.all(
+        confirmationAttendees.map(async (attendee) => {
+          const qrPng = await exportQrPng(attendee.backupCode, {});
+          await sendConfirmationEmail({
+            organizationId: attendee.organizationId,
+            attendeeId: attendee.id,
+            to: attendee.email,
+            attendeeName: attendee.fullName,
+            eventName: event.name,
+            backupCode: attendee.backupCode,
+            qrPngBase64: qrPng.toString("base64"),
+            eventStartsAt: event.startsAt,
+            eventEndsAt: event.endsAt,
+            eventLocation: event.location,
+            eventLocationUrl: event.locationUrl,
+            manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${registration.cancelToken}`,
+            emailContent: resolveEventEmailContent(event.emailContent),
+            agenda: event.agenda,
+          });
+        }),
+      );
     } catch (error) {
       const { captureOperationFailure } = await import("@/modules/monitoring");
       captureOperationFailure({ operation: "registration_confirmation_email", module: "events", error });

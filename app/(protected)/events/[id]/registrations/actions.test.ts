@@ -231,6 +231,42 @@ describe("updateRegistrationReviewStatusAction", () => {
     expect(mocks.updateRegistrationReviewStatus).toHaveBeenCalledWith(expect.objectContaining({ reviewStatus: "approved", organizationId: "org-1" }));
   });
 
+  it("sends confirmation emails to the primary attendee and active companions after approval", async () => {
+    mocks.listRegistrations.mockResolvedValue([{
+      id: REGISTRATION_ID,
+      cancelToken: "cancel-token",
+      attendees: [
+        { id: "attendee-primary", organizationId: "org-1", fullName: "Ada Lovelace", email: "ada@example.com", backupCode: "ADA12345", isActive: true },
+        { id: "attendee-companion", organizationId: "org-1", fullName: "Grace Hopper", email: "grace@example.com", backupCode: "GRACE678", isActive: true },
+        { id: "attendee-inactive", organizationId: "org-1", fullName: "Inactive Person", email: "inactive@example.com", backupCode: "INACTIVE", isActive: false },
+      ],
+    }]);
+    mocks.exportQrPng.mockImplementation(async (backupCode: string) => Buffer.from(backupCode));
+    const data = new FormData();
+    data.set("registrationId", REGISTRATION_ID);
+    data.set("eventId", EVENT_ID);
+    data.set("reviewStatus", "approved");
+
+    await expect(updateRegistrationReviewStatusAction({}, data)).resolves.toEqual({ success: "Estado de revisión actualizado." });
+
+    expect(mocks.sendConfirmationEmail).toHaveBeenCalledTimes(2);
+    expect(mocks.sendConfirmationEmail).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      attendeeId: "attendee-primary",
+      to: "ada@example.com",
+      attendeeName: "Ada Lovelace",
+      backupCode: "ADA12345",
+      qrPngBase64: Buffer.from("ADA12345").toString("base64"),
+    }));
+    expect(mocks.sendConfirmationEmail).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      attendeeId: "attendee-companion",
+      to: "grace@example.com",
+      attendeeName: "Grace Hopper",
+      backupCode: "GRACE678",
+      qrPngBase64: Buffer.from("GRACE678").toString("base64"),
+    }));
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "attendee-inactive" }));
+  });
+
   it("accepts the waitlisted commercial decision", async () => {
     const data = new FormData();
     data.set("registrationId", "22222222-2222-4222-8222-222222222222");
