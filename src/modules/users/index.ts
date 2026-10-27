@@ -15,7 +15,7 @@ export {
   type UserRole,
   type UserStatus,
 } from "./service";
-export { THEMES, VISIBLE_THEMES, DEFAULT_THEME_ID, isValidThemeId, type Theme } from "./theme-registry";
+export { THEMES, VISIBLE_THEMES, DEFAULT_THEME_ID, getThemeToggleTarget, isValidThemeId, type Theme } from "./theme-registry";
 export {
   listManagedUsers,
   changeManagedUserRole,

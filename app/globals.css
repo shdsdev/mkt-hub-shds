@@ -90,6 +90,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.settings-nav-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settings-nav-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* Locked palette (docs/SPEC.md §29, docs/superpowers/specs/2026-09-09-glassmorphism-palette-design.md).
    Dark-by-default: identical values in :root and .dark (DD6) so shadcn's .dark-scoped component
    tokens stay correct, and a future light-mode toggle is a pure additive change. Also addressable
@@ -148,7 +159,8 @@
 /* Primary Light theme — a warm editorial workspace with acid-lime actions. It is a standalone
    theme, not the system's light-mode counterpart, so it only applies to an explicitly assigned
    user theme. */
-[data-app-theme="light"] {
+[data-app-theme="light"],
+[data-app-theme="carbon"] {
   --radius: 0.75rem;
   --background: #f4f3ef;
   --foreground: #242424;
@@ -187,7 +199,8 @@
 }
 
 /* Primary Dark theme — near-black canvas, charcoal surfaces, orange action color and ivory text. */
-[data-app-theme="dark"] {
+[data-app-theme="dark"],
+[data-app-theme="lark-orange"] {
   --radius: 0.75rem;
   --background: #080909;
   --foreground: #f5f3f0;
@@ -224,75 +237,123 @@
   --sidebar-muted-foreground: #b9b7b2;
 }
 
+/* Carbon keeps Light's content surface while moving the navigation and outer gutter to charcoal. */
+[data-app-theme="carbon"] {
+  --sidebar: #242424;
+  --sidebar-foreground: #f5f3f0;
+  --sidebar-accent: #343434;
+  --sidebar-accent-foreground: #f5f3f0;
+  --sidebar-border: rgba(245, 243, 240, 0.16);
+  --sidebar-ring: #f3fe64;
+  --sidebar-badge: #343434;
+  --sidebar-muted: #c8c6c0;
+  --sidebar-muted-foreground: #c8c6c0;
+}
+
+/* Lark Orange keeps Dark's content surface while using a white navigation and outer gutter. */
+[data-app-theme="lark-orange"] {
+  --sidebar: #ffffff;
+  --sidebar-foreground: #242424;
+  --sidebar-accent: #f1f0ec;
+  --sidebar-accent-foreground: #242424;
+  --sidebar-border: rgba(36, 36, 36, 0.14);
+  --sidebar-ring: #ff6a2b;
+  --sidebar-badge: #f1f0ec;
+  --sidebar-muted: #5b5b56;
+  --sidebar-muted-foreground: #5b5b56;
+}
+
 /* Light admin contract: action surfaces can be customized, while text utilities stay readable.
    body:has(.app-shell) also reaches Base UI portals rendered outside .content-frame. */
 html[data-app-theme="light"] body:has(.app-shell) .text-primary,
-html[data-app-theme="light"] body:has(.app-shell) [class*="text-primary/"] {
+html[data-app-theme="light"] body:has(.app-shell) [class*="text-primary/"],
+html[data-app-theme="carbon"] body:has(.app-shell) .text-primary,
+html[data-app-theme="carbon"] body:has(.app-shell) [class*="text-primary/"] {
   color: var(--foreground) !important;
 }
 
 html[data-app-theme="light"] body:has(.app-shell) .text-accent,
-html[data-app-theme="light"] body:has(.app-shell) [class*="text-accent/"] {
+html[data-app-theme="light"] body:has(.app-shell) [class*="text-accent/"],
+html[data-app-theme="carbon"] body:has(.app-shell) .text-accent,
+html[data-app-theme="carbon"] body:has(.app-shell) [class*="text-accent/"] {
   color: var(--foreground) !important;
 }
 
 html[data-app-theme="light"] body:has(.app-shell) .bg-primary:hover,
 html[data-app-theme="light"] body:has(.app-shell) .bg-accent:hover,
 html[data-app-theme="light"] body:has(.app-shell) button:hover.bg-primary,
-html[data-app-theme="light"] body:has(.app-shell) a:hover.bg-primary {
+html[data-app-theme="light"] body:has(.app-shell) a:hover.bg-primary,
+html[data-app-theme="carbon"] body:has(.app-shell) .bg-primary:hover,
+html[data-app-theme="carbon"] body:has(.app-shell) .bg-accent:hover,
+html[data-app-theme="carbon"] body:has(.app-shell) button:hover.bg-primary,
+html[data-app-theme="carbon"] body:has(.app-shell) a:hover.bg-primary {
   background-color: color-mix(in srgb, var(--primary) 86%, var(--foreground) 14%);
 }
 
 html[data-app-theme="light"] body:has(.app-shell) button:not(:disabled):hover,
-html[data-app-theme="light"] body:has(.app-shell) a:hover {
+html[data-app-theme="light"] body:has(.app-shell) a:hover,
+html[data-app-theme="carbon"] body:has(.app-shell) button:not(:disabled):hover,
+html[data-app-theme="carbon"] body:has(.app-shell) a:hover {
   color: var(--foreground);
 }
 
-html[data-app-theme="light"] body:has(.app-shell) .content-frame a:hover:not(.bg-primary) {
+html[data-app-theme="light"] body:has(.app-shell) .content-frame a:hover:not(.bg-primary),
+html[data-app-theme="carbon"] body:has(.app-shell) .content-frame a:hover:not(.bg-primary) {
   background-color: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 html[data-app-theme="light"] body:has(.app-shell) [data-slot="dropdown-menu-item"]:focus,
-html[data-app-theme="light"] body:has(.app-shell) [data-slot="dropdown-menu-item"][data-highlighted] {
+html[data-app-theme="light"] body:has(.app-shell) [data-slot="dropdown-menu-item"][data-highlighted],
+html[data-app-theme="carbon"] body:has(.app-shell) [data-slot="dropdown-menu-item"]:focus,
+html[data-app-theme="carbon"] body:has(.app-shell) [data-slot="dropdown-menu-item"][data-highlighted] {
   background-color: var(--accent);
   color: var(--accent-foreground);
 }
 
 html[data-app-theme="light"] body:has(.app-shell) button[class*="border-border"],
-html[data-app-theme="light"] body:has(.app-shell) a[class*="border-border"] {
+html[data-app-theme="light"] body:has(.app-shell) a[class*="border-border"],
+html[data-app-theme="carbon"] body:has(.app-shell) button[class*="border-border"],
+html[data-app-theme="carbon"] body:has(.app-shell) a[class*="border-border"] {
   background-color: var(--secondary);
   color: var(--secondary-foreground);
 }
 
 /* Components shared with dark surfaces use dark-theme semantic shades in their markup. */
-html[data-app-theme="light"] body:has(.app-shell) [class*="text-emerald-"] {
+html[data-app-theme="light"] body:has(.app-shell) [class*="text-emerald-"],
+html[data-app-theme="carbon"] body:has(.app-shell) [class*="text-emerald-"] {
   color: #256b49 !important;
 }
 
-html[data-app-theme="light"] body:has(.app-shell) [class*="text-red-"] {
+html[data-app-theme="light"] body:has(.app-shell) [class*="text-red-"],
+html[data-app-theme="carbon"] body:has(.app-shell) [class*="text-red-"] {
   color: #b42318 !important;
 }
 
-html[data-app-theme="light"] body:has(.app-shell) [class*="bg-emerald-"] {
+html[data-app-theme="light"] body:has(.app-shell) [class*="bg-emerald-"],
+html[data-app-theme="carbon"] body:has(.app-shell) [class*="bg-emerald-"] {
   background-color: color-mix(in srgb, #2f8f61 12%, transparent);
 }
 
-html[data-app-theme="light"] body:has(.app-shell) [class*="border-emerald-"] {
+html[data-app-theme="light"] body:has(.app-shell) [class*="border-emerald-"],
+html[data-app-theme="carbon"] body:has(.app-shell) [class*="border-emerald-"] {
   border-color: color-mix(in srgb, #2f8f61 40%, transparent);
 }
 
-html[data-app-theme="light"] body:has(.app-shell) [class*="bg-black/25"] {
+html[data-app-theme="light"] body:has(.app-shell) [class*="bg-black/25"],
+html[data-app-theme="carbon"] body:has(.app-shell) [class*="bg-black/25"] {
   background-color: var(--secondary);
 }
 
-html[data-app-theme="light"] body:has(.app-shell) [class*="hover:bg-black/35"]:hover {
+html[data-app-theme="light"] body:has(.app-shell) [class*="hover:bg-black/35"]:hover,
+html[data-app-theme="carbon"] body:has(.app-shell) [class*="hover:bg-black/35"]:hover {
   background-color: var(--muted);
 }
 
 /* Raffle operation surfaces are intentionally high-contrast in Light: white text on charcoal,
    with the editable accent reserved for actions. The class is opt-in so other Light cards stay
    editorial and Dark keeps its existing surface tokens. */
-html[data-app-theme="light"] body:has(.app-shell) .light-raffle-surface {
+html[data-app-theme="light"] body:has(.app-shell) .light-raffle-surface,
+html[data-app-theme="carbon"] body:has(.app-shell) .light-raffle-surface {
   --background: #242424;
   --foreground: #ffffff;
   --card: #242424;
@@ -312,19 +373,25 @@ html[data-app-theme="light"] body:has(.app-shell) .light-raffle-surface {
   color: #ffffff;
 }
 
-html[data-app-theme="light"] body:has(.app-shell) .light-raffle-surface .text-muted-foreground {
+html[data-app-theme="light"] body:has(.app-shell) .light-raffle-surface .text-muted-foreground,
+html[data-app-theme="carbon"] body:has(.app-shell) .light-raffle-surface .text-muted-foreground {
   color: #d6d3ce !important;
 }
 
 html[data-app-theme="light"] body:has(.app-shell) .registration-filter-active,
 html[data-app-theme="light"] body:has(.app-shell) .registration-filter-active:hover,
-html[data-app-theme="light"] body:has(.app-shell) .registration-filter-active:focus-visible {
+html[data-app-theme="light"] body:has(.app-shell) .registration-filter-active:focus-visible,
+html[data-app-theme="carbon"] body:has(.app-shell) .registration-filter-active,
+html[data-app-theme="carbon"] body:has(.app-shell) .registration-filter-active:hover,
+html[data-app-theme="carbon"] body:has(.app-shell) .registration-filter-active:focus-visible {
   background-color: #242424 !important;
   color: #ffffff !important;
 }
 
 html[data-app-theme="light"] body:has(.app-shell) .registration-filter-option:hover,
-html[data-app-theme="light"] body:has(.app-shell) .registration-filter-option:focus-visible {
+html[data-app-theme="light"] body:has(.app-shell) .registration-filter-option:focus-visible,
+html[data-app-theme="carbon"] body:has(.app-shell) .registration-filter-option:hover,
+html[data-app-theme="carbon"] body:has(.app-shell) .registration-filter-option:focus-visible {
   background-color: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--foreground);
 }
@@ -350,11 +417,13 @@ html[data-app-theme="light"] body:has(.app-shell) .light-landing-surface .text-m
   color: #d6d3ce !important;
 }
 
-[data-app-theme="light"] .gradient-border-frame {
+[data-app-theme="light"] .gradient-border-frame,
+[data-app-theme="carbon"] .gradient-border-frame {
   border: 1px solid rgba(36, 36, 36, 0.16);
 }
 
-[data-app-theme="dark"] .gradient-border-frame {
+[data-app-theme="dark"] .gradient-border-frame,
+[data-app-theme="lark-orange"] .gradient-border-frame {
   border: 1px solid rgba(245, 243, 240, 0.16);
 }
 

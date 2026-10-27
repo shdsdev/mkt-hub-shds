@@ -12,6 +12,8 @@ export type Theme = {
 export const THEMES: Theme[] = [
   { id: "light", label: "Light", swatch: ["#242424", "#f3fe64", "#f4f3ef"], mode: "light" },
   { id: "dark", label: "Dark", swatch: ["#f5f3f0", "#ff6a2b", "#050505"], mode: "dark" },
+  { id: "carbon", label: "Carbon", swatch: ["#242424", "#f3fe64", "#f4f3ef"], mode: "light" },
+  { id: "lark-orange", label: "Lark Orange", swatch: ["#ffffff", "#ff6a2b", "#050505"], mode: "dark" },
   { id: "midnight", label: "Midnight", swatch: ["#e074c9", "#8845f4", "#0b0b0a"], mode: "dark" },
   { id: "signature", label: "Signature", swatch: ["#ff0055", "#00e2ee", "#1c1213"], mode: "dark" },
   { id: "nightfall", label: "Nightfall", swatch: ["#5da9e0", "#7fd9c4", "#100e0b"], mode: "dark" },
@@ -21,6 +23,21 @@ export const THEMES: Theme[] = [
 ];
 
 export const DEFAULT_THEME_ID = "light";
+
+const THEME_TOGGLE_PAIRS = {
+  light: "dark",
+  dark: "light",
+  carbon: "lark-orange",
+  "lark-orange": "carbon",
+} as const;
+
+export function getThemeToggleTarget(themeId: string): string {
+  const pairedTheme = THEME_TOGGLE_PAIRS[themeId as keyof typeof THEME_TOGGLE_PAIRS];
+  if (pairedTheme) return pairedTheme;
+
+  const currentTheme = THEMES.find((theme) => theme.id === themeId);
+  return THEMES.find((theme) => theme.mode !== currentTheme?.mode)?.id ?? DEFAULT_THEME_ID;
+}
 
 // 2026-10-15: hidden from the settings picker, but still fully defined in CSS/aura-background and
 // still a valid stored preference — a user who already has one of these set sees no change.

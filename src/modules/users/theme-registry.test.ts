@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_THEME_ID, HIDDEN_THEME_IDS, isValidThemeId, THEMES, VISIBLE_THEMES } from "./theme-registry";
+import { DEFAULT_THEME_ID, getThemeToggleTarget, HIDDEN_THEME_IDS, isValidThemeId, THEMES, VISIBLE_THEMES } from "./theme-registry";
 
 describe("theme-registry", () => {
-  it("uses Light as the default and exposes Light and Dark first", () => {
+  it("uses Light as the default and exposes the four primary themes first", () => {
     expect(DEFAULT_THEME_ID).toBe("light");
-    expect(VISIBLE_THEMES.slice(0, 2).map((theme) => theme.id)).toEqual(["light", "dark"]);
+    expect(VISIBLE_THEMES.slice(0, 4).map((theme) => theme.id)).toEqual(["light", "dark", "carbon", "lark-orange"]);
   });
 
   it("keeps the requested primary palette swatches", () => {
@@ -12,14 +12,16 @@ describe("theme-registry", () => {
     expect(THEMES.find((theme) => theme.id === "dark")?.swatch).toEqual(["#f5f3f0", "#ff6a2b", "#050505"]);
   });
 
-  it("uses Light as the default and exposes Light and Dark as primary themes", () => {
+  it("keeps the primary theme order stable", () => {
     expect(DEFAULT_THEME_ID).toBe("light");
-    expect(VISIBLE_THEMES.slice(0, 2).map((theme) => theme.id)).toEqual(["light", "dark"]);
+    expect(VISIBLE_THEMES.slice(0, 4).map((theme) => theme.id)).toEqual(["light", "dark", "carbon", "lark-orange"]);
   });
 
   it("keeps the requested primary palette swatches", () => {
     expect(THEMES.find((theme) => theme.id === "light")?.swatch).toEqual(["#242424", "#f3fe64", "#f4f3ef"]);
     expect(THEMES.find((theme) => theme.id === "dark")?.swatch).toEqual(["#f5f3f0", "#ff6a2b", "#050505"]);
+    expect(THEMES.find((theme) => theme.id === "carbon")?.swatch).toEqual(["#242424", "#f3fe64", "#f4f3ef"]);
+    expect(THEMES.find((theme) => theme.id === "lark-orange")?.swatch).toEqual(["#ffffff", "#ff6a2b", "#050505"]);
   });
 
   it("includes arctic-frost in THEMES with its swatch", () => {
@@ -53,5 +55,12 @@ describe("theme-registry", () => {
 
   it("isValidThemeId rejects unknown ids", () => {
     expect(isValidThemeId("not-a-theme")).toBe(false);
+  });
+
+  it("pairs the primary themes for the quick appearance toggle", () => {
+    expect(getThemeToggleTarget("light")).toBe("dark");
+    expect(getThemeToggleTarget("dark")).toBe("light");
+    expect(getThemeToggleTarget("carbon")).toBe("lark-orange");
+    expect(getThemeToggleTarget("lark-orange")).toBe("carbon");
   });
 });

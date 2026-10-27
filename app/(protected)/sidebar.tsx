@@ -73,12 +73,9 @@ function NavItem({
   const [hovered, setHovered] = useState(false);
   return (
     <SidebarMenuItem>
-      {/* Hover no longer paints the shared button's own bg/text pill (canceled below) — only the
-          icon picks up the theme accent on hover, via the same `hovered` state that already
-          drives HoverMorphIcon's shape morph. The active route keeps its normal pill unchanged. */}
       <SidebarMenuButton
         isActive={active}
-        className="hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent active:text-sidebar-foreground"
+        className="data-active:bg-accent data-active:text-accent-foreground data-active:hover:bg-accent"
         render={<Link href={href} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} />}
       >
         <span className={hovered ? "text-accent" : undefined}>
@@ -94,16 +91,19 @@ export function ProfileMenu({
   email,
   role,
   targetThemeId,
+  targetThemeMode,
   compact = false,
 }: {
   email: string;
   role: string;
-  targetThemeId: "light" | "dark";
+  targetThemeId: string;
+  targetThemeMode?: "light" | "dark";
   compact?: boolean;
 }) {
   const [signOutHovered, setSignOutHovered] = useState(false);
   const [settingsHovered, setSettingsHovered] = useState(false);
   const eventsOnly = role === "EVENT_EDITOR" || role === "RECEPTION";
+  const targetIsDark = targetThemeMode ?? targetThemeId === "dark";
 
   return (
     <DropdownMenu>
@@ -153,8 +153,8 @@ export function ProfileMenu({
         <form action={updateUserThemeAction}>
           <input type="hidden" name="themeId" value={targetThemeId} />
           <DropdownMenuItem className="min-h-11 px-3" nativeButton render={<button type="submit" className="w-full" />}>
-            {targetThemeId === "dark" ? <Moon size={16} /> : <Sun size={16} />}
-            {targetThemeId === "dark" ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
+            {targetIsDark ? <Moon size={16} /> : <Sun size={16} />}
+            {targetIsDark ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
           </DropdownMenuItem>
         </form>
         {!eventsOnly ? <DropdownMenuSeparator className={compact ? "bg-white/15" : undefined} /> : null}
@@ -242,7 +242,7 @@ export function MobileBottomNav({ role }: { role: string }) {
   );
 }
 
-export function AppSidebar({ email, role, targetThemeId }: { email: string; role: string; targetThemeId: "light" | "dark" }) {
+export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { email: string; role: string; targetThemeId: string; targetThemeMode?: "light" | "dark" }) {
   const pathname = usePathname();
   const eventsOnly = role === "EVENT_EDITOR" || role === "RECEPTION";
   const qrShortLinksActive =
@@ -288,7 +288,7 @@ export function AppSidebar({ email, role, targetThemeId }: { email: string; role
               {!eventsOnly && <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={qrShortLinksActive}
-                  className="hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent active:text-sidebar-foreground"
+                  className="data-active:bg-accent data-active:text-accent-foreground data-active:hover:bg-accent"
                   onClick={() => setQrShortLinksOpen((open) => !open)}
                   onMouseEnter={() => setQrGroupHovered(true)}
                   onMouseLeave={() => setQrGroupHovered(false)}
@@ -356,7 +356,7 @@ export function AppSidebar({ email, role, targetThemeId }: { email: string; role
       <SidebarFooter className="hidden px-4 pb-6 xl:block">
         <SidebarMenu className="gap-1.5">
           <SidebarMenuItem>
-            <ProfileMenu email={email} role={role} targetThemeId={targetThemeId} />
+            <ProfileMenu email={email} role={role} targetThemeId={targetThemeId} targetThemeMode={targetThemeMode} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
