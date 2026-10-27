@@ -7,12 +7,13 @@ const mocks = vi.hoisted(() => ({
   canAccessEvent: vi.fn(),
   getEvent: vi.fn(),
   listRegistrations: vi.fn(),
+  resolveRegistrationFormConfig: vi.fn(() => ({ fields: { phone: { required: false } } })),
   notFound: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
-vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, listRegistrations: mocks.listRegistrations, canAccessEvent: mocks.canAccessEvent }));
+vi.mock("@/modules/events", () => ({ getEvent: mocks.getEvent, listRegistrations: mocks.listRegistrations, canAccessEvent: mocks.canAccessEvent, resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig }));
 vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("./add-companion-row", () => ({
   AddCompanionRow: ({ registrationId }: { registrationId: string }) => (
@@ -148,5 +149,7 @@ describe("RegistrationsPage", () => {
 
     expect(JSON.stringify(result)).toContain('"id":"reg-26"');
     expect(JSON.stringify(result)).toContain('"children":["Página ",2," de ",2]');
+    expect(JSON.stringify(result)).toContain('"children":1');
+    expect(JSON.stringify(result)).toContain('"children":2');
   });
 });

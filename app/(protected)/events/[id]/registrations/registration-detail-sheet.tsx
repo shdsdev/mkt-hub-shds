@@ -59,6 +59,7 @@ export function RegistrationDetailSheet({
   eventName,
   collectCompany,
   collectJobTitle,
+  phoneRequired,
 }: {
   registration: RegistrationWithAttendees;
   statusLabel: string;
@@ -68,6 +69,7 @@ export function RegistrationDetailSheet({
   eventName: string;
   collectCompany: boolean;
   collectJobTitle: boolean;
+  phoneRequired: boolean;
 }) {
   const [resendState, resendAction, resendPending] = useActionState(resendInvitationAction, initialResendState);
   const [reviewState, reviewAction, reviewPending] = useActionState(updateRegistrationReviewStatusAction, {});
@@ -121,6 +123,7 @@ export function RegistrationDetailSheet({
                   eventId={eventId}
                   collectCompany={collectCompany}
                   collectJobTitle={collectJobTitle}
+                  phoneRequired={phoneRequired}
                 />
               ) : null}
               <Button type="button" variant="ghost" size="icon-sm" onClick={() => onOpenChange(false)} aria-label="Cerrar detalle">

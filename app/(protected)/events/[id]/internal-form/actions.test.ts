@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   listRegistrations: vi.fn(),
   addAttendeeToRegistration: vi.fn(),
   updatePrimaryAttendee: vi.fn(),
+  resolveRegistrationFormConfig: vi.fn(() => ({ fields: { phone: { required: false } } })),
   recordAudit: vi.fn(),
   revalidatePath: vi.fn(),
   OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
@@ -21,6 +22,7 @@ vi.mock("@/modules/events", () => ({
   getEvent: mocks.getEvent,
   listRegistrations: mocks.listRegistrations,
   updatePrimaryAttendee: mocks.updatePrimaryAttendee,
+  resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
 }));
 vi.mock("@/modules/audit", () => ({ recordAudit: mocks.recordAudit }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));

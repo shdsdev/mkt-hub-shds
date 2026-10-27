@@ -42,7 +42,7 @@ describe("RegistrationFilters", () => {
       <RegistrationFilters sort="recent" pageSize={25} />,
     ));
 
-    const input = container.querySelector<HTMLInputElement>("input[placeholder='Buscar nombre, correo o empresa']");
+    const input = container.querySelector<HTMLInputElement>("input[placeholder='Buscar nombre, correo o empresa…']");
     expect(input).not.toBeNull();
     act(() => {
       Object.defineProperty(input, "value", { value: "Ada", writable: true });

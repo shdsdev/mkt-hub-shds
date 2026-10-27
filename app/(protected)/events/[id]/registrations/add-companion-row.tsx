@@ -15,11 +15,13 @@ export function AddCompanionRow({
   eventId,
   collectCompany,
   collectJobTitle,
+  phoneRequired,
 }: {
   registrationId: string;
   eventId: string;
   collectCompany: boolean;
   collectJobTitle: boolean;
+  phoneRequired: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
@@ -58,6 +60,7 @@ export function AddCompanionRow({
                 <input type="hidden" name="eventId" value={eventId} />
                 <input name="fullName" placeholder="Nombre completo" required className={fieldClass} />
                 <input name="email" type="email" placeholder="Correo" required className={fieldClass} />
+                <input name="phone" type="tel" placeholder="Teléfono" required={phoneRequired} aria-required={phoneRequired} aria-label="Teléfono del acompañante" className={fieldClass} />
                 {collectCompany ? <input name="company" placeholder="Empresa" className={fieldClass} /> : null}
                 {collectJobTitle ? <input name="jobTitle" placeholder="Puesto" className={fieldClass} /> : null}
                 <input type="hidden" name="occupation" value={occupation} required />

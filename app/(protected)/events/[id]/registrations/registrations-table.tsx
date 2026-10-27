@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import { Megaphone, Tag } from "lucide-react";
@@ -16,6 +16,7 @@ type Props = {
   eventName: string;
   collectCompany: boolean;
   collectJobTitle: boolean;
+  phoneRequired: boolean;
   statusLabels: Record<EventRegistrationRow["status"], string>;
   reviewStatusLabels: Record<EventRegistrationRow["reviewStatus"], string>;
   initialSelectedId?: string;
@@ -42,11 +43,14 @@ export function RegistrationsTable({
   eventName,
   collectCompany,
   collectJobTitle,
+  phoneRequired,
   statusLabels,
   reviewStatusLabels,
   initialSelectedId,
 }: Props) {
+  const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const [isDragging, setIsDragging] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -56,17 +60,28 @@ export function RegistrationsTable({
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState === "visible" && !selectedId) router.refresh();
     }, 10_000);
     return () => window.clearInterval(interval);
-  }, [router]);
+  }, [router, selectedId]);
+
+  useEffect(() => setSelectedId(initialSelectedId ?? null), [initialSelectedId]);
+
+  function updateSelectedRegistration(id: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) params.set("registrationId", id);
+    else params.delete("registrationId");
+    const serialized = params.toString();
+    router.replace(`${pathname}${serialized ? `?${serialized}` : ""}`, { scroll: false });
+    setSelectedId(id);
+  }
 
   function selectRegistration(id: string) {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
     }
-    setSelectedId(id);
+    updateSelectedRegistration(id);
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -118,9 +133,49 @@ export function RegistrationsTable({
 
   return (
     <>
+      <div className="md:hidden">
+        <div className="grid gap-2" aria-label="Registros">
+          {registrations.map((registration) => {
+            const primary = getPrimaryAttendee(registration);
+            const values = getRegistrationTableValues(registration);
+            const displayStatus = registration.status === "cancelled"
+              ? statusLabels[registration.status]
+              : values.status === "Check-in"
+                ? statusLabels.checked_in
+                : values.status === "Confirmado"
+                  ? statusLabels.confirmed
+                  : statusLabels[registration.status];
+
+            return (
+              <article key={registration.id} className={`rounded-lg border border-border bg-card p-3 ${selectedId === registration.id ? "ring-2 ring-primary/50" : ""}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    onClick={() => selectRegistration(registration.id)}
+                    aria-label={`Abrir registro de ${primary?.fullName ?? "contacto sin nombre"}`}
+                  >
+                    <strong className="block truncate font-medium">{primary?.fullName ?? "—"}</strong>
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{primary?.email ?? "Sin correo"}</span>
+                  </button>
+                  {registration.status !== "cancelled" ? (
+                    <AddCompanionRow registrationId={registration.id} eventId={eventId} collectCompany={collectCompany} collectJobTitle={collectJobTitle} phoneRequired={phoneRequired} />
+                  ) : null}
+                </div>
+                <button type="button" className="mt-3 grid w-full grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => selectRegistration(registration.id)}>
+                  <span className="text-muted-foreground">Estado <strong className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(displayStatus)}`}>{displayStatus}</strong></span>
+                  <span className="text-muted-foreground">Fecha <strong className="ml-1 font-medium text-foreground">{formatRegistrationDate(registration.createdAt)}</strong></span>
+                  <span className="text-muted-foreground">Estado de revisión <strong className="ml-1 font-medium text-foreground">{reviewStatusLabels[registration.reviewStatus]}</strong></span>
+                  <span className="text-muted-foreground">Ubicación <strong className="ml-1 font-medium text-foreground">{values.state}</strong></span>
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      </div>
       <div
         ref={scrollRef}
-        className={`overflow-x-auto rounded-lg border border-border touch-pan-y ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
+        className={`hidden overflow-x-auto rounded-lg border border-border touch-pan-x md:block ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endPointerDrag}
@@ -214,6 +269,7 @@ export function RegistrationsTable({
                         eventId={eventId}
                         collectCompany={collectCompany}
                         collectJobTitle={collectJobTitle}
+                        phoneRequired={phoneRequired}
                       />
                     ) : null}
                   </td>
@@ -235,11 +291,12 @@ export function RegistrationsTable({
                 ? statusLabels.confirmed
                 : statusLabels[selectedRegistration.status]}
           open
-          onOpenChange={(open) => !open && setSelectedId(null)}
+          onOpenChange={(open) => !open && updateSelectedRegistration(null)}
           eventId={eventId}
           eventName={eventName}
           collectCompany={collectCompany}
           collectJobTitle={collectJobTitle}
+          phoneRequired={phoneRequired}
         />
       ) : null}
     </>

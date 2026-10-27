@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive } from "@/modules/users";
-import { canAccessEvent, getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
+import { canAccessEvent, getEvent, listRegistrations, resolveRegistrationFormConfig, type EventRegistrationRow } from "@/modules/events";
 import { EventSubNav } from "../../event-sub-nav";
 import { RegistrationsTable } from "./registrations-table";
 import { REVIEW_STATUS_LABELS } from "./review-status";
@@ -150,6 +150,7 @@ export default async function RegistrationsPage({
           eventName={event.name}
           collectCompany={event.collectCompany}
           collectJobTitle={event.collectJobTitle}
+          phoneRequired={resolveRegistrationFormConfig(event).fields.phone.required}
           statusLabels={STATUS_LABELS}
           reviewStatusLabels={REVIEW_STATUS_LABELS}
           initialSelectedId={registrationId}
