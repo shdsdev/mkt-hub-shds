@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventEditorTabPanel, EventEditorTabs } from "./event-editor-tabs";
 
 const tabs = [
@@ -174,5 +174,45 @@ describe("EventEditorTabs", () => {
     expect(document.activeElement).toBe(eventTab);
     expect(eventTab.tabIndex).toBe(0);
     expect(integrationsTab.tabIndex).toBe(-1);
+  });
+
+  it("allows dragging the tab list horizontally without selecting a tab", () => {
+    renderTabs();
+
+    const tabList = container?.querySelector('[role="tablist"]') as HTMLDivElement;
+    Object.defineProperty(tabList, "setPointerCapture", { value: () => undefined });
+    Object.defineProperty(tabList, "releasePointerCapture", { value: () => undefined });
+
+    act(() => {
+      const pointerDown = new Event("pointerdown", { bubbles: true });
+      Object.assign(pointerDown, { button: 0, clientX: 240, pointerId: 1, pointerType: "mouse" });
+      tabList.dispatchEvent(pointerDown);
+
+      const pointerMove = new Event("pointermove", { bubbles: true });
+      Object.assign(pointerMove, { clientX: 120, pointerId: 1, pointerType: "mouse" });
+      tabList.dispatchEvent(pointerMove);
+
+      const pointerUp = new Event("pointerup", { bubbles: true });
+      Object.assign(pointerUp, { pointerId: 1, pointerType: "mouse" });
+      tabList.dispatchEvent(pointerUp);
+    });
+
+    expect(tabList.scrollLeft).toBe(120);
+    expect(tabByName("Datos del evento").getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("does not capture a pointer when pressing a tab button", () => {
+    renderTabs();
+
+    const tabList = container?.querySelector('[role="tablist"]') as HTMLDivElement;
+    const setPointerCapture = vi.fn();
+    Object.defineProperty(tabList, "setPointerCapture", { value: setPointerCapture });
+    const emailTab = tabByName("Correos");
+    const pointerDown = new Event("pointerdown", { bubbles: true });
+    Object.assign(pointerDown, { button: 0, clientX: 240, pointerId: 1, pointerType: "mouse" });
+
+    act(() => emailTab.dispatchEvent(pointerDown));
+
+    expect(setPointerCapture).not.toHaveBeenCalled();
   });
 });

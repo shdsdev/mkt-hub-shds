@@ -1001,6 +1001,14 @@ html[data-app-theme="light"] body:has(.app-shell) .light-landing-surface .text-m
   background: var(--foreground);
 }
 
+.event-editor-tablist {
+  scrollbar-width: none;
+}
+
+.event-editor-tablist::-webkit-scrollbar {
+  display: none;
+}
+
 /* "Spin" checkbox. Markup: <label class="check ck-10"><input type="checkbox" tabindex="-1"
    checked><span class="box"></span><span class="lbl">Label</span></label>. The project's one
    checkbox style — see src/components/checkbox.tsx for the React wiring.
