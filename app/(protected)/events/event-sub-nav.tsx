@@ -23,12 +23,17 @@ export function EventSubNav({ eventId, current, role }: { eventId: string; curre
   );
 
   useEffect(() => {
-    activeTabRef.current?.scrollIntoView?.({ block: "nearest", inline: "center" });
+    const activeTab = activeTabRef.current;
+    const tabList = activeTab?.parentElement;
+    if (!activeTab || !tabList || tabList.scrollWidth <= tabList.clientWidth) return;
+
+    const targetLeft = activeTab.offsetLeft - (tabList.clientWidth - activeTab.offsetWidth) / 2;
+    tabList.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
   }, [current]);
 
   return (
-    <nav className="w-full overflow-x-auto text-sm">
-      <div className="mx-auto flex min-w-max w-max justify-start gap-1 rounded-xl border border-border bg-muted/40 p-1 sm:justify-center">
+    <nav className="max-w-full overflow-x-auto overscroll-x-contain text-sm [scrollbar-width:thin]">
+      <div className="mx-auto flex w-max min-w-max justify-start gap-0.5 rounded-xl border border-border bg-muted/40 p-1 sm:gap-1 sm:p-1">
         {tabs.map((tab) => (
           <Link
             key={tab.key}
@@ -37,8 +42,8 @@ export function EventSubNav({ eventId, current, role }: { eventId: string; curre
             aria-current={tab.key === current ? "page" : undefined}
             className={
               tab.key === current
-                ? "flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-accent px-4 py-2 text-center font-medium text-accent-foreground shadow-sm ring-1 ring-accent/60 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
-                : "flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-center text-muted-foreground outline-none transition-colors hover:bg-background/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                ? "flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-accent px-3 py-2 text-center font-medium text-accent-foreground shadow-sm ring-1 ring-accent/60 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 sm:px-4"
+                : "flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 py-2 text-center text-muted-foreground outline-none transition-colors hover:bg-background/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 sm:px-4"
             }
           >
             {tab.label}

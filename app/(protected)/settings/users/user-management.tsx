@@ -105,7 +105,7 @@ export function UserManagement({ users, themes = [] }: { users: ManagedUser[]; t
           <h2 className="font-heading font-medium">Invitar usuario</h2>
           <p className="text-xs text-muted-foreground">Envía una invitación con el rol seleccionado.</p>
         </div>
-        <form action={inviteAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <form action={inviteAction} className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <label className="flex flex-1 flex-col gap-1.5 text-sm font-medium">
             Correo electrónico
             <Input name="email" type="email" autoComplete="email" required />
@@ -113,7 +113,7 @@ export function UserManagement({ users, themes = [] }: { users: ManagedUser[]; t
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Rol
             <Select name="role" defaultValue="User">
-              <SelectTrigger aria-label="Rol para la invitación" className="w-full sm:w-40">
+              <SelectTrigger aria-label="Rol para la invitación" className="w-full lg:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -138,13 +138,13 @@ export function UserManagement({ users, themes = [] }: { users: ManagedUser[]; t
       </section>
 
       <section className="flex flex-col gap-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="font-heading font-medium">Usuarios de la organización</h2>
             <p className="text-xs text-muted-foreground">Roles y estado de acceso actuales.</p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative min-w-56">
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:items-center">
+            <div className="relative min-w-0 lg:min-w-56">
               <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" data-icon="inline-start" />
               <Input
                 value={search}
@@ -155,7 +155,7 @@ export function UserManagement({ users, themes = [] }: { users: ManagedUser[]; t
               />
             </div>
             <Select value={roleFilter} onValueChange={(value) => updateFilter(setRoleFilter, value ?? "all")}>
-              <SelectTrigger aria-label="Filtrar por rol" className="w-full sm:w-40">
+              <SelectTrigger aria-label="Filtrar por rol" className="w-full lg:w-40">
                 <SelectValue placeholder="Todos los roles" />
               </SelectTrigger>
               <SelectContent>
@@ -169,7 +169,7 @@ export function UserManagement({ users, themes = [] }: { users: ManagedUser[]; t
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={(value) => updateFilter(setStatusFilter, value ?? "all")}>
-              <SelectTrigger aria-label="Filtrar por estado" className="w-full sm:w-36">
+              <SelectTrigger aria-label="Filtrar por estado" className="w-full lg:w-36">
                 <SelectValue placeholder="Todos los estados" />
               </SelectTrigger>
               <SelectContent>
@@ -183,8 +183,8 @@ export function UserManagement({ users, themes = [] }: { users: ManagedUser[]; t
           </div>
         </div>
 
-        <div className="w-full min-w-0">
-          <table className="w-full table-fixed text-sm">
+        <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-[720px] table-fixed text-sm">
             <colgroup>
               <col />
               <col className="w-64" />

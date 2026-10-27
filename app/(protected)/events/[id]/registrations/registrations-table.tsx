@@ -152,7 +152,7 @@ export function RegistrationsTable({
 
   return (
     <>
-      <div className="xl:hidden">
+      <div className="sm:hidden">
         <div className="grid gap-2" aria-label="Registros">
           {registrations.map((registration) => {
             const primary = getPrimaryAttendee(registration);
@@ -181,11 +181,11 @@ export function RegistrationsTable({
                     <AddCompanionRow registrationId={registration.id} eventId={eventId} collectCompany={collectCompany} collectJobTitle={collectJobTitle} phoneRequired={phoneRequired} />
                   ) : null}
                 </div>
-                <button type="button" className="mt-3 grid w-full grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => selectRegistration(registration.id)}>
-                  <span className="text-muted-foreground">Estado <strong className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(displayStatus)}`}>{displayStatus}</strong></span>
-                  <span className="text-muted-foreground">Fecha <strong className="ml-1 font-medium text-foreground">{formatRegistrationDate(registration.createdAt)}</strong></span>
-                  <span className="text-muted-foreground">Estado de revisión <strong className="ml-1 font-medium text-foreground">{reviewStatusLabels[registration.reviewStatus]}</strong></span>
-                  <span className="text-muted-foreground">Ubicación <strong className="ml-1 font-medium text-foreground">{values.state}</strong></span>
+                <button type="button" className="mt-3 grid w-full grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={() => selectRegistration(registration.id)}>
+                  <span className="min-w-0"><span className="block text-xs text-muted-foreground">Estado</span><strong className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(displayStatus)}`}>{displayStatus}</strong></span>
+                  <span className="min-w-0"><span className="block text-xs text-muted-foreground">Fecha</span><strong className="mt-1 block truncate font-medium text-foreground">{formatRegistrationDate(registration.createdAt)}</strong></span>
+                  <span className="min-w-0"><span className="block text-xs text-muted-foreground">Estado de revisión</span><strong className="mt-1 block truncate font-medium text-foreground">{reviewStatusLabels[registration.reviewStatus]}</strong></span>
+                  <span className="min-w-0"><span className="block text-xs text-muted-foreground">Ubicación</span><strong className="mt-1 block truncate font-medium text-foreground">{values.state}</strong></span>
                 </button>
               </article>
             );
@@ -194,25 +194,25 @@ export function RegistrationsTable({
       </div>
       <div
         ref={scrollRef}
-        className={`hidden overflow-x-auto rounded-lg border border-border touch-pan-x xl:block ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
+        className={`hidden max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-border touch-pan-x sm:block ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endPointerDrag}
         onPointerCancel={endPointerDrag}
       >
-          <table className="min-w-[1240px] w-full text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm xl:min-w-[1240px]">
           <thead>
             <tr className="border-b border-border bg-background text-xs text-muted-foreground">
               <th className="sticky left-0 top-0 z-30 bg-background px-4 py-3 font-medium">Nombre</th>
-              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Empresa</th>
+              <th className="sticky top-0 z-20 hidden bg-background px-4 py-3 font-medium xl:table-cell">Empresa</th>
               <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Estado</th>
               <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Fecha</th>
-              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Tipo de cliente</th>
+              <th className="sticky top-0 z-20 hidden bg-background px-4 py-3 font-medium xl:table-cell">Tipo de cliente</th>
               <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Status</th>
               <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Revisión</th>
-              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Fuente</th>
-              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Marca</th>
-              <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Seguimiento</th>
+              <th className="sticky top-0 z-20 hidden bg-background px-4 py-3 font-medium xl:table-cell">Fuente</th>
+              <th className="sticky top-0 z-20 hidden bg-background px-4 py-3 font-medium xl:table-cell">Marca</th>
+              <th className="sticky top-0 z-20 hidden bg-background px-4 py-3 font-medium xl:table-cell">Seguimiento</th>
               <th className="sticky top-0 z-20 bg-background px-4 py-3 font-medium">Acciones</th>
             </tr>
           </thead>
@@ -243,7 +243,7 @@ export function RegistrationsTable({
                     <strong className="block truncate font-medium">{primary?.fullName ?? "—"}</strong>
                     {primary?.email ? <span className="block truncate text-xs text-muted-foreground">{primary.email}</span> : null}
                   </td>
-                  <td className="max-w-48 truncate px-4 py-3">{primary?.company ?? "—"}</td>
+                  <td className="hidden max-w-48 truncate px-4 py-3 xl:table-cell">{primary?.company ?? "—"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{values.state}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                     {formatRegistrationDate(registration.createdAt)}
@@ -251,12 +251,12 @@ export function RegistrationsTable({
                   <td className="px-4 py-3 whitespace-nowrap">
                     {primary?.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation); return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : <span className="text-muted-foreground">—</span>}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="hidden px-4 py-3 whitespace-nowrap xl:table-cell">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass(displayStatus)}`}>
                       {displayStatus}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="hidden px-4 py-3 whitespace-nowrap xl:table-cell">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${reviewBadgeClass(reviewStatusLabels[registration.reviewStatus])}`}>
                       {reviewStatusLabels[registration.reviewStatus]}
                     </span>
@@ -272,8 +272,8 @@ export function RegistrationsTable({
                       );
                     })()}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{values.isClient ? "Cliente" : "No cliente"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="hidden px-4 py-3 whitespace-nowrap xl:table-cell">{values.isClient ? "Cliente" : "No cliente"}</td>
+                  <td className="hidden px-4 py-3 whitespace-nowrap xl:table-cell">
                     {values.followUp ? (
                       <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">
                         Solicita más acompañantes

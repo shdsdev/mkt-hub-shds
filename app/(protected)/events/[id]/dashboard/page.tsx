@@ -127,7 +127,7 @@ export default async function EventDashboardPage({ params }: { params: Promise<{
           <p className="mt-1 text-sm text-muted-foreground">Una lectura rápida del rendimiento y la operación de tu evento.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <StatTile label="Visitas" value={insights.visits} />
           <StatTile label="Registros" value={insights.registrations} />
           <StatTile label="Personas registradas" value={insights.people} />
@@ -138,7 +138,7 @@ export default async function EventDashboardPage({ params }: { params: Promise<{
 
         <ConfirmedSeatsTile confirmedSeats={insights.confirmedSeats} capacity={insights.capacity} />
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.8fr)]">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.8fr)]">
           <div className="flex min-w-0 flex-col gap-4">
             <DashboardSection title="Actividad de registros">
               <p className="mt-1 text-sm text-muted-foreground">Solicitudes recibidas durante los últimos 14 días.</p>
