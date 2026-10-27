@@ -642,17 +642,21 @@ function QrRow({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => voi
   return (
     <li
       onClick={onClick}
-      className={`flex items-center gap-4 rounded-lg border border-border bg-card p-4 ${
+      className={`flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:gap-4 ${
         clickable ? "cursor-pointer hover:border-primary/50" : ""
       }`}
     >
-      <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
-      <div className="min-w-0 flex-1">
-        <QrHeading row={row} />
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
+        <div className="min-w-0 flex-1">
+          <QrHeading row={row} />
+        </div>
       </div>
       {row.placementImageUrl ? <PlacementImagePreview src={row.placementImageUrl} /> : null}
-      <QrScanCount scanCount={row.scanCount} />
-      <QrActions row={row} onEdit={onEdit} />
+      <div className="flex items-center justify-between gap-4 border-t border-border pt-3 sm:border-t-0 sm:pt-0">
+        <QrScanCount scanCount={row.scanCount} />
+        <QrActions row={row} onEdit={onEdit} />
+      </div>
     </li>
   );
 }

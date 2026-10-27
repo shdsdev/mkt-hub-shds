@@ -73,7 +73,7 @@ describe("EventCheckInPage", () => {
     expect(mocks.getEvent).toHaveBeenCalledWith("event-1", "org-1");
     expect(JSON.stringify(result)).toContain("Workshop de Marketing");
     expect(JSON.stringify(result)).toContain("max-w-[1440px]");
-    expect(JSON.stringify(result)).toContain("grid gap-6 lg:grid-cols-2");
+    expect(JSON.stringify(result)).toContain("grid gap-6 xl:grid-cols-2");
     expect(JSON.stringify(result).match(/"eventId":"event-1"/g)).toHaveLength(3);
     expect(mocks.canAccessEvent).toHaveBeenCalledWith(expect.objectContaining({ capability: "check-in" }));
     expect(JSON.stringify(result)).toContain('"current":"check-in"');

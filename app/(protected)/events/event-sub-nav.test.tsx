@@ -31,4 +31,11 @@ describe("EventSubNav", () => {
     expect(html).toContain("Preguntas");
     expect(html).toContain("Resultados");
   });
+
+  it("keeps the current section selected instead of defaulting to Editar", () => {
+    const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="questions" role="ADMIN" />);
+
+    expect(html).toMatch(/<a(?=[^>]*href="\/events\/event-1\/questions")(?=[^>]*aria-current="page")(?=[^>]*bg-accent)[^>]*>Preguntas<\/a>/);
+    expect(html).not.toMatch(/<a(?=[^>]*href="\/events\/event-1\/edit")(?=[^>]*aria-current="page")/);
+  });
 });

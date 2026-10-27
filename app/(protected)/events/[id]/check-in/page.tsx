@@ -33,7 +33,7 @@ export default async function EventCheckInPage({ params }: { params: Promise<{ i
             Escanea el pase del asistente o escribe su código de respaldo.
           </p>
         </div>
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 xl:grid-cols-2">
           <CheckInForm eventId={event.id} confirmationRequired={event.checkInConfirmationRequired} />
           <BenefitRedemptionForm eventId={event.id} history={history} canAnnulHistory={canAnnulHistory} />
         </div>

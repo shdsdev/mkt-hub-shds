@@ -21,6 +21,13 @@ const OCCUPATION_FILTER_OPTIONS = ["wholesaler", "manufacturer", "architect-deco
 const SOURCE_FILTER_OPTIONS = ["Meta Ads", "facebook", "instagram", "google", "Admin", "Sin atribución"] as const;
 type SortOption = "recent" | "oldest" | "name" | "company";
 
+const SORT_LABELS: Record<SortOption, string> = {
+  recent: "Más recientes",
+  oldest: "Más antiguos",
+  name: "Nombre",
+  company: "Empresa",
+};
+
 type Props = {
   status?: EventRegistrationRow["status"];
   q?: string;
@@ -117,8 +124,8 @@ export function RegistrationFilters({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid w-full grid-cols-1 gap-2 text-sm md:grid-cols-[minmax(220px,1fr)_repeat(4,minmax(140px,auto))_auto]">
-        <label className="relative min-w-0">
+      <div className="grid w-full grid-cols-1 gap-3 text-sm sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_repeat(4,minmax(140px,auto))_auto]">
+        <label className="relative min-w-0 sm:col-span-2 xl:col-span-1">
           <span className="sr-only">Buscar nombre, correo o empresa</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <input
@@ -130,34 +137,19 @@ export function RegistrationFilters({
             className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-9 outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/30"
           />
         </label>
-        <Select value={reviewStatus ?? "all"} onValueChange={(value) => updateFilter("reviewStatus", value === "all" ? undefined : value ?? undefined)}>
-          <SelectTrigger className="h-10 min-w-40" aria-label="Filtrar por revisión"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectGroup>
-            <SelectItem value="all">Todas las revisiones</SelectItem>
-            {Object.entries(REVIEW_STATUS_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-          </SelectGroup></SelectContent>
-        </Select>
-        <Select value={source ?? "all"} onValueChange={(value) => updateFilter("source", value === "all" ? undefined : value ?? undefined)}>
-          <SelectTrigger className="h-10 min-w-40" aria-label="Filtrar por fuente"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectGroup>
-            <SelectItem value="all">Todas las fuentes</SelectItem>
-            {SOURCE_FILTER_OPTIONS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
-          </SelectGroup></SelectContent>
-        </Select>
-        <Select value={occupation ?? "all"} onValueChange={(value) => updateFilter("occupation", value === "all" ? undefined : value ?? undefined)}>
-          <SelectTrigger className="h-10 min-w-44" aria-label="Filtrar por actividad"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectGroup>
-            <SelectItem value="all">Todas las actividades</SelectItem>
-            {OCCUPATION_FILTER_OPTIONS.map((value) => <SelectItem key={value} value={value}>{getOccupationPresentation(value).label}</SelectItem>)}
-          </SelectGroup></SelectContent>
-        </Select>
-        <Select value={state ?? "all"} onValueChange={(value) => updateFilter("state", value === "all" ? undefined : value ?? undefined)}>
-          <SelectTrigger className="h-10 min-w-40" aria-label="Filtrar por estado"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectGroup>
-            <SelectItem value="all">Todos los estados</SelectItem>
-            {MEXICAN_STATES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
-          </SelectGroup></SelectContent>
-        </Select>
+        <label className="flex min-w-0 flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">Revisión</span>
+          <Select value={reviewStatus ?? "all"} onValueChange={(value) => updateFilter("reviewStatus", value === "all" ? undefined : value ?? undefined)}>
+            <SelectTrigger className="h-10 w-full min-w-0" aria-label="Filtrar por revisión"><SelectValue>{reviewStatus ? REVIEW_STATUS_LABELS[reviewStatus as keyof typeof REVIEW_STATUS_LABELS] : "Todas las revisiones"}</SelectValue></SelectTrigger>
+            <SelectContent><SelectGroup>
+              <SelectItem value="all">Todas las revisiones</SelectItem>
+              {Object.entries(REVIEW_STATUS_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+            </SelectGroup></SelectContent>
+          </Select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1"><span className="text-xs font-medium text-muted-foreground">Fuente</span><Select value={source ?? "all"} onValueChange={(value) => updateFilter("source", value === "all" ? undefined : value ?? undefined)}><SelectTrigger className="h-10 w-full min-w-0" aria-label="Filtrar por fuente"><SelectValue>{source ?? "Todas las fuentes"}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">Todas las fuentes</SelectItem>{SOURCE_FILTER_OPTIONS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectGroup></SelectContent></Select></label>
+        <label className="flex min-w-0 flex-col gap-1"><span className="text-xs font-medium text-muted-foreground">Actividad</span><Select value={occupation ?? "all"} onValueChange={(value) => updateFilter("occupation", value === "all" ? undefined : value ?? undefined)}><SelectTrigger className="h-10 w-full min-w-0" aria-label="Filtrar por actividad"><SelectValue>{occupation ? getOccupationPresentation(occupation).label : "Todas las actividades"}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">Todas las actividades</SelectItem>{OCCUPATION_FILTER_OPTIONS.map((value) => <SelectItem key={value} value={value}>{getOccupationPresentation(value).label}</SelectItem>)}</SelectGroup></SelectContent></Select></label>
+        <label className="flex min-w-0 flex-col gap-1"><span className="text-xs font-medium text-muted-foreground">Estado</span><Select value={state ?? "all"} onValueChange={(value) => updateFilter("state", value === "all" ? undefined : value ?? undefined)}><SelectTrigger className="h-10 w-full min-w-0" aria-label="Filtrar por estado"><SelectValue>{state ? MEXICAN_STATES.find((item) => item.value === state)?.label : "Todos los estados"}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">Todos los estados</SelectItem>{MEXICAN_STATES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectGroup></SelectContent></Select></label>
         <AnimatePresence initial={false}>
           {hasFilters ? (
             <motion.button
@@ -179,9 +171,9 @@ export function RegistrationFilters({
         <div className="flex flex-wrap items-center gap-3">
           <label htmlFor="registration-sort" className="text-muted-foreground">Ordenar</label>
           <Select value={sort} onValueChange={(value) => value && updateFilter("sort", value)}>
-            <SelectTrigger id="registration-sort" className="h-9 min-w-36" aria-label="Ordenar registros"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="registration-sort" className="h-9 min-w-36" aria-label="Ordenar registros"><SelectValue>{SORT_LABELS[sort]}</SelectValue></SelectTrigger>
             <SelectContent><SelectGroup>
-              <SelectItem value="recent">Más recientes</SelectItem>
+              <SelectItem value="recent">{SORT_LABELS.recent}</SelectItem>
               <SelectItem value="oldest">Más antiguos</SelectItem>
               <SelectItem value="name">Nombre</SelectItem>
               <SelectItem value="company">Empresa</SelectItem>

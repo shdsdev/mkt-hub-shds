@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => {
     qr: functions(["createDynamicQrCode", "createStaticQrCode", "createQrDesignTemplate", "archiveQrCode",
       "getQrCode", "updateQrCodeName", "updateQrDescription", "updateQrPlacementImage", "buildStaticPayload"]),
     campaigns: functions(["createCampaign", "endCampaign", "recordPrintRun", "listCampaigns"]),
-    users: functions(["updateTheme", "isValidThemeId", "updateDefaultLogo", "setThemeColorOverride", "clearThemeColorOverride", "isActive"]),
+     users: functions(["updateTheme", "isValidThemeId", "updateDefaultLogo", "setThemeColorOverride", "clearThemeColorOverride", "isActive", "isAdmin"]),
     utm: functions(["createUtmPreset", "updateUtmPreset", "archiveUtmPreset", "deleteUtmPreset"]),
     notifications: functions(["markUserNotificationRead"]),
   };
@@ -99,6 +99,7 @@ beforeEach(() => {
   mocks.audit.checkRateLimit.mockReturnValue(true);
   mocks.users.isActive.mockReturnValue(true);
   mocks.users.isValidThemeId.mockReturnValue(true);
+  mocks.users.isAdmin.mockImplementation((profile: { role: string }) => profile.role === "ADMIN");
   mocks.qr.buildStaticPayload.mockReturnValue("Hello");
   for (const name of ["listDomains", "listFolders"]) mocks.links[name].mockResolvedValue([record]);
   mocks.campaigns.listCampaigns.mockResolvedValue([record]);
@@ -112,7 +113,7 @@ describe("non-event action authorization independent of the request URL", () => 
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
     for (const service of services) {
       for (const [name, fn] of Object.entries(service)) {
-        if (name !== "isActive") expect(fn, name).not.toHaveBeenCalled();
+        if (name !== "isActive" && name !== "isAdmin") expect(fn, name).not.toHaveBeenCalled();
       }
     }
     if (_name !== "markNotificationRead") expect(result).toEqual(new Error("REDIRECT:/login"));
@@ -121,9 +122,15 @@ describe("non-event action authorization independent of the request URL", () => 
   it.each(cases)("retains authorized marketing behavior in %s with the same valid input", async (_name, invoke, mutation) => {
     mocks.getCurrentUser.mockResolvedValue({ id: "user-1", profile: { role: "MARKETING_USER", status: "active", organizationId: "org-1" } });
     const result = await invoke().then(() => undefined, (error: unknown) => error);
-    if (_name === "createLink") expect(result).toEqual(new Error(`REDIRECT:/links/${id}`));
+    if (_name === "updateUserTheme") expect(result).toEqual(new Error("REDIRECT:/login"));
+    else if (_name === "createLink") expect(result).toEqual(new Error(`REDIRECT:/links/${id}`));
     else expect(result).toBeUndefined();
-    expect(mutation).toHaveBeenCalled();
-    expect(mocks.revalidatePath).toHaveBeenCalled();
+    if (_name === "updateUserTheme") {
+      expect(mutation).not.toHaveBeenCalled();
+      expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    } else {
+      expect(mutation).toHaveBeenCalled();
+      expect(mocks.revalidatePath).toHaveBeenCalled();
+    }
   });
 });

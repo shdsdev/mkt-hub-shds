@@ -18,7 +18,7 @@ vi.mock("@/components/ui/sidebar", () => {
   const wrapper = ({ children, render }: { children?: ReactNode; render?: ReactNode }) => <div>{render}{children}</div>;
   return Object.fromEntries([
     "Sidebar", "SidebarContent", "SidebarFooter", "SidebarGroup", "SidebarGroupContent",
-    "SidebarGroupLabel", "SidebarHeader", "SidebarMenu", "SidebarMenuButton", "SidebarMenuItem",
+    "SidebarGroupLabel", "SidebarHeader", "SidebarMenu", "SidebarMenuButton", "SidebarMenuItem", "SidebarTrigger",
     "SidebarMenuSub", "SidebarMenuSubButton", "SidebarMenuSubItem",
   ].map((name) => [name, wrapper]));
 });
@@ -33,7 +33,7 @@ vi.mock("@/components/ui/dropdown-menu", () => {
   ].map((name) => [name, wrapper]));
 });
 
-import { AppSidebar } from "./sidebar";
+import { AppSidebar, MobileBottomNav } from "./sidebar";
 
 describe("sidebar role visibility", () => {
   it.each(["RECEPTION", "EVENT_EDITOR"])("shows only the events module for %s", (role) => {
@@ -68,5 +68,26 @@ describe("sidebar role visibility", () => {
   it("offers the light mode quick action to admins using a special dark theme", () => {
     const html = renderToStaticMarkup(<AppSidebar email="admin@example.com" role="ADMIN" targetThemeId="light" />);
     expect(html).toContain("Cambiar a modo claro");
+  });
+
+  it("shows the mobile primary destinations for full-access roles", () => {
+    const html = renderToStaticMarkup(<MobileBottomNav role="ADMIN" />);
+
+    expect(html).toContain('href="/events"');
+    expect(html).toContain('href="/qr"');
+    expect(html).toContain("Qr Short");
+    expect(html).toContain("Más");
+    expect(html).toContain("xl:hidden");
+    expect(html).toContain("bg-accent");
+  });
+
+  it.each(["RECEPTION", "EVENT_EDITOR"])("shows only Eventos for %s on mobile", (role) => {
+    const html = renderToStaticMarkup(<MobileBottomNav role={role} />);
+
+    expect(html).toContain('href="/events"');
+    expect(html).toContain("w-32");
+    expect(html).not.toContain('href="/qr"');
+    expect(html).not.toContain("Qr Short");
+    expect(html).not.toContain("Más");
   });
 });

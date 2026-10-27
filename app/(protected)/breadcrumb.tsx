@@ -38,7 +38,7 @@ export function Breadcrumb() {
 
   return (
     <div className="flex items-center gap-2">
-      <SidebarTrigger className="shrink-0" title="Mostrar u ocultar menú" aria-label="Mostrar u ocultar menú" />
+      <SidebarTrigger className="hidden shrink-0 xl:inline-flex" title="Mostrar u ocultar menú" aria-label="Mostrar u ocultar menú" />
       {showBack && (
         <button
           type="button"

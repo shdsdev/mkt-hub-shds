@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
-import { Instagram, Mail, Megaphone, MessageCircle, Search, ShieldCheck, Tag } from "lucide-react";
+import { Camera, Mail, Megaphone, MessageCircle, Search, ShieldCheck, Tag } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
 import { getPrimaryAttendee, getRegistrationSourceBadgeClass, getRegistrationSourceLabel, getRegistrationTableValues } from "./registrations-table-model";
 import { RegistrationDetailSheet } from "./registration-detail-sheet";
@@ -42,7 +42,7 @@ function SourceIcon({ source }: { source: string }) {
   const Icon = normalized.includes("whatsapp")
     ? MessageCircle
     : normalized.includes("instagram")
-      ? Instagram
+      ? Camera
       : normalized.includes("google")
         ? Search
         : normalized.includes("email") || normalized.includes("mail")
@@ -152,7 +152,7 @@ export function RegistrationsTable({
 
   return (
     <>
-      <div className="md:hidden">
+      <div className="xl:hidden">
         <div className="grid gap-2" aria-label="Registros">
           {registrations.map((registration) => {
             const primary = getPrimaryAttendee(registration);
@@ -194,7 +194,7 @@ export function RegistrationsTable({
       </div>
       <div
         ref={scrollRef}
-        className={`hidden overflow-x-auto rounded-lg border border-border touch-pan-x md:block ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
+        className={`hidden overflow-x-auto rounded-lg border border-border touch-pan-x xl:block ${isDragging ? "cursor-grabbing select-none" : "cursor-grab"}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endPointerDrag}

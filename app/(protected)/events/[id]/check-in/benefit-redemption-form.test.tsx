@@ -96,7 +96,7 @@ describe("BenefitRedemptionForm", () => {
     expect(html).toContain("Escanear QR");
     expect(html).toContain("Ingresar código");
     expect(html).toContain("Ver historial");
-    expect(html).toContain("min-h-[min(72dvh,44rem)]");
+    expect(html).toContain("p-6 sm:p-7");
   });
 
   it("opens an accessible history dialog without enabling annulment for reception", async () => {
