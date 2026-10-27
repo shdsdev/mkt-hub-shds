@@ -81,7 +81,6 @@ export function RegistrationsTable({
       startX: event.clientX,
       startScrollLeft: container.scrollLeft,
     };
-    container.setPointerCapture(event.pointerId);
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
@@ -92,6 +91,9 @@ export function RegistrationsTable({
     if (Math.abs(distance) > 4) {
       drag.moved = true;
       setIsDragging(true);
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
     }
     event.currentTarget.scrollLeft = drag.startScrollLeft - distance;
   }
