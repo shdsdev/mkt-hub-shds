@@ -131,18 +131,18 @@ export function CheckInForm({ eventId, confirmationRequired }: { eventId: string
   }
 
   return (
-    <section className="flex flex-col rounded-2xl border border-border bg-card p-6 sm:p-7">
+    <section className="flex flex-col rounded-2xl border border-[#3b3b3b] bg-[#242424] p-6 text-[#f8f7f2] sm:p-7">
       <div className="max-w-xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Check-in operativo</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d0cfca]">Check-in operativo</p>
         <h1 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-5xl">Validar acceso</h1>
-        <p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">
+        <p className="mt-4 max-w-lg text-sm leading-6 text-[#f8f7f2] sm:text-base">
           Escaneá el pase o ingresá el código. El resultado quedará visible hasta que el host decida continuar.
         </p>
         <div className="mt-8 grid gap-3 sm:flex">
-          <Button ref={scannerTriggerRef} type="button" onClick={openScanner} disabled={state.pending} className="min-h-12 flex-1 sm:flex-none">
+          <Button ref={scannerTriggerRef} type="button" onClick={openScanner} disabled={state.pending} className="min-h-12 flex-1 bg-accent text-accent-foreground hover:bg-accent/90 focus-visible:ring-accent/50 sm:flex-none">
             Escanear QR
           </Button>
-          <Button type="button" variant="outline" onClick={openManual} disabled={state.pending} className="min-h-12 flex-1 sm:flex-none">
+          <Button type="button" variant="outline" onClick={openManual} disabled={state.pending} className="min-h-12 flex-1 !border-[#66635f] !bg-[#171717] !text-[#f8f7f2] hover:!bg-[#303030] hover:!text-[#f8f7f2] focus-visible:ring-[#f8f7f2]/50 sm:flex-none">
             Ingresar código
           </Button>
         </div>
