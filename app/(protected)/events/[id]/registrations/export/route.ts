@@ -4,7 +4,7 @@ import { isActive, isAdmin } from "@/modules/users";
 import { getEvent, listRegistrations, type EventRegistrationRow } from "@/modules/events";
 import { buildRegistrationsCsv } from "../csv";
 import { REVIEW_STATUS_LABELS, type ReviewStatus } from "../review-status";
-import { getPrimaryAttendee, getRegistrationSourceLabel } from "../registrations-table-model";
+import { getPrimaryAttendee, getRegistrationSourceDisplayLabel } from "../registrations-table-model";
 
 // spec.md "Authorized Registration Export" — ADMIN only, scoped to the event's own organization.
 export async function GET(
@@ -37,7 +37,7 @@ export async function GET(
   const filtered = registrations.filter((registration) => {
     const primary = getPrimaryAttendee(registration);
     return (
-      (!source || getRegistrationSourceLabel(registration).toLowerCase() === source.toLowerCase()) &&
+      (!source || getRegistrationSourceDisplayLabel(registration).toLowerCase() === source.toLowerCase()) &&
       (!occupation || primary?.occupation === occupation) &&
       (!state || primary?.state === state)
     );

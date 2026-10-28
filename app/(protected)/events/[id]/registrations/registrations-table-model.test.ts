@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getPrimaryAttendee, getRegistrationSourceBadgeClass, getRegistrationSourceLabel, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationSourceBadgeClass, getRegistrationSourceDisplayLabel, getRegistrationSourceLabel, getRegistrationTableValues, isMetaAdsRegistration } from "./registrations-table-model";
 
 vi.mock("@/lib/env", () => ({ env: { DATABASE_URL: "postgres://localhost:5432/test" } }));
 vi.mock("@/modules/users", () => ({ isAdmin: () => true }));
@@ -81,6 +81,14 @@ describe("registration table model", () => {
     expect(getRegistrationSourceBadgeClass("email")).toContain("violet");
     expect(getRegistrationSourceBadgeClass("Admin")).toContain("cyan");
     expect(getRegistrationSourceBadgeClass("Sin atribución")).toContain("muted");
+  });
+
+  it("groups web UTM sources for display without changing the original source label", () => {
+    expect(getRegistrationSourceLabel({ ...registrationData, utmSource: "bmighty_sitioweb" } as never)).toBe("bmighty_sitioweb");
+    expect(getRegistrationSourceDisplayLabel({ ...registrationData, utmSource: "shadesdemexico_web" } as never)).toBe("Sitio web");
+    expect(getRegistrationSourceDisplayLabel({ ...registrationData, utmSource: "otra-website" } as never)).toBe("Sitio web");
+    expect(getRegistrationSourceDisplayLabel({ ...registrationData, utmSource: "webinar" } as never)).toBe("webinar");
+    expect(getRegistrationSourceBadgeClass("Sitio web")).toContain("teal");
   });
 
   it("reports check-in only after every attendee is validated", () => {

@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
-import { Camera, Mail, Megaphone, MessageCircle, Search, ShieldCheck, Tag } from "lucide-react";
+import { Camera, Globe2, Mail, Megaphone, MessageCircle, Search, ShieldCheck, Tag } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
-import { getPrimaryAttendee, getRegistrationSourceBadgeClass, getRegistrationSourceLabel, getRegistrationTableValues } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationSourceBadgeClass, getRegistrationSourceDisplayLabel, getRegistrationSourceLabel, getRegistrationTableValues } from "./registrations-table-model";
 import { RegistrationDetailSheet } from "./registration-detail-sheet";
 import { formatRegistrationDate } from "./registration-date";
 
@@ -49,9 +49,11 @@ function SourceIcon({ source }: { source: string }) {
           ? Mail
           : normalized.includes("admin")
             ? ShieldCheck
-            : normalized === "meta ads"
-              ? Megaphone
-              : Tag;
+            : normalized === "sitio web"
+              ? Globe2
+              : normalized === "meta ads"
+                ? Megaphone
+                : Tag;
 
   return <Icon className="size-3.5" aria-hidden="true" />;
 }
@@ -263,9 +265,10 @@ export function RegistrationsTable({
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {(() => {
-                      const sourceLabel = getRegistrationSourceLabel(registration);
+                      const sourceLabel = getRegistrationSourceDisplayLabel(registration);
+                      const originalSource = getRegistrationSourceLabel(registration);
                       return (
-                        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${getRegistrationSourceBadgeClass(sourceLabel)}`}>
+                        <span title={originalSource !== sourceLabel ? originalSource : undefined} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${getRegistrationSourceBadgeClass(sourceLabel)}`}>
                           <SourceIcon source={sourceLabel} />
                           {sourceLabel}
                         </span>

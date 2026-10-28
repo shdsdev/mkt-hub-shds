@@ -18,7 +18,7 @@ import {
 import { REVIEW_STATUS_LABELS } from "./review-status";
 
 const OCCUPATION_FILTER_OPTIONS = ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"] as const;
-const SOURCE_FILTER_OPTIONS = ["Meta Ads", "facebook", "instagram", "google", "Admin", "Sin atribución"] as const;
+const SOURCE_FILTER_OPTIONS = ["Meta Ads", "Sitio web", "facebook", "instagram", "google", "Admin", "Sin atribución"] as const;
 type SortOption = "recent" | "oldest" | "name" | "company";
 
 const SORT_LABELS: Record<SortOption, string> = {

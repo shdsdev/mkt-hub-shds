@@ -22,6 +22,15 @@ export function getRegistrationSourceLabel(registration: RegistrationWithAttende
   return "Sin atribución";
 }
 
+function isWebsiteSource(source: string): boolean {
+  return /(^|[_-])(web|sitioweb|website)(?=$|[_-])/i.test(source.trim());
+}
+
+export function getRegistrationSourceDisplayLabel(registration: RegistrationWithAttendees): string {
+  const source = getRegistrationSourceLabel(registration);
+  return isWebsiteSource(source) ? "Sitio web" : source;
+}
+
 export function getRegistrationSourceBadgeClass(source: string): string {
   const normalized = source.trim().toLowerCase();
   if (normalized.includes("whatsapp")) return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200";
@@ -30,6 +39,7 @@ export function getRegistrationSourceBadgeClass(source: string): string {
   if (normalized.includes("google")) return "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-200";
   if (normalized.includes("email") || normalized.includes("mail")) return "border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-200";
   if (normalized.includes("admin")) return "border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200";
+  if (normalized === "sitio web") return "border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-200";
   return "border-border bg-muted text-foreground";
 }
 

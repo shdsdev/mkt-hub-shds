@@ -6,7 +6,7 @@ import { canAccessEvent, getEvent, listRegistrations, resolveRegistrationFormCon
 import { EventSubNav } from "../../event-sub-nav";
 import { RegistrationsTable } from "./registrations-table";
 import { REVIEW_STATUS_LABELS } from "./review-status";
-import { getPrimaryAttendee, getRegistrationSourceLabel } from "./registrations-table-model";
+import { getPrimaryAttendee, getRegistrationSourceDisplayLabel } from "./registrations-table-model";
 import { RegistrationFilters } from "./registration-filters";
 
 const STATUS_LABELS: Record<EventRegistrationRow["status"], string> = {
@@ -71,7 +71,7 @@ export default async function RegistrationsPage({
   const filteredRegistrations = registrations.filter((registration) => {
     const primary = getPrimaryAttendee(registration);
     return (
-      (!source || getRegistrationSourceLabel(registration).toLowerCase() === source.toLowerCase()) &&
+      (!source || getRegistrationSourceDisplayLabel(registration).toLowerCase() === source.toLowerCase()) &&
       (!occupation || primary?.occupation === occupation) &&
       (!state || primary?.state === state)
     );
