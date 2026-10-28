@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   isActive: vi.fn(),
   isAdmin: vi.fn(),
   createEvent: vi.fn(),
+  getEvent: vi.fn(),
   updateEvent: vi.fn(),
   setEventStatus: vi.fn(),
   archiveEvent: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/users", () => ({ isActive: mocks.isActive, isAdmin: mocks.isAdmin }));
 vi.mock("@/modules/events", () => ({
   createEvent: mocks.createEvent,
+  getEvent: mocks.getEvent,
   updateEvent: mocks.updateEvent,
   setEventStatus: mocks.setEventStatus,
   archiveEvent: mocks.archiveEvent,
@@ -78,6 +80,18 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
     mocks.getCurrentUser.mockResolvedValue(adminUser);
     mocks.isActive.mockReturnValue(true);
     mocks.isAdmin.mockReturnValue(true);
+    mocks.getEvent.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Original name",
+      capacity: null,
+      checkInConfirmationRequired: false,
+      collectCompany: false,
+      collectJobTitle: false,
+      agenda: [],
+      sponsorLogos: [],
+      telegramChatId: null,
+      telegramMessageTemplate: null,
+    });
   });
 
   it("rejects event creation for a non-admin without calling the service", async () => {
@@ -134,7 +148,7 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
     }));
   });
 
-  it("records an event edit against the event history", async () => {
+  it("records only the fields that actually changed", async () => {
     mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "11111111-1111-4111-8111-111111111111" } });
 
     await updateEventAction({}, createFormData({ id: "11111111-1111-4111-8111-111111111111", name: "Renamed" }));
@@ -143,8 +157,17 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
       eventId: "11111111-1111-4111-8111-111111111111",
       action: "event_change",
       resourceType: "event",
-      resourceId: "11111111-1111-4111-8111-111111111111",
+      before: { name: "Original name" },
+      after: { name: "Renamed" },
     }));
+  });
+
+  it("skips the audit entry when nothing changed", async () => {
+    const result = await updateEventAction({}, createFormData({ id: "11111111-1111-4111-8111-111111111111", name: "Original name" }));
+
+    expect(result).toEqual({ success: "Sin cambios." });
+    expect(mocks.updateEvent).not.toHaveBeenCalled();
+    expect(mocks.recordAudit).not.toHaveBeenCalled();
   });
 
   it("does not store the Telegram template body in the event history", async () => {
@@ -152,8 +175,10 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
 
     await saveEventTelegramMessageTemplateAction({}, createFormData({ id: "11111111-1111-4111-8111-111111111111", template: "{{nombre}} secreto" }));
 
+    const auditPayload = JSON.stringify(mocks.recordAudit.mock.calls[0]?.[0]);
+    expect(auditPayload).not.toContain("secreto");
     expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
-      after: { telegramMessageTemplate: "updated" },
+      after: { telegramMessageTemplate: "Personalizado" },
     }));
   });
 

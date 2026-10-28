@@ -61,12 +61,12 @@ function renderTable() {
 }
 
 describe("EventAuditLogTable", () => {
-  it("renders every action with its actor, including system sends", () => {
+  it("renders every action as a human sentence with its actor", () => {
     const rendered = renderTable();
 
-    expect(rendered.textContent).toContain("Envío exitoso");
-    expect(rendered.textContent).toContain("Envío fallido");
-    expect(rendered.textContent).toContain("Cambio");
+    expect(rendered.textContent).toContain("Envió la confirmación a alan@example.com");
+    expect(rendered.textContent).toContain("No se pudo enviar el recordatorio a grace@example.com");
+    expect(rendered.textContent).toContain("Editó el evento");
     expect(rendered.textContent).toContain("Sistema");
     expect(rendered.textContent).toContain("admin@example.com");
   });
@@ -105,19 +105,17 @@ describe("EventAuditLogTable", () => {
     expect(dateTrigger.textContent).toContain("Todas las fechas");
   });
 
-  it("renders log rows in the monospace typeface", () => {
+  it("expands a change into readable field updates without raw JSON", () => {
     const rendered = renderTable();
-
-    expect(rendered.querySelector("table")?.className).toContain("font-mono");
-  });
-
-  it("expands the before and after details of a change", () => {
-    const rendered = renderTable();
-    const changeRow = [...rendered.querySelectorAll("tr")].find((row) => row.textContent?.includes("Cambio")) as HTMLTableRowElement;
+    const changeRow = [...rendered.querySelectorAll("tr")].find((row) => row.textContent?.includes("Editó el evento")) as HTMLTableRowElement;
 
     act(() => changeRow.click());
 
-    expect(rendered.textContent).toContain("Antes");
-    expect(rendered.textContent).toContain("Después");
+    expect(rendered.textContent).toContain("Capacidad:");
+    expect(rendered.textContent).toContain("10");
+    expect(rendered.textContent).toContain("20");
+    expect(rendered.querySelector("pre")).toBeNull();
+    expect(rendered.textContent).not.toContain('"capacity"');
+    expect(rendered.querySelector(".font-mono")).not.toBeNull();
   });
 });

@@ -12,6 +12,7 @@ import { eventEmailContentSchema } from "@/lib/events/event-email-content";
 import { recordAudit } from "@/modules/audit";
 import {
   createEvent,
+  getEvent,
   updateEvent,
   setEventStatus,
   archiveEvent,
@@ -258,37 +259,54 @@ export async function updateEventAction(
   const parsed = updateEventFieldsSchema.safeParse(readEventFields(formData));
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
+  const existing = await getEvent(id.data, user.profile.organizationId);
+  if (!existing) return { error: NOT_FOUND_ERROR };
+
+  const changes = {
+    name: parsed.data.name,
+    // verify-report W2: when the field key WAS submitted (not `undefined`) but empty, map to
+    // explicit `null` so `updateEvent`'s `.set()` actually clears the stored value instead of
+    // Drizzle silently skipping an `undefined` key and leaving the old value in place.
+    description:
+      parsed.data.description === undefined ? undefined : parsed.data.description || null,
+    location: parsed.data.location === undefined ? undefined : parsed.data.location || null,
+    locationUrl: parsed.data.locationUrl === undefined ? undefined : parsed.data.locationUrl || null,
+    startsAt: parsed.data.startsAt,
+    endsAt: formData.get("endsAt") === "" ? null : parsed.data.endsAt,
+    capacity: parsed.data.capacity,
+    reminderOffsetMinutes: formData.has("reminderOffsetMinutes")
+      ? parsed.data.reminderOffsetMinutes
+      : undefined,
+    checkInConfirmationRequired: parsed.data.checkInConfirmationRequired,
+    collectCompany: parsed.data.collectCompany,
+    collectJobTitle: parsed.data.collectJobTitle,
+    heroImageUrl:
+      parsed.data.heroImageUrl === undefined ? undefined : parsed.data.heroImageUrl || null,
+    agenda: parsed.data.agenda,
+    sponsorLogos: parsed.data.sponsorLogos,
+    emailContent: parsed.data.emailContent,
+    registrationFormConfig: parsed.data.registrationFormConfig,
+    telegramChatId: parsed.data.telegramChatId === undefined ? undefined : parsed.data.telegramChatId || null,
+  };
+
+  const changedBefore: Record<string, unknown> = {};
+  const changedAfter: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(changes)) {
+    if (value === undefined) continue;
+    const previous = (existing as unknown as Record<string, unknown>)[key];
+    if (JSON.stringify(previous) === JSON.stringify(value)) continue;
+    changedBefore[key] = previous;
+    changedAfter[key] = value;
+  }
+
+  if (Object.keys(changedAfter).length === 0) return { success: "Sin cambios." };
+
   const result = await updateEvent({
     id: id.data,
     organizationId: user.profile.organizationId,
     actorId: user.id,
     actorRole: user.profile.role,
-    changes: {
-      name: parsed.data.name,
-      // verify-report W2: when the field key WAS submitted (not `undefined`) but empty, map to
-      // explicit `null` so `updateEvent`'s `.set()` actually clears the stored value instead of
-      // Drizzle silently skipping an `undefined` key and leaving the old value in place.
-      description:
-        parsed.data.description === undefined ? undefined : parsed.data.description || null,
-      location: parsed.data.location === undefined ? undefined : parsed.data.location || null,
-      locationUrl: parsed.data.locationUrl === undefined ? undefined : parsed.data.locationUrl || null,
-      startsAt: parsed.data.startsAt,
-      endsAt: formData.get("endsAt") === "" ? null : parsed.data.endsAt,
-      capacity: parsed.data.capacity,
-      reminderOffsetMinutes: formData.has("reminderOffsetMinutes")
-        ? parsed.data.reminderOffsetMinutes
-        : undefined,
-      checkInConfirmationRequired: parsed.data.checkInConfirmationRequired,
-      collectCompany: parsed.data.collectCompany,
-      collectJobTitle: parsed.data.collectJobTitle,
-      heroImageUrl:
-        parsed.data.heroImageUrl === undefined ? undefined : parsed.data.heroImageUrl || null,
-      agenda: parsed.data.agenda,
-      sponsorLogos: parsed.data.sponsorLogos,
-      emailContent: parsed.data.emailContent,
-      registrationFormConfig: parsed.data.registrationFormConfig,
-      telegramChatId: parsed.data.telegramChatId === undefined ? undefined : parsed.data.telegramChatId || null,
-    },
+    changes,
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
 
@@ -299,7 +317,8 @@ export async function updateEventAction(
     action: "event_change",
     resourceType: "event",
     resourceId: id.data,
-    after: parsed.data,
+    before: changedBefore,
+    after: changedAfter,
   });
   revalidatePath("/events");
   revalidatePath(`/events/${id.data}/edit`);
@@ -322,6 +341,9 @@ export async function saveEventTelegramChatIdAction(
   });
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
+  const existing = await getEvent(parsed.data.id, user.profile.organizationId);
+  if (!existing) return { error: NOT_FOUND_ERROR };
+
   const result = await updateEvent({
     id: parsed.data.id,
     organizationId: user.profile.organizationId,
@@ -331,7 +353,7 @@ export async function saveEventTelegramChatIdAction(
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
 
-  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.id, action: "event_change", resourceType: "event", resourceId: parsed.data.id, after: { telegramChatId: parsed.data.telegramChatId ? "configured" : "cleared" } });
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.id, action: "event_change", resourceType: "event", resourceId: parsed.data.id, before: { telegramChatId: existing.telegramChatId }, after: { telegramChatId: parsed.data.telegramChatId || null } });
   revalidatePath("/events");
   revalidatePath(`/events/${parsed.data.id}/edit`);
   return { success: "Grupo de Telegram guardado." };
@@ -355,6 +377,9 @@ export async function saveEventTelegramMessageTemplateAction(
   const templateError = validateTelegramTemplate(parsed.data.template);
   if (templateError) return { error: templateError };
 
+  const existing = await getEvent(parsed.data.id, user.profile.organizationId);
+  if (!existing) return { error: NOT_FOUND_ERROR };
+
   const result = await updateEvent({
     id: parsed.data.id,
     organizationId: user.profile.organizationId,
@@ -364,7 +389,16 @@ export async function saveEventTelegramMessageTemplateAction(
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
 
-  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.id, action: "event_change", resourceType: "event", resourceId: parsed.data.id, after: { telegramMessageTemplate: "updated" } });
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    eventId: parsed.data.id,
+    action: "event_change",
+    resourceType: "event",
+    resourceId: parsed.data.id,
+    before: { telegramMessageTemplate: existing.telegramMessageTemplate ? "Personalizado" : "Predeterminado" },
+    after: { telegramMessageTemplate: parsed.data.template ? "Personalizado" : "Predeterminado" },
+  });
   revalidatePath("/events");
   revalidatePath(`/events/${parsed.data.id}/edit`);
   return { success: "Mensaje de Telegram guardado." };
@@ -477,7 +511,7 @@ export async function setWebhookAction(
     return { error: PERMISSION_ERROR };
   }
 
-  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.id, action: "event_change", resourceType: "event_webhook", resourceId: parsed.data.id, after: { webhookUrl: parsed.data.webhookUrl ? "configured" : "cleared" } });
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.id, action: "event_change", resourceType: "event_webhook", resourceId: parsed.data.id, after: { webhookUrl: parsed.data.webhookUrl ? "Configurado" : "Eliminado" } });
   revalidatePath(`/events/${parsed.data.id}/edit`);
   return { success: "Webhook actualizado.", webhookSecret: result.event.webhookSecret ?? undefined };
 }

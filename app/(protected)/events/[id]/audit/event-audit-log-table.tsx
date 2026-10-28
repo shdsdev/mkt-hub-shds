@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { summarizeAuditLog, type AuditChange } from "./event-audit-format";
 
 const premiumTrigger = "h-10 w-full min-w-44 rounded-xl border-border/80 bg-background/80 px-3 text-sm shadow-sm transition-colors hover:border-primary/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40";
 
@@ -21,12 +22,6 @@ export type EventAuditLogRow = {
   dateKey: string;
   before: unknown;
   after: unknown;
-};
-
-const ACTION_LABEL: Record<string, string> = {
-  event_change: "Cambio",
-  event_send: "Envío exitoso",
-  event_send_failed: "Envío fallido",
 };
 
 const RESOURCE_LABEL: Record<string, string> = {
@@ -50,9 +45,23 @@ const RESULT_LABEL: Record<string, string> = {
   failed: "Envíos fallidos",
 };
 
-function Detail({ value }: { value: unknown }) {
-  if (value === null || value === undefined) return <span className="text-muted-foreground">—</span>;
-  return <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background p-3 text-xs">{JSON.stringify(value, null, 2)}</pre>;
+function ChangeList({ changes }: { changes: AuditChange[] }) {
+  if (changes.length === 0) {
+    return <p className="text-sm text-muted-foreground">Sin detalle adicional.</p>;
+  }
+
+  return (
+    <ul className="flex flex-col gap-1.5 text-sm">
+      {changes.map((change) => (
+        <li key={`${change.label}-${change.from ?? ""}-${change.to ?? ""}`} className="flex flex-wrap items-baseline gap-1.5">
+          <span className="text-muted-foreground">{change.label}:</span>
+          {change.from !== undefined ? <span className="font-mono text-xs line-through opacity-70">{change.from}</span> : null}
+          {change.from !== undefined && change.to !== undefined ? <span className="text-muted-foreground" aria-hidden="true">→</span> : null}
+          {change.to !== undefined ? <span className="font-mono text-xs">{change.to}</span> : null}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export type EventAuditFilters = { resource: string; result: string; date: string };
@@ -146,10 +155,10 @@ export function EventAuditLogTable({ logs }: { logs: EventAuditLogRow[] }) {
         <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No hay actividad que coincida con los filtros.</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-[720px] text-left font-mono text-[13px]">
-            <thead className="bg-muted/30 font-sans text-xs text-muted-foreground">
+          <table className="w-full min-w-[720px] text-left text-[13px]">
+            <thead className="bg-muted/30 text-xs text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Acción</th>
+                <th className="px-4 py-3 font-medium">Qué pasó</th>
                 <th className="px-4 py-3 font-medium">Sección</th>
                 <th className="px-4 py-3 font-medium">Quién</th>
                 <th className="px-4 py-3 font-medium">Cuándo</th>
@@ -159,9 +168,18 @@ export function EventAuditLogTable({ logs }: { logs: EventAuditLogRow[] }) {
             <tbody>
               {filteredLogs.map((log) => {
                 const expanded = expandedId === log.id;
-                const expandable = log.before !== null || log.after !== null;
+                const summary = summarizeAuditLog(log);
+                const expandable = summary.changes.length > 0;
                 return (
-                  <EventAuditRow key={log.id} log={log} expanded={expanded} expandable={expandable} onToggle={() => setExpandedId(expanded ? undefined : log.id)} />
+                  <EventAuditRow
+                    key={log.id}
+                    log={log}
+                    headline={summary.headline}
+                    changes={summary.changes}
+                    expanded={expanded}
+                    expandable={expandable}
+                    onToggle={() => setExpandedId(expanded ? undefined : log.id)}
+                  />
                 );
               })}
             </tbody>
@@ -172,11 +190,18 @@ export function EventAuditLogTable({ logs }: { logs: EventAuditLogRow[] }) {
   );
 }
 
-function EventAuditRow({ log, expanded, expandable, onToggle }: { log: EventAuditLogRow; expanded: boolean; expandable: boolean; onToggle: () => void }) {
+function EventAuditRow({ log, headline, changes, expanded, expandable, onToggle }: {
+  log: EventAuditLogRow;
+  headline: string;
+  changes: AuditChange[];
+  expanded: boolean;
+  expandable: boolean;
+  onToggle: () => void;
+}) {
   return (
     <>
       <tr className={`border-t border-border ${expandable ? "cursor-pointer hover:bg-muted/20" : ""}`} onClick={() => expandable && onToggle()}>
-        <td className="px-4 py-3 font-medium">{ACTION_LABEL[log.action] ?? log.action}</td>
+        <td className="px-4 py-3 font-medium">{headline}</td>
         <td className="px-4 py-3 text-muted-foreground">{RESOURCE_LABEL[log.resourceType] ?? log.resourceType}</td>
         <td className="px-4 py-3">{log.actorType === "system" ? "Sistema" : log.actor}</td>
         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{log.when}</td>
@@ -185,10 +210,7 @@ function EventAuditRow({ log, expanded, expandable, onToggle }: { log: EventAudi
       {expanded && (
         <tr className="border-t border-border bg-muted/10">
           <td colSpan={5} className="px-4 py-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div><p className="mb-1 text-xs font-medium text-muted-foreground">Antes</p><Detail value={log.before} /></div>
-              <div><p className="mb-1 text-xs font-medium text-muted-foreground">Después</p><Detail value={log.after} /></div>
-            </div>
+            <ChangeList changes={changes} />
           </td>
         </tr>
       )}
