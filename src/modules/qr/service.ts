@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, isNotNull, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { JSDOM } from "jsdom";
 import QRCodeStyling from "qr-code-styling";
 import sharp from "sharp";
@@ -18,6 +18,7 @@ export type QrCodeRow = typeof qrCodes.$inferSelect;
 export type QrDesignTemplateRow = typeof qrDesignTemplates.$inferSelect;
 
 export type QrCodeListFilter = {
+  trash?: boolean;
   status?: "active" | "archived" | "disabled";
   mode?: "dynamic" | "static";
   folderId?: string;
@@ -98,6 +99,16 @@ export async function getQrCodeByLinkId(linkId: string): Promise<QrCodeRow | und
   return rows[0];
 }
 
+// Redirects must use the exact short link, not a different QR sharing its parent link.
+export async function getQrCodeByShortLinkId(shortLinkId: string, organizationId: string): Promise<QrCodeRow | undefined> {
+  const [qr] = await db.select().from(qrCodes).where(and(
+    eq(qrCodes.shortLinkId, shortLinkId),
+    eq(qrCodes.organizationId, organizationId),
+    eq(qrCodes.mode, "dynamic"),
+  )).limit(1);
+  return qr;
+}
+
 function escapeLikePattern(value: string): string {
   return value.replace(/[%_\\]/g, "\\$&");
 }
@@ -111,6 +122,7 @@ export async function listQrCodes(
   const searchPattern = search ? `%${escapeLikePattern(search)}%` : undefined;
   const where = and(
     eq(qrCodes.organizationId, organizationId),
+    filter.trash ? isNotNull(qrCodes.deletedAt) : isNull(qrCodes.deletedAt),
     filter.status ? eq(qrCodes.status, filter.status) : undefined,
     filter.mode ? eq(qrCodes.mode, filter.mode) : undefined,
     filter.folderId ? eq(qrCodes.folderId, filter.folderId) : undefined,
@@ -154,7 +166,7 @@ export async function countActiveQrCodes(organizationId: string): Promise<number
   const rows = await db
     .select({ count: count() })
     .from(qrCodes)
-    .where(and(eq(qrCodes.organizationId, organizationId), eq(qrCodes.status, "active")));
+    .where(and(eq(qrCodes.organizationId, organizationId), eq(qrCodes.status, "active"), isNull(qrCodes.deletedAt)));
 
   return rows[0]?.count ?? 0;
 }
@@ -167,11 +179,11 @@ export async function listQrGroupAvailability(organizationId: string): Promise<{
     db
       .selectDistinct({ id: qrCodes.folderId })
       .from(qrCodes)
-      .where(and(eq(qrCodes.organizationId, organizationId), isNotNull(qrCodes.folderId))),
+      .where(and(eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt), isNotNull(qrCodes.folderId))),
     db
       .selectDistinct({ id: qrCodes.campaignId })
       .from(qrCodes)
-      .where(and(eq(qrCodes.organizationId, organizationId), isNotNull(qrCodes.campaignId))),
+      .where(and(eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt), isNotNull(qrCodes.campaignId))),
   ]);
 
   return {
@@ -180,32 +192,73 @@ export async function listQrGroupAvailability(organizationId: string): Promise<{
   };
 }
 
+export async function getQrNavigationCounts(organizationId: string): Promise<{
+  total: number;
+  trash: number;
+  folders: Record<string, number>;
+  campaigns: Record<string, number>;
+}> {
+  const [totals, folders, campaigns] = await Promise.all([
+    db.select({
+      total: sql<number>`count(*) filter (where ${qrCodes.deletedAt} is null)`.mapWith(Number),
+      trash: sql<number>`count(*) filter (where ${qrCodes.deletedAt} is not null)`.mapWith(Number),
+    }).from(qrCodes).where(eq(qrCodes.organizationId, organizationId)),
+    db.select({ id: qrCodes.folderId, count: count() }).from(qrCodes)
+      .where(and(eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt), isNotNull(qrCodes.folderId)))
+      .groupBy(qrCodes.folderId),
+    db.select({ id: qrCodes.campaignId, count: count() }).from(qrCodes)
+      .where(and(eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt), isNotNull(qrCodes.campaignId)))
+      .groupBy(qrCodes.campaignId),
+  ]);
+  return {
+    total: totals[0]?.total ?? 0,
+    trash: totals[0]?.trash ?? 0,
+    folders: Object.fromEntries(folders.flatMap((row) => row.id ? [[row.id, row.count]] : [])),
+    campaigns: Object.fromEntries(campaigns.flatMap((row) => row.id ? [[row.id, row.count]] : [])),
+  };
+}
+
+// Trash is independent of status so restore also preserves archived/disabled state.
+export async function deleteQrCode(id: string, organizationId: string): Promise<QrCodeRow | undefined> {
+  const [qr] = await db.update(qrCodes).set({ deletedAt: new Date() })
+    .where(and(eq(qrCodes.id, id), eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt))).returning();
+  return qr;
+}
+
+export async function restoreQrCode(id: string, organizationId: string): Promise<QrCodeRow | undefined> {
+  const [qr] = await db.update(qrCodes).set({ deletedAt: null })
+    .where(and(eq(qrCodes.id, id), eq(qrCodes.organizationId, organizationId), isNotNull(qrCodes.deletedAt))).returning();
+  return qr;
+}
+
 // No hard-delete anywhere (I-7). "archived" keeps a dynamic QR resolving — see
 // docs/superpowers/specs/2026-09-09-phase6-campaigns-print-runs-design.md.
-export async function archiveQrCode(id: string): Promise<QrCodeRow> {
-  const [qr] = await db.update(qrCodes).set({ status: "archived" }).where(eq(qrCodes.id, id)).returning();
+export async function archiveQrCode(id: string, organizationId: string): Promise<QrCodeRow | undefined> {
+  const [qr] = await db.update(qrCodes).set({ status: "archived" })
+    .where(and(eq(qrCodes.id, id), eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt))).returning();
   return qr;
 }
 
-export async function updateQrCodeName(id: string, name: string): Promise<QrCodeRow> {
-  const [qr] = await db.update(qrCodes).set({ name }).where(eq(qrCodes.id, id)).returning();
+export async function updateQrCodeName(id: string, name: string, organizationId: string): Promise<QrCodeRow | undefined> {
+  const [qr] = await db.update(qrCodes).set({ name })
+    .where(and(eq(qrCodes.id, id), eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt))).returning();
   return qr;
 }
 
-export async function updateQrDescription(id: string, description: string | undefined): Promise<QrCodeRow> {
+export async function updateQrDescription(id: string, description: string | undefined, organizationId: string): Promise<QrCodeRow | undefined> {
   const [qr] = await db
     .update(qrCodes)
     .set({ description: normalizeQrDescription(description) ?? null })
-    .where(eq(qrCodes.id, id))
+    .where(and(eq(qrCodes.id, id), eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt)))
     .returning();
   return qr;
 }
 
-export async function updateQrPlacementImage(id: string, placementImageUrl: string | undefined): Promise<QrCodeRow> {
+export async function updateQrPlacementImage(id: string, placementImageUrl: string | undefined, organizationId: string): Promise<QrCodeRow | undefined> {
   const [qr] = await db
     .update(qrCodes)
     .set({ placementImageUrl: placementImageUrl || null })
-    .where(eq(qrCodes.id, id))
+    .where(and(eq(qrCodes.id, id), eq(qrCodes.organizationId, organizationId), isNull(qrCodes.deletedAt)))
     .returning();
   return qr;
 }

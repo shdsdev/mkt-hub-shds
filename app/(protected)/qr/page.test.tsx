@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   listQrCodes: vi.fn(),
-  listQrGroupAvailability: vi.fn(),
+  getQrNavigationCounts: vi.fn(),
   listQrDesignTemplates: vi.fn(),
   listLinks: vi.fn(),
   listShortLinksForOrganization: vi.fn(),
@@ -18,8 +18,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/modules/qr", () => ({
+  listQrGroupAvailability: async () => ({ folderIds: [], campaignIds: [] }),
   listQrCodes: mocks.listQrCodes,
-  listQrGroupAvailability: mocks.listQrGroupAvailability,
+  getQrNavigationCounts: mocks.getQrNavigationCounts,
   listQrDesignTemplates: mocks.listQrDesignTemplates,
 }));
 vi.mock("@/modules/links", () => ({
@@ -49,6 +50,7 @@ describe("QrPage", () => {
         linkId: "link-1",
         status: "active",
         createdAt: new Date("2026-01-01"),
+        deletedAt: null,
         logoUrl: null,
         name: "Product QR",
         folderId: null,
@@ -57,10 +59,7 @@ describe("QrPage", () => {
       total: 21,
       page: 2,
     });
-    mocks.listQrGroupAvailability.mockResolvedValue({
-      folderIds: ["folder-1"],
-      campaignIds: ["campaign-1", "campaign-2"],
-    });
+    mocks.getQrNavigationCounts.mockResolvedValue({ total: 21, trash: 2, folders: { "folder-1": 1 }, campaigns: { "campaign-2": 1 } });
     mocks.listLinks.mockResolvedValue([{
       id: "link-1",
       destinationUrl: "https://example.com/product",
@@ -102,11 +101,12 @@ describe("QrPage", () => {
       status: "disabled",
       mode: "dynamic",
       folderId: "folder-1",
-      campaignId: "campaign-1",
+      campaignId: undefined,
       search: "product",
+      trash: false,
     });
     expect(mocks.countEventsForQrCodes).toHaveBeenCalledWith([expect.objectContaining({ id: "qr-1" })]);
-    expect(mocks.listQrGroupAvailability).toHaveBeenCalledWith("organization-1");
+    expect(mocks.getQrNavigationCounts).toHaveBeenCalledWith("organization-1");
     expect(qrList.props.rows).toEqual([expect.objectContaining({
       utmSource: "google",
       utmMedium: "paid-social",
@@ -116,6 +116,7 @@ describe("QrPage", () => {
       scanCount: 7,
       folderId: null,
       campaignId: null,
+      deletedAt: null,
     })]);
     expect(qrList.props).toMatchObject({
       total: 21,
@@ -125,11 +126,39 @@ describe("QrPage", () => {
         status: "disabled",
         mode: "dynamic",
         folderId: "folder-1",
-        campaignId: "campaign-1",
+        campaignId: undefined,
         search: "product",
       },
-      filterFolders: [{ id: "folder-1", name: "Folder one" }],
-      filterCampaigns: [{ id: "campaign-1", name: "Active campaign", status: "active" }],
+      navigationCounts: { total: 21, trash: 2 },
+      navigationCampaigns: [
+        { id: "campaign-1", name: "Active campaign", status: "active" },
+        { id: "campaign-2", name: "Ended campaign", status: "ended" },
+      ],
     });
+  });
+
+  it("gives trash precedence over folder and campaign and maps deleted rows", async () => {
+    const deletedAt = new Date("2026-10-01");
+    mocks.listQrCodes.mockResolvedValue({ rows: [{ id: "static-1", mode: "static", deletedAt }], total: 1, page: 1 });
+    const page = await QrPage({ searchParams: Promise.resolve({ trash: "1", folder: "folder-1", campaign: "campaign-2" }) }) as ReactElement<{ children: ReactNode[] }>;
+    expect(mocks.listQrCodes).toHaveBeenCalledWith("organization-1", expect.objectContaining({ trash: true, folderId: undefined, campaignId: undefined }));
+    const list = page.props.children[1] as ReactElement<{ rows: unknown[] }>;
+    expect(list.props.rows).toEqual([expect.objectContaining({ deletedAt })]);
+  });
+
+  it("does not treat trash=0 as true and retains empty folders", async () => {
+    mocks.listFolders.mockResolvedValue([{ id: "empty", name: "Empty folder" }]);
+    const page = await QrPage({ searchParams: Promise.resolve({ trash: "0" }) }) as ReactElement<{ children: ReactNode[] }>;
+    expect(mocks.listQrCodes).toHaveBeenCalledWith("organization-1", expect.objectContaining({ trash: false }));
+    const list = page.props.children[1] as ReactElement;
+    expect(list.props).toMatchObject({ folders: [{ id: "empty", name: "Empty folder" }] });
+  });
+
+  it("includes empty ended campaigns in navigation", async () => {
+    const campaigns = [{ id: "empty-ended", name: "Past launch", status: "ended" }];
+    mocks.listCampaigns.mockResolvedValue(campaigns);
+    const page = await QrPage({ searchParams: Promise.resolve({}) }) as ReactElement<{ children: ReactNode[] }>;
+    const list = page.props.children[1] as ReactElement;
+    expect(list.props).toMatchObject({ navigationCampaigns: campaigns });
   });
 });

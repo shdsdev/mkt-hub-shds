@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
-import { listQrCodes, listQrDesignTemplates, listQrGroupAvailability } from "@/modules/qr";
+import { listQrCodes, listQrDesignTemplates, getQrNavigationCounts } from "@/modules/qr";
 import { listLinks, listShortLinksForOrganization, listDomains, listFolders } from "@/modules/links";
 import { listCampaigns } from "@/modules/campaigns";
 import { listUtmPresets } from "@/modules/utm";
@@ -17,6 +17,7 @@ const qrListSearchParamsSchema = z.object({
   folder: z.string().min(1).optional().catch(undefined),
   campaign: z.string().min(1).optional().catch(undefined),
   q: z.string().trim().min(1).optional().catch(undefined),
+  trash: z.string().optional().transform((value) => value === "1"),
 });
 
 export default async function QrPage({
@@ -37,13 +38,14 @@ export default async function QrPage({
     pageSize: PAGE_SIZE,
     status: parsedSearchParams.status,
     mode: parsedSearchParams.mode,
-    folderId: parsedSearchParams.folder,
-    campaignId: parsedSearchParams.campaign,
+    folderId: parsedSearchParams.trash ? undefined : parsedSearchParams.folder,
+    campaignId: parsedSearchParams.trash || parsedSearchParams.folder ? undefined : parsedSearchParams.campaign,
     search: parsedSearchParams.q,
+    trash: parsedSearchParams.trash,
   };
-  const [qrResult, groupAvailability, links, shortLinks, domains, folders, campaigns, utmPresets, templates, organization] = await Promise.all([
+  const [qrResult, navigationCounts, links, shortLinks, domains, folders, campaigns, utmPresets, templates, organization] = await Promise.all([
     listQrCodes(orgId, filter),
-    listQrGroupAvailability(orgId),
+    getQrNavigationCounts(orgId),
     listLinks(orgId),
     listShortLinksForOrganization(orgId),
     listDomains(orgId),
@@ -55,10 +57,6 @@ export default async function QrPage({
   ]);
   const { rows: qrCodes, total, page } = qrResult;
   const scanCounts = await countEventsForQrCodes(qrCodes);
-  const filterFolders = folders.filter((folder) => groupAvailability.folderIds.includes(folder.id));
-  const filterCampaigns = campaigns.filter(
-    (campaign) => campaign.status === "active" && groupAvailability.campaignIds.includes(campaign.id),
-  );
 
   const linksById = new Map(links.map((link) => [link.id, link]));
   const shortLinksById = new Map(shortLinks.map((shortLink) => [shortLink.id, shortLink]));
@@ -83,6 +81,7 @@ export default async function QrPage({
           id: qr.id,
           mode: "dynamic" as const,
           status: qr.status,
+          deletedAt: qr.deletedAt,
           createdAt: qr.createdAt,
            logoUrl: qr.logoUrl,
            placementImageUrl: qr.placementImageUrl,
@@ -107,6 +106,7 @@ export default async function QrPage({
         id: qr.id,
         mode: "static" as const,
         status: qr.status,
+        deletedAt: qr.deletedAt,
         createdAt: qr.createdAt,
          logoUrl: qr.logoUrl,
          placementImageUrl: qr.placementImageUrl,
@@ -122,7 +122,7 @@ export default async function QrPage({
     });
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-heading text-xl font-semibold">Códigos QR</h1>
@@ -139,8 +139,8 @@ export default async function QrPage({
         organizationId={orgId}
         folders={folders}
         campaigns={campaigns}
-        filterFolders={filterFolders}
-        filterCampaigns={filterCampaigns}
+        navigationCounts={navigationCounts}
+        navigationCampaigns={campaigns}
         utmPresets={utmPresets}
          templates={templates}
          defaultLogoUrl={organization?.defaultLogoUrl ?? undefined}

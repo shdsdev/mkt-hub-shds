@@ -4,6 +4,7 @@ import geoip from "geoip-lite";
 import { resolveShortLinkByHostAndSlug, buildDestinationUrl } from "@/modules/links";
 import { ANALYTICS_CONSENT_COOKIE, getConsentIdFromToken, hasAnalyticsConsent, trackRedirect, resolveVisitor, normalizeReferrer } from "@/modules/analytics";
 import { env } from "@/lib/env";
+import { getQrCodeByShortLinkId } from "@/modules/qr";
 
 // Standard reverse-proxy headers — work identically behind Vercel, nginx, or Docker/Traefik. The
 // resolved IP is used only to derive a coarse country/city; it is never itself stored (I-8).
@@ -28,6 +29,16 @@ export async function handleRedirect(
 
   if (!resolved) {
     return new NextResponse(null, { status: 404 });
+  }
+
+  if (sourceType === "qr_scan") {
+    const qr = await getQrCodeByShortLinkId(resolved.shortLink.id, resolved.link.organizationId);
+    if (qr?.deletedAt) {
+      return new NextResponse("Este codigo QR esta en la papelera y ya no esta disponible.", {
+        status: 410,
+        headers: { "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
   }
 
   const destination = buildDestinationUrl(resolved.link);

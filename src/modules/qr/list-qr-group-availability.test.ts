@@ -11,6 +11,7 @@ vi.mock("@/db/client", () => ({
 }));
 
 import { listQrGroupAvailability } from "./service";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 describe("listQrGroupAvailability", () => {
   beforeEach(() => {
@@ -31,5 +32,10 @@ describe("listQrGroupAvailability", () => {
       campaignIds: ["campaign-1", "campaign-2"],
     });
     expect(mocks.selectDistinct).toHaveBeenCalledTimes(2);
+    for (const where of [folderWhere, campaignWhere]) {
+      const condition = new PgDialect().sqlToQuery(where.mock.calls[0][0]);
+      expect(condition.sql).toContain('"deleted_at" is null');
+      expect(condition.params).toEqual(["org-1"]);
+    }
   });
 });

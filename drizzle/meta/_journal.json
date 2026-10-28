@@ -435,6 +435,13 @@
       "when": 1792855001000,
       "tag": "0060_audit_theme_action",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1793202879795,
+      "tag": "0061_qr_soft_delete",
+      "breakpoints": true
     }
   ]
 }

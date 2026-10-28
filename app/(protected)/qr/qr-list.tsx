@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -13,8 +13,8 @@ import {
   Wifi,
   FileText,
   X,
-  FolderOpen,
-  Megaphone,
+  Trash2,
+  RotateCcw,
   SearchX,
 } from "lucide-react";
 import { Download, DownloadCloud, Image, ImageDown, FileOutput, Archive, Check, Pencil } from "lucide";
@@ -42,7 +42,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Pagination,
   PaginationContent,
@@ -56,12 +55,14 @@ import type { Folder } from "@/modules/links";
 import type { Campaign } from "@/modules/campaigns";
 import type { UtmPreset } from "@/modules/utm";
 import type { QrCodeListFilter, QrDesignTemplateRow } from "@/modules/qr";
-import { requiresGroupSelection, type QrGroupTab } from "./qr-list-group-state";
+import { QrSidebar, type QrGroup, type QrNavigationCounts } from "./qr-sidebar";
+import { QrLifecycleDialog } from "./qr-lifecycle-dialog";
 
 export type QrListRow = {
   id: string;
   mode: "dynamic" | "static";
   status: "active" | "archived" | "disabled";
+  deletedAt: Date | null;
   createdAt: Date;
   logoUrl: string | null;
   placementImageUrl?: string | null;
@@ -140,8 +141,8 @@ export function QrList({
   organizationId,
   folders,
   campaigns,
-  filterFolders,
-  filterCampaigns,
+  navigationCounts,
+  navigationCampaigns,
   utmPresets,
   templates,
   defaultLogoUrl,
@@ -154,8 +155,8 @@ export function QrList({
   organizationId: string;
   folders: Folder[];
   campaigns: Campaign[];
-  filterFolders: Folder[];
-  filterCampaigns: Campaign[];
+  navigationCounts: QrNavigationCounts;
+  navigationCampaigns: Campaign[];
   utmPresets: UtmPreset[];
   templates: QrDesignTemplateRow[];
   defaultLogoUrl?: string;
@@ -165,23 +166,20 @@ export function QrList({
   filter: Omit<QrCodeListFilter, "page" | "pageSize">;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [selectedGroupTab, setSelectedGroupTab] = useState<QrGroupTab>("all");
+  const [lifecycleRow, setLifecycleRow] = useState<QrListRow | null>(null);
+  const resultsRef = useRef<HTMLHeadingElement>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [editingQrId, setEditingQrId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState(filter.search ?? "");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const editingRow = rows.find((r) => r.id === editingQrId);
-  const groupTab = filter.folderId ? "folders" : filter.campaignId ? "campaigns" : selectedGroupTab;
+  const editingRow = rows.find((r) => r.id === editingQrId && !r.deletedAt);
+  const groupTitle = filter.trash ? "Papelera" : filter.folderId ? folders.find((folder) => folder.id === filter.folderId)?.name ?? "Carpeta" : filter.campaignId ? navigationCampaigns.find((campaign) => campaign.id === filter.campaignId)?.name ?? "Campaña" : "Códigos QR";
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const hasActiveFilter = Boolean(filter.status || filter.mode || filter.folderId || filter.campaignId || filter.search);
-  const showClearFilters = hasActiveFilter || groupTab !== "all";
-  const needsGroupSelection = requiresGroupSelection(groupTab, filter.folderId, filter.campaignId);
-  const visibleRows = needsGroupSelection ? [] : rows;
-  const hasNoAvailableGroups =
-    (groupTab === "folders" && filterFolders.length === 0) ||
-    (groupTab === "campaigns" && filterCampaigns.length === 0);
+  const showClearFilters = Boolean(filter.status || filter.mode || filter.search);
 
   useEffect(() => {
     setSearchText(filter.search ?? "");
@@ -191,7 +189,7 @@ export function QrList({
     const currentQuery = filter.search ?? "";
     if (searchText === currentQuery) return;
 
-    const timeout = setTimeout(() => {
+    searchTimer.current = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
       if (searchText) params.set("q", searchText);
       else params.delete("q");
@@ -199,11 +197,14 @@ export function QrList({
       router.push(`${pathname}${params.size ? `?${params}` : ""}`);
     }, 250);
 
-    return () => clearTimeout(timeout);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
   }, [searchText, filter.search, pathname, router, searchParams]);
 
   function pushFilter(values: Record<string, string | undefined>) {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
     const params = new URLSearchParams(searchParams.toString());
+    if (searchText) params.set("q", searchText);
+    else params.delete("q");
     for (const [key, value] of Object.entries(values)) {
       if (value) params.set(key, value);
       else params.delete(key);
@@ -219,64 +220,59 @@ export function QrList({
   }
 
   function clearFilters() {
-    setSelectedGroupTab("all");
-    pushFilter({ status: undefined, mode: undefined, folder: undefined, campaign: undefined, q: undefined });
+    setSearchText("");
+    pushFilter({ status: undefined, mode: undefined, q: undefined });
   }
 
+  function selectGroup(group: QrGroup) {
+    pushFilter({ folder: group.folder, campaign: group.campaign, trash: group.trash });
+  }
+
+  const navigationProps = {
+    folders,
+    campaigns: navigationCampaigns,
+    counts: navigationCounts,
+    selected: { folder: filter.folderId, campaign: filter.campaignId, trash: filter.trash ? "1" : undefined },
+    onSelect: selectGroup,
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <CreateQrModal
-          organizationId={organizationId}
-          folders={folders}
-          campaigns={campaigns}
-          utmPresets={utmPresets}
-          templates={templates}
-          defaultLogoUrl={defaultLogoUrl}
-        />
+    <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+      <QrSidebar {...navigationProps} />
+      <div className="min-w-0 flex-1 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 ref={resultsRef} tabIndex={-1} className="break-words text-lg font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <span className="hidden lg:inline">{groupTitle}</span>
+            <span className="lg:hidden">{groupTitle}</span>
+          </h2>
+        </div>
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
+          <QrSidebar {...navigationProps} mobile label="Conjuntos" />
+          {!filter.trash ? <CreateQrModal
+            organizationId={organizationId}
+            folders={folders}
+            campaigns={campaigns}
+            utmPresets={utmPresets}
+            templates={templates}
+            defaultLogoUrl={defaultLogoUrl}
+          /> : null}
+        </div>
       </div>
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <Tabs
-            value={groupTab}
-            onValueChange={(value) => {
-              const nextTab = value as QrGroupTab;
-              setSelectedGroupTab(nextTab);
-              pushFilter({ folder: undefined, campaign: undefined });
-            }}
-          >
-            <TabsList aria-label="Agrupar códigos QR">
-              <TabsTrigger value="all">Todos</TabsTrigger>
-              <TabsTrigger value="folders">Carpetas</TabsTrigger>
-              <TabsTrigger value="campaigns">Campañas</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {groupTab === "folders" && (
-            <Select disabled={filterFolders.length === 0} value={filter.folderId ?? null} onValueChange={(value) => pushFilter({ folder: value ?? undefined, campaign: undefined })}>
-              <SelectTrigger aria-label="Filtrar por carpeta"><SelectValue placeholder="Seleccionar carpeta" /></SelectTrigger>
-              <SelectContent><SelectGroup>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectGroup></SelectContent>
-            </Select>
-          )}
-
-          {groupTab === "campaigns" && (
-            <Select disabled={filterCampaigns.length === 0} value={filter.campaignId ?? null} onValueChange={(value) => pushFilter({ campaign: value ?? undefined, folder: undefined })}>
-              <SelectTrigger aria-label="Filtrar por campaña"><SelectValue placeholder="Seleccionar campaña" /></SelectTrigger>
-              <SelectContent><SelectGroup>{filterCampaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectGroup></SelectContent>
-            </Select>
-          )}
-
           <BorderBeam
             size="sm"
             colorVariant="mono"
             theme="dark"
             strength={0.6}
             active={searchFocused}
-            className="min-w-64 flex-1"
+            className="min-w-0 flex-1"
           >
             <input
               value={searchText}
+              aria-label={`Buscar en ${groupTitle}`}
               onChange={(event) => setSearchText(event.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
@@ -343,49 +339,7 @@ export function QrList({
         </div>
       </div>
 
-      {needsGroupSelection && (
-        <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-12 text-center">
-          {groupTab === "campaigns" ? <Megaphone size={48} className="text-muted-foreground" /> : <FolderOpen size={48} className="text-muted-foreground" />}
-          <p className="font-medium text-lg">
-            {hasNoAvailableGroups
-              ? groupTab === "campaigns"
-                ? "No hay campañas activas con códigos QR"
-                : "No hay carpetas con códigos QR"
-              : groupTab === "campaigns"
-                ? "Seleccioná una campaña"
-                : "Seleccioná una carpeta"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {hasNoAvailableGroups
-              ? "Creá un código QR y asignalo a un grupo para verlo acá."
-              : groupTab === "campaigns"
-                ? "Elegí una campaña activa para ver sus códigos QR."
-                : "Elegí una carpeta para ver sus códigos QR."}
-          </p>
-          {hasNoAvailableGroups ? (
-            <CreateQrModal
-              organizationId={organizationId}
-              folders={folders}
-              campaigns={campaigns}
-              utmPresets={utmPresets}
-              templates={templates}
-              defaultLogoUrl={defaultLogoUrl}
-            />
-          ) : groupTab === "campaigns" ? (
-            <Select value={filter.campaignId ?? null} onValueChange={(value) => pushFilter({ campaign: value ?? undefined, folder: undefined })}>
-              <SelectTrigger className="w-64" aria-label="Seleccionar campaña"><SelectValue placeholder="Seleccionar campaña" /></SelectTrigger>
-              <SelectContent><SelectGroup>{filterCampaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectGroup></SelectContent>
-            </Select>
-          ) : (
-            <Select value={filter.folderId ?? null} onValueChange={(value) => pushFilter({ folder: value ?? undefined, campaign: undefined })}>
-              <SelectTrigger className="w-64" aria-label="Seleccionar carpeta"><SelectValue placeholder="Seleccionar carpeta" /></SelectTrigger>
-              <SelectContent><SelectGroup>{filterFolders.map((folder) => <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>)}</SelectGroup></SelectContent>
-            </Select>
-          )}
-        </div>
-      )}
-
-      {!needsGroupSelection && rows.length === 0 && !hasActiveFilter && (
+      {rows.length === 0 && !hasActiveFilter && !filter.trash && (
         <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-12 text-center">
           <QrCode size={48} className="text-muted-foreground" />
           <p className="font-medium text-lg">Crea tu primer código QR</p>
@@ -403,57 +357,34 @@ export function QrList({
         </div>
       )}
 
-      {!needsGroupSelection && rows.length === 0 && hasActiveFilter && (
+      {rows.length === 0 && (hasActiveFilter || filter.trash) && (
         <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-12 text-center">
           <SearchX size={48} className="text-muted-foreground" />
-          <p className="font-medium text-lg">Ningún código QR coincide</p>
-          <p className="text-sm text-muted-foreground">Probá con otros términos o limpiá los filtros.</p>
-          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+          <p className="font-medium text-lg">{filter.trash && !showClearFilters ? "La papelera está vacía" : "Ningún código QR coincide"}</p>
+          <p className="text-sm text-muted-foreground">{filter.trash && !showClearFilters ? "Los códigos QR eliminados aparecerán aquí para restaurarlos." : "Prueba con otros términos dentro de este grupo o limpia los filtros."}</p>
+          {showClearFilters ? <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
             Limpiar filtros
-          </Button>
+          </Button> : null}
         </div>
       )}
 
-      {!needsGroupSelection && rows.length === 0 && !hasActiveFilter && (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-12 text-center">
-          <p className="font-medium">Crea tu primer código QR</p>
-          <p className="text-sm text-muted-foreground">
-            Elige un tipo, agrega tu contenido, elige un color y después gestiona todo desde acá.
-          </p>
-          <CreateQrModal
-          organizationId={organizationId}
-          folders={folders}
-          campaigns={campaigns}
-          utmPresets={utmPresets}
-          templates={templates}
-          defaultLogoUrl={defaultLogoUrl}
-        />
-        </div>
-      )}
-
-      {!needsGroupSelection && rows.length === 0 && hasActiveFilter && (
-        <p className="text-sm text-muted-foreground">
-          Ningún código QR coincide con estos filtros.
-        </p>
-      )}
-
-      {viewMode === "list" && visibleRows.length > 0 && (
+      {viewMode === "list" && rows.length > 0 && (
         <ul className="space-y-3">
-          {visibleRows.map((row) => (
-            <QrRow key={row.id} row={row} onEdit={setEditingQrId} />
+          {rows.map((row) => (
+            <QrRow key={row.id} row={row} onEdit={setEditingQrId} onLifecycle={setLifecycleRow} />
           ))}
         </ul>
       )}
 
-      {viewMode === "grid" && visibleRows.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleRows.map((row) => (
-            <QrCard key={row.id} row={row} onEdit={setEditingQrId} />
+      {viewMode === "grid" && rows.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {rows.map((row) => (
+            <QrCard key={row.id} row={row} onEdit={setEditingQrId} onLifecycle={setLifecycleRow} />
           ))}
         </div>
       )}
 
-      {!needsGroupSelection && total > 0 && (
+      {total > 0 && (
         <div className="flex flex-wrap items-center justify-center gap-3">
           <p className="text-sm text-muted-foreground">Página {page} de {totalPages}</p>
           <Pagination>
@@ -488,11 +419,14 @@ export function QrList({
           onClose={() => setEditingQrId(null)}
         />
       )}
+      </div>
+      {lifecycleRow ? <QrLifecycleDialog key={`${lifecycleRow.id}-${Boolean(lifecycleRow.deletedAt)}`} row={lifecycleRow} finalFocus={resultsRef} onClose={() => setLifecycleRow(null)} /> : null}
     </div>
   );
 }
 
-function QrThumbnail({ id, className }: { id: string; className: string }) {
+function QrThumbnail({ id, className, deleted }: { id: string; className: string; deleted?: boolean }) {
+  if (deleted) return <div className={`${className} flex items-center justify-center bg-muted text-muted-foreground`}><QrCode aria-label="QR en papelera" size={28} /></div>;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={`/qr/${id}/download?format=png`} alt="QR code" className={className} />
@@ -506,7 +440,7 @@ function StatusBadge({ status }: { status: QrListRow["status"] }) {
         status === "active" ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
       }`}
     >
-      {status === "active" ? "Activo" : "Archivado"}
+      {status === "active" ? "Activo" : status === "disabled" ? "Deshabilitado" : "Archivado"}
     </span>
   );
 }
@@ -534,10 +468,11 @@ function QrHeading({ row }: { row: QrListRow }) {
         </span>
         <span>{formatCreatedAt(row.createdAt)}</span>
         <StatusBadge status={row.status} />
+        {row.deletedAt ? <span className="text-muted-foreground">En papelera</span> : null}
         {row.groupName && <span className="text-accent">{row.groupName}</span>}
       </p>
       {row.description ? <p className="line-clamp-2 text-xs text-muted-foreground">{row.description}</p> : null}
-      {row.mode === "dynamic" && row.shortUrl && (
+      {!row.deletedAt && row.mode === "dynamic" && row.shortUrl && (
         <p className="flex min-w-0 items-center gap-1.5 font-mono text-sm text-accent">
           <span className="truncate">{row.shortUrl}</span>
           <CopyButton value={row.shortUrl} />
@@ -559,9 +494,17 @@ function QrScanCount({ scanCount }: { scanCount: number }) {
 
 // Tooltip markup written directly (not the shared <Tooltip>) so the real <a>/<button> stays the
 // one tab stop and carries .t-tt-trigger itself — see src/components/tooltip.tsx's docstring.
-function QrActions({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => void }) {
+type QrItemProps = { row: QrListRow; onEdit?: (qrId: string) => void; onLifecycle: (row: QrListRow) => void };
+
+function QrActions({ row, onEdit, onLifecycle }: QrItemProps) {
   const archiveTooltipId = useId();
   const editTooltipId = useId();
+
+  if (row.deletedAt) return (
+    <Button type="button" variant="ghost" size="sm" aria-label={`Restaurar ${row.name}`} onClick={(event) => { event.stopPropagation(); onLifecycle(row); }}>
+      <RotateCcw data-icon="inline-start" />Restaurar
+    </Button>
+  );
 
   return (
     <div
@@ -573,6 +516,7 @@ function QrActions({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) =>
           <button
             type="button"
             onClick={() => onEdit(row.id)}
+            aria-label={`Editar ${row.name}`}
             aria-describedby={editTooltipId}
             className="t-tt-trigger hover:text-foreground"
           >
@@ -612,6 +556,7 @@ function QrActions({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) =>
             <button
               type="submit"
               aria-describedby={archiveTooltipId}
+              aria-label={`Archivar ${row.name}`}
               className="t-tt-trigger hover:text-foreground"
             >
               <HoverMorphIcon idle={Archive} active={Check} />
@@ -622,6 +567,7 @@ function QrActions({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) =>
           </span>
         </form>
       )}
+      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Eliminar ${row.name}`} onClick={() => onLifecycle(row)}><Trash2 /></Button>
     </div>
   );
 }
@@ -630,14 +576,14 @@ function QrActions({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) =>
 // design, DATABASE.md) — same condition the old "Analytics" action icon used to gate on.
 function useCardNavigation(row: QrListRow) {
   const router = useRouter();
-  const clickable = row.mode === "dynamic" && Boolean(row.linkId);
+  const clickable = !row.deletedAt && row.mode === "dynamic" && Boolean(row.linkId);
   return {
     clickable,
     onClick: clickable ? () => router.push(`/analytics/${row.linkId}`) : undefined,
   };
 }
 
-function QrRow({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => void }) {
+function QrRow({ row, onEdit, onLifecycle }: QrItemProps) {
   const { clickable, onClick } = useCardNavigation(row);
   return (
     <li
@@ -647,7 +593,7 @@ function QrRow({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => voi
       }`}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
+        <QrThumbnail id={row.id} deleted={Boolean(row.deletedAt)} className="h-16 w-16 shrink-0 rounded-md" />
         <div className="min-w-0 flex-1">
           <QrHeading row={row} />
         </div>
@@ -655,13 +601,13 @@ function QrRow({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => voi
       {row.placementImageUrl ? <PlacementImagePreview src={row.placementImageUrl} /> : null}
       <div className="flex items-center justify-between gap-4 border-t border-border pt-3 sm:border-t-0 sm:pt-0">
         <QrScanCount scanCount={row.scanCount} />
-        <QrActions row={row} onEdit={onEdit} />
+        <QrActions row={row} onEdit={onEdit} onLifecycle={onLifecycle} />
       </div>
     </li>
   );
 }
 
-function QrCard({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => void }) {
+function QrCard({ row, onEdit, onLifecycle }: QrItemProps) {
   const { clickable, onClick } = useCardNavigation(row);
   return (
     <div
@@ -671,13 +617,13 @@ function QrCard({ row, onEdit }: { row: QrListRow; onEdit?: (qrId: string) => vo
       }`}
     >
       <div className="flex items-start gap-3">
-        <QrThumbnail id={row.id} className="h-16 w-16 shrink-0 rounded-md" />
+        <QrThumbnail id={row.id} deleted={Boolean(row.deletedAt)} className="h-16 w-16 shrink-0 rounded-md" />
         <QrHeading row={row} />
       </div>
       {row.placementImageUrl ? <PlacementImagePreview src={row.placementImageUrl} /> : null}
       <div className="flex items-center justify-between border-t border-border pt-3">
         <QrScanCount scanCount={row.scanCount} />
-        <QrActions row={row} onEdit={onEdit} />
+        <QrActions row={row} onEdit={onEdit} onLifecycle={onLifecycle} />
       </div>
     </div>
   );

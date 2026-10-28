@@ -70,6 +70,7 @@ export const qrCodes = pgTable(
     folderId: uuid("folder_id").references(() => folders.id),
     campaignId: uuid("campaign_id").references(() => campaigns.id),
     status: resourceStatus("status").notNull().default("active"),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

@@ -9,6 +9,8 @@ import {
   createStaticQrCode,
   createQrDesignTemplate,
   archiveQrCode,
+  deleteQrCode,
+  restoreQrCode,
   getQrCode,
   updateQrCodeName,
   updateQrDescription,
@@ -440,8 +442,11 @@ export async function archiveQrCodeAction(formData: FormData): Promise<void> {
   if (!user || user.profile.role === "RECEPTION") redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
-  const id = z.string().uuid().parse(formData.get("id"));
-  await archiveQrCode(id);
+  const parsed = z.string().uuid().safeParse(formData.get("id"));
+  if (!parsed.success) return;
+  const id = parsed.data;
+  const qr = await archiveQrCode(id, user.profile.organizationId);
+  if (!qr) return;
   await recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
@@ -450,6 +455,31 @@ export async function archiveQrCodeAction(formData: FormData): Promise<void> {
     resourceId: id,
   });
   revalidatePath("/qr");
+}
+
+export type QrLifecycleState = { error?: string; success?: boolean };
+
+async function mutateQrLifecycle(formData: FormData, operation: typeof deleteQrCode): Promise<QrLifecycleState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Inicia sesion para gestionar los codigos QR." };
+  if (user.profile.status !== "active" || !["ADMIN", "MARKETING_MANAGER"].includes(user.profile.role)) {
+    return { error: "No tienes permisos para eliminar o restaurar codigos QR." };
+  }
+  if (!checkRateLimit(user.id)) return { error: RATE_LIMIT_ERROR };
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: "El codigo QR no es valido. Actualiza la pagina e intentalo de nuevo." };
+  const qr = await operation(id.data, user.profile.organizationId);
+  if (!qr) return { error: "El codigo QR no esta disponible para esta accion. Actualiza la lista." };
+  revalidatePath("/qr");
+  return { success: true };
+}
+
+export async function deleteQrCodeAction(_prevState: QrLifecycleState, formData: FormData): Promise<QrLifecycleState> {
+  return mutateQrLifecycle(formData, deleteQrCode);
+}
+
+export async function restoreQrCodeAction(_prevState: QrLifecycleState, formData: FormData): Promise<QrLifecycleState> {
+  return mutateQrLifecycle(formData, restoreQrCode);
 }
 
 export type UpdateQrNameFormState = { error?: string };
@@ -468,7 +498,12 @@ export async function updateQrNameAction(
   const id = z.string().uuid().parse(formData.get("qrId"));
   const name = z.string().trim().min(1).max(255).parse(formData.get("name"));
 
-  await updateQrCodeName(id, name);
+  const qr = await getQrCode(id);
+  if (!qr || qr.deletedAt || qr.organizationId !== user.profile.organizationId) {
+    return { error: "El codigo QR no esta disponible." };
+  }
+  const updated = await updateQrCodeName(id, name, user.profile.organizationId);
+  if (!updated) return { error: "El codigo QR no esta disponible." };
   await recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
@@ -504,14 +539,15 @@ export async function updateQrMetadataAction(
   if (!parsed.success) return { error: "Revisa la descripcion y la imagen de referencia." };
 
   const qr = await getQrCode(parsed.data.qrId);
-  if (!qr || qr.organizationId !== user.profile.organizationId) {
+  if (!qr || qr.deletedAt || qr.organizationId !== user.profile.organizationId) {
     return { error: "El codigo QR no esta disponible." };
   }
 
-  await Promise.all([
-    updateQrDescription(qr.id, parsed.data.description || undefined),
-    updateQrPlacementImage(qr.id, parsed.data.placementImageUrl || undefined),
+  const updated = await Promise.all([
+    updateQrDescription(qr.id, parsed.data.description || undefined, user.profile.organizationId),
+    updateQrPlacementImage(qr.id, parsed.data.placementImageUrl || undefined, user.profile.organizationId),
   ]);
+  if (updated.some((row) => !row)) return { error: "El codigo QR no esta disponible." };
   revalidatePath("/qr");
   revalidatePath(`/analytics/${qr.linkId ?? ""}`);
   return {};
@@ -547,7 +583,7 @@ export async function updateDynamicQrUtmAction(
   if (!parsed.success) return { error: "Ingresa etiquetas UTM válidas." };
 
   const qr = await getQrCode(parsed.data.qrId);
-  if (!qr || qr.mode !== "dynamic" || !qr.linkId || qr.organizationId !== user.profile.organizationId) {
+  if (!qr || qr.deletedAt || qr.mode !== "dynamic" || !qr.linkId || qr.organizationId !== user.profile.organizationId) {
     return { error: "El código QR no está disponible." };
   }
 

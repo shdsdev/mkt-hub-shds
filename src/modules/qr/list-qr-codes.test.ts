@@ -18,8 +18,17 @@ vi.mock("@/db/client", () => ({
 }));
 
 import { listQrCodes } from "./service";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 describe("listQrCodes", () => {
+  it.each([false, true])("selects only the requested trash partition: %s", async (trash) => {
+    await listQrCodes("org-1", { page: 1, pageSize: 20, trash });
+    const condition = new PgDialect().sqlToQuery(mocks.listWhere.mock.calls[0][0]);
+    expect(condition.sql).toContain(`"deleted_at" is ${trash ? "not null" : "null"}`);
+    expect(condition.params).toContain("org-1");
+    expect(mocks.countWhere.mock.calls[0][0]).toBe(mocks.listWhere.mock.calls[0][0]);
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
 

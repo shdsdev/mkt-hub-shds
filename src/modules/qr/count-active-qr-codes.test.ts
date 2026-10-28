@@ -11,6 +11,7 @@ vi.mock("@/db/client", () => ({
 }));
 
 import { countActiveQrCodes } from "./service";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 describe("countActiveQrCodes", () => {
   beforeEach(() => {
@@ -25,6 +26,9 @@ describe("countActiveQrCodes", () => {
     await expect(countActiveQrCodes("org-1")).resolves.toBe(12);
     expect(mocks.select).toHaveBeenCalledTimes(1);
     expect(mocks.where).toHaveBeenCalledTimes(1);
+    const condition = new PgDialect().sqlToQuery(mocks.where.mock.calls[0][0]);
+    expect(condition.params).toEqual(["org-1", "active"]);
+    expect(condition.sql).toContain('"deleted_at" is null');
   });
 
   it("returns zero when the organization has no active QR codes", async () => {
