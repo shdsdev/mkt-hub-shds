@@ -10,7 +10,7 @@ export default async function AuditLogPage() {
   const logs = await listAuditLogs(user.profile.organizationId);
 
   const emailsByUserId = new Map<string, string>();
-  for (const userId of new Set(logs.map((log) => log.userId))) {
+  for (const userId of new Set(logs.flatMap((log) => log.userId ? [log.userId] : []))) {
     emailsByUserId.set(userId, (await getEmailByUserId(userId)) ?? "Desconocido");
   }
 
@@ -18,7 +18,7 @@ export default async function AuditLogPage() {
     id: log.id,
     action: log.action,
     resourceType: log.resourceType,
-    who: emailsByUserId.get(log.userId) ?? "Desconocido",
+    who: log.userId ? emailsByUserId.get(log.userId) ?? "Desconocido" : "Sistema",
     when: log.createdAt.toLocaleString(),
     before: log.before,
     after: log.after,

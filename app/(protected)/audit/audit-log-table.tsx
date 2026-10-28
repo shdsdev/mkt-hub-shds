@@ -18,6 +18,9 @@ const ACTION_LABEL: Record<string, string> = {
   archive: "archivar",
   end_campaign: "finalizar campaña",
   record_print_run: "registrar tirada",
+  event_change: "cambio en evento",
+  event_send: "envío de correo",
+  event_send_failed: "envío fallido",
 };
 
 const RESOURCE_TYPE_LABEL: Record<string, string> = {
@@ -28,6 +31,10 @@ const RESOURCE_TYPE_LABEL: Record<string, string> = {
   domain: "dominio",
   print_run: "tirada",
   utm_preset: "preajuste UTM",
+  event: "evento",
+  event_attendee: "asistente",
+  event_notification: "envío del evento",
+  event_webhook: "webhook del evento",
 };
 
 function Row({ log }: { log: AuditLogRow }) {

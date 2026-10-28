@@ -261,6 +261,29 @@ describe("resendInvitationAction", () => {
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", force: true }));
   });
 
+  it("records the successful resend against the event", async () => {
+    await resendInvitationAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
+
+    expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: EVENT_ID,
+      action: "event_send",
+      resourceType: "event_notification",
+      after: expect.objectContaining({ recipient: "alan@example.com", result: "sent" }),
+    }));
+  });
+
+  it("records a failed resend against the event", async () => {
+    mocks.sendConfirmationEmail.mockResolvedValue({ sent: false, reason: "provider_failure" });
+    const result = await resendInvitationAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
+
+    expect(result).toEqual({ error: "No se pudo enviar el correo." });
+    expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: EVENT_ID,
+      action: "event_send_failed",
+      after: expect.objectContaining({ recipient: "alan@example.com", result: "failed" }),
+    }));
+  });
+
   it("rejects an unassigned receptionist from resending the invitation", async () => {
     mocks.listEventReceptionistIds.mockResolvedValue([]);
     const result = await resendInvitationAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));

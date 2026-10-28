@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, uuid, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid, text, jsonb, timestamp, index } from "drizzle-orm/pg-core";
 import { organizations } from "@/modules/users/db";
 import { authUsers } from "@/db/auth-schema-ref";
 
@@ -28,7 +28,12 @@ export const auditAction = pgEnum("audit_action", [
   "event_attendee_replace",
   "event_attendee_deactivate",
   "event_primary_transfer",
+  "event_change",
+  "event_send",
+  "event_send_failed",
 ]);
+
+export const auditActorType = pgEnum("audit_actor_type", ["user", "system"]);
 
 // Append-only (no update/delete function anywhere in this module) — matches the print_runs
 // pattern (Phase 6). `before`/`after` are only populated where relevant (destination_change).
@@ -37,15 +42,15 @@ export const auditLogs = pgTable("audit_logs", {
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => organizations.id),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => authUsers.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => authUsers.id, { onDelete: "set null" }),
+  actorType: auditActorType("actor_type").notNull().default("user"),
+  eventId: uuid("event_id"),
   action: auditAction("action").notNull(),
   resourceType: text("resource_type").notNull(),
   resourceId: uuid("resource_id").notNull(),
   before: jsonb("before"),
   after: jsonb("after"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [index("audit_logs_event_created_at_idx").on(table.eventId, table.createdAt)]);
 
 export const auditTables = { auditAction, auditLogs } as const;

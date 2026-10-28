@@ -76,7 +76,7 @@ export async function addInternalCompanionAction(formData: FormData): Promise<In
     attendee: { ...attendee.data, company: primary.company, phone: attendee.data.phone || undefined, jobTitle: attendee.data.jobTitle || undefined },
   });
   if (!result.ok) return { error: ADD_COMPANION_REASON_MESSAGES[result.reason] };
-  await recordAudit({ organizationId: context.user.profile.organizationId, userId: context.user.id, action: "create", resourceType: "event_attendee", resourceId: result.attendee.id, after: { registrationId: registrationId.data, backupCode: result.attendee.backupCode } });
+   await recordAudit({ organizationId: context.user.profile.organizationId, userId: context.user.id, eventId: eventId.data, action: "create", resourceType: "event_attendee", resourceId: result.attendee.id, after: { registrationId: registrationId.data, attendeeCreated: true } });
   revalidatePath(`/events/${eventId.data}/internal-form`);
   return {
     error: `Acompañante agregado. Folio: ${result.attendee.backupCode}`,
@@ -106,7 +106,7 @@ export async function updatePrimaryAttendeeAction(formData: FormData): Promise<I
   }
   const updated = await updatePrimaryAttendee({ registrationId: registrationId.data, organizationId: context.user.profile.organizationId, attendee: { ...attendee.data, phone: attendee.data.phone || undefined, company: attendee.data.company || undefined, jobTitle: attendee.data.jobTitle || undefined } });
   if (!updated.ok) return { error: updated.reason === "duplicate_email" ? "Ya existe un asistente activo con ese correo en este evento." : "No se encontró el titular." };
-  await recordAudit({ organizationId: context.user.profile.organizationId, userId: context.user.id, action: "create", resourceType: "event_attendee", resourceId: updated.attendee.id, after: { registrationId: registrationId.data, updated: true } });
+   await recordAudit({ organizationId: context.user.profile.organizationId, userId: context.user.id, eventId: eventId.data, action: "create", resourceType: "event_attendee", resourceId: updated.attendee.id, after: { registrationId: registrationId.data, updated: true } });
   revalidatePath(`/events/${eventId.data}/internal-form`);
   return { error: "Titular actualizado." };
 }

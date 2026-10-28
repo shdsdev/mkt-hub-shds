@@ -46,6 +46,23 @@ export async function POST(request: NextRequest) {
           agenda: event.agenda,
         });
 
+        if (result.sent || result.reason !== "already_sent") {
+          try {
+            const { recordAudit } = await import("@/modules/audit");
+            await recordAudit({
+              organizationId: attendee.organizationId,
+              actorType: "system",
+              eventId: event.id,
+              action: result.sent ? "event_send" : "event_send_failed",
+              resourceType: "event_notification",
+              resourceId: attendee.id,
+              after: { kind: "reminder", recipient: attendee.email, result: result.sent ? "sent" : "failed", origin: "scheduled_job" },
+            });
+          } catch {
+            // Audit failures must never block reminder delivery.
+          }
+        }
+
         if (result.sent) return "sent" as const;
         if (result.reason === "already_sent") return "skipped" as const;
         console.error("[event-reminders] provider failure", { attendeeId: attendee.id, error: result.error });

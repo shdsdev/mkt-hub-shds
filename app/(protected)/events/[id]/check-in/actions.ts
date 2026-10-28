@@ -99,7 +99,7 @@ export async function redeemBenefitAction(formData: FormData): Promise<CheckInFo
 
   const result = await redeemBenefit({ eventId: parsed.data.eventId, benefitId: parsed.data.benefitId, code: normalizeBenefitCode(parsed.data.code), actorId: user.id });
   if (!result.ok) return { error: benefitError(result.reason) };
-  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "create", resourceType: "event_benefit_redemption", resourceId: result.redemption.id, after: { eventId: parsed.data.eventId, benefitId: parsed.data.benefitId } });
+   await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.eventId, action: "create", resourceType: "event_benefit_redemption", resourceId: result.redemption.id, after: { benefitId: parsed.data.benefitId } });
   const redemption = result.redemption.benefitId && result.redemption.createdAt
     ? { benefitId: result.redemption.benefitId, createdAt: result.redemption.createdAt, actorName: user.email }
     : undefined;
@@ -127,7 +127,7 @@ export async function confirmCheckInAction(formData: FormData): Promise<CheckInF
   const result = await confirmAttendeeCheckIn({ eventId: eventId.data, attendeeId: attendeeId.data, checkedInBy: user.id });
   if (!result.ok) return { error: NOT_FOUND_ERROR };
   if (!result.alreadyCheckedIn) {
-    await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "create", resourceType: "event_check_in", resourceId: result.attendee.id, after: { eventId: eventId.data, attendeeId: result.attendee.id } });
+     await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: eventId.data, action: "create", resourceType: "event_check_in", resourceId: result.attendee.id, after: { attendeeId: result.attendee.id } });
     const event = await getEvent(eventId.data, user.profile.organizationId);
     if (event) void notifyEventWebhook(event, "attendee.checked_in", { attendeeId: result.attendee.id, fullName: result.attendee.fullName, email: result.attendee.email });
   }

@@ -8,6 +8,7 @@ export type EventCapability =
   | "raffle"
   | "questions"
   | "dashboard"
+  | "audit"
   | "benefit-redemption"
   | "benefit-management";
 

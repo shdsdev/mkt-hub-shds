@@ -37,7 +37,7 @@ export async function cancelRegistrationAction(
     await Promise.all(
       attendees.map(async (attendee) => {
         const qrPng = await exportQrPng(attendee.passToken, {});
-        await sendWaitlistPromotionEmail({
+        const sendResult = await sendWaitlistPromotionEmail({
           organizationId: attendee.organizationId,
           attendeeId: attendee.id,
           to: attendee.email,
@@ -53,6 +53,20 @@ export async function cancelRegistrationAction(
            emailContent: resolveEventEmailContent(event?.emailContent),
            agenda: event?.agenda ?? [],
          });
+        try {
+          const { recordAudit } = await import("@/modules/audit");
+          await recordAudit({
+            organizationId: attendee.organizationId,
+            actorType: "system",
+            eventId: promotedRegistration.eventId,
+            action: sendResult.sent ? "event_send" : "event_send_failed",
+            resourceType: "event_notification",
+            resourceId: attendee.id,
+            after: { kind: "waitlist_promotion", recipient: attendee.email, result: sendResult.sent ? "sent" : "failed", origin: "waitlist_promotion" },
+          });
+        } catch {
+          // Audit failures must never block a waitlist promotion email.
+        }
       }),
     );
   }

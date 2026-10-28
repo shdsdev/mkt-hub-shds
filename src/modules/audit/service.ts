@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { auditLogs } from "./db";
 import { createRateLimiter } from "./rate-limit";
@@ -8,7 +8,9 @@ export type AuditAction = AuditLog["action"];
 
 export type RecordAuditInput = {
   organizationId: string;
-  userId: string;
+  userId?: string;
+  actorType?: "user" | "system";
+  eventId?: string;
   action: AuditAction;
   resourceType: string;
   resourceId: string;
@@ -23,7 +25,9 @@ export async function recordAudit(input: RecordAuditInput): Promise<AuditLog> {
     .insert(auditLogs)
     .values({
       organizationId: input.organizationId,
-      userId: input.userId,
+      userId: input.userId ?? null,
+      actorType: input.actorType ?? "user",
+      eventId: input.eventId ?? null,
       action: input.action,
       resourceType: input.resourceType,
       resourceId: input.resourceId,
@@ -40,6 +44,21 @@ export async function listAuditLogs(organizationId: string): Promise<AuditLog[]>
     .from(auditLogs)
     .where(eq(auditLogs.organizationId, organizationId))
     .orderBy(desc(auditLogs.createdAt));
+}
+
+export async function listEventAuditLogs(input: {
+  organizationId: string;
+  eventId: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AuditLog[]> {
+  return db
+    .select()
+    .from(auditLogs)
+    .where(and(eq(auditLogs.organizationId, input.organizationId), eq(auditLogs.eventId, input.eventId)))
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(input.limit ?? 100)
+    .offset(input.offset ?? 0);
 }
 
 // Single shared limiter instance — reused across every mutating server action (design doc

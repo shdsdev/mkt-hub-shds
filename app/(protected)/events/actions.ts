@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { validateTelegramTemplate } from "@/modules/notifications";
 import { isActive, isAdmin } from "@/modules/users";
 import { eventEmailContentSchema } from "@/lib/events/event-email-content";
+import { recordAudit } from "@/modules/audit";
 import {
   createEvent,
   updateEvent,
@@ -229,6 +230,15 @@ export async function createEventAction(
   });
   if (!result.ok) return { error: PERMISSION_ERROR };
 
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    eventId: result.event.id,
+    action: "event_change",
+    resourceType: "event",
+    resourceId: result.event.id,
+    after: { created: true, name: result.event.name, slug: result.event.slug },
+  });
   revalidatePath("/events");
   redirect(`/events/${result.event.id}/dashboard`);
 }
@@ -282,6 +292,15 @@ export async function updateEventAction(
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
 
+  await recordAudit({
+    organizationId: user.profile.organizationId,
+    userId: user.id,
+    eventId: id.data,
+    action: "event_change",
+    resourceType: "event",
+    resourceId: id.data,
+    after: parsed.data,
+  });
   revalidatePath("/events");
   revalidatePath(`/events/${id.data}/edit`);
   return { success: "Evento actualizado." };
@@ -312,6 +331,7 @@ export async function saveEventTelegramChatIdAction(
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
 
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.id, action: "event_change", resourceType: "event", resourceId: parsed.data.id, after: { telegramChatId: parsed.data.telegramChatId ? "configured" : "cleared" } });
   revalidatePath("/events");
   revalidatePath(`/events/${parsed.data.id}/edit`);
   return { success: "Grupo de Telegram guardado." };
@@ -344,6 +364,7 @@ export async function saveEventTelegramMessageTemplateAction(
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
 
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.id, action: "event_change", resourceType: "event", resourceId: parsed.data.id, after: { telegramMessageTemplate: "updated" } });
   revalidatePath("/events");
   revalidatePath(`/events/${parsed.data.id}/edit`);
   return { success: "Mensaje de Telegram guardado." };
@@ -364,6 +385,7 @@ async function setStatusAction(formData: FormData, status: "published" | "closed
   });
   if (!result.ok) return;
 
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: id.data, action: "event_change", resourceType: "event", resourceId: id.data, after: { status } });
   revalidatePath("/events");
   revalidatePath(`/events/${id.data}/edit`);
 }
@@ -386,6 +408,7 @@ async function lifecycleAction(
   if (!id.success) return;
   const result = await operation({ id: id.data, organizationId: user.profile.organizationId, actorRole: user.profile.role });
   if (!result.ok) return;
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: id.data, action: "event_change", resourceType: "event", resourceId: id.data, after: { status: operation === archiveEvent ? "archived" : "published" } });
   revalidatePath("/events");
   revalidatePath(`/events/${id.data}`);
   revalidatePath(`/events/${id.data}/dashboard`);
@@ -410,6 +433,7 @@ export async function deleteEventAction(_prevState: EventFormState, formData: Fo
     if (result.reason === "has_registrations") return { error: "No se puede eliminar un evento con registros." };
     return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
   }
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: id.data, action: "event_change", resourceType: "event", resourceId: id.data, after: { deleted: true } });
   revalidatePath("/events");
   revalidatePath(`/events/${id.data}`);
   revalidatePath(`/events/${id.data}/dashboard`);
@@ -453,6 +477,7 @@ export async function setWebhookAction(
     return { error: PERMISSION_ERROR };
   }
 
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.id, action: "event_change", resourceType: "event_webhook", resourceId: parsed.data.id, after: { webhookUrl: parsed.data.webhookUrl ? "configured" : "cleared" } });
   revalidatePath(`/events/${parsed.data.id}/edit`);
   return { success: "Webhook actualizado.", webhookSecret: result.event.webhookSecret ?? undefined };
 }
@@ -474,6 +499,7 @@ export async function regenerateWebhookSecretAction(
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
 
+  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: id.data, action: "event_change", resourceType: "event_webhook", resourceId: id.data, after: { secretRegenerated: true } });
   revalidatePath(`/events/${id.data}/edit`);
   return { success: "Secreto regenerado.", webhookSecret: result.event.webhookSecret ?? undefined };
 }

@@ -463,6 +463,13 @@
       "when": 1793220000000,
       "tag": "0064_repair_primary_attendee",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793226184071,
+      "tag": "0065_event_audit_scope",
+      "breakpoints": true
     }
   ]
 }

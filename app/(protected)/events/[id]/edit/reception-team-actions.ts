@@ -41,6 +41,7 @@ export async function assignReceptionistAction(
   await recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
+    eventId: parsed.data.eventId,
     action: "create",
     resourceType: "event_receptionist",
     resourceId: parsed.data.eventId,
@@ -66,6 +67,7 @@ export async function removeReceptionistAction(
   await recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
+    eventId: parsed.data.eventId,
     action: "create",
     resourceType: "event_receptionist",
     resourceId: parsed.data.eventId,

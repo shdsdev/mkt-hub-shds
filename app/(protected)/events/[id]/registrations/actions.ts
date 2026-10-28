@@ -53,6 +53,28 @@ const REASON_MESSAGES: Record<Exclude<AddAttendeeToRegistrationResult, { ok: tru
   duplicate_email: "Ya existe un asistente activo con ese correo en este evento.",
 };
 
+type SendAuditInput = {
+  organizationId: string;
+  actorId: string;
+  eventId: string;
+  attendeeId?: string;
+  recipient: string;
+  kind: "confirmation" | "replacement_invitation" | "decision";
+  sent: boolean;
+};
+
+async function auditEventSend(input: SendAuditInput): Promise<void> {
+  await recordAudit({
+    organizationId: input.organizationId,
+    userId: input.actorId,
+    eventId: input.eventId,
+    action: input.sent ? "event_send" : "event_send_failed",
+    resourceType: "event_notification",
+    resourceId: input.attendeeId ?? input.eventId,
+    after: { kind: input.kind, recipient: input.recipient, result: input.sent ? "sent" : "failed" },
+  });
+}
+
 const schema = z.object({
   registrationId: z.string().uuid(),
   eventId: z.string().uuid(),
@@ -167,6 +189,7 @@ export async function editAttendeeAction(
   await recordAudit({
     organizationId: context.user.profile.organizationId,
     userId: context.user.id,
+    eventId: parsed.data.eventId,
     action: "event_attendee_update",
     resourceType: "event_attendee",
     resourceId: attendeeId.data,
@@ -181,7 +204,7 @@ export async function editAttendeeAction(
     const attendee = registration?.attendees.find(({ id }) => id === attendeeId.data);
     if (registration && attendee) {
       const qrPng = await exportQrPng(attendee.backupCode, {});
-      await sendConfirmationEmail({
+      const sendResult = await sendConfirmationEmail({
         organizationId: attendee.organizationId,
         attendeeId: attendee.id,
         to: attendee.email,
@@ -197,6 +220,15 @@ export async function editAttendeeAction(
         emailContent: resolveEventEmailContent(context.event.emailContent),
         agenda: context.event.agenda,
         force: true,
+      });
+      await auditEventSend({
+        organizationId: context.user.profile.organizationId,
+        actorId: context.user.id,
+        eventId: parsed.data.eventId,
+        attendeeId: attendee.id,
+        recipient: attendee.email,
+        kind: "confirmation",
+        sent: sendResult.sent,
       });
     }
   }
@@ -264,6 +296,7 @@ export async function replaceCompanionAction(
   await recordAudit({
     organizationId: context.user.profile.organizationId,
     userId: context.user.id,
+    eventId: parsed.data.eventId,
     action: "event_attendee_replace",
     resourceType: "event_attendee",
     resourceId: attendeeId.data,
@@ -274,6 +307,15 @@ export async function replaceCompanionAction(
   let sent = true;
   if (registration.reviewStatus === "approved" && (result.registrationStatus === "confirmed" || result.registrationStatus === "checked_in")) {
     sent = await sendReplacementInvitation(context.event, result.attendee, result.cancelToken);
+    await auditEventSend({
+      organizationId: context.user.profile.organizationId,
+      actorId: context.user.id,
+      eventId: parsed.data.eventId,
+      attendeeId: result.attendee.id,
+      recipient: result.attendee.email,
+      kind: "replacement_invitation",
+      sent,
+    });
   }
 
   // Keep a failed-delivery result mounted even when the new identity no longer matches a search filter.
@@ -330,6 +372,7 @@ export async function transferPrimaryOwnershipAction(
   await recordAudit({
     organizationId: context.user.profile.organizationId,
     userId: context.user.id,
+    eventId: parsed.data.eventId,
     action: "event_primary_transfer",
     resourceType: "event_attendee",
     resourceId: attendeeId.data,
@@ -338,7 +381,10 @@ export async function transferPrimaryOwnershipAction(
   });
   const invitationIsSentNow = result.reviewStatus === "approved" && (result.registrationStatus === "confirmed" || result.registrationStatus === "checked_in");
   let sent = true;
-  if (invitationIsSentNow) sent = await sendReplacementInvitation(context.event, result.attendee, result.cancelToken);
+  if (invitationIsSentNow) {
+    sent = await sendReplacementInvitation(context.event, result.attendee, result.cancelToken);
+    await auditEventSend({ organizationId: context.user.profile.organizationId, actorId: context.user.id, eventId: parsed.data.eventId, attendeeId: result.attendee.id, recipient: result.attendee.email, kind: "replacement_invitation", sent });
+  }
   if (!sent) return { success: "Titularidad transferida.", warning: "La transferencia se completó, pero no se pudo enviar la invitación. Puedes reintentar el envío sin volver a transferir la titularidad.", retry: { eventId: parsed.data.eventId, registrationId: parsed.data.registrationId, attendeeId: result.attendee.id } };
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
   return {
@@ -406,7 +452,9 @@ export async function retryReplacementInvitationAction(
   if (!registration || !attendee?.isActive || registration.reviewStatus !== "approved" || !["confirmed", "checked_in"].includes(registration.status)) {
     return { error: "La invitación solo se puede enviar a un acompañante activo de un registro aprobado en este evento." };
   }
-  if (!await sendReplacementInvitation(context.event, attendee, registration.cancelToken)) {
+  const sent = await sendReplacementInvitation(context.event, attendee, registration.cancelToken);
+  await auditEventSend({ organizationId: context.user.profile.organizationId, actorId: context.user.id, eventId: parsed.data.eventId, attendeeId: attendee.id, recipient: attendee.email, kind: "replacement_invitation", sent });
+  if (!sent) {
     return { error: "No se pudo enviar la invitación. El reemplazo sigue completado; puedes reintentar el envío." };
   }
   return { success: "Invitación enviada por correo." };
@@ -444,6 +492,7 @@ export async function removeCompanionAction(
   await recordAudit({
     organizationId: context.user.profile.organizationId,
     userId: context.user.id,
+    eventId: eventId.data,
     action: "event_attendee_deactivate",
     resourceType: "event_attendee",
     resourceId: attendeeId.data,
@@ -549,9 +598,26 @@ export async function updateRegistrationReviewStatusAction(
           });
         }),
       );
+      await Promise.all(confirmationAttendees.map((attendee) => auditEventSend({
+        organizationId: user.profile.organizationId,
+        actorId: user.id,
+        eventId: parsed.data.eventId,
+        attendeeId: attendee.id,
+        recipient: attendee.email,
+        kind: "confirmation",
+        sent: true,
+      })));
     } catch (error) {
       const { captureOperationFailure } = await import("@/modules/monitoring");
       captureOperationFailure({ operation: "registration_confirmation_email", module: "events", error });
+      await auditEventSend({
+        organizationId: user.profile.organizationId,
+        actorId: user.id,
+        eventId: parsed.data.eventId,
+        recipient: "multiple",
+        kind: "confirmation",
+        sent: false,
+      }).catch(() => undefined);
       throw error;
     }
   }
@@ -565,9 +631,11 @@ export async function updateRegistrationReviewStatusAction(
         eventName: event.name,
         decision: parsed.data.reviewStatus,
       });
+      await auditEventSend({ organizationId: user.profile.organizationId, actorId: user.id, eventId: parsed.data.eventId, attendeeId: primary.id, recipient: primary.email, kind: "decision", sent: true });
     } catch (error) {
       const { captureOperationFailure } = await import("@/modules/monitoring");
       captureOperationFailure({ operation: "registration_decision_email", module: "events", error });
+      await auditEventSend({ organizationId: user.profile.organizationId, actorId: user.id, eventId: parsed.data.eventId, attendeeId: primary.id, recipient: primary.email, kind: "decision", sent: false }).catch(() => undefined);
       throw error;
     }
   }
@@ -638,7 +706,7 @@ export async function addCompanionAction(
   // registerForEventAction/cancelRegistrationAction.
   if (result.registrationStatus === "confirmed") {
     const qrPng = await exportQrPng(result.attendee.backupCode, {});
-    await sendConfirmationEmail({
+    const sendResult = await sendConfirmationEmail({
       organizationId: result.attendee.organizationId,
       attendeeId: result.attendee.id,
       to: result.attendee.email,
@@ -654,6 +722,7 @@ export async function addCompanionAction(
        emailContent: resolveEventEmailContent(event?.emailContent),
        agenda: event?.agenda ?? [],
       });
+    await auditEventSend({ organizationId: user.profile.organizationId, actorId: user.id, eventId: parsed.data.eventId, attendeeId: result.attendee.id, recipient: result.attendee.email, kind: "confirmation", sent: sendResult.sent });
   }
 
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
@@ -719,6 +788,8 @@ export async function resendInvitationAction(
     agenda: event.agenda,
     force: true,
   });
+
+  await auditEventSend({ organizationId: user.profile.organizationId, actorId: user.id, eventId: parsed.data.eventId, attendeeId: attendee.id, recipient: attendee.email, kind: "confirmation", sent: result.sent });
 
   if (!result.sent) return { error: result.reason === "provider_failure" ? "No se pudo enviar el correo." : "No se pudo reenviar la invitación." };
 

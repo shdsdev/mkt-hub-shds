@@ -6,7 +6,7 @@ import type { UserRole } from "@/modules/users";
 
 // Shared cross-navigation between an event's admin pages — none of these pages linked to each
 // other before (found via user feedback: "no sé cómo llegar a los registros/check-in/dashboard").
-export function EventSubNav({ eventId, current, role }: { eventId: string; current: "edit" | "registrations" | "dashboard" | "check-in" | "internal-form" | "raffle" | "questions"; role: UserRole }) {
+export function EventSubNav({ eventId, current, role }: { eventId: string; current: "edit" | "registrations" | "dashboard" | "check-in" | "internal-form" | "raffle" | "questions" | "audit"; role: UserRole }) {
   const activeTabRef = useRef<HTMLAnchorElement>(null);
   const tabs = [
     { key: "edit", label: "Editar", href: `/events/${eventId}/edit` },
@@ -16,6 +16,7 @@ export function EventSubNav({ eventId, current, role }: { eventId: string; curre
     { key: "raffle", label: "Sorteo", href: `/events/${eventId}/raffle` },
     { key: "questions", label: "Preguntas", href: `/events/${eventId}/questions` },
     { key: "dashboard", label: "Resultados", href: `/events/${eventId}/dashboard` },
+    { key: "audit", label: "Historial", href: `/events/${eventId}/audit` },
   ].filter((tab) =>
     role === "ADMIN" ||
     role === "EVENT_EDITOR" ||

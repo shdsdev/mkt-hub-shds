@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   },
   revalidatePath: vi.fn(),
   redirect: vi.fn(),
+  recordAudit: vi.fn(),
 }));
 
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -35,6 +36,7 @@ vi.mock("@/modules/events", () => ({
   registrationFormConfigSchema: mocks.registrationFormConfigSchema,
 }));
 vi.mock("@/modules/notifications", () => ({ validateTelegramTemplate: vi.fn(() => undefined) }));
+vi.mock("@/modules/audit", () => ({ recordAudit: mocks.recordAudit }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
@@ -129,6 +131,29 @@ describe("events admin actions — isAdmin guard (tasks.md 2.3)", () => {
     expect(result).toEqual({ success: "Mensaje de Telegram guardado." });
     expect(mocks.updateEvent).toHaveBeenCalledWith(expect.objectContaining({
       changes: { telegramMessageTemplate: "{{nombre}} solicitó acceso a {{evento}}." },
+    }));
+  });
+
+  it("records an event edit against the event history", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "11111111-1111-4111-8111-111111111111" } });
+
+    await updateEventAction({}, createFormData({ id: "11111111-1111-4111-8111-111111111111", name: "Renamed" }));
+
+    expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: "11111111-1111-4111-8111-111111111111",
+      action: "event_change",
+      resourceType: "event",
+      resourceId: "11111111-1111-4111-8111-111111111111",
+    }));
+  });
+
+  it("does not store the Telegram template body in the event history", async () => {
+    mocks.updateEvent.mockResolvedValue({ ok: true, event: { id: "11111111-1111-4111-8111-111111111111" } });
+
+    await saveEventTelegramMessageTemplateAction({}, createFormData({ id: "11111111-1111-4111-8111-111111111111", template: "{{nombre}} secreto" }));
+
+    expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+      after: { telegramMessageTemplate: "updated" },
     }));
   });
 

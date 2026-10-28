@@ -30,6 +30,13 @@ describe("EventSubNav", () => {
     expect(html).toContain("Sorteo");
     expect(html).toContain("Preguntas");
     expect(html).toContain("Resultados");
+    expect(html).toContain("Historial");
+  });
+
+  it("does not expose event history to reception users", () => {
+    const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="dashboard" role="RECEPTION" />);
+
+    expect(html).not.toContain("Historial");
   });
 
   it("keeps the current section selected instead of defaulting to Editar", () => {

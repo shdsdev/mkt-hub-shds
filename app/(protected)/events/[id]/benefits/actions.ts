@@ -81,6 +81,7 @@ export async function saveBenefitsConfigurationAction(formData: FormData): Promi
   await recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
+    eventId: parsed.data.eventId,
     action: "create",
     resourceType: "event_benefit_configuration",
     resourceId: parsed.data.eventId,
@@ -117,7 +118,7 @@ async function saveBenefitAction(formData: FormData): Promise<BenefitActionState
   if (!checkRateLimit(user.id)) return { error: "Demasiadas acciones. Inténtalo de nuevo en breve." };
   const result = await saveEventBenefit({ ...parsed.data, active: parsed.data.active === "true", name: parsed.data.name || null, percentage: parsed.data.percentage ?? null, quantity: parsed.data.quantity ?? null });
   if (!result.ok) return { error: resultError(result.reason) };
-  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "create", resourceType: "event_benefit", resourceId: result.benefit.id, after: parsed.data });
+   await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.eventId, action: "create", resourceType: "event_benefit", resourceId: result.benefit.id, after: parsed.data });
   revalidatePath(route(parsed.data.eventId));
   return { success: "Beneficio guardado correctamente." };
 }
@@ -130,7 +131,7 @@ export async function deactivateBenefitAction(formData: FormData): Promise<Benef
   if (!checkRateLimit(user.id)) return { error: "Demasiadas acciones. Inténtalo de nuevo en breve." };
   const result = await deactivateEventBenefit(parsed.data);
   if (!result.ok) return { error: resultError(result.reason) };
-  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "create", resourceType: "event_benefit", resourceId: result.benefit.id, after: { active: false } });
+   await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.eventId, action: "create", resourceType: "event_benefit", resourceId: result.benefit.id, after: { active: false } });
   revalidatePath(route(parsed.data.eventId));
   return { success: "Beneficio desactivado correctamente." };
 }
@@ -143,7 +144,7 @@ export async function updateBenefitScopeAction(formData: FormData): Promise<Bene
   if (!checkRateLimit(user.id)) return { error: "Demasiadas acciones. Inténtalo de nuevo en breve." };
   const result = await setEventBenefitRedemptionScope(parsed.data);
   if (!result.ok) return { error: resultError(result.reason) };
-  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "create", resourceType: "event", resourceId: parsed.data.eventId, after: { benefitRedemptionScope: parsed.data.scope } });
+   await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.eventId, action: "create", resourceType: "event", resourceId: parsed.data.eventId, after: { benefitRedemptionScope: parsed.data.scope } });
   revalidatePath(route(parsed.data.eventId));
   return { success: "Alcance de canje actualizado correctamente." };
 }
@@ -156,7 +157,7 @@ export async function annulBenefitRedemptionAction(formData: FormData): Promise<
   if (!checkRateLimit(user.id)) return { error: "Demasiadas acciones. Inténtalo de nuevo en breve." };
   const result = await annulBenefitRedemption({ eventId: parsed.data.eventId, redemptionId: parsed.data.redemptionId, actorId: user.id, reason: parsed.data.reason });
   if (!result.ok) return { error: resultError(result.reason) };
-  await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, action: "create", resourceType: "event_benefit_redemption", resourceId: result.redemption.id, after: { eventId: parsed.data.eventId, reason: parsed.data.reason, status: "annulled" } });
+   await recordAudit({ organizationId: user.profile.organizationId, userId: user.id, eventId: parsed.data.eventId, action: "create", resourceType: "event_benefit_redemption", resourceId: result.redemption.id, after: { reason: parsed.data.reason, status: "annulled" } });
   revalidatePath(route(parsed.data.eventId));
   return { success: "Canje anulado correctamente." };
 }

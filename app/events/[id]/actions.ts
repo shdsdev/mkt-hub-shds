@@ -361,7 +361,7 @@ export async function registerForEventAction(
     await Promise.all(
       result.attendees.map(async (attendee) => {
         const qrPng = await exportQrPng(attendee.backupCode, {});
-        await sendConfirmationEmail({
+        const sendResult = await sendConfirmationEmail({
           organizationId: attendee.organizationId,
           attendeeId: attendee.id,
           to: attendee.email,
@@ -377,6 +377,20 @@ export async function registerForEventAction(
            emailContent: resolveEventEmailContent(event.emailContent),
            agenda: event.agenda,
          });
+        try {
+          const { recordAudit } = await import("@/modules/audit");
+          await recordAudit({
+            organizationId: attendee.organizationId,
+            actorType: "system",
+            eventId: event.id,
+            action: sendResult.sent ? "event_send" : "event_send_failed",
+            resourceType: "event_notification",
+            resourceId: attendee.id,
+            after: { kind: "confirmation", recipient: attendee.email, result: sendResult.sent ? "sent" : "failed", origin: "public_registration" },
+          });
+        } catch {
+          // Audit failures must never block a registration confirmation.
+        }
       }),
     );
   }
