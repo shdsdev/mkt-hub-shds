@@ -22,6 +22,7 @@ import {
   type AddAttendeeToRegistrationResult,
   type DeactivateCompanionResult,
   type ReplaceCompanionResult,
+  type RegistrationWithAttendees,
   type UpdateAttendeeResult,
 } from "@/modules/events";
 import {
@@ -71,7 +72,12 @@ export type ReviewStatusFormState = { error?: string; success?: string };
 export type DeleteRegistrationState = { error?: string; success?: string };
 
 export type EditAttendeeState = { error?: string; success?: string; emailResent?: boolean };
-export type ReplaceCompanionState = { error?: string; success?: string };
+export type ReplaceCompanionState = {
+  error?: string;
+  success?: string;
+  warning?: string;
+  retry?: { eventId: string; registrationId: string; attendeeId: string };
+};
 export type RemoveCompanionState = { error?: string; success?: string };
 
 async function requireEventManager(eventId: string) {
@@ -219,6 +225,12 @@ export async function replaceCompanionAction(
   });
   if (!parsed.success) return { error: "Revisa los datos del nuevo acompañante." };
 
+  const registrations = await listRegistrations(parsed.data.eventId, context.user.profile.organizationId);
+  const registration = registrations.find((reg) => reg.id === parsed.data.registrationId);
+  if (!registration?.attendees.some(({ id }) => id === attendeeId.data)) {
+    return { error: "No se encontró al acompañante en este registro y evento." };
+  }
+
   if (context.event && resolveRegistrationFormConfig(context.event).fields.phone.required && !parsed.data.phone?.trim()) {
     return { error: "El teléfono es obligatorio." };
   }
@@ -257,28 +269,71 @@ export async function replaceCompanionAction(
     after: { fullName: result.attendee.fullName, email: result.attendee.email, backupCode: result.attendee.backupCode },
   });
 
-  if (result.registrationStatus === "confirmed" || result.registrationStatus === "checked_in") {
-    const qrPng = await exportQrPng(result.attendee.backupCode, {});
-    await sendConfirmationEmail({
-      organizationId: result.attendee.organizationId,
-      attendeeId: result.attendee.id,
-      to: result.attendee.email,
-      attendeeName: result.attendee.fullName,
-      eventName: context.event.name,
-      backupCode: result.attendee.backupCode,
-      qrPngBase64: qrPng.toString("base64"),
-      eventStartsAt: context.event.startsAt,
-      eventEndsAt: context.event.endsAt,
-      eventLocation: context.event.location,
-      eventLocationUrl: context.event.locationUrl,
-      manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.cancelToken}`,
-      emailContent: resolveEventEmailContent(context.event.emailContent),
-      agenda: context.event.agenda,
-    });
+  let sent = true;
+  if (registration.reviewStatus === "approved" && (result.registrationStatus === "confirmed" || result.registrationStatus === "checked_in")) {
+    sent = await sendReplacementInvitation(context.event, result.attendee, result.cancelToken);
   }
 
+  // Keep a failed-delivery result mounted even when the new identity no longer matches a search filter.
+  if (!sent) return {
+    success: "Acompañante reemplazado.",
+    warning: "El reemplazo se completó, pero no se pudo enviar la invitación. Puedes reintentar el envío sin volver a reemplazar al acompañante.",
+    retry: { eventId: parsed.data.eventId, registrationId: parsed.data.registrationId, attendeeId: result.attendee.id },
+  };
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
   return { success: "Acompañante reemplazado." };
+}
+
+async function sendReplacementInvitation(
+  event: NonNullable<Awaited<ReturnType<typeof getEvent>>>,
+  attendee: RegistrationWithAttendees["attendees"][number],
+  cancelToken: string,
+): Promise<boolean> {
+  try {
+    const qrPng = await exportQrPng(attendee.backupCode, {});
+    const result = await sendConfirmationEmail({
+      organizationId: attendee.organizationId,
+      attendeeId: attendee.id,
+      to: attendee.email,
+      attendeeName: attendee.fullName,
+      eventName: event.name,
+      backupCode: attendee.backupCode,
+      qrPngBase64: qrPng.toString("base64"),
+      eventStartsAt: event.startsAt,
+      eventEndsAt: event.endsAt,
+      eventLocation: event.location,
+      eventLocationUrl: event.locationUrl,
+      manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${cancelToken}`,
+      emailContent: resolveEventEmailContent(event.emailContent),
+      agenda: event.agenda,
+      force: true,
+    });
+    return result.sent;
+  } catch {
+    return false;
+  }
+}
+
+export async function retryReplacementInvitationAction(
+  _prevState: ResendInvitationState,
+  formData: FormData,
+): Promise<ResendInvitationState> {
+  const context = await requireEventManager(String(formData.get("eventId")));
+  if (!context) return { error: ATTENDEE_PERMISSION_ERROR };
+  const parsed = z.object({ eventId: z.string().uuid(), registrationId: z.string().uuid(), attendeeId: z.string().uuid() }).safeParse({
+    eventId: formData.get("eventId"), registrationId: formData.get("registrationId"), attendeeId: formData.get("attendeeId"),
+  });
+  if (!parsed.success) return { error: "No se pudo identificar al acompañante." };
+  const registrations = await listRegistrations(parsed.data.eventId, context.user.profile.organizationId);
+  const registration = registrations.find(({ id }) => id === parsed.data.registrationId);
+  const attendee = registration?.attendees.find(({ id }) => id === parsed.data.attendeeId);
+  if (!registration || !attendee?.isActive || registration.reviewStatus !== "approved" || !["confirmed", "checked_in"].includes(registration.status)) {
+    return { error: "La invitación solo se puede enviar a un acompañante activo de un registro aprobado en este evento." };
+  }
+  if (!await sendReplacementInvitation(context.event, attendee, registration.cancelToken)) {
+    return { error: "No se pudo enviar la invitación. El reemplazo sigue completado; puedes reintentar el envío." };
+  }
+  return { success: "Invitación enviada por correo." };
 }
 
 export async function removeCompanionAction(

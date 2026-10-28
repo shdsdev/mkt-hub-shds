@@ -69,6 +69,7 @@ import {
   deleteRejectedRegistrationAction,
   editAttendeeAction,
   replaceCompanionAction,
+  retryReplacementInvitationAction,
   removeCompanionAction,
   resendInvitationAction,
   updateRegistrationReviewStatusAction,
@@ -445,6 +446,7 @@ describe("attendee management actions", () => {
   });
 
   it("replaces a companion and records the operation", async () => {
+    mocks.listRegistrations.mockResolvedValue([{ id: REGISTRATION_ID, reviewStatus: "new", attendees: [{ id: "33333333-3333-4333-8333-333333333333" }] }]);
     mocks.replaceCompanion.mockResolvedValue({ ok: true, attendee: { id: "attendee-2", fullName: "Ana", email: "ana@example.com", backupCode: "NEW12345" }, previous: { fullName: "Pedro", email: "pedro@example.com" } });
 
     const result = await replaceCompanionAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333", fullName: "Ana", email: "ana@example.com" }));
@@ -460,5 +462,98 @@ describe("attendee management actions", () => {
 
     expect(result).toEqual({ success: "Acompañante eliminado." });
     expect(mocks.deactivateCompanion).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", organizationId: "org-1" }));
+  });
+});
+
+describe("replacement invitation delivery", () => {
+  const attendeeId = "33333333-3333-4333-8333-333333333333";
+  const currentAttendee = { id: attendeeId, organizationId: "org-1", fullName: "Ana", email: "ana@example.com", backupCode: "CURRENT1", passToken: "current-token", isActive: true };
+  const registration = { id: REGISTRATION_ID, eventId: EVENT_ID, status: "confirmed", reviewStatus: "approved", cancelToken: "current-cancel", attendees: [currentAttendee] };
+  const data = () => formData({ attendeeId });
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.getCurrentUser.mockResolvedValue(adminUser);
+    mocks.isActive.mockReturnValue(true);
+    mocks.isAdmin.mockReturnValue(true);
+    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop", registrationFormConfig: { fields: { phone: { required: false } } } });
+    mocks.listRegistrations.mockResolvedValue([registration]);
+    mocks.replaceCompanion.mockResolvedValue({ ok: true, attendee: { ...currentAttendee, backupCode: "NEW12345" }, previous: { fullName: "Pedro", email: "pedro@example.com" }, registrationStatus: "confirmed", cancelToken: "current-cancel" });
+    mocks.exportQrPng.mockImplementation(async (code: string) => Buffer.from(code));
+    mocks.sendConfirmationEmail.mockResolvedValue({ sent: true });
+  });
+
+  it("forces delivery for the approved replacement despite the reused attendee id", async () => {
+    expect(await replaceCompanionAction({}, data())).toEqual({ success: "Acompañante reemplazado." });
+    expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ attendeeId, force: true, to: "ana@example.com", backupCode: "NEW12345" }));
+  });
+
+  it("keeps a pending review pending and does not email even with confirmed registration status", async () => {
+    mocks.listRegistrations.mockResolvedValue([{ ...registration, reviewStatus: "new" }]);
+    expect(await replaceCompanionAction({}, data())).toHaveProperty("success");
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+    expect(mocks.updateRegistrationReviewStatus).not.toHaveBeenCalled();
+  });
+
+  it.each(["false", "throw"])("returns a completed replacement and retry identifiers on email %s", async (failure) => {
+    if (failure === "throw") mocks.sendConfirmationEmail.mockRejectedValue(new Error("provider unavailable"));
+    else mocks.sendConfirmationEmail.mockResolvedValue({ sent: false, reason: "provider_failure" });
+    const result = await replaceCompanionAction({}, data());
+    expect(result).toMatchObject({ success: "Acompañante reemplazado.", warning: expect.any(String), retry: { eventId: EVENT_ID, registrationId: REGISTRATION_ID, attendeeId } });
+    expect(result.error).toBeUndefined();
+    expect(mocks.replaceCompanion).toHaveBeenCalledTimes(1);
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([replaceCompanionAction, retryReplacementInvitationAction])("rejects a target outside the requested event or registration", async (action) => {
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, profile: { ...adminUser.profile, role: "EVENT_EDITOR" } });
+    mocks.listEventEditorIds.mockResolvedValue([adminUser.id]);
+    mocks.listRegistrations.mockResolvedValue([{ ...registration, id: "another-registration" }]);
+    expect(await action({}, data())).toHaveProperty("error");
+    expect(mocks.replaceCompanion).not.toHaveBeenCalled();
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+    mocks.listRegistrations.mockResolvedValue([]);
+    expect(await action({}, data())).toHaveProperty("error");
+  });
+
+  it.each([replaceCompanionAction, retryReplacementInvitationAction])("rejects reception, unassigned editors and inactive users", async (action) => {
+    mocks.isAdmin.mockReturnValue(false);
+    for (const role of ["RECEPTION", "EVENT_EDITOR", "VIEWER"]) {
+      mocks.getCurrentUser.mockResolvedValue({ ...adminUser, profile: { ...adminUser.profile, role } });
+      mocks.listEventEditorIds.mockResolvedValue([]);
+      expect(await action({}, data())).toHaveProperty("error");
+    }
+    mocks.isActive.mockReturnValue(false);
+    expect(await action({}, data())).toHaveProperty("error");
+    expect(mocks.replaceCompanion).not.toHaveBeenCalled();
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+  });
+
+  it("allows an assigned editor to retry with current credentials without replacement", async () => {
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, profile: { ...adminUser.profile, role: "EVENT_EDITOR" } });
+    mocks.listEventEditorIds.mockResolvedValue([adminUser.id]);
+    expect(await retryReplacementInvitationAction({}, data())).toHaveProperty("success");
+    expect(mocks.exportQrPng).toHaveBeenCalledWith("CURRENT1", {});
+    expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ force: true, backupCode: "CURRENT1", to: "ana@example.com", manageUrl: "https://hub.example.com/events/cancel/current-cancel" }));
+    expect(mocks.replaceCompanion).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { reviewStatus: "new" }, { status: "cancelled" }, { status: "waitlisted" },
+    { attendees: [{ ...currentAttendee, isActive: false }] }, { attendees: [] },
+  ])("rejects retry when eligibility changed: %j", async (changes) => {
+    mocks.listRegistrations.mockResolvedValue([{ ...registration, ...changes }]);
+    expect(await retryReplacementInvitationAction({}, data())).toHaveProperty("error");
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+    expect(mocks.replaceCompanion).not.toHaveBeenCalled();
+  });
+
+  it.each(["false", "throw"])("surfaces retry email failure: %s", async (failure) => {
+    if (failure === "throw") mocks.sendConfirmationEmail.mockRejectedValue(new Error("offline"));
+    else mocks.sendConfirmationEmail.mockResolvedValue({ sent: false, reason: "provider_failure" });
+    expect(await retryReplacementInvitationAction({}, data())).toHaveProperty("error");
+    expect(mocks.replaceCompanion).not.toHaveBeenCalled();
   });
 });

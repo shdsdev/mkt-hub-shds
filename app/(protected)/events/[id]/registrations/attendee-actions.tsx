@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import type { RegistrationWithAttendees } from "@/modules/events";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
-import { editAttendeeAction, replaceCompanionAction, removeCompanionAction, type EditAttendeeState, type ReplaceCompanionState, type RemoveCompanionState } from "./actions";
+import { editAttendeeAction, removeCompanionAction, type EditAttendeeState, type RemoveCompanionState } from "./actions";
+import { ReplaceCompanionDialog } from "./replace-companion-dialog";
 
 const fieldClass = "h-10 rounded-md border border-input bg-transparent px-3 text-sm";
 const OCCUPATION_VALUES = ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"] as const;
@@ -94,7 +95,6 @@ export function AttendeeActions({
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [editState, editAction, editPending] = useActionState<EditAttendeeState, FormData>(editAttendeeAction, {});
-  const [replaceState, replaceAction, replacePending] = useActionState<ReplaceCompanionState, FormData>(replaceCompanionAction, {});
   const [removeState, removeAction, removePending] = useActionState<RemoveCompanionState, FormData>(removeCompanionAction, {});
   const [occupation, setOccupation] = useState(attendee.occupation ?? "");
   const router = useRouter();
@@ -104,12 +104,6 @@ export function AttendeeActions({
     setEditOpen(false);
     router.refresh();
   }, [editState.success, router]);
-
-  useEffect(() => {
-    if (!replaceState.success) return;
-    setReplaceOpen(false);
-    router.refresh();
-  }, [replaceState.success, router]);
 
   useEffect(() => {
     if (!removeState.success) return;
@@ -233,33 +227,11 @@ export function AttendeeActions({
         ) : null}
       </DialogPrimitive.Root>
 
-      <DialogPrimitive.Root open={replaceOpen} onOpenChange={setReplaceOpen}>
-        {replaceOpen ? (
-          <DialogPrimitive.Portal>
-            <DialogPrimitive.Backdrop className="fixed inset-0 z-[60] bg-black/60" />
-            <DialogPrimitive.Popup className="fixed inset-0 z-[60] m-auto h-fit max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-popover p-6 text-popover-foreground shadow-2xl">
-              <button type="button" onClick={() => setReplaceOpen(false)} className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-card hover:text-foreground" aria-label="Cerrar">
-                <span aria-hidden>×</span>
-              </button>
-              <DialogPrimitive.Title className="text-base font-semibold">Reemplazar acompañante</DialogPrimitive.Title>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Vas a cambiar a <span className="font-semibold">{attendee.fullName}</span> por otra persona. Su lugar y aprobación actuales se conservan; el QR y código anteriores dejarán de funcionar.
-              </p>
-              <form action={replaceAction} className="mt-5 flex flex-col gap-3">
-                <input type="hidden" name="registrationId" value={registration.id} />
-                <input type="hidden" name="eventId" value={eventId} />
-                <input type="hidden" name="attendeeId" value={attendee.id} />
-                <AttendeeFormFields attendee={{ fullName: "", email: "", phone: "", company: "", jobTitle: "", occupation: "" }} collectCompany={collectCompany} collectJobTitle={collectJobTitle} phoneRequired={phoneRequired} occupation={occupation} setOccupation={setOccupation} />
-                <div className="mt-2 flex justify-end gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setReplaceOpen(false)}>Cancelar</Button>
-                  <Button type="submit" size="sm" disabled={replacePending}>{replacePending ? "Reemplazando…" : "Confirmar reemplazo"}</Button>
-                </div>
-                {replaceState.error ? <p role="alert" className="text-sm text-destructive">{replaceState.error}</p> : null}
-              </form>
-            </DialogPrimitive.Popup>
-          </DialogPrimitive.Portal>
-        ) : null}
-      </DialogPrimitive.Root>
+      {replaceOpen ? (
+        <ReplaceCompanionDialog eventId={eventId} registrationId={registration.id} attendee={attendee} approved={registration.reviewStatus === "approved"} onClose={() => setReplaceOpen(false)}>
+          <AttendeeFormFields attendee={{ fullName: "", email: "", phone: "", company: "", jobTitle: "", occupation: "" }} collectCompany={collectCompany} collectJobTitle={collectJobTitle} phoneRequired={phoneRequired} occupation={occupation} setOccupation={setOccupation} />
+        </ReplaceCompanionDialog>
+      ) : null}
 
       <DialogPrimitive.Root open={removeOpen} onOpenChange={setRemoveOpen}>
         {removeOpen ? (
