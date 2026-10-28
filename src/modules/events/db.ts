@@ -212,6 +212,7 @@ export const eventAttendees = pgTable(
     jobTitle: text("job_title"),
     occupation: text("occupation"),
     state: text("state"),
+    isPrimary: boolean("is_primary").notNull().default(false),
     // Opaque per-attendee pass token (QR payload) — same token family as `cancelToken`.
     passToken: text("pass_token").notNull(),
     // 8-char Crockford base32 (no I/L/O/U), unique per event, human-typeable at the door.
@@ -231,7 +232,10 @@ export const eventAttendees = pgTable(
     uniqueIndex("event_attendees_event_email_active_unique")
       .on(table.eventId, table.emailNormalized)
       .where(sql`${table.isActive}`),
-    uniqueIndex("event_attendees_event_backup_code_unique").on(table.eventId, table.backupCode),
+     uniqueIndex("event_attendees_event_backup_code_unique").on(table.eventId, table.backupCode),
+     uniqueIndex("event_attendees_registration_primary_unique")
+       .on(table.registrationId)
+       .where(sql`${table.isPrimary}`),
   ],
 );
 

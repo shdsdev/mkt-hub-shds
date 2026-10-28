@@ -24,8 +24,7 @@ function escapeCsvField(value: string): string {
 }
 
 // spec.md "Authorized Registration Export" — one row per registration (not per attendee): the
-// primary attendee is always `attendees[0]` (registerForEvent inserts primary before companions,
-// in order), and companions are concatenated so the export stays reviewable in a spreadsheet
+// The explicit primary attendee is exported first, and companions are concatenated so the export stays reviewable in a spreadsheet
 // rather than fragmenting one booking across multiple rows.
 export function buildRegistrationsCsv(registrations: RegistrationWithAttendees[]): string {
   const customColumns = Array.from(
@@ -34,7 +33,8 @@ export function buildRegistrationsCsv(registrations: RegistrationWithAttendees[]
     ),
   ).sort(([, left], [, right]) => left.localeCompare(right, "es"));
   const rows = registrations.map((registration) => {
-    const [primary, ...companions] = registration.attendees;
+    const primary = registration.attendees.find((attendee) => attendee.isPrimary);
+    const companions = registration.attendees.filter((attendee) => attendee.id !== primary?.id);
     const passStatus = primary?.checkedInAt ? "registrado" : "pendiente";
     const fields = [
       registration.createdAt.toISOString(),

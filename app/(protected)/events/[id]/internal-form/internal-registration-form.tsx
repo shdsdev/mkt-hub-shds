@@ -44,7 +44,7 @@ export function InternalRegistrationForm({ eventId, phoneRequired }: { eventId: 
     if (result.addedCompanion) setAddedCompanion(result.addedCompanion);
   }
 
-  const primary = registration?.attendees[0];
+  const primary = registration?.attendees.find((attendee) => attendee.isPrimary);
 
   return (
     <div className="flex flex-col gap-6">

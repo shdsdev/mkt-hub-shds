@@ -66,7 +66,7 @@ export async function addInternalCompanionAction(formData: FormData): Promise<In
   const registration = (await listRegistrations(eventId.data, context.user.profile.organizationId)).find(
     (candidate) => candidate.id === registrationId.data,
   );
-  const primary = registration?.attendees[0];
+  const primary = registration?.attendees.find((attendee) => attendee.isPrimary);
   if (!primary) return { error: "No se encontró el registro." };
   if (!primary.company?.trim()) return { error: "El titular no tiene empresa configurada." };
   const result = await addAttendeeToRegistration({

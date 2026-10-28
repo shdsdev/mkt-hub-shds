@@ -5,7 +5,7 @@ const CLIENT_BRANDS = new Set(["shades", "bmighty", "drapery"]);
 const STATE_LABELS = new Map<string, string>(MEXICAN_STATES.map((state) => [state.value, state.label]));
 
 export function getPrimaryAttendee(registration: RegistrationWithAttendees) {
-  return registration.attendees[0];
+  return registration.attendees.find((attendee) => attendee.isPrimary);
 }
 
 export function isMetaAdsRegistration(registration: RegistrationWithAttendees): boolean {

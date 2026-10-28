@@ -27,6 +27,7 @@ export const auditAction = pgEnum("audit_action", [
   "event_attendee_update",
   "event_attendee_replace",
   "event_attendee_deactivate",
+  "event_primary_transfer",
 ]);
 
 // Append-only (no update/delete function anywhere in this module) — matches the print_runs

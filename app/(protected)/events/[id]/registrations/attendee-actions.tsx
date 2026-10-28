@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { MessageCircle, MoreHorizontal, Pencil, Phone, Trash2, UserRoundMinus } from "lucide-react";
+import { MessageCircle, MoreHorizontal, Pencil, Phone, Trash2, UserRoundMinus, UserRoundCog } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import type { RegistrationWithAttendees } from "@/modules/events";
 import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
 import { editAttendeeAction, removeCompanionAction, type EditAttendeeState, type RemoveCompanionState } from "./actions";
 import { ReplaceCompanionDialog } from "./replace-companion-dialog";
+import { TransferPrimaryDialog } from "./transfer-primary-dialog";
 
 const fieldClass = "h-10 rounded-md border border-input bg-transparent px-3 text-sm";
 const OCCUPATION_VALUES = ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"] as const;
@@ -93,6 +94,7 @@ export function AttendeeActions({
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [replaceOpen, setReplaceOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [editState, editAction, editPending] = useActionState<EditAttendeeState, FormData>(editAttendeeAction, {});
   const [removeState, removeAction, removePending] = useActionState<RemoveCompanionState, FormData>(removeCompanionAction, {});
@@ -185,6 +187,11 @@ export function AttendeeActions({
                   <UserRoundMinus className="size-3.5 text-muted-foreground" aria-hidden="true" /> Reemplazar
                 </DropdownMenuItem>
               ) : null}
+              {isPrimary ? (
+                <DropdownMenuItem className="min-h-9 gap-2 text-[13px]" onClick={() => { setOccupation(""); setTransferOpen(true); }}>
+                  <UserRoundCog className="size-3.5 text-muted-foreground" aria-hidden="true" /> Transferir titularidad
+                </DropdownMenuItem>
+              ) : null}
               {isRemovable ? <DropdownMenuSeparator className="my-1 -mx-0.5" /> : null}
               {isRemovable ? (
                 <DropdownMenuItem
@@ -231,6 +238,12 @@ export function AttendeeActions({
         <ReplaceCompanionDialog eventId={eventId} registrationId={registration.id} attendee={attendee} approved={registration.reviewStatus === "approved"} onClose={() => setReplaceOpen(false)}>
           <AttendeeFormFields attendee={{ fullName: "", email: "", phone: "", company: "", jobTitle: "", occupation: "" }} collectCompany={collectCompany} collectJobTitle={collectJobTitle} phoneRequired={phoneRequired} occupation={occupation} setOccupation={setOccupation} />
         </ReplaceCompanionDialog>
+      ) : null}
+
+      {transferOpen ? (
+        <TransferPrimaryDialog eventId={eventId} registrationId={registration.id} attendee={attendee} approved={registration.reviewStatus === "approved"} companions={registration.attendees.filter((candidate) => candidate.id !== attendee.id && candidate.isActive !== false).length} onClose={() => setTransferOpen(false)}>
+          <AttendeeFormFields attendee={{ fullName: "", email: "", phone: "", company: "", jobTitle: "", occupation: "" }} collectCompany={collectCompany} collectJobTitle={collectJobTitle} phoneRequired={phoneRequired} occupation={occupation} setOccupation={setOccupation} />
+        </TransferPrimaryDialog>
       ) : null}
 
       <DialogPrimitive.Root open={removeOpen} onOpenChange={setRemoveOpen}>

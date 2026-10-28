@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   deleteRejectedRegistration: vi.fn(),
   updateAttendee: vi.fn(),
   replaceCompanion: vi.fn(),
+  transferPrimaryAttendee: vi.fn(),
   deactivateCompanion: vi.fn(),
   listEventEditorIds: vi.fn(),
   recordAudit: vi.fn(),
@@ -41,6 +42,7 @@ vi.mock("@/modules/events", () => ({
   deleteRejectedRegistration: mocks.deleteRejectedRegistration,
   updateAttendee: mocks.updateAttendee,
   replaceCompanion: mocks.replaceCompanion,
+  transferPrimaryAttendee: mocks.transferPrimaryAttendee,
   deactivateCompanion: mocks.deactivateCompanion,
   listEventEditorIds: mocks.listEventEditorIds,
 }));
@@ -69,6 +71,8 @@ import {
   deleteRejectedRegistrationAction,
   editAttendeeAction,
   replaceCompanionAction,
+  transferPrimaryOwnershipAction,
+  retryPrimaryTransferInvitationAction,
   retryReplacementInvitationAction,
   removeCompanionAction,
   resendInvitationAction,
@@ -445,6 +449,27 @@ describe("attendee management actions", () => {
     expect(mocks.updateAttendee).not.toHaveBeenCalled();
   });
 
+  it("allows an assigned event editor to transfer the primary identity", async () => {
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "editor-1", profile: { ...adminUser.profile, role: "EVENT_EDITOR" } });
+    mocks.listEventEditorIds.mockResolvedValue(["editor-1"]);
+    mocks.listRegistrations.mockResolvedValue([{ id: REGISTRATION_ID, attendees: [{ id: "33333333-3333-4333-8333-333333333333", isPrimary: true }] }]);
+    mocks.transferPrimaryAttendee.mockResolvedValue({
+      ok: true,
+      attendee: { id: "33333333-3333-4333-8333-333333333333", fullName: "New Primary", email: "new@example.com", backupCode: "NEW12345" },
+      previous: { fullName: "Old Primary", email: "old@example.com" },
+      registrationStatus: "pending_review",
+      reviewStatus: "new",
+      cancelToken: "cancel-token",
+    });
+
+    const result = await transferPrimaryOwnershipAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333", fullName: "New Primary", email: "new@example.com" }));
+
+    expect(result).toEqual({ success: "Titularidad transferida." });
+    expect(mocks.transferPrimaryAttendee).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", organizationId: "org-1" }));
+    expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "event_primary_transfer" }));
+  });
+
   it("replaces a companion and records the operation", async () => {
     mocks.listRegistrations.mockResolvedValue([{ id: REGISTRATION_ID, reviewStatus: "new", attendees: [{ id: "33333333-3333-4333-8333-333333333333" }] }]);
     mocks.replaceCompanion.mockResolvedValue({ ok: true, attendee: { id: "attendee-2", fullName: "Ana", email: "ana@example.com", backupCode: "NEW12345" }, previous: { fullName: "Pedro", email: "pedro@example.com" } });
@@ -555,5 +580,44 @@ describe("replacement invitation delivery", () => {
     else mocks.sendConfirmationEmail.mockResolvedValue({ sent: false, reason: "provider_failure" });
     expect(await retryReplacementInvitationAction({}, data())).toHaveProperty("error");
     expect(mocks.replaceCompanion).not.toHaveBeenCalled();
+  });
+});
+
+describe("primary transfer invitation delivery", () => {
+  const attendeeId = "33333333-3333-4333-8333-333333333333";
+  const registration = { id: REGISTRATION_ID, eventId: EVENT_ID, status: "confirmed", reviewStatus: "approved", cancelToken: "current-cancel", attendees: [{ id: attendeeId, isPrimary: true, isActive: true, organizationId: "org-1", fullName: "New Primary", email: "new@example.com", backupCode: "NEW12345" }] };
+  const data = () => formData({ attendeeId, fullName: "New Primary", email: "new@example.com" });
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.getCurrentUser.mockResolvedValue(adminUser);
+    mocks.isActive.mockReturnValue(true);
+    mocks.isAdmin.mockReturnValue(true);
+    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop", registrationFormConfig: { fields: { phone: { required: false } } } });
+    mocks.listRegistrations.mockResolvedValue([registration]);
+    mocks.transferPrimaryAttendee.mockResolvedValue({ ok: true, attendee: registration.attendees[0], previous: { fullName: "Old Primary", email: "old@example.com" }, registrationStatus: "confirmed", reviewStatus: "approved", cancelToken: "current-cancel" });
+    mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
+    mocks.sendConfirmationEmail.mockResolvedValue({ sent: true });
+  });
+
+  it("sends a forced invitation after an approved transfer", async () => {
+    await expect(transferPrimaryOwnershipAction({}, data())).resolves.toEqual({ success: "Titularidad transferida." });
+    expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ attendeeId, force: true, to: "new@example.com", backupCode: "NEW12345" }));
+  });
+
+  it("does not email a pending transfer", async () => {
+    mocks.listRegistrations.mockResolvedValue([{ ...registration, reviewStatus: "new", status: "pending_review" }]);
+    mocks.transferPrimaryAttendee.mockResolvedValue({ ok: true, attendee: registration.attendees[0], previous: { fullName: "Old Primary", email: "old@example.com" }, registrationStatus: "pending_review", reviewStatus: "new", cancelToken: "current-cancel" });
+    await expect(transferPrimaryOwnershipAction({}, data())).resolves.toEqual({ success: "Titularidad transferida." });
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+  });
+
+  it("retries delivery without transferring again", async () => {
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "editor-1", profile: { ...adminUser.profile, role: "EVENT_EDITOR" } });
+    mocks.listEventEditorIds.mockResolvedValue(["editor-1"]);
+    await expect(retryPrimaryTransferInvitationAction({}, data())).resolves.toHaveProperty("success");
+    expect(mocks.transferPrimaryAttendee).not.toHaveBeenCalled();
+    expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ force: true, to: "new@example.com" }));
   });
 });

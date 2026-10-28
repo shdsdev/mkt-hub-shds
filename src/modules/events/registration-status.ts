@@ -2,11 +2,11 @@ export type RegistrationStatus = "pending_review" | "confirmed" | "waitlisted" |
 
 export function getEffectiveRegistrationStatus(
   status: RegistrationStatus,
-  attendees: readonly { checkedInAt: Date | null }[],
+  attendees: readonly { checkedInAt: Date | null; isPrimary?: boolean }[],
 ): RegistrationStatus {
   if (status !== "confirmed" && status !== "checked_in") return status;
 
-  const primaryCheckedIn = Boolean(attendees[0]?.checkedInAt);
+  const primaryCheckedIn = Boolean(attendees.find((attendee) => attendee.isPrimary)?.checkedInAt);
   const everyoneCheckedIn = attendees.length > 0 && attendees.every((attendee) => Boolean(attendee.checkedInAt));
 
   if (everyoneCheckedIn) return "checked_in";

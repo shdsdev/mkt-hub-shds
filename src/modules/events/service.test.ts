@@ -79,6 +79,7 @@ import {
   getEventInsights,
   addAttendeeToRegistration,
   updatePrimaryAttendee,
+  transferPrimaryAttendee,
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
   notifyEventWebhook,
@@ -1619,6 +1620,38 @@ describe("events service — getEventInsights", () => {
   });
 });
 
+describe("events service — transferPrimaryAttendee", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) => callback({ select: txSelectMock, update: txUpdateMock }));
+  });
+
+  it("updates the explicit primary in place, rotates credentials, and preserves registration consents", async () => {
+    const primary = { id: "att-1", registrationId: "reg-1", eventId: "event-1", organizationId: "org-1", isPrimary: true, isActive: true, checkedInAt: null, fullName: "Old Primary", email: "old@example.com", passToken: "old-pass", backupCode: "OLD12345" };
+    const registration = { id: "reg-1", eventId: "event-1", organizationId: "org-1", status: "confirmed", reviewStatus: "approved", cancelToken: "cancel-token", consents: { privacyAcceptedAt: "2026-01-01T00:00:00.000Z", termsAcceptedAt: "2026-01-01T00:00:00.000Z", marketingAcceptedAt: "2026-01-01T00:00:00.000Z" } };
+    const updated = { ...primary, fullName: "New Primary", email: "new@example.com", passToken: "new-pass", backupCode: "NEW12345" };
+    txSelectMock.mockReturnValueOnce(txChain([{ attendee: primary, registration }]));
+    txUpdateMock.mockReturnValueOnce(txChain([updated]));
+
+    const result = await transferPrimaryAttendee({ attendeeId: primary.id, organizationId: "org-1", attendee: { fullName: "New Primary", email: "new@example.com" } });
+
+    expect(result).toMatchObject({ ok: true, attendee: updated, previous: { fullName: "Old Primary", email: "old@example.com" }, registrationStatus: "confirmed", reviewStatus: "approved" });
+    expect(updated.passToken).not.toBe(primary.passToken);
+    expect(updated.backupCode).not.toBe(primary.backupCode);
+    expect(txUpdateMock).toHaveBeenCalledWith(expect.anything());
+    expect((txUpdateMock.mock.results[0].value as { set: ReturnType<typeof vi.fn> }).set).toHaveBeenCalledWith(expect.objectContaining({ isPrimary: true, isActive: true }));
+  });
+
+  it.each([
+    ["already_checked_in", { checkedInAt: new Date() }],
+    ["inactive", { isActive: false }],
+  ] as const)("rejects a primary transfer when the current primary is %s", async (reason, changes) => {
+    txSelectMock.mockReturnValueOnce(txChain([{ attendee: { id: "att-1", isPrimary: true, isActive: true, checkedInAt: null, ...changes }, registration: { id: "reg-1", status: "confirmed", reviewStatus: "approved" } }]));
+    await expect(transferPrimaryAttendee({ attendeeId: "att-1", organizationId: "org-1", attendee: { fullName: "New", email: "new@example.com" } })).resolves.toEqual({ ok: false, reason });
+    expect(txUpdateMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("events service — getEventDashboardData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1635,11 +1668,11 @@ describe("events service — getEventDashboardData", () => {
       { id: "reg-6", eventId: "event-1", organizationId: "org-1", status: "rejected", reviewStatus: "rejected", createdAt: new Date("2026-10-17T10:00:00Z"), requestedMoreCompanions: false },
     ];
     const attendees = [
-      { id: "att-1", registrationId: "reg-1", eventId: "event-1", isActive: true, checkedInAt: null, fullName: "Ada Lovelace", email: "ada@example.com" },
-      { id: "att-2", registrationId: "reg-2", eventId: "event-1", isActive: true, checkedInAt: null, fullName: "Alan Turing", email: "alan@example.com" },
+      { id: "att-1", registrationId: "reg-1", eventId: "event-1", isPrimary: true, isActive: true, checkedInAt: null, fullName: "Ada Lovelace", email: "ada@example.com" },
+      { id: "att-2", registrationId: "reg-2", eventId: "event-1", isPrimary: true, isActive: true, checkedInAt: null, fullName: "Alan Turing", email: "alan@example.com" },
       { id: "att-3", registrationId: "reg-2", eventId: "event-1", isActive: true, checkedInAt: new Date("2026-10-22T11:00:00Z"), fullName: "Grace Hopper", email: "grace@example.com" },
-      { id: "att-4", registrationId: "reg-3", eventId: "event-1", isActive: true, checkedInAt: null, fullName: "Linus Torvalds", email: "linus@example.com" },
-      { id: "att-5", registrationId: "reg-5", eventId: "event-1", isActive: true, checkedInAt: null, fullName: "Margaret Hamilton", email: "margaret@example.com" },
+      { id: "att-4", registrationId: "reg-3", eventId: "event-1", isPrimary: true, isActive: true, checkedInAt: null, fullName: "Linus Torvalds", email: "linus@example.com" },
+      { id: "att-5", registrationId: "reg-5", eventId: "event-1", isPrimary: true, isActive: true, checkedInAt: null, fullName: "Margaret Hamilton", email: "margaret@example.com" },
     ];
     selectMock
       .mockReturnValueOnce(selectChain([event]))

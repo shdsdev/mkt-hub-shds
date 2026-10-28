@@ -107,7 +107,7 @@ export function RegistrationDetailSheet({
         <DialogPrimitive.Popup className="fixed inset-0 z-50 m-auto flex h-fit max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-6xl flex-col overflow-y-auto rounded-2xl border border-border bg-popover px-5 py-8 text-popover-foreground shadow-2xl sm:px-8 sm:py-10 lg:px-10 lg:py-12">
           <div className="flex items-start justify-between gap-6">
             <div className="min-w-0">
-              <DialogPrimitive.Title className="pr-2 text-xl font-semibold tracking-tight">{registration.attendees[0]?.fullName ?? "Registro"}</DialogPrimitive.Title>
+              <DialogPrimitive.Title className="pr-2 text-xl font-semibold tracking-tight">{registration.attendees.find((attendee) => attendee.isPrimary)?.fullName ?? "Registro"}</DialogPrimitive.Title>
               <DialogPrimitive.Description className="mt-1 text-xs text-muted-foreground">
                 {statusLabel} · {formatRegistrationDate(registration.createdAt)} · {registration.source === "admin_added" ? "Agregado por admin" : "Público"}
               </DialogPrimitive.Description>
@@ -179,25 +179,25 @@ export function RegistrationDetailSheet({
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="rounded-md border border-border p-3">
                 <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Correo</p>
-                <a href={`mailto:${registration.attendees[0]?.email ?? ""}`} className="break-all text-sm font-medium underline underline-offset-2">
-                  {registration.attendees[0]?.email ?? "—"}
+                <a href={`mailto:${registration.attendees.find((attendee) => attendee.isPrimary)?.email ?? ""}`} className="break-all text-sm font-medium underline underline-offset-2">
+                  {registration.attendees.find((attendee) => attendee.isPrimary)?.email ?? "—"}
                 </a>
               </div>
               <div className="rounded-md border border-border p-3">
                 <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Teléfono</p>
-                <p className="text-sm font-medium">{registration.attendees[0]?.phone ?? "—"}</p>
+                <p className="text-sm font-medium">{registration.attendees.find((attendee) => attendee.isPrimary)?.phone ?? "—"}</p>
               </div>
               <div className="rounded-md border border-border p-3">
                 <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Empresa</p>
-                <p className="text-sm font-medium">{registration.attendees[0]?.company ?? "—"}</p>
+                <p className="text-sm font-medium">{registration.attendees.find((attendee) => attendee.isPrimary)?.company ?? "—"}</p>
               </div>
               <div className="rounded-md border border-border p-3">
                 <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Puesto</p>
-                <p className="text-sm font-medium">{registration.attendees[0]?.jobTitle ?? "—"}</p>
+                <p className="text-sm font-medium">{registration.attendees.find((attendee) => attendee.isPrimary)?.jobTitle ?? "—"}</p>
               </div>
               <div className="rounded-md border border-border p-3 sm:col-span-2">
                 <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actividad profesional</p>
-                <OccupationPill occupation={registration.attendees[0]?.occupation} />
+                <OccupationPill occupation={registration.attendees.find((attendee) => attendee.isPrimary)?.occupation} />
               </div>
             </div>
           </section>
@@ -259,13 +259,13 @@ export function RegistrationDetailSheet({
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Asistentes ({registration.attendees.length})
             </h3>
-            {registration.attendees.map((attendee, index) => (
+            {registration.attendees.map((attendee) => (
               <div key={attendee.id} className={`flex flex-col gap-2 rounded-lg border p-4 ${attendee.checkedInAt ? "border-emerald-500/40 bg-emerald-500/10" : attendee.isActive === false ? "border-destructive/30 bg-destructive/5 opacity-70" : "border-border"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-base font-semibold">{attendee.fullName}</p>
-                      {index === 0 ? <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Titular</span> : null}
+                      {attendee.isPrimary ? <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Titular</span> : null}
                     </div>
                     <p className="text-sm text-muted-foreground">{attendee.email}</p><OccupationPill occupation={attendee.occupation} />
                   </div>
@@ -303,7 +303,7 @@ export function RegistrationDetailSheet({
                       collectCompany={collectCompany}
                       collectJobTitle={collectJobTitle}
                       phoneRequired={phoneRequired}
-                      isPrimary={index === 0}
+                       isPrimary={attendee.isPrimary}
                       canManage={canManageAttendees}
                     />
                   ) : null}

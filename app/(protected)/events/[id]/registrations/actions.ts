@@ -16,6 +16,7 @@ import {
   notifyEventWebhook,
   OCCUPATION_OPTIONS,
   replaceCompanion,
+  transferPrimaryAttendee,
   resolveRegistrationFormConfig,
   updateAttendee,
   updateRegistrationReviewStatus,
@@ -78,6 +79,7 @@ export type ReplaceCompanionState = {
   warning?: string;
   retry?: { eventId: string; registrationId: string; attendeeId: string };
 };
+export type TransferPrimaryState = ReplaceCompanionState;
 export type RemoveCompanionState = { error?: string; success?: string };
 
 async function requireEventManager(eventId: string) {
@@ -284,6 +286,75 @@ export async function replaceCompanionAction(
   return { success: "Acompañante reemplazado." };
 }
 
+export async function transferPrimaryOwnershipAction(
+  _prevState: TransferPrimaryState,
+  formData: FormData,
+): Promise<TransferPrimaryState> {
+  const context = await requireEventManager(String(formData.get("eventId")));
+  if (!context) return { error: ATTENDEE_PERMISSION_ERROR };
+  const attendeeId = z.string().uuid().safeParse(formData.get("attendeeId"));
+  if (!attendeeId.success) return { error: "No se pudo identificar al titular." };
+  const parsed = schema.safeParse({
+    registrationId: formData.get("registrationId"),
+    eventId: formData.get("eventId"),
+    fullName: formData.get("fullName"),
+    email: formData.get("email"),
+    phone: formData.get("phone") ?? undefined,
+    company: formData.get("company") ?? undefined,
+    jobTitle: formData.get("jobTitle") ?? undefined,
+    occupation: formData.get("occupation"),
+  });
+  if (!parsed.success) return { error: "Revisa los datos del nuevo titular." };
+  const registrations = await listRegistrations(parsed.data.eventId, context.user.profile.organizationId);
+  const registration = registrations.find((candidate) => candidate.id === parsed.data.registrationId);
+  const current = registration?.attendees.find((attendee) => attendee.id === attendeeId.data && attendee.isPrimary);
+  if (!registration || !current) return { error: "No se encontró al titular en este registro y evento." };
+  if (context.event && resolveRegistrationFormConfig(context.event).fields.phone.required && !parsed.data.phone?.trim()) return { error: "El teléfono es obligatorio." };
+
+  const result = await transferPrimaryAttendee({
+    attendeeId: attendeeId.data,
+    organizationId: context.user.profile.organizationId,
+    attendee: { fullName: parsed.data.fullName, email: parsed.data.email, phone: parsed.data.phone || undefined, company: parsed.data.company || undefined, jobTitle: parsed.data.jobTitle || undefined, occupation: parsed.data.occupation },
+  });
+  if (!result.ok) {
+    const messages: Record<Exclude<typeof result, { ok: true }>["reason"], string> = {
+      not_found: "No se encontró al titular.",
+      already_checked_in: "El titular ya ingresó al evento.",
+      inactive: "El titular ya no está activo.",
+      rejected_or_cancelled: "No se puede transferir un registro rechazado o cancelado.",
+      duplicate_email: "Ya existe un asistente activo con ese correo en este evento.",
+    };
+    return { error: messages[result.reason] };
+  }
+
+  await recordAudit({
+    organizationId: context.user.profile.organizationId,
+    userId: context.user.id,
+    action: "event_primary_transfer",
+    resourceType: "event_attendee",
+    resourceId: attendeeId.data,
+    before: result.previous,
+    after: { fullName: result.attendee.fullName, email: result.attendee.email, backupCode: result.attendee.backupCode },
+  });
+  let sent = true;
+  if (result.reviewStatus === "approved" && (result.registrationStatus === "confirmed" || result.registrationStatus === "checked_in")) sent = await sendReplacementInvitation(context.event, result.attendee, result.cancelToken);
+  if (!sent) return { success: "Titularidad transferida.", warning: "La transferencia se completó, pero no se pudo enviar la invitación. Puedes reintentar el envío sin volver a transferir la titularidad.", retry: { eventId: parsed.data.eventId, registrationId: parsed.data.registrationId, attendeeId: result.attendee.id } };
+  revalidatePath(`/events/${parsed.data.eventId}/registrations`);
+  return { success: "Titularidad transferida." };
+}
+
+export async function retryPrimaryTransferInvitationAction(_prevState: ResendInvitationState, formData: FormData): Promise<ResendInvitationState> {
+  const context = await requireEventManager(String(formData.get("eventId")));
+  if (!context) return { error: ATTENDEE_PERMISSION_ERROR };
+  const parsed = z.object({ eventId: z.string().uuid(), registrationId: z.string().uuid(), attendeeId: z.string().uuid() }).safeParse({ eventId: formData.get("eventId"), registrationId: formData.get("registrationId"), attendeeId: formData.get("attendeeId") });
+  if (!parsed.success) return { error: "No se pudo identificar al titular." };
+  const registration = (await listRegistrations(parsed.data.eventId, context.user.profile.organizationId)).find(({ id }) => id === parsed.data.registrationId);
+  const attendee = registration?.attendees.find(({ id, isPrimary }) => id === parsed.data.attendeeId && isPrimary);
+  if (!registration || !attendee?.isActive || registration.reviewStatus !== "approved" || !["confirmed", "checked_in"].includes(registration.status)) return { error: "La invitación solo se puede enviar al titular activo de un registro aprobado en este evento." };
+  if (!await sendReplacementInvitation(context.event, attendee, registration.cancelToken)) return { error: "No se pudo enviar la invitación. La transferencia sigue completada; puedes reintentar el envío." };
+  return { success: "Invitación enviada por correo." };
+}
+
 async function sendReplacementInvitation(
   event: NonNullable<Awaited<ReturnType<typeof getEvent>>>,
   attendee: RegistrationWithAttendees["attendees"][number],
@@ -434,7 +505,7 @@ export async function updateRegistrationReviewStatusAction(
   const registrations = await listRegistrations(parsed.data.eventId, user.profile.organizationId);
   const fullRegistration = registrations.find((candidate) => candidate.id === parsed.data.registrationId);
   const confirmationAttendees = fullRegistration?.attendees.filter((attendee) => attendee.isActive !== false) ?? [];
-  const primary = confirmationAttendees[0];
+  const primary = fullRegistration?.attendees.find((attendee) => attendee.isPrimary);
   const href = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/${event.id}/registrations?registrationId=${parsed.data.registrationId}`;
   const recipientIds = [...new Set([
     ...receptionistIds,

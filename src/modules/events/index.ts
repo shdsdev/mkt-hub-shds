@@ -47,6 +47,7 @@ export {
   updateAttendee,
   updatePrimaryAttendee,
   replaceCompanion,
+  transferPrimaryAttendee,
   deactivateCompanion,
   cancelRegistrationByToken,
   checkInAttendee,

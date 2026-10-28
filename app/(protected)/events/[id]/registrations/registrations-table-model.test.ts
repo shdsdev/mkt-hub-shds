@@ -15,7 +15,8 @@ const registrationData = {
   utmSource: "instagram",
   attendees: [
     {
-      id: "att-1",
+        id: "att-1",
+        isPrimary: true,
         fullName: "María González",
         email: "maria@example.com",
         state: "jalisco",
@@ -34,8 +35,9 @@ const registrationData = {
 const registration = registrationData as never;
 
 describe("registration table model", () => {
-  it("uses the first attendee as the primary contact", () => {
-    expect(getPrimaryAttendee(registration)?.fullName).toBe("María González");
+  it("uses the explicit primary attendee instead of array position", () => {
+    const reordered = { ...registrationData, attendees: [{ ...registrationData.attendees[1], isPrimary: false }, { ...registrationData.attendees[0], isPrimary: true }] } as never;
+    expect(getPrimaryAttendee(reordered)?.fullName).toBe("María González");
   });
 
   it("summarizes the high-value columns without losing detail data", () => {
@@ -54,7 +56,7 @@ describe("registration table model", () => {
       ...registrationData,
       status: "checked_in",
       attendees: [
-        { ...registrationData.attendees[0], checkedInAt: new Date("2026-10-13T21:00:00.000Z") },
+        { ...registrationData.attendees[0], isPrimary: true, checkedInAt: new Date("2026-10-13T21:00:00.000Z") },
         registrationData.attendees[1],
       ],
     } as never;

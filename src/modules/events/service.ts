@@ -841,6 +841,7 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
             jobTitle: attendee.jobTitle,
             occupation: attendee.occupation,
             state: attendee.state,
+            isPrimary: attendees.length === 0,
             passToken: generateOpaqueToken(),
             backupCode: generateBackupCode(),
             isActive: true,
@@ -915,6 +916,7 @@ export async function addAttendeeToRegistration(
            company: input.attendee.company,
            jobTitle: input.attendee.jobTitle,
            occupation: input.attendee.occupation,
+           isPrimary: false,
           passToken: generateOpaqueToken(),
           backupCode: generateBackupCode(),
           isActive: true,
@@ -1159,8 +1161,7 @@ async function getPrimaryAttendee(registrationId: string, organizationId: string
     .select()
     .from(eventAttendees)
     .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
-    .where(and(eq(eventAttendees.registrationId, registrationId), eq(eventRegistrations.organizationId, organizationId)))
-    .orderBy(asc(eventAttendees.createdAt))
+    .where(and(eq(eventAttendees.registrationId, registrationId), eq(eventRegistrations.organizationId, organizationId), eq(eventAttendees.isPrimary, true)))
     .limit(1);
   return row[0]?.event_attendees;
 }
@@ -1186,12 +1187,7 @@ export async function replaceCompanion(input: {
       if (!target.attendee.isActive) return { ok: false, reason: "inactive" };
       if (target.attendee.checkedInAt) return { ok: false, reason: "already_checked_in" };
 
-      const attendees = await tx
-        .select()
-        .from(eventAttendees)
-        .where(eq(eventAttendees.registrationId, target.registration.id))
-        .orderBy(asc(eventAttendees.createdAt));
-      if (attendees[0]?.id === target.attendee.id) return { ok: false, reason: "primary_attendee" };
+      if (target.attendee.isPrimary) return { ok: false, reason: "primary_attendee" };
 
       const [updated] = await tx
         .update(eventAttendees)
@@ -1225,6 +1221,56 @@ export async function replaceCompanion(input: {
   }
 }
 
+export type TransferPrimaryAttendeeResult =
+  | { ok: true; attendee: EventAttendeeRow; previous: Pick<EventAttendeeRow, "fullName" | "email">; registrationStatus: EventRegistrationRow["status"]; reviewStatus: EventRegistrationRow["reviewStatus"]; cancelToken: string }
+  | { ok: false; reason: "not_found" | "already_checked_in" | "inactive" | "rejected_or_cancelled" | "duplicate_email" };
+
+export async function transferPrimaryAttendee(input: {
+  attendeeId: string;
+  organizationId: string;
+  attendee: Pick<AttendeeInput, "fullName" | "email" | "phone" | "company" | "jobTitle" | "occupation">;
+}): Promise<TransferPrimaryAttendeeResult> {
+  try {
+    return await db.transaction(async (tx) => {
+      const [target] = await tx
+        .select({ attendee: eventAttendees, registration: eventRegistrations })
+        .from(eventAttendees)
+        .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
+        .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.isPrimary, true), eq(eventRegistrations.organizationId, input.organizationId)))
+        .for("update")
+        .limit(1);
+      if (!target) return { ok: false, reason: "not_found" };
+      if (target.registration.status === "rejected" || target.registration.status === "cancelled") return { ok: false, reason: "rejected_or_cancelled" };
+      if (!target.attendee.isActive) return { ok: false, reason: "inactive" };
+      if (target.attendee.checkedInAt) return { ok: false, reason: "already_checked_in" };
+
+      const [updated] = await tx
+        .update(eventAttendees)
+        .set({
+          fullName: input.attendee.fullName,
+          email: input.attendee.email,
+          emailNormalized: normalizeEmail(input.attendee.email),
+          phone: input.attendee.phone,
+          company: input.attendee.company,
+          jobTitle: input.attendee.jobTitle,
+          occupation: input.attendee.occupation,
+          passToken: generateOpaqueToken(),
+          backupCode: generateBackupCode(),
+          isPrimary: true,
+          isActive: true,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(eventAttendees.id, input.attendeeId), isNull(eventAttendees.checkedInAt)))
+        .returning();
+      if (!updated) return { ok: false, reason: "already_checked_in" };
+      return { ok: true, attendee: updated, previous: { fullName: target.attendee.fullName, email: target.attendee.email }, registrationStatus: target.registration.status, reviewStatus: target.registration.reviewStatus, cancelToken: target.registration.cancelToken };
+    });
+  } catch (error) {
+    if (isDuplicateEmailViolation(error)) return { ok: false, reason: "duplicate_email" };
+    throw error;
+  }
+}
+
 export type DeactivateCompanionResult =
   | { ok: true; attendee: EventAttendeeRow; previous: Pick<EventAttendeeRow, "fullName" | "email"> }
   | { ok: false; reason: "not_found" | "primary_attendee" | "already_checked_in" | "inactive" };
@@ -1241,12 +1287,7 @@ export async function deactivateCompanion(input: { attendeeId: string; organizat
     if (!target.attendee.isActive) return { ok: false, reason: "inactive" };
     if (target.attendee.checkedInAt) return { ok: false, reason: "already_checked_in" };
 
-    const attendees = await tx
-      .select()
-      .from(eventAttendees)
-      .where(eq(eventAttendees.registrationId, target.registration.id))
-      .orderBy(asc(eventAttendees.createdAt));
-    if (attendees[0]?.id === target.attendee.id) return { ok: false, reason: "primary_attendee" };
+    if (target.attendee.isPrimary) return { ok: false, reason: "primary_attendee" };
 
     const [updated] = await tx
       .update(eventAttendees)
@@ -1628,7 +1669,7 @@ export async function getEventDashboardData(
     createdAt: registration.createdAt,
     status: registration.status,
     reviewStatus: registration.reviewStatus,
-    primaryName: registration.attendees[0]?.fullName ?? "Sin nombre",
+    primaryName: registration.attendees.find((attendee) => attendee.isPrimary)?.fullName ?? "Sin nombre",
     attendeeCount: registration.attendees.filter((attendee) => attendee.isActive).length,
   }));
 

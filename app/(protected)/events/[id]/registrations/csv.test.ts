@@ -46,7 +46,7 @@ describe("buildRegistrationsCsv", () => {
     const row = registration({
       utmSource: "newsletter",
       attendees: [
-        { id: "att-1", registrationId: "reg-1", fullName: "Ada Lovelace", email: "ada@example.com", state: "jalisco", checkedInAt: null },
+        { id: "att-1", registrationId: "reg-1", isPrimary: true, fullName: "Ada Lovelace", email: "ada@example.com", state: "jalisco", checkedInAt: null },
         { id: "att-2", registrationId: "reg-1", fullName: "Alan Turing", email: "alan@example.com", checkedInAt: null },
       ] as never,
     });
@@ -60,7 +60,7 @@ describe("buildRegistrationsCsv", () => {
     const row = registration({
       attendees: [
         {
-          id: "att-1",
+          id: "att-1", isPrimary: true,
           registrationId: "reg-1",
           fullName: "Ada Lovelace",
           email: "ada@example.com",
@@ -76,7 +76,7 @@ describe("buildRegistrationsCsv", () => {
   it("quotes a field containing a comma", () => {
     const row = registration({
       attendees: [
-        { id: "att-1", registrationId: "reg-1", fullName: "Lovelace, Ada", email: "ada@example.com", checkedInAt: null },
+        { id: "att-1", registrationId: "reg-1", isPrimary: true, fullName: "Lovelace, Ada", email: "ada@example.com", checkedInAt: null },
       ] as never,
     });
 
@@ -101,7 +101,7 @@ describe("buildRegistrationsCsv", () => {
   it("exports primary and companion occupation", () => {
     const csv = buildRegistrationsCsv([registration({
       attendees: [
-        { id: "att-1", registrationId: "reg-1", fullName: "Ada Lovelace", email: "ada@example.com", occupation: "architect-decorator", checkedInAt: null },
+        { id: "att-1", registrationId: "reg-1", isPrimary: true, fullName: "Ada Lovelace", email: "ada@example.com", occupation: "architect-decorator", checkedInAt: null },
         { id: "att-2", registrationId: "reg-1", fullName: "Alan Turing", email: "alan@example.com", occupation: "installer-technician", checkedInAt: null },
       ] as never,
     })]);
