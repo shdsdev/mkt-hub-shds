@@ -1,0 +1,1 @@
+ALTER TABLE "email_contacts" ADD COLUMN "source" text DEFAULT 'event_registration' NOT NULL;

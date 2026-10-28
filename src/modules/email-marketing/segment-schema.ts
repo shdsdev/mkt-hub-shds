@@ -7,16 +7,13 @@ const subscriptionStatusSchema = z.enum([
   "pending",
 ]);
 
-const registrationStatusSchema = z.enum([
-  "pending_review",
-  "confirmed",
-  "waitlisted",
-  "rejected",
-  "cancelled",
-  "checked_in",
-]);
-
 const stringListSchema = z.array(z.string().trim().min(1).max(120)).max(50);
+
+export const emailSegmentConditionSchema = z.object({
+  field: z.enum(["fullName", "email", "company", "tag", "event", "subscriptionStatus"]),
+  operator: z.enum(["contains", "not_contains", "equals", "not_equals", "is_empty", "is_not_empty", "has", "not_has"]),
+  value: z.string().trim().max(320),
+});
 
 export const emailSegmentDefinitionSchema = z.object({
   version: z.literal(1),
@@ -24,15 +21,15 @@ export const emailSegmentDefinitionSchema = z.object({
     .object({
       subscriptionStatuses: z.array(subscriptionStatusSchema).max(4).optional(),
       eventIds: z.array(z.string().uuid()).max(100).optional(),
-      registrationStatuses: z.array(registrationStatusSchema).max(6).optional(),
-      interests: stringListSchema.optional(),
-      clientBrands: stringListSchema.optional(),
-      attributes: z.record(z.string().trim().min(1).max(80), z.string().trim().max(200)).optional(),
+      tags: stringListSchema.optional(),
+      logic: z.enum(["all", "any"]).default("all"),
+      conditions: z.array(emailSegmentConditionSchema).max(20).optional(),
     })
     .strict(),
 });
 
 export type EmailSegmentDefinition = z.infer<typeof emailSegmentDefinitionSchema>;
+export type EmailSegmentCondition = z.infer<typeof emailSegmentConditionSchema>;
 
 export function parseEmailSegmentDefinition(input: unknown): EmailSegmentDefinition {
   return emailSegmentDefinitionSchema.parse(input);

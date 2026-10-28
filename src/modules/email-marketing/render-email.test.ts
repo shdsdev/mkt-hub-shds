@@ -49,6 +49,86 @@ describe("renderEmailHtml", () => {
     expect(html).toContain("unsubscribe_url");
   });
 
+  it("preserves complete email documents and their safe style blocks", () => {
+    const html = renderEmailHtml({
+      version: 1,
+      mode: "html",
+      bodyHtml: '<!doctype html><html><head><style>.hero{background:#15434a;letter-spacing:2px} @import url("https://evil.example/style.css");</style></head><body><table class="hero" style="border-collapse:collapse;max-width:600px"><tr><td>Campaign</td></tr></table></body></html>',
+    });
+
+    expect(html).toContain(".hero");
+    expect(html).toContain("background:#15434a");
+    expect(html).toContain("border-collapse: collapse");
+    expect(html).not.toContain("@import");
+    expect(html).not.toContain("evil.example/style.css");
+    expect(html).not.toContain("<main");
+  });
+
+  it("inlines safe class styles for complete email documents", () => {
+    const html = renderEmailHtml({
+      version: 1,
+      mode: "html",
+      bodyHtml: '<!doctype html><html><head><style>.hero{background:#15434a;color:#fff;padding:24px}</style></head><body><table class="hero"><tr><td>Campaign</td></tr></table></body></html>',
+    });
+
+    expect(html).toMatch(/style="[^\"]*background: #15434a;[^\"]*color: #fff;[^\"]*padding: 24px;/);
+  });
+
+  it("keeps zero-based spacing values used by email layouts", () => {
+    const html = renderEmailHtml({
+      version: 1,
+      mode: "html",
+      bodyHtml: '<!doctype html><html><head><style>.section{margin:0;padding:0 24px 32px;line-height:1.4}</style></head><body><div class="section">Campaign</div></body></html>',
+    });
+
+    expect(html).toMatch(/style="[^\"]*margin: 0;[^\"]*padding: 0 24px 32px;[^\"]*line-height: 1.4;/);
+  });
+
+  it("keeps zero-based spacing values already present inline", () => {
+    const html = renderEmailHtml({
+      version: 1,
+      mode: "html",
+      bodyHtml: '<!doctype html><html><body><div style="margin:0;padding:0 24px 32px;line-height:1.4">Campaign</div></body></html>',
+    });
+
+    expect(html).toMatch(/style="[^\"]*margin:0;[^\"]*padding:0 24px 32px;[^\"]*line-height:1.4/);
+  });
+
+  it("keeps safe font shorthand from email templates", () => {
+    const html = renderEmailHtml({
+      version: 1,
+      mode: "html",
+      bodyHtml: '<!doctype html><html><body><div style="font:500 33px/1.13 &quot;Space Grotesk&quot;,Arial,Helvetica,sans-serif">Headline</div></body></html>',
+    });
+
+    expect(html).toContain('font:500 33px/1.13 &quot;Space Grotesk&quot;,Arial,Helvetica,sans-serif');
+  });
+
+  it("ignores pasted characters before the HTML document", () => {
+    const html = renderEmailHtml({
+      version: 1,
+      mode: "html",
+      bodyHtml: "44M<!doctype html><html><body><p>Campaign</p></body></html>",
+    });
+
+    expect(html).not.toContain("44M");
+    expect(html).toContain("<p>Campaign</p>");
+  });
+
+  it("preserves email image sources and directional spacing", () => {
+    const html = renderEmailHtml({
+      version: 1,
+      mode: "html",
+      bodyHtml: '<!doctype html><html><body><img src="https://cdn.example.com/logo.png" style="display:block;padding-top:24px;padding-bottom:16px;margin-top:12px;margin-bottom:8px" /></body></html>',
+    });
+
+    expect(html).toContain('src="https://cdn.example.com/logo.png"');
+    expect(html).toContain("padding-top:24px");
+    expect(html).toContain("padding-bottom:16px");
+    expect(html).toContain("margin-top:12px");
+    expect(html).toContain("margin-bottom:8px");
+  });
+
   it("removes inline event handlers and unsafe protocols", () => {
     const html = sanitizeEmailBodyHtml('<p onclick="alert(1)">Text</p><img src="data:text/html,bad" onerror="alert(1)" />');
 

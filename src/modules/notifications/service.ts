@@ -121,6 +121,9 @@ type ResendSendInput = {
   subject: string;
   html: string;
   attachments?: Array<{ content: string; filename: string; content_id?: string }>;
+  from?: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
 };
 type ResendSendResult =
   | { ok: true; messageId: string }
@@ -140,10 +143,12 @@ export async function sendViaResend(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: env.RESEND_FROM,
+        from: input.from ?? env.RESEND_FROM,
         to: input.to,
         subject: input.subject,
         html: input.html,
+        ...(input.replyTo ? { reply_to: input.replyTo } : {}),
+        ...(input.headers ? { headers: input.headers } : {}),
         attachments: input.attachments,
       }),
     });

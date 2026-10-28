@@ -27,6 +27,30 @@ describe("email content document", () => {
     expect(parseEmailContentDocument({ version: 1, blocks: [] }).mode).toBe("blocks");
   });
 
+  it("accepts editor blocks with style settings and reusable content types", () => {
+    const document = parseEmailContentDocument({
+      version: 1,
+      blocks: [
+        { id: "heading-1", type: "heading", text: "Hello", style: { align: "center" } },
+        { id: "spacer-1", type: "spacer", height: 32 },
+        { id: "logo-1", type: "logo", src: "https://example.com/logo.png", alt: "Logo" },
+        { id: "social-1", type: "social", links: [{ label: "Instagram", href: "https://instagram.com/example" }] },
+        { id: "html-1", type: "html", html: "<p>Custom</p>" },
+        {
+          id: "columns-1",
+          type: "columns",
+          columns: [
+            { id: "column-1", blocks: [{ id: "column-text-1", type: "text", text: "Left" }] },
+            { id: "column-2", blocks: [{ id: "column-text-2", type: "text", text: "Right" }] },
+          ],
+        },
+      ],
+    });
+
+    expect(document.blocks).toHaveLength(6);
+    expect(document.blocks[0]).toMatchObject({ type: "heading", style: { align: "center" } });
+  });
+
   it("rejects unsupported block types", () => {
     expect(() =>
       parseEmailContentDocument({

@@ -37,6 +37,7 @@ export const emailRecipientStatus = pgEnum("email_recipient_status", [
   "failed",
   "suppressed",
 ]);
+export const emailRepermissionStatus = pgEnum("email_repermission_status", ["pending", "confirmed", "declined", "expired"]);
 
 export const emailContacts = pgTable(
   "email_contacts",
@@ -47,6 +48,7 @@ export const emailContacts = pgTable(
       .references(() => organizations.id),
     email: text("email").notNull(),
     emailNormalized: text("email_normalized").notNull(),
+    source: text("source").notNull().default("event_registration"),
     fullName: text("full_name"),
     phone: text("phone"),
     company: text("company"),
@@ -64,6 +66,54 @@ export const emailContacts = pgTable(
       table.emailNormalized,
     ),
   ],
+);
+
+export const emailRepermissionRequests = pgTable("email_repermission_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  contactId: uuid("contact_id").notNull().references(() => emailContacts.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  status: emailRepermissionStatus("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  declinedAt: timestamp("declined_at", { withTimezone: true }),
+  responseIp: text("response_ip"),
+  responseUserAgent: text("response_user_agent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const emailTags = pgTable(
+  "email_tags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    name: text("name").notNull(),
+    nameNormalized: text("name_normalized").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("email_tags_organization_name_unique").on(table.organizationId, table.nameNormalized)],
+);
+
+export const emailContactTags = pgTable(
+  "email_contact_tags",
+  {
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => emailContacts.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id")
+      .notNull()
+      .references(() => emailTags.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("email_contact_tags_contact_tag_unique").on(table.contactId, table.tagId)],
 );
 
 export const emailContactEvents = pgTable(
@@ -199,7 +249,11 @@ export const emailMarketingTables = {
   emailTemplateStatus,
   emailCampaignStatus,
   emailRecipientStatus,
+  emailRepermissionStatus,
   emailContacts,
+  emailRepermissionRequests,
+  emailTags,
+  emailContactTags,
   emailContactEvents,
   emailSegments,
   emailTemplates,

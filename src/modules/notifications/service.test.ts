@@ -15,6 +15,8 @@ vi.mock("@/lib/env", () => ({
   env: {
     RESEND_API_KEY: "test-resend-key",
     RESEND_FROM: "events@example.com",
+    RESEND_MARKETING_FROM: "marketing@example.com",
+    RESEND_MARKETING_REPLY_TO: "events@example.com",
   },
 }));
 
@@ -30,6 +32,7 @@ import {
   formatEventDateEs,
   formatEventTimeRangeEs,
   buildGoogleMapsUrl,
+  sendViaResend,
 } from "./service";
 import { notificationLog } from "./db";
 
@@ -394,6 +397,30 @@ describe("notifications service — send functions (spec.md 'notifications-email
     await expect(
       sendConfirmationEmail({ ...attendeeEmailInput, qrPngBase64: '"><script>alert(1)</script>' }),
     ).rejects.toThrow(/not valid base64/);
+  });
+});
+
+describe("notifications service — sender overrides", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "resend-marketing-1" }) }));
+  });
+
+  it("sends marketing sender and reply-to overrides to Resend", async () => {
+    const result = await sendViaResend({
+      to: "contact@example.com",
+      subject: "Novedades",
+      html: "<p>Contenido</p>",
+      from: "Shades + Spaces <marketing@example.com>",
+      replyTo: "events@example.com",
+    });
+
+    expect(result).toEqual({ ok: true, messageId: "resend-marketing-1" });
+    const [, requestInit] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse((requestInit as RequestInit).body as string)).toMatchObject({
+      from: "Shades + Spaces <marketing@example.com>",
+      reply_to: "events@example.com",
+    });
   });
 });
 
