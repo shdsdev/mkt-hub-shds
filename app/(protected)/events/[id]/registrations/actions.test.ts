@@ -265,11 +265,12 @@ describe("resendInvitationAction", () => {
   });
 
   it("rejects an editor from resending the invitation", async () => {
-    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, profile: { ...adminUser.profile, role: "EDITOR" } });
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "editor-1", profile: { ...adminUser.profile, id: "editor-1", role: "EVENT_EDITOR" } });
+    mocks.listEventEditorIds.mockResolvedValue(["editor-1"]);
     const result = await resendInvitationAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
 
-    expect(result).toEqual({ error: "No tienes permiso para administrar registros." });
-    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+    expect(result).toEqual({ success: "Invitación reenviada por correo." });
+    expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", force: true }));
   });
 });
 

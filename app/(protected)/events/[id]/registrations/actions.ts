@@ -557,8 +557,12 @@ export async function resendInvitationAction(
   if (!event) return { error: "No se encontró el evento." };
 
   if (!isAdmin(user.profile)) {
-    const receptionistIds = await listEventReceptionistIds(parsed.data.eventId, user.profile.organizationId);
-    if (!receptionistIds.includes(user.id)) return { error: PERMISSION_ERROR };
+    const assignedIds = user.profile.role === "RECEPTION"
+      ? await listEventReceptionistIds(parsed.data.eventId, user.profile.organizationId)
+      : user.profile.role === "EVENT_EDITOR"
+        ? await listEventEditorIds(parsed.data.eventId, user.profile.organizationId)
+        : [];
+    if (!assignedIds.includes(user.id)) return { error: PERMISSION_ERROR };
   }
 
   const registrations = await listRegistrations(parsed.data.eventId, user.profile.organizationId);
