@@ -37,6 +37,13 @@ const eslintConfig = defineConfig([
       // Within a module, internal files may freely import each other and lib/db-barrel.
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/refs": "off",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXElement[name.name='select']",
+          message: "Use the shared premium Select component instead of a native <select>.",
+        },
+      ],
       "boundaries/dependencies": [
         "error",
         {

@@ -1,0 +1,13 @@
+---
+description: Use the shared premium dropdown primitives across the entire application
+alwaysApply: true
+---
+
+# Premium Dropdowns
+
+- Use `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, and `SelectItem` from `@/components/ui/select` for value selection.
+- Use `DropdownMenu` primitives for action menus, not native selects or one-off popup implementations.
+- Do not introduce native `<select>` elements in `app/**` or `src/**` without an explicit, documented exception.
+- Preserve the shared transitions, focus rings, keyboard navigation, disabled states, overflow handling, and responsive sizing.
+- If the shared primitive needs a visual change, update the shared component instead of duplicating styles in individual screens.
+- Verify closed, open, focused, disabled, loading, invalid, long-label, and narrow-viewport states.
