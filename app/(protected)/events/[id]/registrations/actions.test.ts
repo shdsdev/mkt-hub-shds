@@ -18,6 +18,11 @@ const mocks = vi.hoisted(() => ({
   exportQrPng: vi.fn(),
   updateRegistrationReviewStatus: vi.fn(),
   deleteRejectedRegistration: vi.fn(),
+  updateAttendee: vi.fn(),
+  replaceCompanion: vi.fn(),
+  deactivateCompanion: vi.fn(),
+  listEventEditorIds: vi.fn(),
+  recordAudit: vi.fn(),
   revalidatePath: vi.fn(),
   OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
 }));
@@ -34,6 +39,10 @@ vi.mock("@/modules/events", () => ({
   resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
   updateRegistrationReviewStatus: mocks.updateRegistrationReviewStatus,
   deleteRejectedRegistration: mocks.deleteRejectedRegistration,
+  updateAttendee: mocks.updateAttendee,
+  replaceCompanion: mocks.replaceCompanion,
+  deactivateCompanion: mocks.deactivateCompanion,
+  listEventEditorIds: mocks.listEventEditorIds,
 }));
 vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
@@ -45,6 +54,7 @@ vi.mock("@/modules/notifications", () => ({
   buildRegistrationTelegramMessage: vi.fn(() => ({ text: "", replyMarkup: { inline_keyboard: [] } })),
 }));
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
+vi.mock("@/modules/audit", () => ({ recordAudit: mocks.recordAudit }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/env", () => ({
   env: {
@@ -54,7 +64,15 @@ vi.mock("@/lib/env", () => ({
 }));
 vi.mock("@/lib/events/event-email-content", () => ({ resolveEventEmailContent: vi.fn() }));
 
-import { addCompanionAction, deleteRejectedRegistrationAction, resendInvitationAction, updateRegistrationReviewStatusAction } from "./actions";
+import {
+  addCompanionAction,
+  deleteRejectedRegistrationAction,
+  editAttendeeAction,
+  replaceCompanionAction,
+  removeCompanionAction,
+  resendInvitationAction,
+  updateRegistrationReviewStatusAction,
+} from "./actions";
 
 const adminUser = {
   id: "admin-1",
@@ -206,6 +224,40 @@ describe("addCompanionAction", () => {
   });
 });
 
+describe("resendInvitationAction", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "reception-1", profile: { ...adminUser.profile, role: "RECEPTION" } });
+    mocks.isActive.mockReturnValue(true);
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.listEventReceptionistIds.mockResolvedValue(["reception-1"]);
+    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop" });
+    mocks.listRegistrations.mockResolvedValue([{
+      cancelToken: "cancel-token-1",
+      attendees: [{ id: "33333333-3333-4333-8333-333333333333", organizationId: "org-1", fullName: "Alan Turing", email: "alan@example.com", backupCode: "WXYZ5678" }],
+    }]);
+    mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
+    mocks.sendConfirmationEmail.mockResolvedValue({ sent: true, notificationId: "resend" });
+  });
+
+  it("allows an admin to resend the invitation", async () => {
+    mocks.isAdmin.mockReturnValue(true);
+    mocks.getCurrentUser.mockResolvedValue(adminUser);
+    const result = await resendInvitationAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
+
+    expect(result).toEqual({ success: "Invitación reenviada por correo." });
+    expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", force: true }));
+  });
+
+  it("rejects a receptionist or editor from resending the invitation", async () => {
+    mocks.listEventReceptionistIds.mockResolvedValue([]);
+    const result = await resendInvitationAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
+
+    expect(result).toEqual({ error: "No tienes permiso para administrar registros." });
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+  });
+});
+
 describe("updateRegistrationReviewStatusAction", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -339,5 +391,58 @@ describe("deleteRejectedRegistrationAction", () => {
     data.set("eventId", EVENT_ID);
 
     await expect(deleteRejectedRegistrationAction({}, data)).resolves.toEqual({ error: "Solo se pueden eliminar registros rechazados." });
+  });
+});
+
+describe("attendee management actions", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.getCurrentUser.mockResolvedValue(adminUser);
+    mocks.isActive.mockReturnValue(true);
+    mocks.isAdmin.mockReturnValue(true);
+    mocks.listEventEditorIds.mockResolvedValue([]);
+    mocks.listRegistrations.mockResolvedValue([]);
+    mocks.getEvent.mockResolvedValue({ id: EVENT_ID, organizationId: "org-1", name: "Workshop", registrationFormConfig: { fields: { phone: { visible: true, required: false } } } });
+  });
+
+  it("allows an assigned event editor to edit attendee data", async () => {
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "editor-1", profile: { ...adminUser.profile, role: "EVENT_EDITOR" } });
+    mocks.listEventEditorIds.mockResolvedValue(["editor-1"]);
+    mocks.updateAttendee.mockResolvedValue({ ok: true, attendee: { id: "attendee-1", email: "new@example.com" }, previous: { fullName: "Alan Turing", email: "alan@example.com", phone: null, company: null, jobTitle: null, occupation: "architect-decorator" } });
+
+    const result = await editAttendeeAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
+
+    expect(result).toEqual({ success: "Datos del asistente actualizados.", emailResent: true });
+    expect(mocks.updateAttendee).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", organizationId: "org-1" }));
+  });
+
+  it("rejects an editor who is not assigned to the event", async () => {
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, id: "editor-1", profile: { ...adminUser.profile, role: "EVENT_EDITOR" } });
+    mocks.listEventEditorIds.mockResolvedValue(["another-editor"]);
+
+    const result = await editAttendeeAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
+
+    expect(result.error).toBe("No tienes permiso para administrar asistentes.");
+    expect(mocks.updateAttendee).not.toHaveBeenCalled();
+  });
+
+  it("replaces a companion and records the operation", async () => {
+    mocks.replaceCompanion.mockResolvedValue({ ok: true, attendee: { id: "attendee-2", fullName: "Ana", email: "ana@example.com", backupCode: "NEW12345" }, previous: { fullName: "Pedro", email: "pedro@example.com" } });
+
+    const result = await replaceCompanionAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333", fullName: "Ana", email: "ana@example.com" }));
+
+    expect(result).toEqual({ success: "Acompañante reemplazado." });
+    expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "event_attendee_replace", resourceType: "event_attendee" }));
+  });
+
+  it("deactivates an un checked-in companion", async () => {
+    mocks.deactivateCompanion.mockResolvedValue({ ok: true, attendee: { id: "attendee-2" } });
+
+    const result = await removeCompanionAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
+
+    expect(result).toEqual({ success: "Acompañante eliminado." });
+    expect(mocks.deactivateCompanion).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", organizationId: "org-1" }));
   });
 });

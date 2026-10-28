@@ -442,6 +442,13 @@
       "when": 1793202879795,
       "tag": "0061_qr_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1793212973600,
+      "tag": "0062_attendee_audit_actions",
+      "breakpoints": true
     }
   ]
 }

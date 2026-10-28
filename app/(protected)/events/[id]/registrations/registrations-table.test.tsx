@@ -54,6 +54,7 @@ describe("RegistrationsTable", () => {
         phoneRequired={false}
         statusLabels={{ pending_review: "Pendiente", confirmed: "Confirmado", waitlisted: "Lista de espera", rejected: "Rechazado", cancelled: "Cancelado", checked_in: "Check-in" }}
         reviewStatusLabels={{ new: "Nuevo", in_review: "En revisión", approved: "Aprobado", waitlisted: "Lista de espera", rejected: "Rechazado" }}
+        canManageAttendees={true}
       />,
     ));
 
@@ -80,6 +81,7 @@ describe("RegistrationsTable", () => {
         phoneRequired={false}
         statusLabels={{ pending_review: "Pendiente", confirmed: "Confirmado", waitlisted: "Lista de espera", rejected: "Rechazado", cancelled: "Cancelado", checked_in: "Check-in" }}
         reviewStatusLabels={{ new: "Nuevo", in_review: "En revisión", approved: "Aprobado", waitlisted: "Lista de espera", rejected: "Rechazado" }}
+        canManageAttendees={true}
       />,
     ));
 
@@ -113,6 +115,7 @@ describe("RegistrationsTable", () => {
         phoneRequired={false}
         statusLabels={{ pending_review: "Pendiente", confirmed: "Confirmado", waitlisted: "Lista de espera", rejected: "Rechazado", cancelled: "Cancelado", checked_in: "Check-in" }}
         reviewStatusLabels={{ new: "Nuevo", in_review: "En revisión", approved: "Aprobado", waitlisted: "Lista de espera", rejected: "Rechazado" }}
+        canManageAttendees={true}
       />,
     ));
 

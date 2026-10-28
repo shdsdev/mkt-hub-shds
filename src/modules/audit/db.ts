@@ -24,6 +24,9 @@ export const auditAction = pgEnum("audit_action", [
   "question_close_session",
   "question_export",
   "question_merge_duplicate",
+  "event_attendee_update",
+  "event_attendee_replace",
+  "event_attendee_deactivate",
 ]);
 
 // Append-only (no update/delete function anywhere in this module) — matches the print_runs

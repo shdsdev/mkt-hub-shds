@@ -1047,6 +1047,7 @@ export async function lookupAttendeeForCheckIn(input: { eventId: string; code: s
     .where(
       and(
         eq(eventAttendees.eventId, input.eventId),
+        eq(eventAttendees.isActive, true),
         or(eq(eventAttendees.backupCode, code.toUpperCase()), eq(eventAttendees.passToken, code)),
       ),
     )
@@ -1067,6 +1068,66 @@ export async function lookupAttendeeForCheckIn(input: { eventId: string; code: s
   return { kind, attendee, registration: registrationWithAttendees };
 }
 
+export type UpdateAttendeeResult =
+  | { ok: true; attendee: EventAttendeeRow; previous: Pick<EventAttendeeRow, "fullName" | "email" | "phone" | "company" | "jobTitle" | "occupation"> }
+  | { ok: false; reason: "not_found" | "duplicate_email" };
+
+export async function updateAttendee(input: {
+  attendeeId: string;
+  organizationId: string;
+  attendee: Pick<AttendeeInput, "fullName" | "email" | "phone" | "company" | "jobTitle" | "occupation">;
+}): Promise<UpdateAttendeeResult> {
+  const [current] = await db
+    .select({
+      id: eventAttendees.id,
+      fullName: eventAttendees.fullName,
+      email: eventAttendees.email,
+      phone: eventAttendees.phone,
+      company: eventAttendees.company,
+      jobTitle: eventAttendees.jobTitle,
+      occupation: eventAttendees.occupation,
+    })
+    .from(eventAttendees)
+    .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
+    .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventRegistrations.organizationId, input.organizationId)))
+    .limit(1);
+  if (!current) return { ok: false, reason: "not_found" };
+
+  try {
+    const [updated] = await db
+      .update(eventAttendees)
+      .set({
+        fullName: input.attendee.fullName,
+        email: input.attendee.email,
+        emailNormalized: normalizeEmail(input.attendee.email),
+        phone: input.attendee.phone,
+        company: input.attendee.company,
+        jobTitle: input.attendee.jobTitle,
+        occupation: input.attendee.occupation,
+        updatedAt: new Date(),
+      })
+      .where(eq(eventAttendees.id, input.attendeeId))
+      .returning();
+    return updated
+      ? {
+          ok: true,
+          attendee: updated,
+          previous: {
+            fullName: current.fullName,
+            email: current.email,
+            phone: current.phone,
+            company: current.company,
+            jobTitle: current.jobTitle,
+            occupation: current.occupation,
+          },
+        }
+      : { ok: false, reason: "not_found" };
+  } catch (error) {
+    if (isDuplicateEmailViolation(error)) return { ok: false, reason: "duplicate_email" };
+    throw error;
+  }
+}
+
 export type UpdatePrimaryAttendeeResult =
   | { ok: true; attendee: EventAttendeeRow }
   | { ok: false; reason: "not_found" | "duplicate_email" };
@@ -1076,46 +1137,137 @@ export async function updatePrimaryAttendee(input: {
   organizationId: string;
   attendee: Partial<Pick<AttendeeInput, "fullName" | "email" | "phone" | "company" | "jobTitle" | "occupation">>;
 }): Promise<UpdatePrimaryAttendeeResult> {
-  const [primary] = await db
-    .select({ id: eventAttendees.id })
-    .from(eventAttendees)
-    .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
-    .where(and(eq(eventAttendees.registrationId, input.registrationId), eq(eventRegistrations.organizationId, input.organizationId)))
-    .orderBy(asc(eventAttendees.createdAt))
-    .limit(1);
+  const primary = await getPrimaryAttendee(input.registrationId, input.organizationId);
   if (!primary) return { ok: false, reason: "not_found" };
 
+  return updateAttendee({
+    attendeeId: primary.id,
+    organizationId: input.organizationId,
+    attendee: {
+      fullName: input.attendee.fullName ?? primary.fullName,
+      email: input.attendee.email ?? primary.email,
+      phone: input.attendee.phone ?? primary.phone ?? undefined,
+      company: input.attendee.company ?? primary.company ?? undefined,
+      jobTitle: input.attendee.jobTitle ?? primary.jobTitle ?? undefined,
+      occupation: input.attendee.occupation ?? primary.occupation ?? undefined,
+    },
+  }).then((result) => (result.ok ? { ok: true, attendee: result.attendee } : result));
+}
+
+async function getPrimaryAttendee(registrationId: string, organizationId: string): Promise<EventAttendeeRow | undefined> {
+  const row = await db
+    .select()
+    .from(eventAttendees)
+    .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
+    .where(and(eq(eventAttendees.registrationId, registrationId), eq(eventRegistrations.organizationId, organizationId)))
+    .orderBy(asc(eventAttendees.createdAt))
+    .limit(1);
+  return row[0]?.event_attendees;
+}
+
+export type ReplaceCompanionResult =
+  | { ok: true; attendee: EventAttendeeRow; previous: Pick<EventAttendeeRow, "fullName" | "email">; registrationStatus: EventRegistrationRow["status"]; cancelToken: string }
+  | { ok: false; reason: "not_found" | "primary_attendee" | "already_checked_in" | "inactive" | "duplicate_email" };
+
+export async function replaceCompanion(input: {
+  attendeeId: string;
+  organizationId: string;
+  attendee: Pick<AttendeeInput, "fullName" | "email" | "phone" | "company" | "jobTitle" | "occupation">;
+}): Promise<ReplaceCompanionResult> {
   try {
-    const [updated] = await db
-      .update(eventAttendees)
-      .set({
-        fullName: input.attendee.fullName,
-        email: input.attendee.email,
-        emailNormalized: input.attendee.email ? normalizeEmail(input.attendee.email) : undefined,
-        phone: input.attendee.phone,
-        company: input.attendee.company,
-        jobTitle: input.attendee.jobTitle,
-        occupation: input.attendee.occupation,
-        updatedAt: new Date(),
-      })
-      .where(eq(eventAttendees.id, primary.id))
-      .returning();
-    return updated ? { ok: true, attendee: updated } : { ok: false, reason: "not_found" };
+    return await db.transaction(async (tx) => {
+      const [target] = await tx
+        .select({ attendee: eventAttendees, registration: eventRegistrations })
+        .from(eventAttendees)
+        .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
+        .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventRegistrations.organizationId, input.organizationId)))
+        .limit(1);
+      if (!target) return { ok: false, reason: "not_found" };
+      if (!target.attendee.isActive) return { ok: false, reason: "inactive" };
+      if (target.attendee.checkedInAt) return { ok: false, reason: "already_checked_in" };
+
+      const attendees = await tx
+        .select()
+        .from(eventAttendees)
+        .where(eq(eventAttendees.registrationId, target.registration.id))
+        .orderBy(asc(eventAttendees.createdAt));
+      if (attendees[0]?.id === target.attendee.id) return { ok: false, reason: "primary_attendee" };
+
+      const [updated] = await tx
+        .update(eventAttendees)
+        .set({
+          fullName: input.attendee.fullName,
+          email: input.attendee.email,
+          emailNormalized: normalizeEmail(input.attendee.email),
+          phone: input.attendee.phone,
+          company: input.attendee.company,
+          jobTitle: input.attendee.jobTitle,
+          occupation: input.attendee.occupation,
+          passToken: generateOpaqueToken(),
+          backupCode: generateBackupCode(),
+          isActive: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(eventAttendees.id, input.attendeeId))
+        .returning();
+      if (!updated) return { ok: false, reason: "not_found" };
+      return {
+        ok: true,
+        attendee: updated,
+        previous: { fullName: target.attendee.fullName, email: target.attendee.email },
+        registrationStatus: target.registration.status,
+        cancelToken: target.registration.cancelToken,
+      };
+    });
   } catch (error) {
     if (isDuplicateEmailViolation(error)) return { ok: false, reason: "duplicate_email" };
     throw error;
   }
 }
 
+export type DeactivateCompanionResult =
+  | { ok: true; attendee: EventAttendeeRow; previous: Pick<EventAttendeeRow, "fullName" | "email"> }
+  | { ok: false; reason: "not_found" | "primary_attendee" | "already_checked_in" | "inactive" };
+
+export async function deactivateCompanion(input: { attendeeId: string; organizationId: string }): Promise<DeactivateCompanionResult> {
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({ attendee: eventAttendees, registration: eventRegistrations })
+      .from(eventAttendees)
+      .innerJoin(eventRegistrations, eq(eventRegistrations.id, eventAttendees.registrationId))
+      .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventRegistrations.organizationId, input.organizationId)))
+      .limit(1);
+    if (!target) return { ok: false, reason: "not_found" };
+    if (!target.attendee.isActive) return { ok: false, reason: "inactive" };
+    if (target.attendee.checkedInAt) return { ok: false, reason: "already_checked_in" };
+
+    const attendees = await tx
+      .select()
+      .from(eventAttendees)
+      .where(eq(eventAttendees.registrationId, target.registration.id))
+      .orderBy(asc(eventAttendees.createdAt));
+    if (attendees[0]?.id === target.attendee.id) return { ok: false, reason: "primary_attendee" };
+
+    const [updated] = await tx
+      .update(eventAttendees)
+      .set({ isActive: false, passToken: generateOpaqueToken(), backupCode: generateBackupCode(), updatedAt: new Date() })
+      .where(eq(eventAttendees.id, input.attendeeId))
+      .returning();
+    return updated ? { ok: true, attendee: updated, previous: { fullName: target.attendee.fullName, email: target.attendee.email } } : { ok: false, reason: "not_found" };
+  });
+}
+
 export async function confirmAttendeeCheckIn(input: { eventId: string; attendeeId: string; checkedInBy: string }): Promise<CheckInResult> {
   const [updated] = await db
     .update(eventAttendees)
     .set({ checkedInAt: new Date(), checkedInBy: input.checkedInBy })
-    .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId), isNull(eventAttendees.checkedInAt)))
+    .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.isActive, true), isNull(eventAttendees.checkedInAt)))
     .returning();
   if (!updated) {
     const [existing] = await db.select().from(eventAttendees).where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId))).limit(1);
-    return existing ? { ok: true, attendee: existing, alreadyCheckedIn: true } : { ok: false, reason: "not_found" };
+    if (!existing) return { ok: false, reason: "not_found" };
+    if (!existing.isActive) return { ok: false, reason: "not_found" };
+    return { ok: true, attendee: existing, alreadyCheckedIn: true };
   }
   await db.update(eventRegistrations).set({ status: "checked_in" }).where(eq(eventRegistrations.id, updated.registrationId));
   return { ok: true, attendee: updated, alreadyCheckedIn: false };
@@ -1132,8 +1284,8 @@ export async function checkInAttendee(input: CheckInInput): Promise<CheckInResul
   if (!input.passToken && !input.backupCode) return { ok: false, reason: "not_found" };
 
   const condition = input.passToken
-    ? and(eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.passToken, input.passToken))
-    : and(eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.backupCode, input.backupCode!));
+    ? and(eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.isActive, true), eq(eventAttendees.passToken, input.passToken))
+    : and(eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.isActive, true), eq(eventAttendees.backupCode, input.backupCode!));
 
   const [attendee] = await db.select().from(eventAttendees).where(condition).limit(1);
   if (!attendee) return { ok: false, reason: "not_found" };

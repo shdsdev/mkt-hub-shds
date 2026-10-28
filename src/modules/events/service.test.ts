@@ -1074,7 +1074,21 @@ describe("events service — updatePrimaryAttendee", () => {
   });
 
   it("maps a duplicate email violation to duplicate_email", async () => {
-    selectMock.mockReturnValueOnce(selectChain([{ id: "att-1" }]));
+    selectMock.mockReturnValue(
+      selectChain([
+        {
+          event_attendees: {
+            id: "att-1",
+            fullName: "Ada Lovelace",
+            email: "ada@example.com",
+            phone: null,
+            company: null,
+            jobTitle: null,
+            occupation: "manufacturer",
+          },
+        },
+      ]),
+    );
     const update = updateChain([]);
     update.returning.mockRejectedValue({
       cause: { code: "23505", constraint_name: "event_attendees_event_email_active_unique" },
@@ -1291,7 +1305,7 @@ describe("events service — checkInAttendee", () => {
     await checkInAttendee({ eventId: "event-1", backupCode: "ABCD1234", checkedInBy: "staff-1" });
 
     expect(chain.where).toHaveBeenCalledWith(
-      and(eq(eventAttendees.eventId, "event-1"), eq(eventAttendees.backupCode, "ABCD1234")),
+      and(eq(eventAttendees.eventId, "event-1"), eq(eventAttendees.isActive, true), eq(eventAttendees.backupCode, "ABCD1234")),
     );
   });
 

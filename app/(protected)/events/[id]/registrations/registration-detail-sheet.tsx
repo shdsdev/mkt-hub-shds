@@ -6,12 +6,13 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import type { RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
-import { CheckCircle2, Clock3, Mail, MessageCircle, Phone, Tag, X, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Tag, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddCompanionRow } from "./add-companion-row";
-import { deleteRejectedRegistrationAction, resendInvitationAction, updateRegistrationReviewStatusAction, type ResendInvitationState } from "./actions";
+import { AttendeeActions } from "./attendee-actions";
+import { deleteRejectedRegistrationAction, updateRegistrationReviewStatusAction } from "./actions";
+import { ResendInvitationButton } from "./resend-invitation-button";
 import { REVIEW_STATUS_LABELS, type ReviewStatus } from "./review-status";
-import { buildWhatsAppInvitationUrl } from "./registration-contact-links";
 import { formatRegistrationDate } from "./registration-date";
 
 const UTM_LABELS: Record<string, string> = {
@@ -33,7 +34,6 @@ const OPTION_LABELS: Record<string, string> = {
   "manual-and-motorized-rods": "Cortineros manuales y motorizados",
 };
 const STATE_LABELS = new Map<string, string>(MEXICAN_STATES.map((state) => [state.value, state.label]));
-const initialResendState: ResendInvitationState = {};
 
 function ConsentStatus({ label, accepted, date }: { label: string; accepted: boolean; date?: string }) {
   const Icon = accepted ? CheckCircle2 : XCircle;
@@ -60,6 +60,7 @@ export function RegistrationDetailSheet({
   collectCompany,
   collectJobTitle,
   phoneRequired,
+  canManageAttendees,
 }: {
   registration: RegistrationWithAttendees;
   statusLabel: string;
@@ -70,8 +71,8 @@ export function RegistrationDetailSheet({
   collectCompany: boolean;
   collectJobTitle: boolean;
   phoneRequired: boolean;
+  canManageAttendees: boolean;
 }) {
-  const [resendState, resendAction, resendPending] = useActionState(resendInvitationAction, initialResendState);
   const [reviewState, reviewAction, reviewPending] = useActionState(updateRegistrationReviewStatusAction, {});
   const [deleteState, deleteAction, deletePending] = useActionState(deleteRejectedRegistrationAction, {});
   const [reviewStatus, setReviewStatus] = useState(registration.reviewStatus);
@@ -257,11 +258,17 @@ export function RegistrationDetailSheet({
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Asistentes ({registration.attendees.length})
             </h3>
-            {registration.attendees.map((attendee) => (
-              <div key={attendee.id} className={`flex flex-col gap-2 rounded-lg border p-4 ${attendee.checkedInAt ? "border-emerald-500/40 bg-emerald-500/10" : "border-border"}`}>
+            {registration.attendees.map((attendee, index) => (
+              <div key={attendee.id} className={`flex flex-col gap-2 rounded-lg border p-4 ${attendee.checkedInAt ? "border-emerald-500/40 bg-emerald-500/10" : attendee.isActive === false ? "border-destructive/30 bg-destructive/5 opacity-70" : "border-border"}`}>
                 <div className="flex items-start justify-between gap-3">
-                  <div><p className="text-base font-semibold">{attendee.fullName}</p><p className="text-sm text-muted-foreground">{attendee.email}</p><OccupationPill occupation={attendee.occupation} /></div>
-                  {attendee.checkedInAt ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300"><CheckCircle2 className="size-3.5" /> Dentro</span> : <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"><Clock3 className="size-3.5" /> Pendiente</span>}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-semibold">{attendee.fullName}</p>
+                      {index === 0 ? <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Titular</span> : null}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{attendee.email}</p><OccupationPill occupation={attendee.occupation} />
+                  </div>
+                  {attendee.checkedInAt ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300"><CheckCircle2 className="size-3.5" /> Dentro</span> : attendee.isActive === false ? <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-1 text-xs font-semibold text-destructive"><XCircle className="size-3.5" /> Inactivo</span> : <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"><Clock3 className="size-3.5" /> Pendiente</span>}
                 </div>
                 {attendee.phone ? <p className="text-sm text-muted-foreground">Tel: {attendee.phone}</p> : null}
                 {attendee.company ? (
@@ -280,23 +287,28 @@ export function RegistrationDetailSheet({
                 <p className={`text-xs font-medium ${attendee.checkedInAt ? "text-emerald-300" : "text-muted-foreground"}`}>
                   {attendee.checkedInAt ? `Check-in: ${formatRegistrationDate(attendee.checkedInAt)}` : "Sin check-in"}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {attendee.phone ? (
-                    <>
-                      <a href={`tel:${attendee.phone}`} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-card"><Phone className="size-3" /> Llamar</a>
-                      <a href={buildWhatsAppInvitationUrl({ phone: attendee.phone, attendeeName: attendee.fullName, eventName, backupCode: attendee.backupCode })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-card"><MessageCircle className="size-3" /> WhatsApp</a>
-                    </>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {attendee.isActive !== false ? (
+                      <ResendInvitationButton eventId={eventId} attendeeId={attendee.id} />
+                    ) : null}
+                  </div>
+                  {attendee.isActive !== false ? (
+                    <AttendeeActions
+                      registration={registration}
+                      attendee={attendee}
+                      eventId={eventId}
+                      eventName={eventName}
+                      collectCompany={collectCompany}
+                      collectJobTitle={collectJobTitle}
+                      phoneRequired={phoneRequired}
+                      isPrimary={index === 0}
+                      canManage={canManageAttendees}
+                    />
                   ) : null}
-                  <form action={resendAction}>
-                    <input type="hidden" name="eventId" value={eventId} />
-                    <input type="hidden" name="attendeeId" value={attendee.id} />
-                    <button type="submit" disabled={resendPending} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-card"><Mail className="size-3" /> {resendPending ? "Enviando…" : "Reenviar por correo"}</button>
-                  </form>
                 </div>
               </div>
             ))}
-            {resendState.error ? <p className="text-xs text-destructive">{resendState.error}</p> : null}
-            {resendState.success ? <p className="text-xs text-muted-foreground">{resendState.success}</p> : null}
           </section>
 
           </div>

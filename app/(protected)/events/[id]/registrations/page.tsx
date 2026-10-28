@@ -56,6 +56,8 @@ export default async function RegistrationsPage({
   if (!event) notFound();
   if (!(await canAccessEvent({ userId: user.id, organizationId: user.profile.organizationId, role: user.profile.role, eventId: event.id, capability: "registrations" }))) notFound();
 
+  const canManageAttendees = await canAccessEvent({ userId: user.id, organizationId: user.profile.organizationId, role: user.profile.role, eventId: event.id, capability: "edit" });
+
   const sp = await searchParams;
   const status = (sp.status as EventRegistrationRow["status"] | undefined) ?? undefined;
   const reviewStatus = sp.reviewStatus;
@@ -153,6 +155,7 @@ export default async function RegistrationsPage({
           phoneRequired={resolveRegistrationFormConfig(event).fields.phone.required}
           statusLabels={STATUS_LABELS}
           reviewStatusLabels={REVIEW_STATUS_LABELS}
+          canManageAttendees={canManageAttendees}
           initialSelectedId={registrationId}
         />
       )}
