@@ -14,6 +14,7 @@ import { deleteRejectedRegistrationAction, updateRegistrationReviewStatusAction 
 import { ResendInvitationButton } from "./resend-invitation-button";
 import { REVIEW_STATUS_LABELS, type ReviewStatus } from "./review-status";
 import { formatRegistrationDate } from "./registration-date";
+import { AccessCodeCopyButton } from "./access-code-copy-button";
 
 const UTM_LABELS: Record<string, string> = {
   utmSource: "utm_source",
@@ -283,7 +284,7 @@ export function RegistrationDetailSheet({
                 {attendee.state ? (
                   <p className="text-muted-foreground">Estado: {STATE_LABELS.get(attendee.state) ?? attendee.state}</p>
                 ) : null}
-                <div className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2"><p className="text-[11px] font-medium uppercase tracking-wide text-primary/80">Folio de acceso</p><p className="mt-1 font-mono text-lg font-bold tracking-wider text-primary">{attendee.backupCode}</p></div>
+                <AccessCodeCopyButton key={attendee.backupCode} code={attendee.backupCode} />
                 <p className={`text-xs font-medium ${attendee.checkedInAt ? "text-emerald-300" : "text-muted-foreground"}`}>
                   {attendee.checkedInAt ? `Check-in: ${formatRegistrationDate(attendee.checkedInAt)}` : "Sin check-in"}
                 </p>
