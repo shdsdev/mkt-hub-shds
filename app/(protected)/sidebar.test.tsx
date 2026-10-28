@@ -7,12 +7,17 @@ vi.mock("./actions", () => ({ signOutAction: vi.fn() }));
 vi.mock("./settings/actions", () => ({ updateUserThemeAction: vi.fn() }));
 vi.mock("@/components/hover-morph-icon", () => ({ HoverMorphIcon: () => null }));
 vi.mock("@/modules/users", () => ({
-  DEFAULT_THEME_ID: "light",
+  DEFAULT_THEME_ID: "carbon",
   THEMES: [
     { id: "light", mode: "light" },
     { id: "dark", mode: "dark" },
+    { id: "carbon", mode: "light" },
+    { id: "lark-orange", mode: "dark" },
     { id: "midnight", mode: "dark" },
   ],
+}));
+vi.mock("@/components/ui/theme-switch", () => ({
+  default: ({ targetThemeId }: { targetThemeId: string }) => <span data-theme-target={targetThemeId}>Apariencia</span>,
 }));
 vi.mock("@/components/ui/sidebar", () => {
   const wrapper = ({ children, render }: { children?: ReactNode; render?: ReactNode }) => <div>{render}{children}</div>;
@@ -55,19 +60,19 @@ describe("sidebar role visibility", () => {
     expect(html).toContain("QR Short Links");
   });
 
-  it("offers the dark mode quick action from light mode", () => {
-    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role="RECEPTION" targetThemeId="dark" />);
-    expect(html).toContain("Cambiar a modo oscuro");
+  it("offers Lark Orange from Carbon", () => {
+    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role="RECEPTION" targetThemeId="lark-orange" targetThemeMode="dark" />);
+    expect(html).toContain('data-theme-target="lark-orange"');
   });
 
-  it("offers the light mode quick action from dark mode", () => {
-    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role="EVENT_EDITOR" targetThemeId="light" />);
-    expect(html).toContain("Cambiar a modo claro");
+  it("offers Carbon from Lark Orange", () => {
+    const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role="EVENT_EDITOR" targetThemeId="carbon" targetThemeMode="light" />);
+    expect(html).toContain('data-theme-target="carbon"');
   });
 
-  it("offers the light mode quick action to admins using a special dark theme", () => {
-    const html = renderToStaticMarkup(<AppSidebar email="admin@example.com" role="ADMIN" targetThemeId="light" />);
-    expect(html).toContain("Cambiar a modo claro");
+  it("offers Carbon to admins using a special dark theme", () => {
+    const html = renderToStaticMarkup(<AppSidebar email="admin@example.com" role="ADMIN" targetThemeId="carbon" targetThemeMode="light" />);
+    expect(html).toContain('data-theme-target="carbon"');
   });
 
   it("shows the mobile primary destinations for full-access roles", () => {

@@ -45,7 +45,7 @@ function form() {
   for (const [key, value] of Object.entries({
     id, linkId: id, shortLinkId: id, domainId: id, templateId: id, qrId: id, campaignId: id,
     fromId: id, toId: otherId, notificationId: id, name: "Campaign", destinationUrl: "https://example.com",
-    hostname: "go.example.com", slug: "campaign", quantity: "10", themeId: "arctic-frost",
+    hostname: "go.example.com", slug: "campaign", quantity: "10", themeId: "lark-orange",
     logoUrl: "https://example.com/logo.png", placementImageUrl: "https://example.com/photo.png",
     description: "Description", utmSource: "newsletter", utmMedium: "email", utmCampaign: "launch",
     sourceMode: "external", kind: "text", content: "Hello", saveAsTemplate: "true", templateName: "Design",
@@ -110,6 +110,12 @@ beforeEach(() => {
 describe("non-event action authorization independent of the request URL", () => {
   it.each(cases)("rejects RECEPTION in %s before any side effects with valid input", async (_name, invoke) => {
     const result = await invoke().then(() => undefined, (error: unknown) => error);
+    if (_name === "updateUserTheme") {
+      expect(result).toBeUndefined();
+      expect(mocks.users.updateTheme).toHaveBeenCalledWith("user-1", "lark-orange");
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
+      return;
+    }
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
     for (const service of services) {
       for (const [name, fn] of Object.entries(service)) {
@@ -122,12 +128,11 @@ describe("non-event action authorization independent of the request URL", () => 
   it.each(cases)("retains authorized marketing behavior in %s with the same valid input", async (_name, invoke, mutation) => {
     mocks.getCurrentUser.mockResolvedValue({ id: "user-1", profile: { role: "MARKETING_USER", status: "active", organizationId: "org-1" } });
     const result = await invoke().then(() => undefined, (error: unknown) => error);
-    if (_name === "updateUserTheme") expect(result).toEqual(new Error("REDIRECT:/login"));
-    else if (_name === "createLink") expect(result).toEqual(new Error(`REDIRECT:/links/${id}`));
+    if (_name === "createLink") expect(result).toEqual(new Error(`REDIRECT:/links/${id}`));
     else expect(result).toBeUndefined();
     if (_name === "updateUserTheme") {
-      expect(mutation).not.toHaveBeenCalled();
-      expect(mocks.revalidatePath).not.toHaveBeenCalled();
+      expect(mutation).toHaveBeenCalledWith("user-1", "lark-orange");
+      expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
     } else {
       expect(mutation).toHaveBeenCalled();
       expect(mocks.revalidatePath).toHaveBeenCalled();

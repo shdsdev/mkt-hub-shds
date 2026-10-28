@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays as CalendarDaysIcon, ChevronDown, ChevronRight, MoreHorizontal as MoreHorizontalIcon, Moon, QrCode as QrCodeIcon, Sun } from "lucide-react";
+import { CalendarDays as CalendarDaysIcon, ChevronDown, ChevronRight, MoreHorizontal as MoreHorizontalIcon, QrCode as QrCodeIcon } from "lucide-react";
 import {
   LayoutDashboard,
   Gauge,
@@ -50,6 +50,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
+import ThemeSwitch from "@/components/ui/theme-switch";
 import { signOutAction } from "./actions";
 import { updateUserThemeAction } from "./settings/actions";
 
@@ -103,7 +104,7 @@ export function ProfileMenu({
   const [signOutHovered, setSignOutHovered] = useState(false);
   const [settingsHovered, setSettingsHovered] = useState(false);
   const eventsOnly = role === "EVENT_EDITOR" || role === "RECEPTION";
-  const targetIsDark = targetThemeMode ?? targetThemeId === "dark";
+  const resolvedTargetThemeMode = targetThemeMode ?? (targetThemeId === "lark-orange" ? "dark" : "light");
 
   return (
     <DropdownMenu>
@@ -150,13 +151,10 @@ export function ProfileMenu({
           </span>
         </div>
         <DropdownMenuSeparator className={compact ? "bg-white/15" : undefined} />
-        <form action={updateUserThemeAction}>
-          <input type="hidden" name="themeId" value={targetThemeId} />
-          <DropdownMenuItem className="min-h-11 px-3" nativeButton render={<button type="submit" className="w-full" />}>
-            {targetIsDark ? <Moon size={16} /> : <Sun size={16} />}
-            {targetIsDark ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
-          </DropdownMenuItem>
-        </form>
+        <div className="flex items-center justify-between gap-3 px-3 py-2">
+          <span className="text-sm">Apariencia</span>
+          <ThemeSwitch action={updateUserThemeAction} targetThemeId={targetThemeId} targetThemeMode={resolvedTargetThemeMode} />
+        </div>
         {!eventsOnly ? <DropdownMenuSeparator className={compact ? "bg-white/15" : undefined} /> : null}
         {!eventsOnly ? (
           <DropdownMenuItem

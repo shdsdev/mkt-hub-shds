@@ -22,11 +22,9 @@ export const THEMES: Theme[] = [
   { id: "arctic-frost", label: "Arctic Frost", swatch: ["#3772FF", "#FF7F11", "#faf8f2"], mode: "light" },
 ];
 
-export const DEFAULT_THEME_ID = "light";
+export const DEFAULT_THEME_ID = "carbon";
 
 const THEME_TOGGLE_PAIRS = {
-  light: "dark",
-  dark: "light",
   carbon: "lark-orange",
   "lark-orange": "carbon",
 } as const;
@@ -36,7 +34,7 @@ export function getThemeToggleTarget(themeId: string): string {
   if (pairedTheme) return pairedTheme;
 
   const currentTheme = THEMES.find((theme) => theme.id === themeId);
-  return THEMES.find((theme) => theme.mode !== currentTheme?.mode)?.id ?? DEFAULT_THEME_ID;
+  return currentTheme?.mode === "dark" ? "carbon" : "lark-orange";
 }
 
 // 2026-10-15: hidden from the settings picker, but still fully defined in CSS/aura-background and

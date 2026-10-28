@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_THEME_ID, getThemeToggleTarget, HIDDEN_THEME_IDS, isValidThemeId, THEMES, VISIBLE_THEMES } from "./theme-registry";
 
 describe("theme-registry", () => {
-  it("uses Light as the default and exposes the four primary themes first", () => {
-    expect(DEFAULT_THEME_ID).toBe("light");
+  it("uses Carbon as the default and exposes the four primary themes first", () => {
+    expect(DEFAULT_THEME_ID).toBe("carbon");
     expect(VISIBLE_THEMES.slice(0, 4).map((theme) => theme.id)).toEqual(["light", "dark", "carbon", "lark-orange"]);
   });
 
@@ -13,7 +13,7 @@ describe("theme-registry", () => {
   });
 
   it("keeps the primary theme order stable", () => {
-    expect(DEFAULT_THEME_ID).toBe("light");
+    expect(DEFAULT_THEME_ID).toBe("carbon");
     expect(VISIBLE_THEMES.slice(0, 4).map((theme) => theme.id)).toEqual(["light", "dark", "carbon", "lark-orange"]);
   });
 
@@ -58,8 +58,8 @@ describe("theme-registry", () => {
   });
 
   it("pairs the primary themes for the quick appearance toggle", () => {
-    expect(getThemeToggleTarget("light")).toBe("dark");
-    expect(getThemeToggleTarget("dark")).toBe("light");
+    expect(getThemeToggleTarget("light")).toBe("lark-orange");
+    expect(getThemeToggleTarget("dark")).toBe("carbon");
     expect(getThemeToggleTarget("carbon")).toBe("lark-orange");
     expect(getThemeToggleTarget("lark-orange")).toBe("carbon");
   });

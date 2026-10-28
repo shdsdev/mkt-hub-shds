@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   updateTheme: vi.fn(),
   isValidThemeId: vi.fn(),
   isAdmin: vi.fn(),
+  isActive: vi.fn(),
   updateDefaultLogo: vi.fn(),
   setThemeColorOverride: vi.fn(),
   clearThemeColorOverride: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock("@/modules/users", () => ({
   updateTheme: mocks.updateTheme,
   isValidThemeId: mocks.isValidThemeId,
   isAdmin: mocks.isAdmin,
+  isActive: mocks.isActive,
   updateDefaultLogo: mocks.updateDefaultLogo,
   setThemeColorOverride: mocks.setThemeColorOverride,
   clearThemeColorOverride: mocks.clearThemeColorOverride,
@@ -262,17 +264,21 @@ describe("user theme server action", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.isValidThemeId.mockReturnValue(true);
+    mocks.isActive.mockReturnValue(true);
     mocks.checkRateLimit.mockReturnValue(true);
+    mocks.redirect.mockImplementation((path: string) => {
+      throw new Error(`REDIRECT:${path}`);
+    });
   });
 
   it.each(["MARKETING_USER", "EVENT_EDITOR", "RECEPTION"])(
-    "%s can select light and dark only",
+    "%s can select Carbon and Lark Orange only",
     async (role) => {
       mocks.getCurrentUser.mockResolvedValue(userWithRole(role));
       mocks.isAdmin.mockReturnValue(false);
 
-      await updateUserThemeAction(formDataWithTheme("dark"));
-      expect(mocks.updateTheme).toHaveBeenCalledWith("actor-1", "dark");
+      await expect(updateUserThemeAction(formDataWithTheme("lark-orange"))).resolves.toBeUndefined();
+      expect(mocks.updateTheme).toHaveBeenCalledWith("actor-1", "lark-orange");
 
       mocks.updateTheme.mockClear();
       await updateUserThemeAction(formDataWithTheme("midnight"));

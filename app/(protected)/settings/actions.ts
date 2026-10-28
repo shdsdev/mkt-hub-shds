@@ -8,6 +8,7 @@ import {
   updateTheme,
   isValidThemeId,
   isAdmin,
+  isActive,
   updateDefaultLogo,
   setThemeColorOverride,
   clearThemeColorOverride,
@@ -33,12 +34,12 @@ import { checkRateLimit } from "@/modules/audit";
 
 export async function updateUserThemeAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.profile)) redirect("/login");
+  if (!user || !isActive(user.profile)) redirect("/login");
   if (!checkRateLimit(user.id)) return;
 
   const themeId = z.string().min(1).parse(formData.get("themeId"));
   if (!isValidThemeId(themeId)) return;
-  if (!isAdmin(user.profile) && themeId !== "light" && themeId !== "dark") return;
+  if (!isAdmin(user.profile) && themeId !== "carbon" && themeId !== "lark-orange") return;
 
   await updateTheme(user.id, themeId);
   revalidatePath("/", "layout");
