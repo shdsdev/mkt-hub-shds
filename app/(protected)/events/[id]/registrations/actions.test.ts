@@ -465,7 +465,7 @@ describe("attendee management actions", () => {
 
     const result = await transferPrimaryOwnershipAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333", fullName: "New Primary", email: "new@example.com" }));
 
-    expect(result).toEqual({ success: "Titularidad transferida." });
+    expect(result).toEqual({ success: "Titularidad transferida. La invitación se enviará cuando el registro sea aprobado." });
     expect(mocks.transferPrimaryAttendee).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", organizationId: "org-1" }));
     expect(mocks.recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "event_primary_transfer" }));
   });
@@ -601,14 +601,14 @@ describe("primary transfer invitation delivery", () => {
   });
 
   it("sends a forced invitation after an approved transfer", async () => {
-    await expect(transferPrimaryOwnershipAction({}, data())).resolves.toEqual({ success: "Titularidad transferida." });
+    await expect(transferPrimaryOwnershipAction({}, data())).resolves.toEqual({ success: "Titularidad transferida. La invitación fue enviada a new@example.com." });
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ attendeeId, force: true, to: "new@example.com", backupCode: "NEW12345" }));
   });
 
   it("does not email a pending transfer", async () => {
     mocks.listRegistrations.mockResolvedValue([{ ...registration, reviewStatus: "new", status: "pending_review" }]);
     mocks.transferPrimaryAttendee.mockResolvedValue({ ok: true, attendee: registration.attendees[0], previous: { fullName: "Old Primary", email: "old@example.com" }, registrationStatus: "pending_review", reviewStatus: "new", cancelToken: "current-cancel" });
-    await expect(transferPrimaryOwnershipAction({}, data())).resolves.toEqual({ success: "Titularidad transferida." });
+    await expect(transferPrimaryOwnershipAction({}, data())).resolves.toEqual({ success: "Titularidad transferida. La invitación se enviará cuando el registro sea aprobado." });
     expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
   });
 

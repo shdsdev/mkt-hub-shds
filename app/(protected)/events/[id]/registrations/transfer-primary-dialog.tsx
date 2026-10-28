@@ -10,7 +10,7 @@ import { retryPrimaryTransferInvitationAction, transferPrimaryOwnershipAction, t
 type Props = {
   eventId: string;
   registrationId: string;
-  attendee: { id: string; fullName: string; email: string };
+  attendee: { id: string; fullName: string; email: string; company?: string | null };
   approved: boolean;
   companions: number;
   onClose: () => void;

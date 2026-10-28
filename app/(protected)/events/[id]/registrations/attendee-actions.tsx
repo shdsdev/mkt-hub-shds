@@ -34,6 +34,7 @@ function AttendeeFormFields({
   collectCompany,
   collectJobTitle,
   phoneRequired,
+  allRequired = false,
   occupation,
   setOccupation,
 }: {
@@ -41,6 +42,7 @@ function AttendeeFormFields({
   collectCompany: boolean;
   collectJobTitle: boolean;
   phoneRequired: boolean;
+  allRequired?: boolean;
   occupation: string;
   setOccupation: (value: string) => void;
 }) {
@@ -48,9 +50,9 @@ function AttendeeFormFields({
     <>
       <input name="fullName" defaultValue={attendee.fullName} placeholder="Nombre completo" required className={fieldClass} />
       <input name="email" type="email" defaultValue={attendee.email} placeholder="Correo" required className={fieldClass} />
-      <input name="phone" type="tel" defaultValue={attendee.phone} placeholder="Teléfono" required={phoneRequired} aria-required={phoneRequired} aria-label="Teléfono" className={fieldClass} />
-      {collectCompany ? <input name="company" defaultValue={attendee.company} placeholder="Empresa" className={fieldClass} /> : null}
-      {collectJobTitle ? <input name="jobTitle" defaultValue={attendee.jobTitle} placeholder="Puesto" className={fieldClass} /> : null}
+      <input name="phone" type="tel" defaultValue={attendee.phone} placeholder="Teléfono" required={phoneRequired || allRequired} aria-required={phoneRequired || allRequired} aria-label="Teléfono" className={fieldClass} />
+      {collectCompany ? <input name="company" defaultValue={attendee.company} placeholder="Empresa" required={allRequired} aria-required={allRequired} className={fieldClass} /> : null}
+      {collectJobTitle ? <input name="jobTitle" defaultValue={attendee.jobTitle} placeholder="Puesto" required={allRequired} aria-required={allRequired} className={fieldClass} /> : null}
       <input type="hidden" name="occupation" value={occupation} required />
       <div className="space-y-1.5">
         <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Actividad profesional</label>
@@ -242,7 +244,8 @@ export function AttendeeActions({
 
       {transferOpen ? (
         <TransferPrimaryDialog eventId={eventId} registrationId={registration.id} attendee={attendee} approved={registration.reviewStatus === "approved"} companions={registration.attendees.filter((candidate) => candidate.id !== attendee.id && candidate.isActive !== false).length} onClose={() => setTransferOpen(false)}>
-          <AttendeeFormFields attendee={{ fullName: "", email: "", phone: "", company: "", jobTitle: "", occupation: "" }} collectCompany={collectCompany} collectJobTitle={collectJobTitle} phoneRequired={phoneRequired} occupation={occupation} setOccupation={setOccupation} />
+          <input type="hidden" name="company" value={attendee.company ?? ""} />
+          <AttendeeFormFields attendee={{ fullName: "", email: "", phone: "", company: "", jobTitle: "", occupation: "" }} collectCompany={false} collectJobTitle={collectJobTitle} phoneRequired={true} allRequired occupation={occupation} setOccupation={setOccupation} />
         </TransferPrimaryDialog>
       ) : null}
 

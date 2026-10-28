@@ -336,11 +336,16 @@ export async function transferPrimaryOwnershipAction(
     before: result.previous,
     after: { fullName: result.attendee.fullName, email: result.attendee.email, backupCode: result.attendee.backupCode },
   });
+  const invitationIsSentNow = result.reviewStatus === "approved" && (result.registrationStatus === "confirmed" || result.registrationStatus === "checked_in");
   let sent = true;
-  if (result.reviewStatus === "approved" && (result.registrationStatus === "confirmed" || result.registrationStatus === "checked_in")) sent = await sendReplacementInvitation(context.event, result.attendee, result.cancelToken);
+  if (invitationIsSentNow) sent = await sendReplacementInvitation(context.event, result.attendee, result.cancelToken);
   if (!sent) return { success: "Titularidad transferida.", warning: "La transferencia se completó, pero no se pudo enviar la invitación. Puedes reintentar el envío sin volver a transferir la titularidad.", retry: { eventId: parsed.data.eventId, registrationId: parsed.data.registrationId, attendeeId: result.attendee.id } };
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
-  return { success: "Titularidad transferida." };
+  return {
+    success: invitationIsSentNow
+      ? `Titularidad transferida. La invitación fue enviada a ${result.attendee.email}.`
+      : "Titularidad transferida. La invitación se enviará cuando el registro sea aprobado.",
+  };
 }
 
 export async function retryPrimaryTransferInvitationAction(_prevState: ResendInvitationState, formData: FormData): Promise<ResendInvitationState> {
