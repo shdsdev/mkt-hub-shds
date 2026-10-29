@@ -11,6 +11,7 @@ import { env } from "@/lib/env";
 import {
   createEmailCampaign,
   createCampaignRecipientSnapshot,
+  getCampaignResultRedirect,
   updateEmailCampaign,
   duplicateEmailCampaign,
   listEmailSegments,
@@ -155,7 +156,9 @@ export async function createEmailCampaignAction(
   });
 
   revalidatePath("/email-marketing");
-  return { success: parsed.data.sendMode === "draft" ? `Borrador guardado con ${recipientCount} destinatarios elegibles.` : `Campaña preparada con ${recipientCount} destinatarios elegibles.` };
+  const resultRedirect = getCampaignResultRedirect(campaign.id, parsed.data.sendMode);
+  if (resultRedirect) redirect(resultRedirect);
+  return { success: `Borrador guardado con ${recipientCount} destinatarios elegibles.` };
 }
 
 export async function updateEmailCampaignAction(
@@ -243,7 +246,9 @@ export async function updateEmailCampaignAction(
   });
   revalidatePath("/email-marketing");
   revalidatePath(`/email-marketing/campaigns/${campaign.id}`);
-  return { success: parsed.data.sendMode === "draft" ? "Cambios guardados." : `Campaña preparada con ${recipientCount} destinatarios.` };
+  const resultRedirect = getCampaignResultRedirect(campaign.id, parsed.data.sendMode);
+  if (resultRedirect) redirect(resultRedirect);
+  return { success: "Cambios guardados." };
 }
 
 export async function duplicateEmailCampaignAction(formData: FormData): Promise<void> {
