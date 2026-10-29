@@ -78,3 +78,4 @@ export { normalizeEmailContactListOptions, type EmailContactListOptions } from "
 export { buildAudienceSummary, type EmailAudienceSummary } from "./audience-summary";
 export { getCampaignResultRedirect } from "./campaign-result";
 export { summarizeRecipientStatuses, type EmailCampaignDeliverySummary, type DeliveryRecipientStatus } from "./delivery-summary";
+export { getRecipientDeliveryStatus, type RecipientDeliveryStatus } from "./delivery-events";

@@ -48,12 +48,13 @@ export function CampaignDeliveryStatus({
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState<number | null>(null);
   const waitingPastSchedule = campaign.status === "scheduled" && currentTime !== null && Boolean(campaign.scheduledAt && new Date(campaign.scheduledAt).getTime() < currentTime);
+  const shouldRefresh = campaign.status === "scheduled" || campaign.status === "sending" || (campaign.status === "sent" && counts.delivered < counts.sent);
   useEffect(() => {
     setCurrentTime(Date.now());
-    if (campaign.status !== "scheduled" && campaign.status !== "sending") return;
+    if (!shouldRefresh) return;
     const timer = window.setInterval(() => router.refresh(), 10000);
     return () => window.clearInterval(timer);
-  }, [campaign.status, router]);
+  }, [router, shouldRefresh]);
 
   return (
     <section className="space-y-5 rounded-2xl border border-border bg-card/60 p-5 sm:p-6" aria-live="polite">

@@ -23,6 +23,7 @@ import { renderEmailHtml } from "./render-email";
 import type { EmailContactListOptions } from "./contact-list-options";
 import { resolveCampaignCompletionStatus } from "./campaign-processing";
 import { summarizeRecipientStatuses, type EmailCampaignDeliverySummary } from "./delivery-summary";
+import { getRecipientDeliveryStatus } from "./delivery-events";
 import { createRepermissionToken, hashRepermissionToken, isRepermissionContactEligible, renderRepermissionEmailHtml } from "./repermission";
 export { transitionEmailCampaignStatus, type EmailCampaignStatus } from "./campaign-state";
 
@@ -1110,13 +1111,7 @@ export async function processResendWebhookEvent(
     .returning({ id: emailDeliveryEvents.id });
   if (!stored) return "duplicate";
 
-  const status = event.type === "email.delivered"
-    ? "delivered"
-    : event.type === "email.bounced" || event.type === "email.suppressed" || event.type === "email.complained"
-      ? "suppressed"
-      : event.type === "email.failed" || event.type === "email.delivery_delayed"
-        ? "failed"
-        : null;
+  const status = getRecipientDeliveryStatus(event.type);
   if (!status) return "processed";
 
   await db
