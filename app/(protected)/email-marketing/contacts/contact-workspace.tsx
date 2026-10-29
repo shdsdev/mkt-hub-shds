@@ -33,6 +33,7 @@ export function ContactWorkspace({
   statusLabels: Record<EmailContact["subscriptionStatus"], string>;
 }) {
   const [panel, setPanel] = useState<Panel>(null);
+  const [importBusy, setImportBusy] = useState(false);
   const router = useRouter();
 
   return (
@@ -53,21 +54,21 @@ export function ContactWorkspace({
          <ContactTable contacts={contacts} total={total} page={page} pageSize={pageSize} filter={filter} tags={tags} segments={segments} statusLabels={statusLabels} onContactOpen={(contact) => router.push(`/email-marketing/contacts/${contact.id}`)} />
       </section>
 
-      <Sheet open={panel !== null} onOpenChange={(open) => !open && setPanel(null)}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+      <Sheet open={panel !== null} onOpenChange={(open) => { if (!open && importBusy) return; setPanel(null); }}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl" showCloseButton={!importBusy}>
           {panel === "contact" ? <>
             <SheetHeader className="border-b border-border"><SheetTitle>Agregar contacto</SheetTitle><SheetDescription>Se guardará como pendiente y no recibirá campañas hasta contar con consentimiento.</SheetDescription></SheetHeader>
             <div className="p-4 sm:p-6"><ContactForm /></div>
           </> : null}
           {panel === "import" ? <>
             <SheetHeader className="border-b border-border"><SheetTitle>Importar contactos</SheetTitle><SheetDescription>Revisá las filas antes de confirmar. Los duplicados actualizan datos sin sobrescribir bajas ni supresiones.</SheetDescription></SheetHeader>
-            <div className="p-4 sm:p-6"><ImportContactsForm /></div>
+            <div className="p-4 sm:p-6"><ImportContactsForm onBusyChange={setImportBusy} onComplete={() => setPanel(null)} /></div>
           </> : null}
           {panel === "tags" ? <>
             <SheetHeader className="border-b border-border"><SheetTitle>Gestionar etiquetas</SheetTitle><SheetDescription>Usá etiquetas para organizar contactos sin mezclarlas con el consentimiento.</SheetDescription></SheetHeader>
             <div className="space-y-6 p-4 sm:p-6"><CreateTagForm /><div><h3 className="text-sm font-semibold">Etiquetas existentes</h3><div className="mt-3 flex flex-wrap gap-2">{tags.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay etiquetas.</p> : tags.map((tag) => <span key={tag.id} className="rounded-full border border-border px-3 py-1.5 text-xs">{tag.name}</span>)}</div></div></div>
           </> : null}
-          <SheetClose className="sr-only">Cerrar panel</SheetClose>
+          {!importBusy ? <SheetClose className="sr-only">Cerrar panel</SheetClose> : null}
         </SheetContent>
       </Sheet>
     </>
