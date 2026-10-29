@@ -232,6 +232,58 @@ function contentBlockToEditorBlock(block: EmailContentBlock): EditorBlock {
   }
 }
 
+type AudienceSegment = {
+  id: string;
+  name: string;
+  definition: { filters: { tags?: string[]; eventIds?: string[]; subscriptionStatuses?: string[]; conditions?: unknown[] } };
+  matchedContactCount: number;
+  eligibleContactCount: number;
+  excludedContactCount: number;
+};
+
+function audienceFilterLabels(segment: AudienceSegment): string[] {
+  const filters = segment.definition.filters;
+  const statusLabels: Record<string, string> = {
+    subscribed: "Suscripto",
+    pending: "Pendiente",
+    unsubscribed: "Dado de baja",
+    suppressed: "Suprimido",
+  };
+  return [
+    filters.tags?.length ? `${filters.tags.length} ${filters.tags.length === 1 ? "etiqueta" : "etiquetas"}` : null,
+    filters.eventIds?.length ? `${filters.eventIds.length} ${filters.eventIds.length === 1 ? "evento" : "eventos"}` : null,
+    filters.subscriptionStatuses?.length ? `Estado: ${filters.subscriptionStatuses.map((status) => statusLabels[status] ?? status).join(", ")}` : null,
+    filters.conditions?.length ? `${filters.conditions.length} ${filters.conditions.length === 1 ? "condición" : "condiciones"}` : null,
+  ].filter((label): label is string => Boolean(label));
+}
+
+function AudienceSummary({ segment }: { segment: AudienceSegment }) {
+  const filterLabels = audienceFilterLabels(segment);
+  const hasNoEligibleContacts = segment.eligibleContactCount === 0;
+
+  return (
+    <div aria-live="polite" className={`mt-4 rounded-xl border p-4 ${hasNoEligibleContacts ? "border-destructive/40 bg-destructive/5" : "border-primary/30 bg-primary/5"}`}>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Audiencia seleccionada</p>
+          <h3 className="mt-1 text-base font-semibold">{segment.name}</h3>
+          <p className={`mt-1 text-sm font-medium ${hasNoEligibleContacts ? "text-destructive" : "text-foreground"}`}>
+            {hasNoEligibleContacts ? "No hay contactos elegibles para enviar" : `${segment.eligibleContactCount} contactos recibirán este correo`}
+          </p>
+        </div>
+        <span className="text-xs text-muted-foreground">Se congela al guardar</span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-border/70 bg-background/30 p-3"><p className="text-xs text-muted-foreground">Coinciden</p><p className="mt-1 text-lg font-semibold">{segment.matchedContactCount}</p></div>
+        <div className="rounded-lg border border-border/70 bg-background/30 p-3"><p className="text-xs text-muted-foreground">Recibirán</p><p className="mt-1 text-lg font-semibold text-accent">{segment.eligibleContactCount}</p></div>
+        <div className="rounded-lg border border-border/70 bg-background/30 p-3"><p className="text-xs text-muted-foreground">Excluidos</p><p className="mt-1 text-lg font-semibold">{segment.excludedContactCount}</p></div>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-muted-foreground">Las bajas, supresiones y contactos sin consentimiento quedan fuera automáticamente.</p>
+      {filterLabels.length ? <div className="mt-3 flex flex-wrap gap-2">{filterLabels.map((label) => <span key={label} className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">{label}</span>)}</div> : null}
+    </div>
+  );
+}
+
 function campaignToEditorState(campaign?: EmailCampaign) {
   if (!campaign) return { blocks: initialBlocks, editorMode: "blocks" as const, htmlBody: initialHtml };
   if (campaign.content.mode === "html") return { blocks: initialBlocks, editorMode: "html" as const, htmlBody: campaign.content.bodyHtml };
@@ -433,6 +485,7 @@ function BlockPropertiesPanel({
             <nav aria-label="Pasos de la campaña" className="grid gap-2 sm:grid-cols-4">{([['audience', 'Audiencia'], ['content', 'Contenido'], ['schedule', 'Programación'], ['review', 'Revisión']] as const).map(([value, label], index) => <button key={value} type="button" onClick={() => setActiveStep(value)} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs ${activeStep === value ? "border-primary/70 bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-muted/50"}`}><span className="font-mono text-[10px] text-primary">0{index + 1}</span>{label}</button>)}</nav>
           </header>
           <CampaignMetaFields name={campaignName} subject={subject} previewText={previewText} fromName={fromName} sendMode={sendMode} scheduledAt={scheduledAt} minimumScheduledAt={minimumScheduledAt} onNameChange={setCampaignName} onSubjectChange={setSubject} onPreviewTextChange={setPreviewText} onFromNameChange={setFromName} onSendModeChange={setSendMode} onScheduledAtChange={setScheduledAt} />
+          {selectedAudience ? <AudienceSummary segment={selectedAudience} /> : null}
           {activeStep === "schedule" ? <section className="rounded-2xl border border-primary/30 bg-primary/5 p-6 sm:p-8"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Programación</p><h2 className="mt-2 font-heading text-2xl font-semibold">¿Cuándo querés entregar este correo?</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Elegí enviar ahora para poner la campaña en la cola de entrega o seleccioná una fecha futura. Guardar como borrador nunca envía correos.</p><div className="mt-6 grid gap-3 sm:grid-cols-3"><button type="button" onClick={() => setSendMode("draft")} className={`rounded-xl border p-4 text-left ${sendMode === "draft" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}><p className="font-medium">Guardar borrador</p><p className="mt-1 text-xs text-muted-foreground">No se envía.</p></button><button type="button" onClick={() => setSendMode("now")} className={`rounded-xl border p-4 text-left ${sendMode === "now" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}><p className="font-medium">Enviar ahora</p><p className="mt-1 text-xs text-muted-foreground">Se procesa al confirmar.</p></button><button type="button" onClick={() => setSendMode("scheduled")} className={`rounded-xl border p-4 text-left ${sendMode === "scheduled" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}><p className="font-medium">Programar</p><p className="mt-1 text-xs text-muted-foreground">Elegí una fecha futura.</p></button></div>{sendMode === "scheduled" ? <label className="mt-5 block max-w-md text-sm font-medium">Fecha y hora<input type="datetime-local" value={scheduledAt} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} onChange={(event) => setScheduledAt(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /></label> : null}</section> : <section className="rounded-2xl border border-primary/30 bg-primary/5 p-6 sm:p-8"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Revisión</p><h2 className="mt-2 font-heading text-2xl font-semibold">Confirmá antes de enviar</h2><div className="mt-6 grid gap-4 text-sm sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Audiencia</p><p className="font-medium">{audienceMode === "segment" ? selectedSegment?.name ?? "Segmento seleccionado" : "Todos los suscriptos"}</p><p className="text-xs text-muted-foreground">{selectedAudienceCount} destinatarios elegibles</p></div><div><p className="text-xs text-muted-foreground">Entrega</p><p className="font-medium">{sendMode === "draft" ? "Guardar borrador" : sendMode === "now" ? "Enviar ahora" : scheduledAt ? new Date(scheduledAt).toLocaleString("es-MX") : "Elegí una fecha"}</p></div><div><p className="text-xs text-muted-foreground">Asunto</p><p className="font-medium">{subject || "Sin asunto"}</p></div><div><p className="text-xs text-muted-foreground">Remitente</p><p className="font-medium">{fromName || "Shades + Spaces"}</p></div></div>{sendMode !== "draft" && selectedAudienceCount === 0 ? <p role="alert" className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">No hay destinatarios elegibles. Revisá el estado de suscripción de tus contactos antes de enviar.</p> : null}</section>}
           <footer className="flex flex-col gap-3 rounded-2xl border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"><p className="text-xs text-muted-foreground">{selectedAudienceCount} destinatarios elegibles</p><div className="flex flex-wrap gap-2"><button type="button" onClick={() => setActiveStep(activeStep === "schedule" ? "content" : "schedule")} className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-xs font-medium hover:bg-muted">{activeStep === "schedule" ? "Volver al contenido" : "Volver a programación"}</button><button type="submit" disabled={pending || (sendMode !== "draft" && (selectedAudienceCount === 0 || (sendMode === "scheduled" && !scheduledAt)))} className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground hover:bg-primary/80 disabled:pointer-events-none disabled:opacity-50">{pending ? "Procesando…" : sendMode === "draft" ? "Guardar borrador" : sendMode === "now" ? `Enviar a ${selectedAudienceCount}` : "Programar envío"}</button></div>{state.error ? <p role="alert" className="text-xs text-destructive">{state.error}</p> : null}{state.success ? <p role="status" className="text-xs text-accent">{state.success}</p> : null}</footer>
         </form>
@@ -484,7 +537,7 @@ export function EmailMarketingWizard({
   eligibleContactCount,
   campaign,
 }: {
-  segments: Array<{ id: string; name: string; definition: { filters: { tags?: string[]; eventIds?: string[]; subscriptionStatuses?: string[] } }; eligibleContactCount: number }>;
+  segments: AudienceSegment[];
   eligibleContactCount: number;
   campaign?: EmailCampaign;
 }) {
@@ -506,7 +559,7 @@ export function EmailMarketingWizard({
   const [campaignName, setCampaignName] = useState(campaign?.name ?? "Nueva campaña");
   const [subject, setSubject] = useState(campaign?.subject ?? "Tu próxima novedad");
   const [previewText, setPreviewText] = useState(campaign?.previewText ?? "");
-  const [fromName, setFromName] = useState(campaign?.fromName ?? "Shades + Spaces");
+  const [fromName, setFromName] = useState(campaign?.fromName ?? "Shades de México");
   const [sendMode, setSendMode] = useState<CampaignSendMode>(campaign?.status === "scheduled" ? "scheduled" : "draft");
   const [scheduledAt, setScheduledAt] = useState(campaign?.scheduledAt ? toLocalDateTimeInputValue(campaign.scheduledAt) : "");
   const [minimumScheduledAt] = useState(() => toLocalDateTimeInputValue(new Date(Date.now() + 60000)));
@@ -520,7 +573,8 @@ export function EmailMarketingWizard({
   const scheduledAtIso = scheduledAt ? new Date(scheduledAt).toISOString() : "";
   const selectedSegment = segments.find((segment) => segment.id === selectedSegmentId || segment.name === selectedSegmentId);
   const audienceDocument = { mode: audienceMode, ...(audienceMode === "segment" && selectedSegment ? { segmentId: selectedSegment.id } : {}) };
-  const selectedAudienceCount = audienceMode === "segment" ? selectedSegment?.eligibleContactCount ?? 0 : eligibleContactCount;
+  const selectedAudience = audienceMode === "segment" ? selectedSegment : undefined;
+  const selectedAudienceCount = selectedAudience?.eligibleContactCount ?? eligibleContactCount;
 
   useEffect(() => {
     if (selectedSegment && selectedSegmentId === selectedSegment.id) setSelectedSegmentId(selectedSegment.name);
@@ -529,6 +583,10 @@ export function EmailMarketingWizard({
   function continueWizard() {
     if (activeStep === "audience" && audienceMode === "segment" && !selectedSegmentId) {
       setFeedback("Seleccioná un segmento para continuar.");
+      return;
+    }
+    if (activeStep === "audience" && selectedAudienceCount === 0) {
+      setFeedback("La audiencia no tiene contactos elegibles para enviar.");
       return;
     }
     setFeedback("");
@@ -656,8 +714,9 @@ export function EmailMarketingWizard({
         <aside className="rounded-2xl border border-border bg-card/50"><div className="flex items-center justify-between border-b border-border p-4"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Editor</p><div className="flex rounded-lg border border-border p-0.5" aria-label="Modo de edición"><button type="button" onClick={() => setEditorMode("blocks")} className={`rounded-md px-2.5 py-1 text-xs ${editorMode === "blocks" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>Bloques</button><button type="button" onClick={() => setEditorMode("html")} className={`rounded-md px-2.5 py-1 text-xs ${editorMode === "html" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>HTML</button></div></div>{editorMode === "html" ? <div className="space-y-4 p-4"><div className="overflow-hidden rounded-lg border border-border"><CodeMirror value={htmlBody} height="520px" extensions={[html()]} onChange={setHtmlBody} theme="dark" basicSetup={{ lineNumbers: true, foldGutter: false }} /></div><p className="text-xs leading-5 text-muted-foreground">Podés pegar un documento HTML completo. El preview mostrará todo el contenido sin scrollbar interno y el servidor sanitizará el HTML al guardar.</p></div> : <BlockPropertiesPanel block={selectedBlock} tab={propertyTab} onTabChange={setPropertyTab} onUpdate={updateSelected} onMove={moveSelected} onDuplicate={duplicateSelected} onRemove={removeSelected} onSelect={setSelectedId} onAddNested={addNestedBlock} canRemove={blocks.length > 1} />}</aside>
        </section> : activeStep === "audience" ? <section className="rounded-2xl border border-border bg-card/60 p-6 sm:p-8"><div className="flex flex-col gap-2"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Audiencia</p><h2 className="font-heading text-2xl font-semibold">¿A quién querés enviarle?</h2><p className="max-w-2xl text-sm leading-6 text-muted-foreground">Las bajas y supresiones quedan excluidas automáticamente. La audiencia se congelará al guardar la campaña.</p></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => { setAudienceMode("all"); setSelectedSegmentId(""); }} className={`rounded-xl border p-4 text-left transition-colors ${audienceMode === "all" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}><p className="font-medium">Todos los suscriptos</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Contactos con consentimiento y estado suscripto.</p><p className="mt-4 text-2xl font-semibold">{eligibleContactCount}</p><p className="text-xs text-muted-foreground">contactos elegibles</p></button><button type="button" onClick={() => setAudienceMode("segment")} className={`rounded-xl border p-4 text-left transition-colors ${audienceMode === "segment" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}><p className="font-medium">Segmento guardado</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Reutilizá una audiencia filtrada por etiquetas y datos estructurados.</p><p className="mt-4 text-2xl font-semibold">{segments.length}</p><p className="text-xs text-muted-foreground">segmentos disponibles</p></button></div>{audienceMode === "segment" ? <label className="mt-5 block max-w-xl text-sm font-medium">Segmento<Select value={selectedSegmentId} onValueChange={(value) => setSelectedSegmentId(value ?? "")}><SelectTrigger className="mt-1.5 h-10 w-full"><SelectValue placeholder="Seleccioná un segmento" /></SelectTrigger><SelectContent><SelectItem value="">Seleccioná un segmento</SelectItem>{segments.map((segment) => <SelectItem key={segment.id} value={segment.id}>{segment.name}</SelectItem>)}</SelectContent></Select></label> : null}<div className="mt-6 rounded-xl border border-border/70 bg-background/30 p-4 text-xs text-muted-foreground">Los contactos `unsubscribed`, `suppressed` y sin consentimiento no pueden entrar en la audiencia.</div></section> : <section className="rounded-2xl border border-border bg-card/60 p-8 sm:p-12"><div className="mx-auto max-w-xl text-center"><div className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary">{activeStep === "schedule" ? <CalendarClock size={22} /> : <Mail size={22} />}</div><h2 className="mt-5 font-heading text-2xl font-semibold">{activeStep === "schedule" ? "Programá el envío" : "Revisá antes de enviar"}</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Esta fase se habilita después de confirmar la audiencia y el contenido.</p><button type="button" onClick={() => setActiveStep("content")} className="mt-6 inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80">Volver al contenido</button></div></section>}
 
-         {false ? <section className="rounded-2xl border border-primary/30 bg-primary/5 p-5"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Confirmación final</p><p>La revisión se muestra en el flujo de entrega.</p></section> : null}
-         <footer className="flex flex-col gap-3 rounded-2xl border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"><p className="text-xs text-muted-foreground">{activeStep === "audience" ? `${selectedAudienceCount} contactos elegibles en la audiencia seleccionada.` : "La campaña conserva la audiencia elegida y el contenido actual."}</p><div className="flex flex-wrap gap-2"><button type="submit" disabled={pending} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-50"><Save size={14} /> {pending ? "Guardando…" : campaign ? "Guardar cambios" : "Guardar borrador"}</button><button type="button" onClick={continueWizard} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-medium text-primary-foreground hover:bg-primary/80">Continuar</button></div>{state.error ? <p role="alert" className="text-xs text-destructive">{state.error}</p> : null}{state.success ? <p role="status" className="text-xs text-accent">{state.success}</p> : null}{feedback ? <p role="status" className="text-xs text-accent">{feedback}</p> : null}</footer>
+          {selectedAudience ? <AudienceSummary segment={selectedAudience} /> : null}
+          {selectedAudience && selectedAudienceCount === 0 ? <p role="alert" className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">Este segmento no tiene contactos elegibles. Elegí otro segmento para continuar.</p> : null}
+          <footer className="flex flex-col gap-3 rounded-2xl border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"><p className="text-xs text-muted-foreground">{activeStep === "audience" ? `${selectedAudienceCount} contactos elegibles en la audiencia seleccionada.` : "La campaña conserva la audiencia elegida y el contenido actual."}</p><div className="flex flex-wrap gap-2"><button type="submit" disabled={pending} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-50"><Save size={14} /> {pending ? "Guardando…" : campaign ? "Guardar cambios" : "Guardar borrador"}</button><button type="button" onClick={continueWizard} disabled={pending || (activeStep === "audience" && selectedAudienceCount === 0)} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-medium text-primary-foreground hover:bg-primary/80 disabled:pointer-events-none disabled:opacity-50">Continuar</button></div>{state.error ? <p role="alert" className="text-xs text-destructive">{state.error}</p> : null}{state.success ? <p role="status" className="text-xs text-accent">{state.success}</p> : null}{feedback ? <p role="status" className="text-xs text-accent">{feedback}</p> : null}</footer>
       </form>
       {showPreview && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Vista previa del email"><div className="flex max-h-[calc(100svh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"><div className="flex items-center justify-between border-b border-border px-5 py-3"><div><p className="text-sm font-semibold">Vista previa</p><p className="text-xs text-muted-foreground">Así se verá el correo para tus contactos.</p></div><button type="button" onClick={() => setShowPreview(false)} className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted">Cerrar</button></div><div className="min-h-0 overflow-auto bg-[#e9edf2] p-4 sm:p-8">{editorMode === "html" ? <HtmlPreview source={htmlBody} device="desktop" /> : <EmailBlockCanvas blocks={blocks} selectedId="" device="desktop" onSelect={() => undefined} onAddNested={() => undefined} onDropBlock={() => undefined} />}</div></div></div>}
        {showTestEmail && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Enviar email de prueba"><form action={testFormAction} className="w-full max-w-md rounded-2xl border border-[#294447] bg-[#0d2325] p-5 text-white shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold">Enviar prueba</p><p className="mt-1 text-xs leading-5 text-white/65">Se enviará una copia del contenido actual al correo indicado.</p></div><button type="button" onClick={() => setShowTestEmail(false)} className="text-xs text-white/65 hover:text-white">Cerrar</button></div><input type="hidden" name="subject" value={subject} /><input type="hidden" name="content" value={JSON.stringify(contentDocument)} readOnly /><label className="mt-5 block text-sm font-medium">Correo de destino<input name="email" type="email" required placeholder="tu@correo.com" className="mt-1.5 h-10 w-full rounded-lg border border-[#294447] bg-[#10292b] px-3 text-sm text-white outline-none placeholder:text-white/45 focus-visible:ring-3 focus-visible:ring-primary/50" /></label><button type="submit" disabled={testPending} className="mt-5 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground disabled:opacity-50">{testPending ? "Enviando…" : "Enviar prueba"}</button>{testState.error ? <p role="alert" className="mt-3 text-xs text-red-300">{testState.error}</p> : null}{testState.success ? <p role="status" className="mt-3 text-xs text-accent">{testState.success}</p> : null}</form></div>}

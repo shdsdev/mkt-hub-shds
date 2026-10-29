@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
 import {
   getEmailCampaign,
+  buildAudienceSummary,
   listEmailSegments,
   listEligibleAudienceContacts,
   listEmailSegmentMatches,
@@ -26,12 +27,14 @@ export default async function EditEmailCampaignPage({
     listEmailSegments(user.profile.organizationId),
     listEligibleAudienceContacts({ organizationId: user.profile.organizationId }),
   ]);
-  const segmentsWithCounts = await Promise.all(segments.map(async (segment) => ({
-    id: segment.id,
-    name: segment.name,
-    definition: segment.definition,
-    eligibleContactCount: (await listEmailSegmentMatches({ organizationId: user.profile.organizationId, definition: segment.definition })).filter((contact) => contact.subscriptionStatus === "subscribed").length,
-  })));
+  const segmentsWithCounts = await Promise.all(segments.map(async (segment) => {
+    const matches = await listEmailSegmentMatches({ organizationId: user.profile.organizationId, definition: segment.definition });
+    const summary = buildAudienceSummary({
+      matchedContactCount: matches.length,
+      eligibleContactCount: matches.filter((contact) => contact.subscriptionStatus === "subscribed").length,
+    });
+    return { id: segment.id, name: segment.name, definition: segment.definition, ...summary };
+  }));
 
   return (
     <main className="mx-auto flex min-h-full w-full min-w-0 max-w-[1800px] flex-col gap-4 overflow-x-hidden pb-10 lg:-m-6 lg:w-[calc(100%+3rem)] lg:max-w-none">

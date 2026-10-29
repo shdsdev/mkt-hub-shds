@@ -74,3 +74,4 @@ export {
 } from "./content-schema";
 export { renderEmailHtml, type EmailPersonalization } from "./render-email";
 export { normalizeEmailContactListOptions, type EmailContactListOptions } from "./contact-list-options";
+export { buildAudienceSummary, type EmailAudienceSummary } from "./audience-summary";
