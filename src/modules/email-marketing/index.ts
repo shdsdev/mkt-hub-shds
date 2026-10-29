@@ -7,6 +7,7 @@ export {
   syncEventAttendeeContact,
   listEmailCampaigns,
   getEmailCampaign,
+  getEmailCampaignDeliverySummary,
   listEmailContacts,
   getEmailContact,
   updateEmailContact,
@@ -76,3 +77,4 @@ export { renderEmailHtml, type EmailPersonalization } from "./render-email";
 export { normalizeEmailContactListOptions, type EmailContactListOptions } from "./contact-list-options";
 export { buildAudienceSummary, type EmailAudienceSummary } from "./audience-summary";
 export { getCampaignResultRedirect } from "./campaign-result";
+export { summarizeRecipientStatuses, type EmailCampaignDeliverySummary, type DeliveryRecipientStatus } from "./delivery-summary";

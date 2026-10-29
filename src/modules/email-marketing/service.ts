@@ -22,12 +22,14 @@ import { parseEmailCampaignContent, type EmailCampaignContent } from "./content-
 import { renderEmailHtml } from "./render-email";
 import type { EmailContactListOptions } from "./contact-list-options";
 import { resolveCampaignCompletionStatus } from "./campaign-processing";
+import { summarizeRecipientStatuses, type EmailCampaignDeliverySummary } from "./delivery-summary";
 import { createRepermissionToken, hashRepermissionToken, isRepermissionContactEligible, renderRepermissionEmailHtml } from "./repermission";
 export { transitionEmailCampaignStatus, type EmailCampaignStatus } from "./campaign-state";
 
 export type EmailContactStatus = (typeof emailContactStatus.enumValues)[number];
 export type EmailCampaign = typeof emailCampaigns.$inferSelect;
 export type EmailContact = typeof emailContacts.$inferSelect;
+export type { EmailCampaignDeliverySummary } from "./delivery-summary";
 export type { EmailSegmentCondition, EmailSegmentDefinition } from "./segment-schema";
 
 export type EventAttendeeContactInput = {
@@ -247,6 +249,43 @@ export async function getEmailCampaign(input: { organizationId: string; campaign
     .where(and(eq(emailCampaigns.organizationId, input.organizationId), eq(emailCampaigns.id, input.campaignId)))
     .limit(1);
   return campaign;
+}
+
+export async function getEmailCampaignDeliverySummary(input: {
+  organizationId: string;
+  campaignId: string;
+}): Promise<{
+  counts: EmailCampaignDeliverySummary;
+  failedRecipients: Array<{ email: string; error: string | null }>;
+  recentEvents: Array<{ eventType: string; occurredAt: Date }>;
+}> {
+  const statusRows = await db
+    .select({ status: emailCampaignRecipients.status, count: count() })
+    .from(emailCampaignRecipients)
+    .where(and(eq(emailCampaignRecipients.organizationId, input.organizationId), eq(emailCampaignRecipients.campaignId, input.campaignId)))
+    .groupBy(emailCampaignRecipients.status);
+  const failedRecipients = await db
+    .select({ email: emailCampaignRecipients.email, error: emailCampaignRecipients.error })
+    .from(emailCampaignRecipients)
+    .where(and(
+      eq(emailCampaignRecipients.organizationId, input.organizationId),
+      eq(emailCampaignRecipients.campaignId, input.campaignId),
+      inArray(emailCampaignRecipients.status, ["bounced", "failed", "suppressed"]),
+    ))
+    .orderBy(desc(emailCampaignRecipients.sentAt))
+    .limit(20);
+  const recentEvents = await db
+    .select({ eventType: emailDeliveryEvents.eventType, occurredAt: emailDeliveryEvents.occurredAt })
+    .from(emailDeliveryEvents)
+    .where(and(eq(emailDeliveryEvents.organizationId, input.organizationId), eq(emailDeliveryEvents.campaignId, input.campaignId)))
+    .orderBy(desc(emailDeliveryEvents.occurredAt))
+    .limit(10);
+
+  return {
+    counts: summarizeRecipientStatuses(statusRows.map((row) => ({ status: row.status, count: Number(row.count) }))),
+    failedRecipients,
+    recentEvents,
+  };
 }
 
 export async function listEmailContacts(
@@ -993,17 +1032,29 @@ export async function processDueEmailCampaigns(input: { limit?: number } = {}): 
       .select({ id: emailCampaignRecipients.id })
       .from(emailCampaignRecipients)
       .where(and(eq(emailCampaignRecipients.campaignId, campaign.id), eq(emailCampaignRecipients.status, "pending")));
-    const outcomes = await Promise.all(recipients.map(async (recipient) => {
-      const result = await sendEmailCampaignRecipient(recipient.id);
-      if (result.sent) sent += 1;
-      else failed += 1;
-      return result.sent ? "sent" as const : "failed" as const;
-    }));
-    const status = resolveCampaignCompletionStatus(outcomes);
-    await db
-      .update(emailCampaigns)
-      .set({ status, completedAt: new Date(), updatedAt: new Date() })
-      .where(eq(emailCampaigns.id, campaign.id));
+    const outcomes: Array<"sent" | "failed"> = [];
+    try {
+      for (let index = 0; index < recipients.length; index += 5) {
+        const batch = recipients.slice(index, index + 5);
+        const batchOutcomes = await Promise.all(batch.map(async (recipient) => {
+          const result = await sendEmailCampaignRecipient(recipient.id);
+          if (result.sent) sent += 1;
+          else failed += 1;
+          return result.sent ? "sent" as const : "failed" as const;
+        }));
+        outcomes.push(...batchOutcomes);
+      }
+      const status = resolveCampaignCompletionStatus(outcomes);
+      await db
+        .update(emailCampaigns)
+        .set({ status, completedAt: new Date(), updatedAt: new Date() })
+        .where(eq(emailCampaigns.id, campaign.id));
+    } catch {
+      await db
+        .update(emailCampaigns)
+        .set({ status: "failed", completedAt: new Date(), updatedAt: new Date() })
+        .where(eq(emailCampaigns.id, campaign.id));
+    }
   }
 
   return { claimed, sent, failed };

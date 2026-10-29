@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import { isActive, isAdmin } from "@/modules/users";
-import { getEmailCampaign, listEmailSegments } from "@/modules/email-marketing";
+import { getEmailCampaign, getEmailCampaignDeliverySummary, listEmailSegments } from "@/modules/email-marketing";
 import { duplicateEmailCampaignAction } from "../actions";
+import { CampaignDeliveryStatus } from "./campaign-delivery-status";
 
 const statusLabels = {
   draft: "Borrador",
@@ -28,9 +29,12 @@ export default async function EmailCampaignDetailPage({
     campaignId: id,
   });
   if (!campaign) notFound();
-  const segment = campaign.segmentId
-    ? (await listEmailSegments(user.profile.organizationId)).find((candidate) => candidate.id === campaign.segmentId)
-    : undefined;
+  const [segment, delivery] = await Promise.all([
+    campaign.segmentId
+      ? listEmailSegments(user.profile.organizationId).then((segments) => segments.find((candidate) => candidate.id === campaign.segmentId))
+      : Promise.resolve(undefined),
+    getEmailCampaignDeliverySummary({ organizationId: user.profile.organizationId, campaignId: campaign.id }),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 pb-10">
@@ -97,6 +101,18 @@ export default async function EmailCampaignDetailPage({
           ) : null}
         </aside>
       </section>
+      <CampaignDeliveryStatus
+        campaign={{
+          status: campaign.status,
+          scheduledAt: campaign.scheduledAt?.toISOString() ?? null,
+          startedAt: campaign.startedAt?.toISOString() ?? null,
+          completedAt: campaign.completedAt?.toISOString() ?? null,
+          updatedAt: campaign.updatedAt.toISOString(),
+        }}
+        counts={delivery.counts}
+        failedRecipients={delivery.failedRecipients}
+        recentEvents={delivery.recentEvents.map((event) => ({ ...event, occurredAt: event.occurredAt.toISOString() }))}
+      />
     </main>
   );
 }
