@@ -1004,7 +1004,7 @@ export async function sendEmailCampaignRecipient(recipientId: string): Promise<
   return { sent: true, messageId: result.messageId };
 }
 
-export async function processDueEmailCampaigns(input: { limit?: number } = {}): Promise<{
+export async function processDueEmailCampaigns(input: { limit?: number; campaignId?: string } = {}): Promise<{
   claimed: number;
   sent: number;
   failed: number;
@@ -1013,7 +1013,11 @@ export async function processDueEmailCampaigns(input: { limit?: number } = {}): 
   const dueCampaigns = await db
     .select()
     .from(emailCampaigns)
-    .where(and(eq(emailCampaigns.status, "scheduled"), lte(emailCampaigns.scheduledAt, now)))
+    .where(and(
+      eq(emailCampaigns.status, "scheduled"),
+      lte(emailCampaigns.scheduledAt, now),
+      ...(input.campaignId ? [eq(emailCampaigns.id, input.campaignId)] : []),
+    ))
     .limit(input.limit ?? 10);
   let sent = 0;
   let failed = 0;
