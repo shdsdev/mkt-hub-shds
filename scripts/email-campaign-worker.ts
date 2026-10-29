@@ -26,13 +26,17 @@ async function processCampaign() {
   }
 }
 
-await processCampaign();
-const timer = setInterval(processCampaign, intervalMs);
+async function main() {
+  await processCampaign();
+  const timer = setInterval(processCampaign, intervalMs);
 
-function stop() {
-  clearInterval(timer);
-  process.exit(0);
+  function stop() {
+    clearInterval(timer);
+    process.exit(0);
+  }
+
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
 }
 
-process.on("SIGINT", stop);
-process.on("SIGTERM", stop);
+void main();
