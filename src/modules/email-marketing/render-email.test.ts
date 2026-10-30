@@ -74,6 +74,16 @@ describe("renderEmailHtml", () => {
     expect(html).not.toContain("<main");
   });
 
+  it("adds the unsubscribe footer to complete HTML documents", () => {
+    const html = renderEmailHtml(
+      { version: 1, mode: "html", bodyHtml: "<!doctype html><html><body><p>Campaign</p></body></html>" },
+      { unsubscribe_url: "https://shmx.men/email/unsubscribe/token-123" },
+    );
+
+    expect(html).toContain('href="https://shmx.men/email/unsubscribe/token-123"');
+    expect(html).toContain("Darse de baja");
+  });
+
   it("inlines safe class styles for complete email documents", () => {
     const html = renderEmailHtml({
       version: 1,

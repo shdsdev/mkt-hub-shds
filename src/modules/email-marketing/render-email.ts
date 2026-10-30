@@ -168,6 +168,12 @@ function renderHtmlDocument(source: string, personalization: EmailPersonalizatio
   return `<!doctype html>${inlined}`;
 }
 
+function appendUnsubscribeFooter(html: string, unsubscribeUrl: string): string {
+  if (/<a\b[^>]+href=["'][^"']*\/email\/unsubscribe\//i.test(html)) return html;
+  const footer = `<footer style="max-width:640px;margin:0 auto;padding:16px 20px;text-align:center;font:12px Arial,sans-serif;color:#667085"><a href="${escapeHtml(unsubscribeUrl)}" style="color:#667085">Darse de baja</a></footer>`;
+  return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${footer}</body>`) : `${html}${footer}`;
+}
+
 function renderBlock(
   block: EmailContentDocument["blocks"][number],
   personalization: EmailPersonalization,
@@ -233,7 +239,9 @@ export function renderEmailHtml(
 ): string {
   const document = parseEmailCampaignContent(input);
   if (document.mode === "html" && isCompleteEmailDocument(document.bodyHtml)) {
-    return renderHtmlDocument(document.bodyHtml, personalization);
+    const rendered = renderHtmlDocument(document.bodyHtml, personalization);
+    const unsubscribeUrl = safeHttpsUrl(personalization.unsubscribe_url ?? "") ?? "#";
+    return appendUnsubscribeFooter(rendered, unsubscribeUrl);
   }
 
   const body = document.mode === "html"
