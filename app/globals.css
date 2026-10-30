@@ -278,7 +278,7 @@ html[data-theme-reveal]::view-transition-new(root) {
 [data-app-theme="carbon"] {
   --sidebar: #242424;
   --sidebar-foreground: #f5f3f0;
-  --sidebar-accent: #343434;
+  --sidebar-accent: #404040;
   --sidebar-accent-foreground: #f5f3f0;
   --sidebar-border: rgba(245, 243, 240, 0.16);
   --sidebar-ring: #f3fe64;
@@ -291,13 +291,24 @@ html[data-theme-reveal]::view-transition-new(root) {
 [data-app-theme="lark-orange"] {
   --sidebar: #f4f3ef;
   --sidebar-foreground: #242424;
-  --sidebar-accent: #f1f0ec;
+  --sidebar-accent: #deddd8;
   --sidebar-accent-foreground: #242424;
   --sidebar-border: rgba(36, 36, 36, 0.14);
   --sidebar-ring: #ff6a2b;
   --sidebar-badge: #f1f0ec;
   --sidebar-muted: #5b5b56;
   --sidebar-muted-foreground: #5b5b56;
+}
+
+/* Sidebar hover contrast stays independent from the app-wide link hover contract below. */
+html[data-app-theme="carbon"] body:has(.app-shell) [data-sidebar="menu-button"]:not([data-active]):hover,
+html[data-app-theme="carbon"] body:has(.app-shell) [data-sidebar="menu-sub-button"]:not([data-active]):hover {
+  color: var(--sidebar-accent-foreground) !important;
+}
+
+html[data-app-theme="lark-orange"] body:has(.app-shell) [data-sidebar="menu-button"]:not([data-active]):hover,
+html[data-app-theme="lark-orange"] body:has(.app-shell) [data-sidebar="menu-sub-button"]:not([data-active]):hover {
+  color: var(--sidebar-accent-foreground) !important;
 }
 
 /* Light admin contract: action surfaces can be customized, while text utilities stay readable.
