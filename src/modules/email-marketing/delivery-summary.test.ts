@@ -15,6 +15,7 @@ describe("summarizeRecipientStatuses", () => {
       pending: 2,
       sent: 3,
       delivered: 4,
+      delayed: 0,
       bounced: 1,
       failed: 2,
       suppressed: 1,

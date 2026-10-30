@@ -11,6 +11,7 @@ export type EmailPersonalization = {
   first_name?: string | null;
   event_name?: string | null;
   event_date?: string | null;
+  unsubscribe_url?: string | null;
 };
 
 function escapeHtml(value: string): string {
@@ -144,7 +145,7 @@ export function sanitizeEmailBodyHtml(bodyHtml: string): string {
 }
 
 function renderHtmlBody(bodyHtml: string, personalization: EmailPersonalization): string {
-  const personalized = extractEmailBodyHtml(bodyHtml).replace(/\{\{(first_name|event_name|event_date)\}\}/g, (_, name: keyof EmailPersonalization) =>
+  const personalized = extractEmailBodyHtml(bodyHtml).replace(/\{\{(first_name|event_name|event_date|unsubscribe_url)\}\}/g, (_, name: keyof EmailPersonalization) =>
     renderText(personalization[name] ?? ""),
   );
   return sanitizeEmailBodyHtml(personalized);
@@ -152,7 +153,7 @@ function renderHtmlBody(bodyHtml: string, personalization: EmailPersonalization)
 
 function renderHtmlDocument(source: string, personalization: EmailPersonalization): string {
   const normalizedSource = normalizeEmailDocumentSource(source);
-  const personalized = sanitizeStyleBlocks(normalizedSource).replace(/\{\{(first_name|event_name|event_date)\}\}/g, (_, name: keyof EmailPersonalization) =>
+  const personalized = sanitizeStyleBlocks(normalizedSource).replace(/\{\{(first_name|event_name|event_date|unsubscribe_url)\}\}/g, (_, name: keyof EmailPersonalization) =>
     renderText(personalization[name] ?? ""),
   );
   const sanitized = sanitizeHtml(personalized, emailDocumentSanitizerOptions);
@@ -239,5 +240,6 @@ export function renderEmailHtml(
     ? renderHtmlBody(document.bodyHtml, personalization)
     : document.blocks.map((block) => renderBlock(block, personalization)).join("");
 
-  return `<!doctype html><html><body style="margin:0;background:#f5f7fa;color:#1d2430;font-family:Arial,sans-serif"><main style="max-width:640px;margin:0 auto;padding:32px 20px;background:#fff">${body}</main><footer style="max-width:640px;margin:0 auto;padding:16px 20px;text-align:center;font:12px Arial,sans-serif;color:#667085"><a href="{{unsubscribe_url}}" style="color:#667085">Darse de baja</a></footer></body></html>`;
+  const unsubscribeUrl = safeHttpsUrl(personalization.unsubscribe_url ?? "") ?? "#";
+  return `<!doctype html><html><body style="margin:0;background:#f5f7fa;color:#1d2430;font-family:Arial,sans-serif"><main style="max-width:640px;margin:0 auto;padding:32px 20px;background:#fff">${body}</main><footer style="max-width:640px;margin:0 auto;padding:16px 20px;text-align:center;font:12px Arial,sans-serif;color:#667085"><a href="${escapeHtml(unsubscribeUrl)}" style="color:#667085">Darse de baja</a></footer></body></html>`;
 }

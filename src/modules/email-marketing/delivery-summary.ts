@@ -5,6 +5,7 @@ export type EmailCampaignDeliverySummary = {
   pending: number;
   sent: number;
   delivered: number;
+  delayed: number;
   bounced: number;
   failed: number;
   suppressed: number;
@@ -18,6 +19,7 @@ export function summarizeRecipientStatuses(
     pending: 0,
     sent: 0,
     delivered: 0,
+    delayed: 0,
     bounced: 0,
     failed: 0,
     suppressed: 0,

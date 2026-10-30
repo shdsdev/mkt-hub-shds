@@ -257,7 +257,7 @@ export async function getEmailCampaignDeliverySummary(input: {
   campaignId: string;
 }): Promise<{
   counts: EmailCampaignDeliverySummary;
-  failedRecipients: Array<{ email: string; error: string | null }>;
+  failedRecipients: Array<{ email: string; status: "bounced" | "failed" | "suppressed"; error: string | null }>;
   recentEvents: Array<{ eventType: string; occurredAt: Date }>;
 }> {
   const statusRows = await db
@@ -266,7 +266,7 @@ export async function getEmailCampaignDeliverySummary(input: {
     .where(and(eq(emailCampaignRecipients.organizationId, input.organizationId), eq(emailCampaignRecipients.campaignId, input.campaignId)))
     .groupBy(emailCampaignRecipients.status);
   const failedRecipients = await db
-    .select({ email: emailCampaignRecipients.email, error: emailCampaignRecipients.error })
+    .select({ email: emailCampaignRecipients.email, status: emailCampaignRecipients.status, error: emailCampaignRecipients.error })
     .from(emailCampaignRecipients)
     .where(and(
       eq(emailCampaignRecipients.organizationId, input.organizationId),
@@ -281,10 +281,22 @@ export async function getEmailCampaignDeliverySummary(input: {
     .where(and(eq(emailDeliveryEvents.organizationId, input.organizationId), eq(emailDeliveryEvents.campaignId, input.campaignId)))
     .orderBy(desc(emailDeliveryEvents.occurredAt))
     .limit(10);
+  const eventStatusRows = await db
+    .select({ eventType: emailDeliveryEvents.eventType, count: count() })
+    .from(emailDeliveryEvents)
+    .where(and(eq(emailDeliveryEvents.organizationId, input.organizationId), eq(emailDeliveryEvents.campaignId, input.campaignId)))
+    .groupBy(emailDeliveryEvents.eventType);
+  const counts = summarizeRecipientStatuses(statusRows.map((row) => ({ status: row.status, count: Number(row.count) })));
 
   return {
-    counts: summarizeRecipientStatuses(statusRows.map((row) => ({ status: row.status, count: Number(row.count) }))),
-    failedRecipients,
+    counts: {
+      ...counts,
+      delayed: Number(eventStatusRows.find((row) => row.eventType === "email.delivery_delayed")?.count ?? 0),
+    },
+    failedRecipients: failedRecipients.map((recipient) => ({
+      ...recipient,
+      status: recipient.status as "bounced" | "failed" | "suppressed",
+    })),
     recentEvents,
   };
 }
@@ -957,8 +969,22 @@ export async function unsubscribeContact(token: string): Promise<boolean> {
   return Boolean(contact);
 }
 
-export async function processUnsubscribeRequest(token: string): Promise<{ valid: boolean }> {
-  return { valid: await unsubscribeContact(token) };
+export async function inspectUnsubscribeRequest(token: string): Promise<{ valid: boolean; alreadyUnsubscribed: boolean }> {
+  const payload = decodeUnsubscribeToken(token);
+  if (!payload) return { valid: false, alreadyUnsubscribed: false };
+  const [contact] = await db
+    .select({ subscriptionStatus: emailContacts.subscriptionStatus })
+    .from(emailContacts)
+    .where(and(eq(emailContacts.id, payload.contactId), eq(emailContacts.organizationId, payload.organizationId)))
+    .limit(1);
+  if (!contact) return { valid: false, alreadyUnsubscribed: false };
+  return { valid: true, alreadyUnsubscribed: contact.subscriptionStatus === "unsubscribed" };
+}
+
+export async function processUnsubscribeRequest(token: string): Promise<{ valid: boolean; changed: boolean }> {
+  const inspection = await inspectUnsubscribeRequest(token);
+  if (!inspection.valid || inspection.alreadyUnsubscribed) return { valid: inspection.valid, changed: false };
+  return { valid: await unsubscribeContact(token), changed: true };
 }
 
 export async function sendEmailCampaignRecipient(recipientId: string): Promise<
@@ -986,7 +1012,7 @@ export async function sendEmailCampaignRecipient(recipientId: string): Promise<
   const result = await sendViaResend({
     to: recipient.email,
     subject: campaign.subject,
-    html: renderEmailHtml(campaign.content, recipient.personalization),
+    html: renderEmailHtml(campaign.content, { ...recipient.personalization, unsubscribe_url: unsubscribeUrl }),
     from: env.RESEND_MARKETING_FROM,
     replyTo: env.RESEND_MARKETING_REPLY_TO || undefined,
     headers: buildUnsubscribeHeaders(unsubscribeUrl),

@@ -42,13 +42,15 @@ export function CampaignDeliveryStatus({
     updatedAt: string;
   };
   counts: EmailCampaignDeliverySummary;
-  failedRecipients: Array<{ email: string; error: string | null }>;
+  failedRecipients: Array<{ email: string; status: "bounced" | "failed" | "suppressed"; error: string | null }>;
   recentEvents: Array<{ eventType: string; occurredAt: string }>;
 }) {
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState<number | null>(null);
+  const [eventFilter, setEventFilter] = useState("all");
   const waitingPastSchedule = campaign.status === "scheduled" && currentTime !== null && Boolean(campaign.scheduledAt && new Date(campaign.scheduledAt).getTime() < currentTime);
   const shouldRefresh = campaign.status === "scheduled" || campaign.status === "sending" || (campaign.status === "sent" && counts.delivered < counts.sent);
+  const visibleEvents = eventFilter === "all" ? recentEvents : recentEvents.filter((event) => event.eventType === eventFilter);
   useEffect(() => {
     setCurrentTime(Date.now());
     if (!shouldRefresh) return;
@@ -77,7 +79,9 @@ export function CampaignDeliveryStatus({
           ["Pendientes", counts.pending, "text-amber-300"],
           ["Aceptados", counts.sent, "text-primary"],
           ["Entregados", counts.delivered, "text-accent"],
-          ["Fallidos", counts.failed + counts.bounced, "text-destructive"],
+          ["Demorados", counts.delayed, "text-amber-300"],
+          ["Rebotados", counts.bounced, "text-destructive"],
+          ["Fallidos", counts.failed, "text-destructive"],
           ["Suprimidos", counts.suppressed, "text-muted-foreground"],
         ].map(([label, value, color]) => <div key={label} className="rounded-xl border border-border/70 bg-background/30 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className={`mt-1 text-xl font-semibold ${color}`}>{value}</p></div>)}
       </div>
@@ -88,9 +92,9 @@ export function CampaignDeliveryStatus({
         <div><dt className="text-xs text-muted-foreground">Finalización</dt><dd className="mt-1">{formatDate(campaign.completedAt)}</dd></div>
       </dl>
 
-      {failedRecipients.length ? <div className="border-t border-border pt-4"><h3 className="text-sm font-semibold">Destinatarios con problemas</h3><ul className="mt-3 space-y-2 text-xs text-muted-foreground">{failedRecipients.map((recipient) => <li key={`${recipient.email}-${recipient.error}`} className="flex flex-col gap-1 rounded-lg border border-border/70 px-3 py-2 sm:flex-row sm:justify-between"><span>{recipient.email}</span><span className="text-destructive">{recipient.error ?? "La entrega no fue confirmada."}</span></li>)}</ul></div> : null}
+      {failedRecipients.length ? <div className="border-t border-border pt-4"><h3 className="text-sm font-semibold">Destinatarios con incidencias</h3><ul className="mt-3 space-y-2 text-xs text-muted-foreground">{failedRecipients.map((recipient) => <li key={`${recipient.email}-${recipient.status}`} className="flex flex-col gap-1 rounded-lg border border-border/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"><span>{recipient.email}</span><span className="text-destructive">{recipient.status === "bounced" ? "Rebotado" : recipient.status === "suppressed" ? "Suprimido" : "Fallido"}: {recipient.error ?? "Sin detalle adicional."}</span></li>)}</ul></div> : null}
 
-      {recentEvents.length ? <div className="border-t border-border pt-4"><h3 className="text-sm font-semibold">Actividad reciente</h3><ul className="mt-3 space-y-2 text-xs text-muted-foreground">{recentEvents.map((event, index) => <li key={`${event.eventType}-${event.occurredAt}-${index}`} className="flex justify-between gap-3"><span>{eventLabels[event.eventType] ?? event.eventType}</span><time dateTime={event.occurredAt}>{formatDate(event.occurredAt)}</time></li>)}</ul></div> : null}
+      {recentEvents.length ? <div className="border-t border-border pt-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h3 className="text-sm font-semibold">Actividad reciente</h3><select value={eventFilter} onChange={(event) => setEventFilter(event.target.value)} className="h-8 rounded-lg border border-border bg-background px-2 text-xs"><option value="all">Todos los eventos</option>{Object.entries(eventLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><ul className="mt-3 space-y-2 text-xs text-muted-foreground">{visibleEvents.map((event, index) => <li key={`${event.eventType}-${event.occurredAt}-${index}`} className="flex justify-between gap-3"><span>{eventLabels[event.eventType] ?? event.eventType}</span><time dateTime={event.occurredAt}>{formatDate(event.occurredAt)}</time></li>)}</ul></div> : null}
     </section>
   );
 }

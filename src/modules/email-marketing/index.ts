@@ -42,6 +42,7 @@ export {
   unsubscribeContact,
   sendEmailRepermission,
   getEmailRepermissionRequest,
+  inspectUnsubscribeRequest,
   confirmEmailRepermission,
   declineEmailRepermission,
   buildRepermissionUrl,

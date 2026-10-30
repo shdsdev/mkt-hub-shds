@@ -32,6 +32,16 @@ describe("renderEmailHtml", () => {
     expect(html).not.toContain("http://example.com");
   });
 
+  it("injects a recipient-specific unsubscribe URL into the visible footer", () => {
+    const html = renderEmailHtml(
+      { version: 1, blocks: [{ id: "text-1", type: "text", text: "Novedades" }] },
+      { unsubscribe_url: "https://shmx.men/email/unsubscribe/token-123" },
+    );
+
+    expect(html).toContain('href="https://shmx.men/email/unsubscribe/token-123"');
+    expect(html).not.toContain("{{unsubscribe_url}}");
+  });
+
   it("sanitizes HTML mode while preserving safe inline email markup", () => {
     const html = renderEmailHtml(
       {
@@ -46,7 +56,7 @@ describe("renderEmailHtml", () => {
     expect(html).not.toContain("<script>");
     expect(html).not.toContain("<iframe");
     expect(html).not.toContain("javascript:");
-    expect(html).toContain("unsubscribe_url");
+    expect(html).toContain('href="#"');
   });
 
   it("preserves complete email documents and their safe style blocks", () => {
