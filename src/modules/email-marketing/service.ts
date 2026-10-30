@@ -989,7 +989,7 @@ export async function processUnsubscribeRequest(token: string): Promise<{ valid:
 
 export async function sendEmailCampaignRecipient(recipientId: string): Promise<
   | { sent: true; messageId: string }
-  | { sent: false; reason: "not_pending" | "provider_failure"; error?: string }
+  | { sent: false; reason: "not_pending" | "not_eligible" | "provider_failure"; error?: string }
 > {
   const [recipient] = await db
     .select()
@@ -1004,6 +1004,16 @@ export async function sendEmailCampaignRecipient(recipientId: string): Promise<
     .where(and(eq(emailCampaigns.id, recipient.campaignId), eq(emailCampaigns.organizationId, recipient.organizationId)))
     .limit(1);
   if (!campaign) return { sent: false, reason: "not_pending" };
+
+  const [contact] = await db
+    .select({ subscriptionStatus: emailContacts.subscriptionStatus })
+    .from(emailContacts)
+    .where(and(eq(emailContacts.id, recipient.contactId), eq(emailContacts.organizationId, recipient.organizationId)))
+    .limit(1);
+  if (!contact || contact.subscriptionStatus !== "subscribed") {
+    await db.update(emailCampaignRecipients).set({ status: "suppressed", error: "Contact is no longer subscribed." }).where(eq(emailCampaignRecipients.id, recipient.id));
+    return { sent: false, reason: "not_eligible" };
+  }
 
   const unsubscribeUrl = buildUnsubscribeUrl(createUnsubscribeToken({
     organizationId: recipient.organizationId,

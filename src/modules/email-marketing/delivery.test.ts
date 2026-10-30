@@ -56,8 +56,9 @@ describe("email campaign delivery", () => {
         id: "campaign-1",
         organizationId: "org-1",
         subject: "Novedades",
-        content: { version: 1, blocks: [{ id: "text-1", type: "text", text: "Hola" }] },
-      }]));
+         content: { version: 1, blocks: [{ id: "text-1", type: "text", text: "Hola" }] },
+      }]))
+      .mockReturnValueOnce(selectChain([{ subscriptionStatus: "subscribed" }]));
 
     const result = await sendEmailCampaignRecipient("recipient-1");
 
@@ -70,5 +71,31 @@ describe("email campaign delivery", () => {
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       }),
     }));
+  });
+
+  it("does not send when the contact unsubscribed after the snapshot", async () => {
+    selectMock
+      .mockReturnValueOnce(selectChain([{
+        id: "recipient-2",
+        organizationId: "org-1",
+        campaignId: "campaign-1",
+        contactId: "contact-2",
+        email: "unsubscribed@example.com",
+        status: "pending",
+        personalization: {},
+      }]))
+      .mockReturnValueOnce(selectChain([{
+        id: "campaign-1",
+        organizationId: "org-1",
+        subject: "Novedades",
+        content: { version: 1, blocks: [{ id: "text-1", type: "text", text: "Hola" }] },
+      }]))
+      .mockReturnValueOnce(selectChain([{ subscriptionStatus: "unsubscribed" }]));
+
+    const result = await sendEmailCampaignRecipient("recipient-2");
+
+    expect(result).toEqual({ sent: false, reason: "not_eligible" });
+    expect(sendViaResendMock).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalled();
   });
 });
