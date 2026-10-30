@@ -69,28 +69,28 @@ export function StageScreen({ initialState, apiPath }: { initialState: RaffleSta
   const visibleCode = spinning ? randomizedCode : draw ? `${draw.attendeeCode.slice(0, revealedCount)}${"•".repeat(Math.max(0, draw.attendeeCode.length - revealedCount))}` : "••••••••";
   const hasWinner = Boolean(draw && revealedCount >= draw.attendeeCode.length && !spinning);
   return (
-    <main className="raffle-stage-screen relative isolate flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-12" style={stageStyle}>
+    <main className="raffle-stage-screen relative isolate flex min-h-0 flex-col items-center justify-center overflow-hidden px-[clamp(1rem,3vw,3rem)] py-[clamp(1rem,3vh,2.5rem)]" style={stageStyle}>
       {mounted && hasWinner ? <div className="raffle-confetti raffle-confetti--active" aria-hidden="true">{CONFETTI_PIECES.map(([left, top, rotation, delay], index) => <span key={index} className="raffle-confetti-piece" style={{ "--confetti-left": left, "--confetti-top": top, "--confetti-rotation": rotation, "--confetti-delay": delay } as React.CSSProperties} />)}</div> : null}
-      <div className="relative z-10 w-full max-w-6xl text-center">
-        <div className="flex items-center justify-center gap-4">
+      <div className="relative z-10 flex h-full min-h-0 w-full max-w-6xl flex-col justify-center text-center">
+        <div className="flex shrink-0 items-center justify-center gap-[clamp(0.75rem,2vw,1.5rem)]">
           <p className="raffle-stage-accent text-sm font-semibold uppercase tracking-[0.32em]">Sorteo en vivo</p>
-          {theme.logoUrl ? <img src={theme.logoUrl} alt="Logotipo del evento" className="h-14 max-w-48 object-contain sm:h-20 sm:max-w-64" /> : null}
+          {theme.logoUrl ? <img src={theme.logoUrl} alt="Logotipo del evento" className="h-[clamp(3rem,7vh,5rem)] max-w-[clamp(10rem,20vw,16rem)] object-contain" /> : null}
         </div>
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-6xl">{state.event.name}</h1>
-        <div className="raffle-stage-prize mx-auto mt-8 max-w-3xl rounded-2xl border px-6 py-4 text-center" style={{ backgroundColor: theme.accentColor, borderColor: theme.accentColor, color: "#ffffff" }}>
+        <h1 className="mt-[clamp(0.5rem,1.5vh,1.25rem)] text-[clamp(2rem,5vw,4rem)] font-semibold leading-[0.95] tracking-tight">{state.event.name}</h1>
+        <div className="raffle-stage-prize mx-auto mt-[clamp(1rem,2.5vh,2rem)] w-full max-w-3xl shrink-0 rounded-2xl border px-[clamp(1rem,2vw,1.5rem)] py-[clamp(0.65rem,1.5vh,1rem)] text-center" style={{ backgroundColor: theme.accentColor, borderColor: theme.accentColor, color: "#ffffff" }}>
           <p className="text-xs font-semibold uppercase tracking-[0.24em]">Premio en juego</p>
-          <p className="mt-2 text-2xl font-semibold sm:text-4xl">{prize?.name ?? "Preparando el siguiente premio…"}</p>
+          <p className="mt-1 text-[clamp(1.25rem,2.5vw,2.25rem)] font-semibold leading-tight">{prize?.name ?? "Preparando el siguiente premio…"}</p>
         </div>
-        <div className="raffle-stage-panel relative mt-8 rounded-[2rem] border px-6 py-12 shadow-2xl shadow-black/30 sm:px-12 sm:py-20" style={{ backgroundColor: `color-mix(in srgb, ${theme.foregroundColor} 4%, transparent)`, borderColor: `color-mix(in srgb, ${theme.foregroundColor} 12%, transparent)` }}>
-          <div className="relative z-10">
+        <div className="raffle-stage-panel relative mt-[clamp(1rem,2.5vh,2rem)] min-h-0 flex-1 overflow-hidden rounded-[2rem] border px-[clamp(1rem,4vw,3rem)] py-[clamp(1.5rem,4vh,5rem)] shadow-2xl shadow-black/30" style={{ backgroundColor: `color-mix(in srgb, ${theme.foregroundColor} 4%, transparent)`, borderColor: `color-mix(in srgb, ${theme.foregroundColor} 12%, transparent)` }}>
+          <div className="relative z-10 flex h-full min-h-0 flex-col justify-center">
           <p className="raffle-stage-subdued text-sm uppercase tracking-[0.24em]" style={{ color: `color-mix(in srgb, ${theme.foregroundColor} 50%, transparent)` }}>Código ganador</p>
-          <p className="raffle-stage-accent mt-6 font-mono font-bold" style={{ color: theme.accentColor, fontSize: "clamp(3.5rem, 9vw, 9rem)", lineHeight: 1, letterSpacing: "0.18em" }}>{visibleCode}</p>
-          {hasWinner ? <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700"><p className="text-3xl font-semibold sm:text-5xl">{draw?.attendeeName}</p><p className="raffle-stage-muted mt-3 text-xl sm:text-2xl">{draw?.attendeeCompany || "Participante ganador"}</p></div> : <p className="raffle-stage-muted mt-12 text-xl">El ganador aparecerá aquí</p>}
-           <p className="mt-12 text-base font-medium sm:text-lg">{draw && !hasWinner ? "Preparando el resultado…" : "El próximo sorteo será iniciado en breve."}</p>
+          <p className="raffle-stage-accent mt-[clamp(0.75rem,2.5vh,1.5rem)] font-mono text-[clamp(2.75rem,min(10vw,12vh),8rem)] font-bold leading-none" style={{ color: theme.accentColor, letterSpacing: "0.18em" }}>{visibleCode}</p>
+          {hasWinner ? <div className="mt-[clamp(1rem,3vh,3rem)] animate-in fade-in slide-in-from-bottom-4 duration-700"><p className="text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-tight">{draw?.attendeeName}</p><p className="raffle-stage-muted mt-2 text-[clamp(1rem,2vw,1.5rem)]">{draw?.attendeeCompany || "Participante ganador"}</p></div> : <p className="raffle-stage-muted mt-[clamp(1rem,3vh,3rem)] text-[clamp(1rem,2vw,1.25rem)]">El ganador aparecerá aquí</p>}
+            <p className="mt-[clamp(1rem,3vh,3rem)] text-[clamp(0.875rem,1.5vw,1.125rem)] font-medium">{draw && !hasWinner ? "Preparando el resultado…" : "El próximo sorteo será iniciado en breve."}</p>
           </div>
         </div>
-         <p className="raffle-stage-subdued mt-8 text-sm">Esta pantalla es exclusivamente de visualización.</p>
-      </div>
+          <p className="raffle-stage-subdued mt-[clamp(0.75rem,2vh,2rem)] shrink-0 text-sm">Esta pantalla es exclusivamente de visualización.</p>
+       </div>
     </main>
   );
 }

@@ -41,8 +41,12 @@ html[data-theme-reveal]::view-transition-new(root) {
 }
 
 .raffle-stage-screen {
+  box-sizing: border-box;
   background: var(--stage-background, #0b0d12);
   color: var(--stage-foreground, #ffffff);
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
 }
 
 .raffle-stage-accent {
