@@ -299,6 +299,30 @@ export async function registerForEventAction(
     return { error: result.reason === "duplicate_email" ? DUPLICATE_EMAIL_ERROR : EVENT_UNAVAILABLE_ERROR };
   }
 
+  if (marketingAccepted && result.attendees[0]) {
+    try {
+      const { syncEventAttendeeContact } = await import("@/modules/email-marketing");
+      await syncEventAttendeeContact({
+        organizationId: event.organizationId,
+        eventId: event.id,
+        attendeeId: result.attendees[0].id,
+        email: result.attendees[0].email,
+        fullName: result.attendees[0].fullName,
+        phone: result.attendees[0].phone,
+        company: result.attendees[0].company,
+        marketingAcceptedAt: now,
+        attributes: {
+          interests,
+          clientBrands,
+          eventRegistrationStatus: result.registration.status,
+        },
+      });
+    } catch (error) {
+      const { captureOperationFailure } = await import("@/modules/monitoring");
+      captureOperationFailure({ operation: "email_marketing_contact_sync", module: "email-marketing", error });
+    }
+  }
+
   const responsibleIds = await listEventReceptionistIds(event.id, event.organizationId);
   const adminIds = (await listManagedUsers(event.organizationId))
     .filter((user) => user.role === "ADMIN" && user.status === "active")

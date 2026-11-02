@@ -46,6 +46,15 @@ export const env = {
   get RESEND_FROM() {
     return required("RESEND_FROM");
   },
+  get RESEND_MARKETING_FROM() {
+    return process.env.RESEND_MARKETING_FROM ?? this.RESEND_FROM;
+  },
+  get RESEND_MARKETING_REPLY_TO() {
+    return process.env.RESEND_MARKETING_REPLY_TO ?? "";
+  },
+  get RESEND_WEBHOOK_SECRET() {
+    return process.env.RESEND_WEBHOOK_SECRET ?? "";
+  },
   get TELEGRAM_BOT_TOKEN() {
     return required("TELEGRAM_BOT_TOKEN");
   },

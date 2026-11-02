@@ -24,6 +24,7 @@ import {
   Calendar,
   CalendarDays,
   Bell,
+  Mail,
 } from "lucide";
 import {
   Sidebar,
@@ -327,6 +328,9 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
               </NavItem>}
               <NavItem href="/events" idle={Calendar} active={CalendarDays}>
                 Eventos
+              </NavItem>
+              <NavItem href="/email-marketing" idle={Mail} active={Megaphone}>
+                Email Marketing
               </NavItem>
             </SidebarMenu>
           </SidebarGroupContent>

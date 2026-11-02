@@ -14,6 +14,7 @@ export {
   sendWaitlistPromotionEmail,
   sendReminderEmail,
   sendRaffleWinnerEmail,
+  sendViaResend,
   type NotificationSubjectType,
   type NotificationType,
   type NotificationLogRow,

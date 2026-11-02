@@ -9,6 +9,7 @@ import {
   type ApplyUtmTemplateFormState,
 } from "../actions";
 import { BinaryLoader } from "@/components/binary-loader";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const destinationInitialState: UpdateDestinationFormState = {};
 const applyInitialState: ApplyUtmTemplateFormState = {};
@@ -64,19 +65,18 @@ export function DestinationForm({
       {templates.length > 0 && (
         <form action={applyFormAction} className="flex gap-2">
           <input type="hidden" name="linkId" value={linkId} />
-          <select
-            name="templateId"
-            defaultValue=""
-            aria-label="Aplicar plantilla UTM"
-            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="">Aplicar plantilla UTM…</option>
+          <Select name="templateId" defaultValue="">
+            <SelectTrigger aria-label="Aplicar plantilla UTM" className="h-10 flex-1">
+              <SelectValue placeholder="Aplicar plantilla UTM…" />
+            </SelectTrigger>
+            <SelectContent>
             {templates.map((template) => (
-              <option key={template.id} value={template.id}>
+              <SelectItem key={template.id} value={template.id}>
                 {template.name}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+            </SelectContent>
+          </Select>
           <button
             type="submit"
             disabled={applyPending}
