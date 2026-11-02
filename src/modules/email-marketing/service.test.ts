@@ -9,6 +9,7 @@ const contact = {
 
 const query = vi.hoisted(() => ({
   select: vi.fn(),
+  transaction: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({
@@ -21,6 +22,7 @@ import {
   resolveInitialContactStatus,
   isAdminSubscriptionEligible,
   getCampaignRecipientContacts,
+  saveEmailCampaignWithSnapshot,
 } from "./service";
 
 describe("email marketing contact policy", () => {
@@ -72,5 +74,40 @@ describe("email marketing contact policy", () => {
     await expect(
       getCampaignRecipientContacts({ organizationId: "org-1", campaignId: "campaign-1" }),
     ).resolves.toEqual([contact]);
+  });
+
+  it("returns the scheduled campaign after scheduling inside the transaction", async () => {
+    const draftCampaign = { id: "campaign-1", status: "draft" };
+    const scheduledCampaign = { ...draftCampaign, status: "scheduled" };
+    let updateCount = 0;
+    const update = vi.fn(() => ({
+      set: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockResolvedValue([updateCount++ === 0 ? draftCampaign : scheduledCampaign]),
+    }));
+    const tx = {
+      update,
+      delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
+      insert: vi.fn(() => ({
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValue([draftCampaign]),
+      })),
+    };
+    query.transaction.mockImplementation((callback) => callback(tx));
+
+    await expect(
+      saveEmailCampaignWithSnapshot({
+        organizationId: "org-1",
+        createdBy: "user-1",
+        campaignId: "campaign-1",
+        name: "Campaign",
+        subject: "Subject",
+        content: { mode: "blocks", blocks: [] } as never,
+        htmlSnapshot: "<p>Content</p>",
+        segmentId: null,
+        scheduledAt: new Date("2026-11-03T12:00:00Z"),
+        contacts: [contact] as never,
+      }),
+    ).resolves.toMatchObject({ campaign: scheduledCampaign, recipientCount: 1 });
   });
 });

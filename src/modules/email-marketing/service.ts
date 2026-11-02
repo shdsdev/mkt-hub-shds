@@ -457,7 +457,7 @@ export async function saveEmailCampaignWithSnapshot(input: SaveEmailCampaignInpu
         .returning();
       if (!campaign) throw new Error("CAMPAIGN_NOT_DRAFT");
     }
-    return { campaign: savedCampaign, recipientCount: input.contacts.length };
+    return { campaign, recipientCount: input.contacts.length };
   });
 }
 
