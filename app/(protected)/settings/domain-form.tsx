@@ -15,6 +15,7 @@ import {
 } from "./actions";
 import { BinaryLoader } from "@/components/binary-loader";
 import { HoverMorphIcon } from "@/components/hover-morph-icon";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const createInitialState: CreateDomainFormState = {};
 const updateInitialState: UpdateDomainFormState = {};
@@ -181,17 +182,18 @@ function DomainRow({ domain, allDomains }: { domain: Domain; allDomains: Domain[
               <form action={reassignFormAction} className="flex items-center gap-2">
                 <input type="hidden" name="fromId" value={domain.id} />
                 <span className="text-xs text-muted-foreground">Mover sus enlaces a</span>
-                <select
-                  name="toId"
-                  required
-                  className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                >
+                <Select name="toId" required defaultValue={otherDomains[0]?.id}>
+                  <SelectTrigger size="sm" className="w-auto">
+                    <SelectValue placeholder="Seleccionar dominio" />
+                  </SelectTrigger>
+                  <SelectContent>
                   {otherDomains.map((d) => (
-                    <option key={d.id} value={d.id}>
+                    <SelectItem key={d.id} value={d.id}>
                       {d.hostname}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
+                  </SelectContent>
+                </Select>
                 <button
                   type="submit"
                   disabled={reassignPending}

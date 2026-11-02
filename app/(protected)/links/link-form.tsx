@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import type { ApplyableUtmTemplate } from "@/modules/utm";
 import { createLinkAction, type CreateLinkFormState } from "./actions";
 import { BinaryLoader } from "@/components/binary-loader";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const initialState: CreateLinkFormState = {};
 
@@ -36,19 +37,18 @@ export function LinkForm({ templates }: { templates: ApplyableUtmTemplate[] }) {
           <label htmlFor="templateId" className="text-sm text-muted-foreground">
             Plantilla UTM (opcional — aplica sus parámetros al destino)
           </label>
-          <select
-            id="templateId"
-            name="templateId"
-            defaultValue=""
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="">Sin plantilla…</option>
+          <Select name="templateId" defaultValue="">
+            <SelectTrigger id="templateId" className="h-10 w-full">
+              <SelectValue placeholder="Sin plantilla…" />
+            </SelectTrigger>
+            <SelectContent>
             {templates.map((template) => (
-              <option key={template.id} value={template.id}>
+              <SelectItem key={template.id} value={template.id}>
                 {template.name}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
