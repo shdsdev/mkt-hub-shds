@@ -44,12 +44,20 @@ describe("email contact management", () => {
     const chain = { set: vi.fn(), where: vi.fn(), returning: vi.fn() };
     chain.set.mockReturnValue(chain);
     chain.where.mockReturnValue(chain);
-    chain.returning.mockResolvedValue([{ id: "contact-1" }, { id: "contact-2" }]);
+    chain.returning.mockResolvedValue([{ id: "contact-1" }]);
     updateMock.mockReturnValue(chain);
+    const selectChain = { from: vi.fn(), where: vi.fn() };
+    selectChain.from.mockReturnValue(selectChain);
+    selectChain.where.mockResolvedValue([
+      { id: "contact-1", status: "pending" },
+      { id: "contact-2", status: "unsubscribed" },
+      { id: "contact-3", status: "suppressed" },
+    ]);
+    selectMock.mockReturnValue(selectChain);
 
     const count = await subscribeEmailContacts({ organizationId: "org-1", contactIds: ["contact-1", "contact-2", "contact-3"] });
 
-    expect(count).toBe(2);
+    expect(count).toBe(1);
     expect(chain.set).toHaveBeenCalledWith(expect.objectContaining({
       subscriptionStatus: "subscribed",
       consentSource: "bulk_admin_action",

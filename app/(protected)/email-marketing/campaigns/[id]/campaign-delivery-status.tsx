@@ -71,7 +71,7 @@ export function CampaignDeliveryStatus({
 
       {waitingPastSchedule ? <p role="alert" className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-200">La hora programada ya pasó, pero el procesador todavía no inició esta campaña.</p> : null}
       {campaign.status === "sent" ? <p className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-muted-foreground">El proveedor aceptó los mensajes. La entrega final se confirma mediante los eventos de Resend.</p> : null}
-      {campaign.status === "failed" ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">El procesamiento terminó con errores. Revisá los destinatarios fallidos antes de reintentar.</p> : null}
+      {campaign.status === "failed" ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">El procesamiento terminó con errores. Revisa los destinatarios fallidos antes de reintentar.</p> : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[

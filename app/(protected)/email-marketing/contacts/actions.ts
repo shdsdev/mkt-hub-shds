@@ -37,7 +37,7 @@ export async function updateEmailContactAction(
   formData: FormData,
 ): Promise<ContactActionState> {
   const user = await authorizedUser();
-  if (!user) return { error: "No tenés permisos para editar contactos." };
+  if (!user) return { error: "No tienes permisos para editar contactos." };
   const parsed = contactUpdateSchema.safeParse({
     contactId: formData.get("contactId"),
     email: formData.get("email"),
@@ -46,7 +46,7 @@ export async function updateEmailContactAction(
     company: formData.get("company"),
     tag: "",
   });
-  if (!parsed.success) return { error: "Revisá el email y los datos del contacto." };
+  if (!parsed.success) return { error: "Revisa el email y los datos del contacto." };
   try {
     const contact = await updateEmailContact({ organizationId: user.profile.organizationId, ...parsed.data });
     if (!contact) return { error: "No se encontró el contacto dentro de tu organización." };
@@ -58,7 +58,7 @@ export async function updateEmailContactAction(
       return { error: "Ya existe otro contacto con ese correo electrónico." };
     }
     console.error("Failed to update email contact", { contactId: parsed.data.contactId, error });
-    return { error: "No se pudieron guardar los cambios. Revisá los datos e intentá nuevamente." };
+    return { error: "No se pudieron guardar los cambios. Revisa los datos e intenta nuevamente." };
   }
 }
 
@@ -87,7 +87,7 @@ export async function createEmailContactAction(
   formData: FormData,
 ): Promise<ContactActionState> {
   const user = await authorizedUser();
-  if (!user) return { error: "No tenés permisos para administrar contactos." };
+  if (!user) return { error: "No tienes permisos para administrar contactos." };
   const parsed = contactSchema.safeParse({
     email: formData.get("email"),
     fullName: formData.get("fullName"),
@@ -95,7 +95,7 @@ export async function createEmailContactAction(
     company: formData.get("company"),
     tag: formData.get("tag"),
   });
-  if (!parsed.success) return { error: "Ingresá un email válido y revisá los datos del contacto." };
+  if (!parsed.success) return { error: "Ingresa un email válido y revisa los datos del contacto." };
 
   try {
     const contact = await createEmailContact({
@@ -123,7 +123,7 @@ export async function importEmailContactsAction(
   formData: FormData,
 ): Promise<ContactActionState> {
   const user = await authorizedUser();
-  if (!user) return { error: "No tenés permisos para importar contactos." };
+  if (!user) return { error: "No tienes permisos para importar contactos." };
   const csv = String(formData.get("csv") ?? "");
   const parsed = parseEmailContactCsv(csv);
   if (parsed.rows.length === 0) return { error: parsed.errors[0]?.message ?? "El CSV no contiene contactos válidos.", errors: parsed.errors };
@@ -175,9 +175,9 @@ export async function createEmailTagAction(
   formData: FormData,
 ): Promise<ContactActionState> {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.profile)) return { error: "No tenés permisos para administrar etiquetas." };
+  if (!user || !isAdmin(user.profile)) return { error: "No tienes permisos para administrar etiquetas." };
   const parsed = tagSchema.safeParse({ name: formData.get("name") });
-  if (!parsed.success) return { error: "Ingresá un nombre de etiqueta válido." };
+  if (!parsed.success) return { error: "Ingresa un nombre de etiqueta válido." };
   try {
     await createEmailTag({ organizationId: user.profile.organizationId, name: parsed.data.name });
     revalidatePath("/email-marketing/contacts");
@@ -193,12 +193,12 @@ export async function assignEmailTagsAction(
   formData: FormData,
 ): Promise<ContactActionState> {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.profile)) return { error: "No tenés permisos para asignar etiquetas." };
+  if (!user || !isAdmin(user.profile)) return { error: "No tienes permisos para asignar etiquetas." };
   const parsed = assignmentSchema.safeParse({
     contactIds: JSON.parse(String(formData.get("contactIds") ?? "[]")),
     tagIds: JSON.parse(String(formData.get("tagIds") ?? "[]")),
   });
-  if (!parsed.success) return { error: "Seleccioná contactos y una etiqueta." };
+  if (!parsed.success) return { error: "Selecciona contactos y una etiqueta." };
   await assignEmailTags({ organizationId: user.profile.organizationId, ...parsed.data });
   revalidatePath("/email-marketing/contacts");
   revalidatePath("/email-marketing/segments");
@@ -211,11 +211,11 @@ export async function subscribeEmailContactsAction(
   formData: FormData,
 ): Promise<ContactActionState> {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.profile)) return { error: "No tenés permisos para administrar contactos." };
+  if (!user || !isAdmin(user.profile)) return { error: "No tienes permisos para administrar contactos." };
   const parsed = bulkContactIdsSchema.safeParse({
     contactIds: JSON.parse(String(formData.get("contactIds") ?? "[]")),
   });
-  if (!parsed.success) return { error: "Seleccioná al menos un contacto." };
+  if (!parsed.success) return { error: "Selecciona al menos un contacto." };
   const updated = await subscribeEmailContacts({ organizationId: user.profile.organizationId, contactIds: parsed.data.contactIds });
   revalidatePath("/email-marketing/contacts");
   revalidatePath("/email-marketing/campaigns/new");
@@ -227,12 +227,12 @@ export async function sendEmailRepermissionAction(
   formData: FormData,
 ): Promise<ContactActionState> {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.profile)) return { error: "No tenés permisos para solicitar consentimiento." };
+  if (!user || !isAdmin(user.profile)) return { error: "No tienes permisos para solicitar consentimiento." };
   let contactIds: string[];
   try {
     contactIds = z.array(z.string().uuid()).min(1).max(100).parse(JSON.parse(String(formData.get("contactIds") ?? "[]")));
   } catch {
-    return { error: "Seleccioná entre 1 y 100 contactos pendientes." };
+    return { error: "Selecciona entre 1 y 100 contactos pendientes." };
   }
 
   let sent = 0;

@@ -5,7 +5,7 @@ import { listEmailContacts, listEmailSegments, listEmailTags, normalizeEmailCont
 import { ContactWorkspace } from "./contact-workspace";
 
 const statusLabels = {
-  subscribed: "Suscripto",
+  subscribed: "Suscrito",
   unsubscribed: "Dado de baja",
   suppressed: "Suprimido",
   pending: "Pendiente",

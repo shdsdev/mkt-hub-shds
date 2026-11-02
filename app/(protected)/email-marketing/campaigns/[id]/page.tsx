@@ -82,7 +82,7 @@ export default async function EmailCampaignDetailPage({
             <dl className="mt-4 space-y-4 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Audiencia</dt>
-                <dd className="mt-1">{segment?.name ?? (campaign.segmentId ? "Segmento no disponible" : "Todos los suscriptos")}</dd>
+                <dd className="mt-1">{segment?.name ?? (campaign.segmentId ? "Segmento no disponible" : "Todos los suscritos")}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Creada</dt>

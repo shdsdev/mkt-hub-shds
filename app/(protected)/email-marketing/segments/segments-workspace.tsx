@@ -29,7 +29,7 @@ export function SegmentsWorkspace({ segments }: { segments: SegmentRow[] }) {
       <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-heading text-xl font-semibold">Tus segmentos</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Audiencias que podés volver a usar en cualquier campaña.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Audiencias que puedes volver a usar en cualquier campaña.</p>
         </div>
         <button type="button" onClick={() => setIsCreating(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
           <Plus size={16} /> Crear segmento
@@ -38,8 +38,8 @@ export function SegmentsWorkspace({ segments }: { segments: SegmentRow[] }) {
 
       {segments.length === 0 ? (
         <div className="border border-dashed border-border px-6 py-14 text-center">
-          <p className="font-heading text-lg font-semibold">Creá tu primera audiencia</p>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Elegí condiciones como etiquetas, empresa o estado de suscripción para enviar campañas más relevantes.</p>
+          <p className="font-heading text-lg font-semibold">Crea tu primera audiencia</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Elige condiciones como etiquetas, empresa o estado de suscripción para enviar campañas más relevantes.</p>
           <button type="button" onClick={() => setIsCreating(true)} className="mt-5 text-sm font-medium text-primary hover:underline">Crear un segmento</button>
         </div>
       ) : (

@@ -68,6 +68,10 @@ export function preserveContactStatus(
   return marketingAcceptedAt ? "subscribed" : currentStatus;
 }
 
+export function isAdminSubscriptionEligible(status: EmailContactStatus): boolean {
+  return status === "pending";
+}
+
 export async function syncEventAttendeeContact(
   input: EventAttendeeContactInput,
 ): Promise<{ contactId: string }> {
@@ -361,6 +365,102 @@ export type CreateEmailCampaignInput = {
   scheduledAt?: Date | null;
 };
 
+type SaveEmailCampaignInput = {
+  organizationId: string;
+  createdBy: string;
+  campaignId?: string;
+  name: string;
+  subject: string;
+  previewText?: string | null;
+  fromName?: string | null;
+  content: EmailCampaignContent;
+  htmlSnapshot: string;
+  segmentId: string | null;
+  scheduledAt: Date | null;
+  contacts: EmailContact[];
+};
+
+export async function saveEmailCampaignWithSnapshot(input: SaveEmailCampaignInput): Promise<{
+  campaign: EmailCampaign;
+  recipientCount: number;
+}> {
+  return db.transaction(async (tx) => {
+    let campaign: EmailCampaign | undefined;
+    if (input.campaignId) {
+      [campaign] = await tx
+        .update(emailCampaigns)
+        .set({
+          name: input.name,
+          subject: input.subject,
+          previewText: input.previewText?.trim() || null,
+          fromName: input.fromName?.trim() || null,
+          content: input.content,
+          htmlSnapshot: input.htmlSnapshot,
+          segmentId: input.segmentId,
+          status: "draft",
+          scheduledAt: null,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(emailCampaigns.organizationId, input.organizationId),
+          eq(emailCampaigns.id, input.campaignId),
+          eq(emailCampaigns.status, "draft"),
+        ))
+        .returning();
+      if (!campaign) throw new Error("CAMPAIGN_NOT_DRAFT");
+    } else {
+      [campaign] = await tx
+        .insert(emailCampaigns)
+        .values({
+          organizationId: input.organizationId,
+          createdBy: input.createdBy,
+          name: input.name,
+          previewText: input.previewText?.trim() || null,
+          fromName: input.fromName?.trim() || null,
+          status: "draft",
+          subject: input.subject,
+          content: input.content,
+          htmlSnapshot: input.htmlSnapshot,
+          segmentId: input.segmentId,
+          scheduledAt: null,
+        })
+        .returning();
+    }
+    if (!campaign) throw new Error("Email campaign could not be created.");
+    const savedCampaign = campaign;
+
+    await tx.delete(emailCampaignRecipients).where(and(
+      eq(emailCampaignRecipients.organizationId, input.organizationId),
+      eq(emailCampaignRecipients.campaignId, savedCampaign.id),
+    ));
+    if (input.contacts.length > 0) {
+      await tx.insert(emailCampaignRecipients).values(input.contacts.map((contact) => ({
+        organizationId: input.organizationId,
+        campaignId: savedCampaign.id,
+        contactId: contact.id,
+        email: contact.email,
+        fullName: contact.fullName,
+        personalization: { first_name: contact.fullName ?? "" },
+      })));
+    }
+
+    if (input.scheduledAt && input.contacts.length === 0) throw new Error("NO_ELIGIBLE_RECIPIENTS");
+    if (input.scheduledAt) {
+      [campaign] = await tx
+        .update(emailCampaigns)
+        .set({ status: "scheduled", scheduledAt: input.scheduledAt, updatedAt: new Date() })
+        .where(and(
+          eq(emailCampaigns.organizationId, input.organizationId),
+          eq(emailCampaigns.id, savedCampaign.id),
+          eq(emailCampaigns.status, "draft"),
+        ))
+        .returning();
+      if (!campaign) throw new Error("CAMPAIGN_NOT_DRAFT");
+    }
+    return { campaign: savedCampaign, recipientCount: input.contacts.length };
+  });
+}
+
 export async function createEmailCampaign(input: CreateEmailCampaignInput): Promise<EmailCampaign> {
   const [campaign] = await db
     .insert(emailCampaigns)
@@ -414,6 +514,23 @@ export async function updateEmailCampaign(input: UpdateEmailCampaignInput): Prom
       updatedAt: new Date(),
     })
     .where(and(eq(emailCampaigns.organizationId, input.organizationId), eq(emailCampaigns.id, input.campaignId), eq(emailCampaigns.status, "draft")))
+    .returning();
+  return campaign;
+}
+
+export async function scheduleEmailCampaign(input: {
+  organizationId: string;
+  campaignId: string;
+  scheduledAt: Date;
+}): Promise<EmailCampaign | undefined> {
+  const [campaign] = await db
+    .update(emailCampaigns)
+    .set({ status: "scheduled", scheduledAt: input.scheduledAt, updatedAt: new Date() })
+    .where(and(
+      eq(emailCampaigns.organizationId, input.organizationId),
+      eq(emailCampaigns.id, input.campaignId),
+      eq(emailCampaigns.status, "draft"),
+    ))
     .returning();
   return campaign;
 }
@@ -494,6 +611,12 @@ export async function updateEmailContact(input: {
 
 export async function subscribeEmailContacts(input: { organizationId: string; contactIds: string[] }): Promise<number> {
   if (input.contactIds.length === 0) return 0;
+  const candidates = await db
+    .select({ id: emailContacts.id, status: emailContacts.subscriptionStatus })
+    .from(emailContacts)
+    .where(and(eq(emailContacts.organizationId, input.organizationId), inArray(emailContacts.id, input.contactIds)));
+  const eligibleIds = candidates.filter((contact) => isAdminSubscriptionEligible(contact.status)).map((contact) => contact.id);
+  if (eligibleIds.length === 0) return 0;
   const updated = await db
     .update(emailContacts)
     .set({
@@ -504,8 +627,8 @@ export async function subscribeEmailContacts(input: { organizationId: string; co
     })
     .where(and(
       eq(emailContacts.organizationId, input.organizationId),
-      inArray(emailContacts.id, input.contactIds),
-      ne(emailContacts.subscriptionStatus, "subscribed"),
+      inArray(emailContacts.id, eligibleIds),
+      eq(emailContacts.subscriptionStatus, "pending"),
     ))
     .returning({ id: emailContacts.id });
   return updated.length;
@@ -543,11 +666,11 @@ export async function listEmailContactDetails(organizationId: string): Promise<R
   return details;
 }
 
-export async function createCampaignRecipientSnapshot(input: {
+export async function getCampaignRecipientContacts(input: {
   organizationId: string;
   campaignId: string;
   segmentId?: string;
-}): Promise<number> {
+}): Promise<EmailContact[]> {
   let filters: Pick<EmailSegmentDefinition["filters"], "subscriptionStatuses" | "eventIds" | "tags"> | undefined;
   let definition: EmailSegmentDefinition | undefined;
   if (input.segmentId) {
@@ -568,6 +691,19 @@ export async function createCampaignRecipientSnapshot(input: {
   const contacts = definition?.filters.conditions?.length
     ? (await listEmailSegmentMatches({ organizationId: input.organizationId, definition })).filter((contact) => contact.subscriptionStatus === "subscribed")
     : await listEligibleAudienceContacts({ organizationId: input.organizationId, filters });
+  return contacts;
+}
+
+export async function createCampaignRecipientSnapshot(input: {
+  organizationId: string;
+  campaignId: string;
+  segmentId?: string;
+}): Promise<number> {
+  const contacts = await getCampaignRecipientContacts(input);
+  await db.delete(emailCampaignRecipients).where(and(
+    eq(emailCampaignRecipients.organizationId, input.organizationId),
+    eq(emailCampaignRecipients.campaignId, input.campaignId),
+  ));
   if (contacts.length === 0) return 0;
   await db.insert(emailCampaignRecipients).values(contacts.map((contact) => ({
     organizationId: input.organizationId,
@@ -884,7 +1020,7 @@ export async function sendEmailRepermission(input: {
       recipientName: contact.fullName,
       confirmUrl: buildRepermissionUrl(token, "confirm"),
       declineUrl: buildRepermissionUrl(token, "decline"),
-      logoUrl: `${appOrigin}/logos/shades-de-mexico-white.png`,
+      logoUrl: `${appOrigin}/logos/shades-de-mexico-white-v2.png`,
     }),
     from: env.RESEND_MARKETING_FROM,
     replyTo: env.RESEND_MARKETING_REPLY_TO || undefined,

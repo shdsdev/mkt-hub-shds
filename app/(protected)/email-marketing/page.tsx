@@ -22,7 +22,7 @@ export default async function EmailMarketingPage() {
         active="campaigns"
         eyebrow="Campaign studio"
         title="Email Marketing"
-        description="Diseñá campañas para tus contactos y asistentes de eventos, con consentimiento y entrega trazable."
+        description="Diseña campañas para tus contactos y asistentes de eventos, con consentimiento y entrega trazable."
         action={<Link href="/email-marketing/campaigns/new" className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">Nueva campaña</Link>}
       />
 
@@ -45,7 +45,7 @@ export default async function EmailMarketingPage() {
           <div className="mt-6 rounded-xl border border-dashed border-border/80 px-5 py-12 text-center">
             <p className="font-heading text-lg font-semibold">Todavía no hay campañas</p>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-              Empezá con una audiencia, armá el contenido y revisá el consentimiento antes de programar tu primer envío.
+              Empieza con una audiencia, arma el contenido y revisa el consentimiento antes de programar tu primer envío.
             </p>
             <Link href="/email-marketing/campaigns/new" className="mt-5 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline">
               Crear la primera campaña

@@ -1,11 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/db/client", () => ({ db: {} }));
+const contact = {
+  id: "contact-1",
+  email: "customer@example.com",
+  fullName: "Customer",
+  subscriptionStatus: "subscribed",
+};
+
+const query = vi.hoisted(() => ({
+  select: vi.fn(),
+}));
+
+vi.mock("@/db/client", () => ({
+  db: query,
+}));
 
 import {
   normalizeContactEmail,
   preserveContactStatus,
   resolveInitialContactStatus,
+  isAdminSubscriptionEligible,
+  getCampaignRecipientContacts,
 } from "./service";
 
 describe("email marketing contact policy", () => {
@@ -35,5 +50,27 @@ describe("email marketing contact policy", () => {
     expect(
       preserveContactStatus("suppressed", new Date("2026-10-22T10:00:00.000Z")),
     ).toBe("suppressed");
+  });
+
+  it.each([
+    ["pending", true],
+    ["subscribed", false],
+    ["unsubscribed", false],
+    ["suppressed", false],
+  ] as const)("only allows explicit admin subscription for %s contacts", (status, expected) => {
+    expect(isAdminSubscriptionEligible(status)).toBe(expected);
+  });
+
+  it("returns eligible contacts for the campaign snapshot", async () => {
+    const builder = {
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockResolvedValue([contact]),
+    };
+    query.select.mockReturnValue(builder);
+
+    await expect(
+      getCampaignRecipientContacts({ organizationId: "org-1", campaignId: "campaign-1" }),
+    ).resolves.toEqual([contact]);
   });
 });

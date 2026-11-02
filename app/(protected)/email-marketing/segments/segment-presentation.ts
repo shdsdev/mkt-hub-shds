@@ -39,7 +39,7 @@ export function describeSegmentCondition(condition: SegmentCondition): string {
 export function describeSegmentFilters(filters: SegmentFilters): string {
   const descriptions: string[] = [];
   if (filters.conditions?.length) descriptions.push(filters.conditions.map(describeSegmentCondition).join(filters.logic === "any" ? " o " : " y "));
-  if (filters.subscriptionStatuses?.includes("subscribed")) descriptions.push("Suscriptos");
+  if (filters.subscriptionStatuses?.includes("subscribed")) descriptions.push("Suscritos");
   if (filters.tags?.length) descriptions.push(`Etiquetas: ${filters.tags.join(", ")}`);
   if (filters.eventIds?.length) descriptions.push(`${filters.eventIds.length} evento${filters.eventIds.length === 1 ? "" : "s"}`);
   return descriptions.length ? descriptions.join(" · ") : "Todos los contactos elegibles";

@@ -8,7 +8,7 @@ describe("getRecipientDeliveryStatus", () => {
     ["email.suppressed", "suppressed"],
     ["email.complained", "suppressed"],
     ["email.failed", "failed"],
-    ["email.delivery_delayed", "failed"],
+    ["email.delivery_delayed", null],
   ] as const)("maps %s to %s", (eventType, expected) => {
     expect(getRecipientDeliveryStatus(eventType)).toBe(expected);
   });

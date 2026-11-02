@@ -87,8 +87,8 @@ export function SegmentBuilder({ segment, onCancel }: { segment?: EmailSegment; 
           <div className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-medium text-primary">{segment ? "Editar segmento" : "Nuevo segmento"}</p>
-              <h2 className="mt-2 font-heading text-2xl font-semibold">¿A quién querés enviarle?</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Definí las condiciones de tu audiencia. Podés combinar varias reglas y reutilizarlas en tus campañas.</p>
+              <h2 className="mt-2 font-heading text-2xl font-semibold">¿A quién quieres enviarle?</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Define las condiciones de tu audiencia. Puedes combinar varias reglas y reutilizarlas en tus campañas.</p>
             </div>
             <label className="block w-full text-sm font-medium sm:max-w-xs">
               Nombre del segmento
@@ -115,7 +115,7 @@ export function SegmentBuilder({ segment, onCancel }: { segment?: EmailSegment; 
                   <SelectTrigger className="w-full"><SelectValue>{segmentOperatorLabels[rule.operator]}</SelectValue></SelectTrigger>
                   <SelectContent>{operatorsFor(rule.field).map((value) => <SelectItem key={value} value={value}>{segmentOperatorLabels[value]}</SelectItem>)}</SelectContent>
                 </Select>
-                {rule.operator !== "is_empty" && rule.operator !== "is_not_empty" ? <input value={rule.value} onChange={(event) => updateRule(rule.id, { value: event.target.value })} placeholder="Escribí un valor" className="h-9 min-w-0 rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /> : <span className="text-xs text-muted-foreground">No necesita un valor</span>}
+                {rule.operator !== "is_empty" && rule.operator !== "is_not_empty" ? <input value={rule.value} onChange={(event) => updateRule(rule.id, { value: event.target.value })} placeholder="Escribe un valor" className="h-9 min-w-0 rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" /> : <span className="text-xs text-muted-foreground">No necesita un valor</span>}
                 <div className="flex items-center justify-end gap-1">
                   <button type="button" onClick={() => duplicateRule(rule)} aria-label="Duplicar regla" className="inline-flex size-8 items-center justify-center text-muted-foreground hover:text-foreground"><Copy size={14} /></button>
                   <button type="button" onClick={() => removeRule(rule.id)} disabled={rules.length === 1} aria-label="Eliminar regla" className="inline-flex size-8 items-center justify-center text-muted-foreground hover:text-destructive disabled:opacity-30"><Trash2 size={14} /></button>

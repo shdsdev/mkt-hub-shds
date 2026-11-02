@@ -31,7 +31,7 @@ export default async function NewEmailCampaignPage() {
       <section className="mx-4 rounded-2xl border border-border bg-card/60 p-4 sm:mx-6 sm:p-5">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Audiencia disponible</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-border bg-background/40 p-4"><p className="text-xs text-muted-foreground">Todos los suscriptos</p><p className="mt-2 text-2xl font-semibold">{eligibleContacts.length}</p><p className="text-xs text-muted-foreground">contactos elegibles</p></div>
+          <div className="rounded-xl border border-border bg-background/40 p-4"><p className="text-xs text-muted-foreground">Todos los suscritos</p><p className="mt-2 text-2xl font-semibold">{eligibleContacts.length}</p><p className="text-xs text-muted-foreground">contactos elegibles</p></div>
           {segmentsWithCounts.slice(0, 3).map((segment) => <div key={segment.id} className="rounded-xl border border-border bg-background/40 p-4"><p className="truncate text-xs text-muted-foreground">{segment.name}</p><p className="mt-2 text-2xl font-semibold">{segment.eligibleContactCount}</p><p className="text-xs text-muted-foreground">contactos elegibles</p></div>)}
         </div>
       </section>

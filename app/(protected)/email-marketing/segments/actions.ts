@@ -41,14 +41,14 @@ export async function createEmailSegmentAction(
   formData: FormData,
 ): Promise<SegmentActionState> {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.profile)) return { error: "No tenés permisos para crear segmentos." };
+  if (!user || !isAdmin(user.profile)) return { error: "No tienes permisos para crear segmentos." };
   const parsed = segmentSchema.safeParse({
     name: formData.get("name"),
     tags: formData.get("tags") ?? undefined,
     subscribedOnly: formData.get("subscribedOnly") ?? undefined,
     definition: formData.get("definition") || undefined,
   });
-  if (!parsed.success) return { error: "Completá un nombre válido para el segmento." };
+  if (!parsed.success) return { error: "Completa un nombre válido para el segmento." };
   let definition: EmailSegmentDefinition;
   if (parsed.data.definition) {
     try {
@@ -77,9 +77,9 @@ export async function updateEmailSegmentAction(
 ): Promise<SegmentActionState> {
   const user = await getCurrentUser();
   const segmentId = z.string().uuid().safeParse(formData.get("segmentId"));
-  if (!user || !isAdmin(user.profile) || !segmentId.success) return { error: "No tenés permisos para editar este segmento." };
+  if (!user || !isAdmin(user.profile) || !segmentId.success) return { error: "No tienes permisos para editar este segmento." };
   const parsed = segmentSchema.safeParse({ name: formData.get("name"), definition: formData.get("definition") || undefined });
-  if (!parsed.success || !parsed.data.definition) return { error: "Completá un nombre y reglas válidas para el segmento." };
+  if (!parsed.success || !parsed.data.definition) return { error: "Completa un nombre y reglas válidas para el segmento." };
   let definition: EmailSegmentDefinition;
   try {
     definition = JSON.parse(parsed.data.definition) as EmailSegmentDefinition;
@@ -97,7 +97,7 @@ export async function previewEmailSegmentAction(
   formData: FormData,
 ): Promise<SegmentActionState> {
   const user = await requireSegmentAdmin();
-  if (!user) return { error: "No tenés permisos para revisar segmentos." };
+  if (!user) return { error: "No tienes permisos para revisar segmentos." };
   try {
     const definition = JSON.parse(String(formData.get("definition"))) as EmailSegmentDefinition;
     const matches = await listEmailSegmentMatches({ organizationId: user.profile.organizationId, definition });

@@ -9,10 +9,9 @@ import { checkRateLimit, recordAudit } from "@/modules/audit";
 import { sendViaResend } from "@/modules/notifications";
 import { env } from "@/lib/env";
 import {
-  createEmailCampaign,
-  createCampaignRecipientSnapshot,
+  getCampaignRecipientContacts,
   getCampaignResultRedirect,
-  updateEmailCampaign,
+  saveEmailCampaignWithSnapshot,
   duplicateEmailCampaign,
   listEmailSegments,
   parseCampaignSchedule,
@@ -54,7 +53,7 @@ export async function sendTestEmailAction(
   formData: FormData,
 ): Promise<SendTestEmailFormState> {
   const user = await getCurrentUser();
-  if (!user) return { error: "Tu sesión expiró. Volvé a iniciar sesión." };
+  if (!user) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
   if (!isAdmin(user.profile)) return { error: "Sólo un administrador puede enviar pruebas." };
   if (!checkRateLimit(user.id)) return { error: "Demasiadas acciones. Inténtalo de nuevo en breve." };
 
@@ -63,7 +62,7 @@ export async function sendTestEmailAction(
     subject: formData.get("subject"),
     content: formData.get("content"),
   });
-  if (!parsed.success) return { error: "Ingresá un correo válido para enviar la prueba." };
+  if (!parsed.success) return { error: "Ingresa un correo válido para enviar la prueba." };
 
   try {
     const content = parseEmailCampaignContent(JSON.parse(parsed.data.content));
@@ -74,7 +73,7 @@ export async function sendTestEmailAction(
       from: env.RESEND_MARKETING_FROM,
       replyTo: env.RESEND_MARKETING_REPLY_TO || undefined,
     });
-    if (!sent.ok) return { error: "No se pudo enviar la prueba. Revisá la configuración de Resend." };
+    if (!sent.ok) return { error: "No se pudo enviar la prueba. Revisa la configuración de Resend." };
     return { success: `Prueba enviada a ${parsed.data.email}.` };
   } catch {
     return { error: "El contenido de la prueba no es válido." };
@@ -86,7 +85,7 @@ export async function createEmailCampaignAction(
   formData: FormData,
 ): Promise<CreateEmailCampaignFormState> {
   const user = await getCurrentUser();
-  if (!user) return { error: "Tu sesión expiró. Volvé a iniciar sesión." };
+  if (!user) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
   if (!isAdmin(user.profile)) return { error: "Sólo un administrador puede crear campañas." };
   if (!checkRateLimit(user.id)) return { error: "Demasiadas acciones. Inténtalo de nuevo en breve." };
 
@@ -100,7 +99,7 @@ export async function createEmailCampaignAction(
     content: formData.get("content"),
     audience: formData.get("audience"),
   });
-  if (!parsed.success) return { error: "Completá el nombre, el asunto y el contenido de la campaña." };
+  if (!parsed.success) return { error: "Completa el nombre, el asunto y el contenido de la campaña." };
 
   let content;
   try {
@@ -116,49 +115,56 @@ export async function createEmailCampaignAction(
       z.object({ mode: z.literal("segment"), segmentId: z.string().uuid() }),
     ]).parse(JSON.parse(parsed.data.audience ?? '{"mode":"all"}'));
   } catch {
-    return { error: "Seleccioná una audiencia válida." };
+    return { error: "Selecciona una audiencia válida." };
   }
 
   let schedule: ReturnType<typeof parseCampaignSchedule>;
   try {
     schedule = parseCampaignSchedule({ sendMode: parsed.data.sendMode, scheduledAt: parsed.data.scheduledAt });
   } catch {
-    return { error: "Elegí una fecha futura para programar la campaña." };
+    return { error: "Elige una fecha futura para programar la campaña." };
   }
 
-  const campaign = await createEmailCampaign({
+  const contacts = await getCampaignRecipientContacts({
     organizationId: user.profile.organizationId,
-    createdBy: user.id,
-    name: parsed.data.name,
-    subject: parsed.data.subject,
-    previewText: parsed.data.previewText,
-    fromName: parsed.data.fromName,
-    content,
-    htmlSnapshot: renderEmailHtml(content),
-    segmentId: audience.mode === "segment" ? audience.segmentId : undefined,
-    status: schedule.status,
-    scheduledAt: schedule.scheduledAt,
-  });
-  const recipientCount = await createCampaignRecipientSnapshot({
-    organizationId: user.profile.organizationId,
-    campaignId: campaign.id,
+    campaignId: "new",
     segmentId: audience.mode === "segment" ? audience.segmentId : undefined,
   });
-  if (recipientCount === 0) return { error: "La audiencia seleccionada no tiene contactos suscriptos elegibles." };
+  let saved: Awaited<ReturnType<typeof saveEmailCampaignWithSnapshot>>;
+  try {
+    saved = await saveEmailCampaignWithSnapshot({
+      organizationId: user.profile.organizationId,
+      createdBy: user.id,
+      name: parsed.data.name,
+      subject: parsed.data.subject,
+      previewText: parsed.data.previewText,
+      fromName: parsed.data.fromName,
+      content,
+      htmlSnapshot: renderEmailHtml(content),
+      segmentId: audience.mode === "segment" ? audience.segmentId ?? null : null,
+      scheduledAt: schedule.status === "scheduled" ? schedule.scheduledAt! : null,
+      contacts,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "NO_ELIGIBLE_RECIPIENTS") {
+      return { error: "La audiencia seleccionada no tiene contactos suscritos elegibles." };
+    }
+    throw error;
+  }
 
   await recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
     action: "create",
     resourceType: "email_campaign",
-    resourceId: campaign.id,
-    after: campaign,
+    resourceId: saved.campaign.id,
+    after: saved.campaign,
   });
 
   revalidatePath("/email-marketing");
-  const resultRedirect = getCampaignResultRedirect(campaign.id, parsed.data.sendMode);
+  const resultRedirect = getCampaignResultRedirect(saved.campaign.id, parsed.data.sendMode);
   if (resultRedirect) redirect(resultRedirect);
-  return { success: `Borrador guardado con ${recipientCount} destinatarios elegibles.` };
+  return { success: `Borrador guardado con ${saved.recipientCount} destinatarios elegibles.` };
 }
 
 export async function updateEmailCampaignAction(
@@ -166,7 +172,7 @@ export async function updateEmailCampaignAction(
   formData: FormData,
 ): Promise<CreateEmailCampaignFormState> {
   const user = await getCurrentUser();
-  if (!user) return { error: "Tu sesión expiró. Volvé a iniciar sesión." };
+  if (!user) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
   if (!isAdmin(user.profile)) return { error: "Sólo un administrador puede editar campañas." };
   if (!checkRateLimit(user.id)) return { error: "Demasiadas acciones. Inténtalo de nuevo en breve." };
 
@@ -181,7 +187,7 @@ export async function updateEmailCampaignAction(
     content: formData.get("content"),
     audience: formData.get("audience"),
   });
-  if (!parsed.success) return { error: "Completá el nombre, el asunto y el contenido de la campaña." };
+  if (!parsed.success) return { error: "Completa el nombre, el asunto y el contenido de la campaña." };
 
   let content;
   try {
@@ -197,7 +203,7 @@ export async function updateEmailCampaignAction(
       z.object({ mode: z.literal("segment"), segmentId: z.string().uuid() }),
     ]).parse(JSON.parse(parsed.data.audience ?? '{"mode":"all"}'));
   } catch {
-    return { error: "Seleccioná una audiencia válida." };
+    return { error: "Selecciona una audiencia válida." };
   }
 
   if (audience.mode === "segment") {
@@ -209,31 +215,39 @@ export async function updateEmailCampaignAction(
   try {
     schedule = parseCampaignSchedule({ sendMode: parsed.data.sendMode, scheduledAt: parsed.data.scheduledAt });
   } catch {
-    return { error: "Elegí una fecha futura para programar la campaña." };
+    return { error: "Elige una fecha futura para programar la campaña." };
   }
 
-  const campaign = await updateEmailCampaign({
+  const contacts = await getCampaignRecipientContacts({
     organizationId: user.profile.organizationId,
     campaignId: parsed.data.campaignId,
-    name: parsed.data.name,
-    subject: parsed.data.subject,
-    previewText: parsed.data.previewText,
-    fromName: parsed.data.fromName,
-    content,
-    htmlSnapshot: renderEmailHtml(content),
-    segmentId: audience.mode === "segment" ? audience.segmentId : undefined,
-    status: schedule.status,
-    scheduledAt: schedule.scheduledAt,
-  });
-  if (!campaign) return { error: "Sólo se pueden editar campañas en borrador." };
-
-  const recipientCount = await createCampaignRecipientSnapshot({
-    organizationId: user.profile.organizationId,
-    campaignId: campaign.id,
     segmentId: audience.mode === "segment" ? audience.segmentId : undefined,
   });
-  if (recipientCount === 0 && parsed.data.sendMode !== "draft") {
-    return { error: "La audiencia seleccionada no tiene contactos suscriptos elegibles." };
+  let saved: Awaited<ReturnType<typeof saveEmailCampaignWithSnapshot>>;
+  try {
+    saved = await saveEmailCampaignWithSnapshot({
+      organizationId: user.profile.organizationId,
+      createdBy: user.id,
+      campaignId: parsed.data.campaignId,
+      name: parsed.data.name,
+      subject: parsed.data.subject,
+      previewText: parsed.data.previewText,
+      fromName: parsed.data.fromName,
+      content,
+      htmlSnapshot: renderEmailHtml(content),
+      segmentId: audience.mode === "segment" ? audience.segmentId ?? null : null,
+      scheduledAt: schedule.status === "scheduled" ? schedule.scheduledAt! : null,
+      contacts,
+    });
+  } catch (error) {
+    if (error instanceof Error && ["CAMPAIGN_NOT_DRAFT", "NO_ELIGIBLE_RECIPIENTS"].includes(error.message)) {
+      return {
+        error: error.message === "NO_ELIGIBLE_RECIPIENTS"
+          ? "La audiencia seleccionada no tiene contactos suscritos elegibles."
+          : "Sólo se pueden editar campañas en borrador.",
+      };
+    }
+    throw error;
   }
 
   await recordAudit({
@@ -241,12 +255,12 @@ export async function updateEmailCampaignAction(
     userId: user.id,
     action: "create",
     resourceType: "email_campaign",
-    resourceId: campaign.id,
-    after: campaign,
+    resourceId: saved.campaign.id,
+    after: saved.campaign,
   });
   revalidatePath("/email-marketing");
-  revalidatePath(`/email-marketing/campaigns/${campaign.id}`);
-  const resultRedirect = getCampaignResultRedirect(campaign.id, parsed.data.sendMode);
+  revalidatePath(`/email-marketing/campaigns/${saved.campaign.id}`);
+  const resultRedirect = getCampaignResultRedirect(saved.campaign.id, parsed.data.sendMode);
   if (resultRedirect) redirect(resultRedirect);
   return { success: "Cambios guardados." };
 }

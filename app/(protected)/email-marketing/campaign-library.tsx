@@ -85,11 +85,11 @@ export function CampaignLibrary({ campaigns, segmentNames }: { campaigns: EmailC
                     <Link href={`/email-marketing/campaigns/${campaign.id}`} className="block focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                       <p className="truncate font-medium text-foreground hover:text-primary">{campaign.name}</p>
                       <p className="mt-1 truncate text-xs text-muted-foreground">Correo electrónico ordinario</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Última edición {campaign.updatedAt.toLocaleDateString("es-MX")} por vos</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Última edición {campaign.updatedAt.toLocaleDateString("es-MX")} por ti</p>
                     </Link>
                   </td>
                   <td className="px-3 py-5 align-top"><span className="inline-flex rounded border border-border bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">{statusLabels[campaign.status]}</span></td>
-                  <td className="px-3 py-5 align-top"><Link href={`/email-marketing/campaigns/${campaign.id}`} className="text-primary hover:underline">{segmentNames[campaign.segmentId ?? ""] ?? (campaign.segmentId ? "Segmento no disponible" : "Todos los suscriptos")}</Link><p className="mt-1 text-xs text-muted-foreground">Destinatarios pendientes de envío</p></td>
+                  <td className="px-3 py-5 align-top"><Link href={`/email-marketing/campaigns/${campaign.id}`} className="text-primary hover:underline">{segmentNames[campaign.segmentId ?? ""] ?? (campaign.segmentId ? "Segmento no disponible" : "Todos los suscritos")}</Link><p className="mt-1 text-xs text-muted-foreground">Destinatarios pendientes de envío</p></td>
                   <td className="px-3 py-5 align-top"><div className="grid grid-cols-3 gap-4 text-center text-xs text-muted-foreground"><span><strong className="block text-sm font-medium text-foreground">—</strong>Aperturas</span><span><strong className="block text-sm font-medium text-foreground">—</strong>Clics</span><span><strong className="block text-sm font-medium text-foreground">—</strong>Ingresos</span></div></td>
                   <td className="px-3 py-5 align-top"><div className="flex justify-end gap-2">
                     {campaign.status === "draft" ? <Link href={`/email-marketing/campaigns/${campaign.id}/edit`} aria-label={`Editar ${campaign.name}`} className="inline-flex items-center gap-1.5 px-1 py-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><Pencil size={13} /> Editar</Link> : null}

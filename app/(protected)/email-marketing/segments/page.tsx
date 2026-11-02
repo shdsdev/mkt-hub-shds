@@ -20,7 +20,7 @@ export default async function EmailSegmentsPage() {
         active="segments"
         eyebrow="Audiencias guardadas"
         title="Segmentos"
-        description="Creá audiencias con filtros simples y reutilizalas en tus campañas."
+        description="Crea audiencias con filtros simples y reutilizalas en tus campañas."
       />
       <SegmentsWorkspace segments={segmentsWithCounts} />
     </main>

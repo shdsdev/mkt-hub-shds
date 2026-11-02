@@ -4,6 +4,6 @@ export function getRecipientDeliveryStatus(eventType: string): RecipientDelivery
   if (eventType === "email.delivered") return "delivered";
   if (eventType === "email.bounced") return "bounced";
   if (eventType === "email.suppressed" || eventType === "email.complained") return "suppressed";
-  if (eventType === "email.failed" || eventType === "email.delivery_delayed") return "failed";
+  if (eventType === "email.failed") return "failed";
   return null;
 }
