@@ -32,3 +32,5 @@ export { normalizeQrDescription, QR_DESCRIPTION_MAX_LENGTH } from "./metadata";
 export { type ErrorCorrectionLevel } from "./logo";
 export { buildStaticPayload, type StaticPayloadInput } from "./static-payload";
 export { qrDownloadFilename } from "./filename";
+export { isHttpUrl, isInternationalPhone, normalizeInternationalPhone } from "./content-validation";
+export { buildQuickPayload, quickContentSchema, type QuickContent } from "./quick-content";

@@ -17,8 +17,6 @@ import {
   Settings2,
   LogOut,
   DoorOpen,
-  ChartColumn,
-  ChartColumnIncreasing,
   Users,
   UserRoundCheck,
   Calendar,
@@ -313,11 +311,11 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
-                        isActive={pathname === "/analytics" || pathname.startsWith("/analytics/")}
-                        render={<Link href="/analytics" />}
+                        isActive={pathname === "/qr/quick" || pathname.startsWith("/qr/quick/")}
+                        render={<Link href="/qr/quick" />}
                       >
-                        <HoverMorphIcon idle={ChartColumn} active={ChartColumnIncreasing} size={16} />
-                        <span>Analytics</span>
+                        <HoverMorphIcon idle={ScanLine} active={QrCode} size={16} />
+                        <span>Quick QR</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   </SidebarMenuSub>

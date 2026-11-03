@@ -121,6 +121,90 @@ html[data-theme-reveal]::view-transition-new(root) {
   background: color-mix(in srgb, var(--stage-accent, #bef264) 82%, white);
 }
 
+.quick-qr-range {
+  --quick-accent: var(--accent);
+  --quick-progress: 50%;
+  appearance: none;
+  width: 100%;
+  height: 1.25rem;
+  cursor: pointer;
+  background: transparent;
+}
+
+.quick-qr-range::-webkit-slider-runnable-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--quick-accent) var(--quick-progress), color-mix(in srgb, var(--foreground) 16%, transparent) var(--quick-progress));
+}
+
+.quick-qr-range::-moz-range-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.quick-qr-range::-moz-range-progress {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--quick-accent);
+}
+
+.quick-qr-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.325rem;
+  border: 2px solid var(--background);
+  border-radius: 999px;
+  background: var(--quick-accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--quick-accent) 45%, transparent);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.quick-qr-range::-moz-range-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--background);
+  border-radius: 999px;
+  background: var(--quick-accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--quick-accent) 45%, transparent);
+}
+
+.quick-qr-range:hover::-webkit-slider-thumb,
+.quick-qr-range:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.18);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--quick-accent) 55%, transparent);
+}
+
+.quick-qr-range:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--quick-accent) 60%, transparent);
+  outline-offset: 4px;
+}
+
+/* Shape pickers show the QR component being edited instead of repeating a full QR in every tile. */
+.quick-qr-thumbnail {
+  display: flex !important;
+  position: relative;
+  width: 100%;
+  max-width: 8rem;
+  height: auto;
+  aspect-ratio: 1;
+  min-width: 0;
+  overflow: hidden !important;
+  contain: paint;
+  isolation: isolate;
+}
+
+.quick-qr-thumbnail > svg {
+  position: static !important;
+  display: block;
+  flex: none !important;
+  width: 100%;
+  height: 100%;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-reveal="winner"] * { animation: none !important; }
 }

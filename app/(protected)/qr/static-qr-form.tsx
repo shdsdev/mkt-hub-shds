@@ -222,6 +222,7 @@ export function StaticQrForm({
               <TextField label="Email" name="email" type="email" required value={fields.email} onChange={(v) => setField("email", v)} />
               <TextField label="Empresa (opcional)" name="company" value={fields.company} onChange={(v) => setField("company", v)} />
               <TextField label="Sitio web (opcional)" name="website" type="url" value={fields.website} onChange={(v) => setField("website", v)} />
+              <TextField label="Dirección (opcional)" name="address" value={fields.address} onChange={(v) => setField("address", v)} />
             </>
           )}
 

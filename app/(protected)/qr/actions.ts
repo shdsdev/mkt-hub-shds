@@ -17,6 +17,7 @@ import {
   updateQrPlacementImage,
   buildStaticPayload,
 } from "@/modules/qr";
+import { isHttpUrl, isInternationalPhone } from "@/lib/qr-content-validation";
 import {
   createLink,
   createShortLink,
@@ -86,7 +87,7 @@ const utmPresetSaveSchema = z.object({
 
 const createWebsiteQrSchema = z
   .object({
-    destinationUrl: z.string().trim().min(1).max(2048),
+    destinationUrl: z.string().trim().min(1).max(2048).refine(isHttpUrl, "La URL debe comenzar con http:// o https://."),
     utmSource: z.string().trim().max(255).optional(),
     utmMedium: z.string().trim().max(255).optional(),
     utmCampaign: z.string().trim().max(255).optional(),
@@ -239,10 +240,11 @@ const staticKindFieldsSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("vcard"),
     fullName: z.string().trim().min(1).max(255),
-    phone: z.string().trim().min(1).max(50),
+    phone: z.string().trim().min(1).max(50).refine(isInternationalPhone, "Usa un teléfono internacional válido con código de país."),
     email: z.string().trim().email(),
     company: z.string().trim().max(255).optional(),
-    website: z.string().trim().url().max(2048).optional(),
+    website: z.string().trim().max(2048).optional().refine((value) => !value || isHttpUrl(value), "El sitio web debe comenzar con http:// o https://."),
+    address: z.string().trim().max(500).optional(),
   }),
   z.object({
     kind: z.literal("email"),
@@ -252,7 +254,7 @@ const staticKindFieldsSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("sms"),
-    number: z.string().trim().min(1).max(30),
+    number: z.string().trim().min(1).max(30).refine(isInternationalPhone, "Usa un teléfono internacional válido con código de país."),
     message: z.string().trim().max(500).optional(),
   }),
   z.object({

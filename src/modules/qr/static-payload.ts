@@ -1,6 +1,6 @@
 export type StaticPayloadInput =
   | { kind: "text"; content: string }
-  | { kind: "vcard"; fullName: string; phone: string; email: string; company?: string; website?: string }
+  | { kind: "vcard"; fullName: string; phone: string; email: string; company?: string; website?: string; address?: string }
   | { kind: "email"; address: string; subject?: string; body?: string }
   | { kind: "sms"; number: string; message?: string }
   | { kind: "wifi"; ssid: string; password: string; security: "WPA" | "WEP" | "nopass"; hidden: boolean };
@@ -31,6 +31,7 @@ export function buildStaticPayload(input: StaticPayloadInput): string {
       ];
       if (input.company) lines.push(`ORG:${escapeVCard(input.company)}`);
       if (input.website) lines.push(`URL:${escapeVCard(input.website)}`);
+      if (input.address) lines.push(`ADR:;;${escapeVCard(input.address)};;;`);
       lines.push("END:VCARD");
       return lines.join("\n");
     }

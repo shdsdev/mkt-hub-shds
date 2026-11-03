@@ -15,6 +15,7 @@ describe("buildStaticPayload", () => {
         email: "ana@example.com",
         company: "Shades",
         website: "https://shades.example",
+        address: "Av. México 100; Guadalajara",
       });
       expect(payload).toBe(
         [
@@ -25,6 +26,7 @@ describe("buildStaticPayload", () => {
           "EMAIL:ana@example.com",
           "ORG:Shades",
           "URL:https://shades.example",
+          "ADR:;;Av. México 100\\; Guadalajara;;;",
           "END:VCARD",
         ].join("\n"),
       );
