@@ -1,8 +1,11 @@
-import { type ReactNode } from "react";
+// @vitest-environment jsdom
+import { act, type ReactNode } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
+import { usePathname } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/events" }));
+vi.mock("next/navigation", () => ({ usePathname: vi.fn(() => "/events") }));
 vi.mock("./actions", () => ({ signOutAction: vi.fn() }));
 vi.mock("./settings/actions", () => ({ updateUserThemeAction: vi.fn() }));
 vi.mock("@/components/hover-morph-icon", () => ({ HoverMorphIcon: () => null }));
@@ -20,7 +23,7 @@ vi.mock("@/components/ui/theme-switch", () => ({
   default: ({ targetThemeId }: { targetThemeId: string }) => <span data-theme-target={targetThemeId}>Apariencia</span>,
 }));
 vi.mock("@/components/ui/sidebar", () => {
-  const wrapper = ({ children, render }: { children?: ReactNode; render?: ReactNode }) => <div>{render}{children}</div>;
+  const wrapper = ({ children, render, isActive, className }: { children?: ReactNode; render?: ReactNode; isActive?: boolean; className?: string }) => <div className={className} data-active={isActive}>{render}{children}</div>;
   return Object.fromEntries([
     "Sidebar", "SidebarContent", "SidebarFooter", "SidebarGroup", "SidebarGroupContent",
     "SidebarGroupLabel", "SidebarHeader", "SidebarMenu", "SidebarMenuButton", "SidebarMenuItem", "SidebarTrigger",
@@ -41,6 +44,33 @@ vi.mock("@/components/ui/dropdown-menu", () => {
 import { AppSidebar, MobileBottomNav } from "./sidebar";
 
 describe("sidebar role visibility", () => {
+  it.each([
+    ["/qr", "/qr"],
+    ["/qr/example", "/qr"],
+    ["/qr/quick", "/qr/quick"],
+    ["/qr/quick/example", "/qr/quick"],
+  ])("marks only %s's matching QR subitem as current", async (pathname, currentHref) => {
+    vi.mocked(usePathname).mockReturnValue(pathname);
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<AppSidebar email="admin@example.com" role="ADMIN" targetThemeId="carbon" />));
+      const subitems = Array.from(container.querySelectorAll('a[href="/qr"], a[href="/qr/quick"]'));
+      expect(subitems).toHaveLength(2);
+      const active = subitems.filter((link) => link.parentElement?.getAttribute("data-active") === "true");
+      expect(active.map((link) => link.getAttribute("href"))).toEqual([currentHref]);
+      expect(container.querySelector('a[aria-current="page"]')?.getAttribute("href")).toBe(currentHref);
+      const group = Array.from(container.querySelectorAll("[data-active]")).find((element) => element.textContent === "QR Short Links");
+      expect(group?.classList.contains("data-active:bg-accent")).toBe(true);
+      expect(group?.classList.contains("data-active:text-white")).toBe(true);
+    } finally {
+      await act(async () => root.unmount());
+      vi.mocked(usePathname).mockReturnValue("/events");
+      vi.unstubAllGlobals();
+    }
+  });
+
   it.each(["RECEPTION", "EVENT_EDITOR"])("shows only the events module for %s", (role) => {
     const html = renderToStaticMarkup(<AppSidebar email="user@example.com" role={role} targetThemeId="dark" />);
     expect(html).toContain('href="/events"');

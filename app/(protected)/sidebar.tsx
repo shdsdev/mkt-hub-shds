@@ -244,6 +244,8 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
   const eventsOnly = role === "EVENT_EDITOR" || role === "RECEPTION";
   const qrShortLinksActive =
     pathname.startsWith("/links") || pathname.startsWith("/qr") || pathname.startsWith("/analytics");
+  const quickQrActive = pathname === "/qr/quick" || pathname.startsWith("/qr/quick/");
+  const qrCodesActive = !quickQrActive && (pathname === "/qr" || pathname.startsWith("/qr/"));
   // Keep the first render structurally identical on the server and client. The pathname can be
   // resolved differently during hydration when a rewrite or browser navigation is involved.
   const [qrShortLinksOpen, setQrShortLinksOpen] = useState(false);
@@ -285,12 +287,13 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
               {!eventsOnly && <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={qrShortLinksActive}
-                    className="hover:text-sidebar-accent-foreground data-active:bg-accent data-active:text-accent-foreground data-active:hover:bg-accent"
+                  className="hover:text-sidebar-accent-foreground data-active:bg-accent data-active:font-semibold data-active:text-white data-active:hover:bg-accent data-active:hover:text-white"
+                  aria-expanded={qrShortLinksOpen}
                   onClick={() => setQrShortLinksOpen((open) => !open)}
                   onMouseEnter={() => setQrGroupHovered(true)}
                   onMouseLeave={() => setQrGroupHovered(false)}
                 >
-                  <span className={qrGroupHovered ? "text-sidebar-accent-foreground" : undefined}>
+                  <span className={qrShortLinksActive ? "text-white" : qrGroupHovered ? "text-sidebar-accent-foreground" : undefined}>
                     <HoverMorphIcon idle={QrCode} active={ScanLine} size={16} hovered={qrGroupHovered} />
                   </span>
                   <span className="flex-1">QR Short Links</span>
@@ -302,8 +305,8 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
                   <SidebarMenuSub>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
-                        isActive={pathname === "/qr" || pathname.startsWith("/qr/")}
-                        render={<Link href="/qr" />}
+                        isActive={qrCodesActive}
+                        render={<Link href="/qr" aria-current={qrCodesActive ? "page" : undefined} />}
                       >
                         <HoverMorphIcon idle={ScanLine} active={QrCode} size={16} />
                         <span>Códigos QR</span>
@@ -311,8 +314,8 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
-                        isActive={pathname === "/qr/quick" || pathname.startsWith("/qr/quick/")}
-                        render={<Link href="/qr/quick" />}
+                        isActive={quickQrActive}
+                        render={<Link href="/qr/quick" aria-current={quickQrActive ? "page" : undefined} />}
                       >
                         <HoverMorphIcon idle={ScanLine} active={QrCode} size={16} />
                         <span>Quick QR</span>
