@@ -955,8 +955,8 @@ describe("events service — registerForEvent", () => {
 // registration — the new attendee joins that registration's existing status rather than deciding
 // a fresh confirmed/waitlisted split.
 describe("events service — addAttendeeToRegistration", () => {
-  const confirmedRegistration = { id: "reg-1", eventId: "event-1", organizationId: "org-1", status: "confirmed" as const, cancelToken: "cancel-token-1" };
-  const waitlistedRegistration = { ...confirmedRegistration, status: "waitlisted" as const };
+  const confirmedRegistration = { id: "reg-1", eventId: "event-1", organizationId: "org-1", status: "confirmed" as const, reviewStatus: "approved" as const, cancelToken: "cancel-token-1" };
+  const waitlistedRegistration = { ...confirmedRegistration, status: "waitlisted" as const, reviewStatus: "waitlisted" as const };
   const cancelledRegistration = { ...confirmedRegistration, status: "cancelled" as const };
 
   beforeEach(() => {
@@ -1010,6 +1010,7 @@ describe("events service — addAttendeeToRegistration", () => {
       ok: true,
       attendee: newAttendee,
       registrationStatus: "confirmed",
+      reviewStatus: "approved",
       cancelToken: "cancel-token-1",
     });
   });
@@ -1047,6 +1048,7 @@ describe("events service — addAttendeeToRegistration", () => {
       ok: true,
       attendee: newAttendee,
       registrationStatus: "waitlisted",
+      reviewStatus: "waitlisted",
       cancelToken: "cancel-token-1",
     });
   });

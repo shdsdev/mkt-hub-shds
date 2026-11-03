@@ -141,7 +141,7 @@ describe("addCompanionAction", () => {
 
     const result = await addCompanionAction({}, formData());
 
-    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "b" } });
+    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "b", emailStatus: "pending_approval" } });
     expect(mocks.addAttendeeToRegistration).toHaveBeenCalled();
   });
 
@@ -173,6 +173,7 @@ describe("addCompanionAction", () => {
     mocks.addAttendeeToRegistration.mockResolvedValue({
       ok: true,
       registrationStatus: "confirmed",
+      reviewStatus: "approved",
       cancelToken: "cancel-token-1",
       attendee: {
         id: "33333333-3333-4333-8333-333333333333",
@@ -201,7 +202,7 @@ describe("addCompanionAction", () => {
     }));
     expect(mocks.notifyEventWebhook).toHaveBeenCalledWith(expect.objectContaining({ id: EVENT_ID, name: "Workshop" }), "registration.created", expect.objectContaining({ status: "confirmed" }));
     expect(mocks.revalidatePath).toHaveBeenCalledWith(`/events/${EVENT_ID}/registrations`);
-    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "WXYZ5678" } });
+    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "WXYZ5678", emailStatus: "sent" } });
   });
 
   it("does not send an email when the registration is waitlisted, but still notifies the webhook", async () => {
@@ -209,7 +210,22 @@ describe("addCompanionAction", () => {
     const result = await addCompanionAction({}, formData());
     expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
     expect(mocks.notifyEventWebhook).toHaveBeenCalledWith(expect.anything(), "registration.created", expect.objectContaining({ status: "waitlisted" }));
-    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "b" } });
+    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "b", emailStatus: "pending_approval" } });
+  });
+
+  it("reports a failed confirmation when the approved companion email cannot be sent", async () => {
+    mocks.addAttendeeToRegistration.mockResolvedValue({
+      ok: true,
+      registrationStatus: "confirmed",
+      reviewStatus: "approved",
+      cancelToken: "cancel-token-1",
+      attendee: { id: "att-2", organizationId: "org-1", email: "alan@example.com", fullName: "Alan Turing", passToken: "t", backupCode: "b" },
+    });
+    mocks.sendConfirmationEmail.mockResolvedValue({ sent: false, reason: "provider_failure" });
+
+    const result = await addCompanionAction({}, formData());
+
+    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "b", emailStatus: "failed" } });
   });
 
   it("surfaces an at_capacity failure as a friendly message", async () => {
@@ -219,8 +235,23 @@ describe("addCompanionAction", () => {
     expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
   });
 
+  it("does not send a confirmation when the registration is confirmed but not approved", async () => {
+    mocks.addAttendeeToRegistration.mockResolvedValue({
+      ok: true,
+      registrationStatus: "confirmed",
+      reviewStatus: "new",
+      cancelToken: "cancel-token-1",
+      attendee: { id: "att-2", organizationId: "org-1", email: "alan@example.com", fullName: "Alan Turing", passToken: "t", backupCode: "b" },
+    });
+
+    const result = await addCompanionAction({}, formData());
+
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+    expect(result).toEqual({ success: true, addedCompanion: { fullName: "Alan Turing", backupCode: "b", emailStatus: "pending_approval" } });
+  });
+
   it("resends the invitation email for an existing attendee", async () => {
-    mocks.listRegistrations.mockResolvedValue([{ cancelToken: "cancel-token-1", attendees: [{ id: "33333333-3333-4333-8333-333333333333", organizationId: "org-1", fullName: "Alan Turing", email: "alan@example.com", passToken: "pass-token-2", backupCode: "WXYZ5678" }] }]);
+    mocks.listRegistrations.mockResolvedValue([{ cancelToken: "cancel-token-1", reviewStatus: "approved", attendees: [{ id: "33333333-3333-4333-8333-333333333333", organizationId: "org-1", fullName: "Alan Turing", email: "alan@example.com", passToken: "pass-token-2", backupCode: "WXYZ5678" }] }]);
     mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
     mocks.sendConfirmationEmail.mockResolvedValue({ sent: true, notificationId: "resend" });
     const result = await resendInvitationAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
@@ -239,6 +270,7 @@ describe("resendInvitationAction", () => {
     mocks.getEvent.mockResolvedValue({ id: EVENT_ID, name: "Workshop" });
     mocks.listRegistrations.mockResolvedValue([{
       cancelToken: "cancel-token-1",
+      reviewStatus: "approved",
       attendees: [{ id: "33333333-3333-4333-8333-333333333333", organizationId: "org-1", fullName: "Alan Turing", email: "alan@example.com", backupCode: "WXYZ5678" }],
     }]);
     mocks.exportQrPng.mockResolvedValue(Buffer.from("fake-png"));
@@ -299,6 +331,19 @@ describe("resendInvitationAction", () => {
 
     expect(result).toEqual({ success: "Invitación reenviada por correo." });
     expect(mocks.sendConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({ attendeeId: "33333333-3333-4333-8333-333333333333", force: true }));
+  });
+
+  it("rejects resending an invitation when the registration is not approved", async () => {
+    mocks.listRegistrations.mockResolvedValue([{
+      cancelToken: "cancel-token-1",
+      reviewStatus: "new",
+      attendees: [{ id: "33333333-3333-4333-8333-333333333333", organizationId: "org-1", fullName: "Alan Turing", email: "alan@example.com", backupCode: "WXYZ5678" }],
+    }]);
+
+    const result = await resendInvitationAction({}, formData({ attendeeId: "33333333-3333-4333-8333-333333333333" }));
+
+    expect(result).toEqual({ error: "Solo puedes reenviar invitaciones de clientes aprobados." });
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
   });
 });
 

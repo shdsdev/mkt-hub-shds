@@ -152,7 +152,7 @@ type ResendSendInput = {
   to: string;
   subject: string;
   html: string;
-  attachments?: Array<{ content: string; filename: string; content_id?: string }>;
+  attachments?: Array<{ content: string; filename: string; content_id?: string; content_type?: string }>;
   from?: string;
   replyTo?: string;
   headers?: Record<string, string>;
@@ -700,7 +700,7 @@ async function sendAttendeeEmail(
     to: input.to,
     subject,
     html,
-    attachments: [{ content: qr, filename: "event-access-qr.png", content_id: "event-attendee-qr" }],
+    attachments: [{ content: qr, filename: "event-access-qr.png", content_id: "event-attendee-qr", content_type: "image/png" }],
   });
   if (!result.ok) {
     if (claim) await markNotificationFailed(claim.id, result.error);

@@ -866,7 +866,7 @@ export type AddAttendeeToRegistrationInput = {
 };
 
 export type AddAttendeeToRegistrationResult =
-  | { ok: true; attendee: EventAttendeeRow; registrationStatus: "confirmed" | "waitlisted"; cancelToken: string }
+  | { ok: true; attendee: EventAttendeeRow; registrationStatus: "confirmed" | "waitlisted"; reviewStatus: EventRegistrationRow["reviewStatus"]; cancelToken: string }
   | { ok: false; reason: "registration_not_found" | "cancelled" | "at_capacity" | "duplicate_email" };
 
 // Admin feedback round: a "master form" to add more companions to a registration AFTER it was
@@ -927,6 +927,7 @@ export async function addAttendeeToRegistration(
         ok: true,
         attendee: row,
         registrationStatus: registration.status === "waitlisted" ? "waitlisted" : "confirmed",
+        reviewStatus: registration.reviewStatus,
         cancelToken: registration.cancelToken,
       };
     });

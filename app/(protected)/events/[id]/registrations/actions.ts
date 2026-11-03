@@ -40,6 +40,7 @@ const PERMISSION_ERROR = "No tienes permiso para administrar registros.";
 const ATTENDEE_PERMISSION_ERROR = "No tienes permiso para administrar asistentes.";
 const INVALID_FORM_ERROR = "Revisa los datos del acompañante.";
 const CAPACITY_REVIEW_ERROR = "No hay cupo disponible para aprobar este registro. Se notificó a los responsables para resolverlo como lista de espera.";
+const RESEND_APPROVAL_ERROR = "Solo puedes reenviar invitaciones de clientes aprobados.";
 const reviewStatusSchema = z.object({
   registrationId: z.string().uuid(),
   eventId: z.string().uuid(),
@@ -86,7 +87,7 @@ const schema = z.object({
   occupation: z.enum(OCCUPATION_OPTIONS),
 });
 
-export type AddedCompanion = { fullName: string; backupCode: string };
+export type AddedCompanion = { fullName: string; backupCode: string; emailStatus: "sent" | "pending_approval" | "failed" };
 export type AddCompanionFormState = { error?: string; success?: boolean; addedCompanion?: AddedCompanion };
 
 export type ResendInvitationState = { error?: string; success?: string };
@@ -704,7 +705,8 @@ export async function addCompanionAction(
 
   // design.md "Emails sent AFTER commit, never inside the lock" — same convention as
   // registerForEventAction/cancelRegistrationAction.
-  if (result.registrationStatus === "confirmed") {
+  let emailStatus: AddedCompanion["emailStatus"] = "pending_approval";
+  if (result.registrationStatus === "confirmed" && result.reviewStatus === "approved") {
     const qrPng = await exportQrPng(result.attendee.backupCode, {});
     const sendResult = await sendConfirmationEmail({
       organizationId: result.attendee.organizationId,
@@ -720,8 +722,9 @@ export async function addCompanionAction(
         eventLocationUrl: event?.locationUrl ?? null,
        manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.cancelToken}`,
        emailContent: resolveEventEmailContent(event?.emailContent),
-       agenda: event?.agenda ?? [],
+      agenda: event?.agenda ?? [],
       });
+    emailStatus = sendResult.sent ? "sent" : "failed";
     await auditEventSend({ organizationId: user.profile.organizationId, actorId: user.id, eventId: parsed.data.eventId, attendeeId: result.attendee.id, recipient: result.attendee.email, kind: "confirmation", sent: sendResult.sent });
   }
 
@@ -731,6 +734,7 @@ export async function addCompanionAction(
     addedCompanion: {
       fullName: result.attendee.fullName,
       backupCode: result.attendee.backupCode,
+      emailStatus,
     },
   };
 }
@@ -769,6 +773,7 @@ export async function resendInvitationAction(
   const registration = registrations.find((reg) => reg.attendees.some(({ id }) => id === parsed.data.attendeeId));
   const attendee = registration?.attendees.find(({ id }) => id === parsed.data.attendeeId);
   if (!attendee || !registration) return { error: "No se encontró al asistente." };
+  if (registration.reviewStatus !== "approved") return { error: RESEND_APPROVAL_ERROR };
 
   const qrPng = await exportQrPng(attendee.backupCode, {});
   const result = await sendConfirmationEmail({

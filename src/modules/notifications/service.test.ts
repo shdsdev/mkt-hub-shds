@@ -248,6 +248,7 @@ describe("notifications service — send functions (spec.md 'notifications-email
         content: attendeeEmailInput.qrPngBase64,
         filename: "event-access-qr.png",
         content_id: "event-attendee-qr",
+        content_type: "image/png",
       }),
     ]);
   });
