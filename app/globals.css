@@ -121,6 +121,12 @@ html[data-theme-reveal]::view-transition-new(root) {
   background: color-mix(in srgb, var(--stage-accent, #bef264) 82%, white);
 }
 
+.quick-qr-preview > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .quick-qr-range {
   --quick-accent: var(--accent);
   --quick-progress: 50%;

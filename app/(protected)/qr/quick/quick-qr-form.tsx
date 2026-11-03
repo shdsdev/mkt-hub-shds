@@ -246,8 +246,8 @@ export function QuickQrForm() {
   const marginProgress = (design.margin / 48) * 100;
 
   return (
-    <div className="quick-qr-surface grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+    <div className="quick-qr-surface grid w-full min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+      <section className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
         <div className="flex items-start gap-3">
           <span className="rounded-xl bg-accent/15 p-2 text-accent"><TypeIcon className="size-5" aria-hidden="true" /></span>
           <div>
@@ -376,13 +376,13 @@ export function QuickQrForm() {
         </button>
       </section>
 
-      <section className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+      <section className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
         <div>
           <h2 className="font-heading text-lg font-semibold">Vista previa</h2>
           <p className="text-sm text-muted-foreground">El resultado solo existe en esta sesión.</p>
         </div>
-        <div className="mt-5 flex min-h-80 flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 p-5">
-          {generatedPayload ? <div ref={qrContainerRef} aria-label="Código QR generado" /> : <p className="max-w-xs text-center text-sm text-muted-foreground">Completa los datos y presiona “Generar QR”.</p>}
+        <div className="mt-5 flex min-h-56 min-w-0 flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 p-3 sm:min-h-80 sm:p-5">
+          {generatedPayload ? <div ref={qrContainerRef} className="quick-qr-preview min-w-0 max-w-full" style={{ width: design.size }} aria-label="Código QR generado" /> : <p className="max-w-xs text-center text-sm text-muted-foreground">Completa los datos y presiona “Generar QR”.</p>}
         </div>
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <ActionButton label="PNG" onClick={() => void download("png")} disabled={!generatedPayload} />
@@ -399,9 +399,9 @@ export function QuickQrForm() {
 
 function Field({ label, value, onChange, placeholder, type = "text", wide = false }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string; wide?: boolean }) {
   return (
-    <label className={`grid gap-1.5 text-sm ${wide ? "sm:col-span-2" : ""}`}>
+    <label className={`grid min-w-0 gap-1.5 text-sm ${wide ? "sm:col-span-2" : ""}`}>
       <span className="font-medium">{label}</span>
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ring focus:ring-3 focus:ring-ring/20" />
+      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ring focus:ring-3 focus:ring-ring/20" />
     </label>
   );
 }
