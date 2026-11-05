@@ -76,7 +76,7 @@ describe("sidebar role visibility", () => {
     expect(html).toContain('href="/events"');
     expect(html).toContain("Cerrar sesión");
     expect(html).toContain("user@example.com");
-    for (const href of ["/", "/notifications", "/campaigns", "/audit", "/settings", "/settings/users"]) {
+    for (const href of ["/", "/notifications", "/campaigns", "/audit", "/settings", "/settings/users", "/email-marketing"]) {
       expect(html).not.toContain(`href="${href}"`);
     }
     expect(html).not.toContain("QR Short Links");
@@ -84,7 +84,7 @@ describe("sidebar role visibility", () => {
 
   it("preserves administrator modules and settings", () => {
     const html = renderToStaticMarkup(<AppSidebar email="admin@example.com" role="ADMIN" targetThemeId="dark" />);
-    for (const href of ["/", "/notifications", "/events", "/campaigns", "/audit", "/settings", "/settings/users"]) {
+    for (const href of ["/", "/notifications", "/events", "/campaigns", "/audit", "/settings", "/settings/users", "/email-marketing"]) {
       expect(html).toContain(`href="${href}"`);
     }
     expect(html).toContain("QR Short Links");
