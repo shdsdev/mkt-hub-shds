@@ -1,0 +1,2 @@
+ALTER TABLE "event_checklist_tasks" ADD COLUMN "parent_task_id" uuid;--> statement-breakpoint
+ALTER TABLE "event_checklist_tasks" ADD CONSTRAINT "event_checklist_tasks_parent_task_id_event_checklist_tasks_id_fk" FOREIGN KEY ("parent_task_id") REFERENCES "public"."event_checklist_tasks"("id") ON DELETE cascade ON UPDATE no action;

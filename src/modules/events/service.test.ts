@@ -50,6 +50,7 @@ vi.mock("@/modules/users", () => ({
 }));
 
 import { and, eq } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { events, eventRegistrations, eventAttendees, eventBenefits, eventBenefitRedemptions } from "./db";
 import {
   CROCKFORD_BASE32_ALPHABET,
@@ -73,6 +74,7 @@ import {
   isReminderDue,
   listDueReminderAttendees,
   checkInAttendee,
+  confirmAttendeeCheckIn,
   recordEventVisit,
   listRegistrations,
   getEventDashboardData,
@@ -83,7 +85,8 @@ import {
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
   notifyEventWebhook,
-  deleteRejectedRegistration,
+  deleteUnapprovedRegistration,
+  updateRegistrationReviewStatus,
   validateBenefitInput,
   listEventBenefits,
   listEventBenefitRedemptions,
@@ -1245,6 +1248,9 @@ describe("events service — email normalization", () => {
 describe("events service — checkInAttendee", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ execute: txExecuteMock, select: selectMock, update: updateMock }),
+    );
   });
 
   it("returns not_found when neither pass_token nor backup_code is given", async () => {
@@ -1288,6 +1294,7 @@ describe("events service — checkInAttendee", () => {
 
     expect(result).toEqual({ ok: true, attendee: checkedInAttendee, alreadyCheckedIn: false });
     expect(updateMock).toHaveBeenCalledTimes(2);
+    expect(txExecuteMock.mock.invocationCallOrder[0]).toBeLessThan(selectMock.mock.invocationCallOrder[0]);
   });
 
   it("checks in an attendee by backup code scoped to the event", async () => {
@@ -1331,6 +1338,16 @@ describe("events service — checkInAttendee", () => {
 
     expect(result).toEqual({ ok: true, attendee: alreadyCheckedIn, alreadyCheckedIn: true });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("locks the event before confirmation check-in and makes registration protection sticky", async () => {
+    const attendee = { id: "att-1", registrationId: "reg-1", checkedInAt: new Date() };
+    const registrationUpdate = updateChain([]);
+    updateMock.mockReturnValueOnce(updateChain([attendee])).mockReturnValueOnce(registrationUpdate);
+    await expect(confirmAttendeeCheckIn({ eventId: "event-1", attendeeId: "att-1", checkedInBy: "staff-1" }))
+      .resolves.toEqual({ ok: true, attendee, alreadyCheckedIn: false });
+    expect(txExecuteMock.mock.invocationCallOrder[0]).toBeLessThan(updateMock.mock.invocationCallOrder[0]);
+    expect(registrationUpdate.set).toHaveBeenCalledWith({ status: "checked_in", deletionProtected: true });
   });
 });
 
@@ -1957,37 +1974,121 @@ describe("events service — notifyEventWebhook", () => {
   });
 });
 
-describe("events service — rejected registration cleanup", () => {
+describe("events service — unapproved registration cleanup", () => {
+  const input = { registrationId: "registration-1", eventId: "event-1", organizationId: "org-1", actorId: "admin-1" };
+  const registration = { id: input.registrationId, eventId: input.eventId, organizationId: input.organizationId,
+    source: "public", status: "pending_review", reviewStatus: "new", firstApprovedAt: null, deletionProtected: false };
   beforeEach(() => {
     vi.resetAllMocks();
     transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
-      callback({ select: txSelectMock, delete: txDeleteMock }),
+      callback({ execute: txExecuteMock, select: txSelectMock, delete: txDeleteMock, update: txUpdateMock }),
     );
+    txExecuteMock.mockResolvedValue([]);
+    txDeleteMock.mockImplementation(() => txChain([]));
   });
 
-  it("deletes attendees before an organization-scoped rejected registration", async () => {
-    const registration = { id: "registration-1", eventId: "event-1", organizationId: "org-1", status: "rejected" };
-    txSelectMock.mockReturnValueOnce(txChain([registration]));
-    txDeleteMock.mockReturnValueOnce(txChain([])).mockReturnValueOnce(txChain([registration]));
-
-    await expect(deleteRejectedRegistration({
-      registrationId: "registration-1",
-      eventId: "event-1",
-      organizationId: "org-1",
-    })).resolves.toEqual(registration);
-
-    expect(txDeleteMock).toHaveBeenCalledTimes(2);
-    expect(txDeleteMock.mock.invocationCallOrder[0]).toBeLessThan(txDeleteMock.mock.invocationCallOrder[1]);
+  it.each(["pending_review", "rejected"])("silently deletes never-approved %s and attendees under event then registration locks", async (status) => {
+    const locked = txChain([{ ...registration, status }]);
+    txSelectMock.mockReturnValueOnce(locked).mockReturnValueOnce(txChain([{ id: "att-1", checkedInAt: null }]));
+    await expect(deleteUnapprovedRegistration(input)).resolves.toEqual({ ok: true, registrationId: input.registrationId, attendeeCount: 1 });
+    expect(locked.for).toHaveBeenCalledWith("update");
+    expect(txExecuteMock.mock.invocationCallOrder[0]).toBeLessThan(txSelectMock.mock.invocationCallOrder[0]);
+    expect(locked.where).toHaveBeenCalledWith(and(eq(eventRegistrations.id, input.registrationId), eq(eventRegistrations.eventId, input.eventId), eq(eventRegistrations.organizationId, input.organizationId)));
+    expect(txDeleteMock.mock.calls.map(([table]) => table)).toEqual([eventAttendees, eventRegistrations]);
+    const dialect = new PgDialect();
+    const associationDelete = dialect.sqlToQuery(txExecuteMock.mock.calls[2][0]);
+    expect(associationDelete.sql).toContain("delete from email_contact_events");
+    expect(associationDelete.sql).toContain("attendee_id in");
+    expect(associationDelete.params).toEqual([input.organizationId, input.eventId, input.registrationId]);
+    const internalCleanup = dialect.sqlToQuery(txExecuteMock.mock.calls[3][0]);
+    expect(internalCleanup.sql).toContain("delete from user_notifications");
+    expect(internalCleanup.sql).toContain("type in ('registration_submitted', 'registration_review_blocked', 'registration_decision')");
+    expect(internalCleanup.sql).toContain("subject_id in");
+    expect(internalCleanup.sql).not.toContain("checklist_task_due");
+    expect(internalCleanup.params).toEqual([input.organizationId, input.registrationId, input.registrationId]);
+    const logCleanup = dialect.sqlToQuery(txExecuteMock.mock.calls[4][0]);
+    expect(logCleanup.sql).toContain("delete from notification_log");
+    expect(logCleanup.sql).toContain("subject_type = 'event_attendee'");
+    expect(logCleanup.sql).toContain("'registration_waitlisted', 'registration_rejected'");
+    expect(logCleanup.sql).not.toContain("winner_email");
+    expect(logCleanup.params).toEqual([input.organizationId, input.registrationId, input.registrationId]);
+    expect(txExecuteMock.mock.invocationCallOrder[4]).toBeLessThan(txDeleteMock.mock.invocationCallOrder[0]);
+    const audit = dialect.sqlToQuery(txExecuteMock.mock.calls[5][0]);
+    expect(audit.sql).toContain("insert into audit_logs");
+    expect(audit.sql).not.toContain('"before"');
+    expect(audit.params).toEqual([input.organizationId, input.actorId, input.eventId, input.registrationId,
+      JSON.stringify({ operation: "registration_deleted", attendeeCount: 1 })]);
+    expect(deleteMock).not.toHaveBeenCalled();
   });
 
-  it("does not delete a registration unless it is rejected", async () => {
-    txSelectMock.mockReturnValueOnce(txChain([{ id: "registration-1", status: "confirmed" }]));
-
-    await expect(deleteRejectedRegistration({
-      registrationId: "registration-1",
-      eventId: "event-1",
-      organizationId: "org-1",
-    })).resolves.toBeUndefined();
+  it.each([
+    { firstApprovedAt: new Date(), status: "rejected" }, { deletionProtected: true },
+    { status: "confirmed" }, { status: "checked_in" }, { reviewStatus: "approved" }, { source: "admin_added" },
+  ])("protects registration history %j", async (changes) => {
+    txSelectMock.mockReturnValueOnce(txChain([{ ...registration, ...changes }]));
+    await expect(deleteUnapprovedRegistration(input)).resolves.toEqual({ ok: false, reason: "protected" });
     expect(txDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("returns not_found for absent or out-of-scope rows", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([]));
+    await expect(deleteUnapprovedRegistration(input)).resolves.toEqual({ ok: false, reason: "not_found" });
+    expect(txDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["approval", "deletion"])("waits for the event lock before reading eligibility during %s", async (operation) => {
+    let release!: () => void;
+    txExecuteMock.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve; }));
+    txSelectMock.mockReturnValueOnce(txChain([]));
+    const pending = operation === "approval"
+      ? updateRegistrationReviewStatus({ ...input, reviewStatus: "approved", reviewedBy: input.actorId })
+      : deleteUnapprovedRegistration(input);
+    expect(txSelectMock).not.toHaveBeenCalled();
+    release();
+    await pending;
+    expect(txSelectMock).toHaveBeenCalledOnce();
+  });
+
+  it("protects even an inactive checked-in attendee", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([registration])).mockReturnValueOnce(txChain([{ id: "att-1", checkedInAt: new Date(), isActive: false }]));
+    await expect(deleteUnapprovedRegistration(input)).resolves.toEqual({ ok: false, reason: "protected" });
+    expect(txDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("protects operational dependencies", async () => {
+    txSelectMock.mockReturnValueOnce(txChain([registration])).mockReturnValueOnce(txChain([]));
+    txExecuteMock.mockResolvedValueOnce([]).mockResolvedValueOnce([{ protected: true }]);
+    await expect(deleteUnapprovedRegistration(input)).resolves.toEqual({ ok: false, reason: "protected" });
+    expect(txDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates audit failure to roll back the entire transaction", async () => {
+    let rolledBack = false;
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) => {
+      try { return await callback({ execute: txExecuteMock, select: txSelectMock, delete: txDeleteMock }); }
+      catch (error) { rolledBack = true; throw error; }
+    });
+    txSelectMock.mockReturnValueOnce(txChain([registration])).mockReturnValueOnce(txChain([]));
+    txExecuteMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockRejectedValueOnce(new Error("audit failed"));
+    await expect(deleteUnapprovedRegistration(input)).rejects.toThrow("audit failed");
+    expect(rolledBack).toBe(true);
+    expect(txDeleteMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([null, new Date("2026-10-01")])("sets first approval once and keeps it on rejection (%s)", async (firstApprovedAt) => {
+    const reviewed = { ...registration, firstApprovedAt };
+    const update = txChain([reviewed]);
+    const locked = txChain([reviewed]);
+    txSelectMock.mockReturnValueOnce(locked).mockReturnValueOnce(txChain([{ capacity: null }]))
+      .mockReturnValueOnce(txChain([{ seats: 0 }])).mockReturnValueOnce(txChain([{ seats: 1 }]));
+    txUpdateMock.mockReturnValue(update);
+    await updateRegistrationReviewStatus({ ...input, reviewStatus: "approved", reviewedBy: input.actorId });
+    expect(locked.for).toHaveBeenCalledWith("update");
+    expect(update.set).toHaveBeenCalledWith(expect.objectContaining({ firstApprovedAt: firstApprovedAt ?? expect.any(Date) }));
+    const approvedAt = firstApprovedAt ?? new Date();
+    txSelectMock.mockReturnValueOnce(txChain([{ ...reviewed, firstApprovedAt: approvedAt }]));
+    await updateRegistrationReviewStatus({ ...input, reviewStatus: "rejected", reviewedBy: input.actorId });
+    expect(update.set).toHaveBeenLastCalledWith(expect.objectContaining({ firstApprovedAt: approvedAt }));
   });
 });

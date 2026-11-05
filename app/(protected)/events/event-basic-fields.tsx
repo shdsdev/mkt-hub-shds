@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Checkbox } from "@/components/checkbox";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Clock3Icon, XIcon } from "lucide-react";
+import { Clock3Icon, XIcon } from "lucide-react";
 import {
   combineDateTimeLocal,
   combineOptionalDateTimeLocal,
@@ -32,36 +32,6 @@ type EventBasicFieldsProps = {
 };
 
 const timeOptions = Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, "0")}:${index % 2 === 0 ? "00" : "30"}`);
-
-function parseDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return undefined;
-  const date = new Date(year, month - 1, day);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : undefined;
-}
-
-function formatDate(value: Date | undefined) {
-  if (!value) return "";
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
-}
-
-function DateField({ label, value, onChange, optional = false, name, buttonLabel }: { label: string; value: string; onChange: (value: string) => void; optional?: boolean; name: string; buttonLabel?: string }) {
-  return (
-    <label className="flex flex-col gap-1.5 text-sm font-medium">
-      {label}
-      <div className="flex gap-2">
-        <Input name={name} type="text" inputMode="numeric" placeholder="AAAA-MM-DD" value={value} required={!optional} aria-label={label} onChange={(event) => onChange(event.target.value)} />
-        <Popover>
-          <PopoverTrigger render={<Button type="button" variant="outline" size="icon" aria-label={buttonLabel ?? `Seleccionar ${label.toLowerCase()}`}><CalendarIcon /></Button>} />
-          <PopoverContent align="start" className="w-auto p-3">
-            <Calendar mode="single" selected={parseDate(value)} onSelect={(date) => onChange(formatDate(date))} />
-            {optional ? <Button type="button" variant="ghost" size="sm" onClick={() => onChange("")}><XIcon /> Limpiar</Button> : null}
-          </PopoverContent>
-        </Popover>
-      </div>
-    </label>
-  );
-}
 
 function TimeField({ label, value, onChange, optional = false, name }: { label: string; value: string; onChange: (value: string) => void; optional?: boolean; name: string }) {
   const [open, setOpen] = useState(false);

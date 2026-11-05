@@ -39,6 +39,9 @@ export const emailRecipientStatus = pgEnum("email_recipient_status", [
 ]);
 export const emailRepermissionStatus = pgEnum("email_repermission_status", ["pending", "confirmed", "declined", "expired"]);
 
+export type EmailContactManualField = "fullName" | "phone" | "company";
+export type EmailContactFieldUpdatedAt = Partial<Record<EmailContactManualField, string>>;
+
 export const emailContacts = pgTable(
   "email_contacts",
   {
@@ -52,6 +55,8 @@ export const emailContacts = pgTable(
     fullName: text("full_name"),
     phone: text("phone"),
     company: text("company"),
+    manualFields: jsonb("manual_fields").$type<EmailContactManualField[]>().notNull().default([]),
+    fieldUpdatedAt: jsonb("field_updated_at").$type<EmailContactFieldUpdatedAt>().notNull().default({}),
     attributes: jsonb("attributes").$type<Record<string, unknown>>().notNull().default({}),
     subscriptionStatus: emailContactStatus("subscription_status").notNull().default("pending"),
     consentSource: text("consent_source"),

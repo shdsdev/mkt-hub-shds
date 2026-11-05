@@ -132,6 +132,17 @@ describe("RegistrationsPage", () => {
      expect(JSON.stringify(result)).toContain('"eventId":"event-1"');
   });
 
+  it.each(["ADMIN", "EVENT_EDITOR", "RECEPTION"])("exposes delete permission only to ADMIN, not %s", async (role) => {
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, profile: { ...adminUser.profile, role } });
+    mocks.isAdmin.mockReturnValue(role === "ADMIN");
+    mocks.listRegistrations.mockResolvedValue([{
+      id: "reg-1", status: "pending_review", source: "public", reviewStatus: "new",
+      createdAt: new Date("2026-11-01T12:00:00Z"), attendees: [],
+    }]);
+    const result = await RegistrationsPage({ params: params("event-1"), searchParams: searchParams() });
+    expect(JSON.stringify(result)).toContain(`"canDeleteRegistrations":${role === "ADMIN"}`);
+  });
+
   it("paginates the filtered registrations using the URL state", async () => {
     mocks.listRegistrations.mockResolvedValue(Array.from({ length: 26 }, (_, index) => ({
       id: `reg-${index + 1}`,

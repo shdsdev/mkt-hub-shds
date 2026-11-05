@@ -17,13 +17,16 @@ const mocks = vi.hoisted(() => ({
   sendTelegramMessage: vi.fn(),
   exportQrPng: vi.fn(),
   updateRegistrationReviewStatus: vi.fn(),
-  deleteRejectedRegistration: vi.fn(),
+  deleteUnapprovedRegistration: vi.fn(),
+  sendRegistrationDecisionEmail: vi.fn(),
+  createInternalNotifications: vi.fn(),
   updateAttendee: vi.fn(),
   replaceCompanion: vi.fn(),
   transferPrimaryAttendee: vi.fn(),
   deactivateCompanion: vi.fn(),
   listEventEditorIds: vi.fn(),
   recordAudit: vi.fn(),
+  captureOperationFailure: vi.fn(),
   revalidatePath: vi.fn(),
   OCCUPATION_OPTIONS: ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"],
 }));
@@ -39,7 +42,7 @@ vi.mock("@/modules/events", () => ({
   OCCUPATION_OPTIONS: mocks.OCCUPATION_OPTIONS,
   resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
   updateRegistrationReviewStatus: mocks.updateRegistrationReviewStatus,
-  deleteRejectedRegistration: mocks.deleteRejectedRegistration,
+  deleteUnapprovedRegistration: mocks.deleteUnapprovedRegistration,
   updateAttendee: mocks.updateAttendee,
   replaceCompanion: mocks.replaceCompanion,
   transferPrimaryAttendee: mocks.transferPrimaryAttendee,
@@ -48,8 +51,8 @@ vi.mock("@/modules/events", () => ({
 }));
 vi.mock("@/modules/notifications", () => ({
   sendConfirmationEmail: mocks.sendConfirmationEmail,
-  sendRegistrationDecisionEmail: vi.fn(),
-  createInternalNotifications: vi.fn(),
+  sendRegistrationDecisionEmail: mocks.sendRegistrationDecisionEmail,
+  createInternalNotifications: mocks.createInternalNotifications,
   sendTelegramMessage: mocks.sendTelegramMessage,
   resolveTelegramChatId: mocks.resolveTelegramChatId,
   resolveTelegramMessageTemplate: mocks.resolveTelegramMessageTemplate,
@@ -57,6 +60,7 @@ vi.mock("@/modules/notifications", () => ({
 }));
 vi.mock("@/modules/qr", () => ({ exportQrPng: mocks.exportQrPng }));
 vi.mock("@/modules/audit", () => ({ recordAudit: mocks.recordAudit }));
+vi.mock("@/modules/monitoring", () => ({ captureOperationFailure: mocks.captureOperationFailure }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/env", () => ({
   env: {
@@ -68,7 +72,7 @@ vi.mock("@/lib/events/event-email-content", () => ({ resolveEventEmailContent: v
 
 import {
   addCompanionAction,
-  deleteRejectedRegistrationAction,
+  deleteRegistrationAction,
   editAttendeeAction,
   replaceCompanionAction,
   transferPrimaryOwnershipAction,
@@ -455,7 +459,7 @@ describe("updateRegistrationReviewStatusAction", () => {
   });
 });
 
-describe("deleteRejectedRegistrationAction", () => {
+describe("deleteRegistrationAction", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.getCurrentUser.mockResolvedValue(adminUser);
@@ -463,23 +467,69 @@ describe("deleteRejectedRegistrationAction", () => {
     mocks.isAdmin.mockReturnValue(true);
   });
 
-  it("deletes an organization-scoped rejected registration for an admin", async () => {
-    mocks.deleteRejectedRegistration.mockResolvedValue({ id: REGISTRATION_ID, status: "rejected" });
+  it("deletes directly for an admin without changing review status or sending notifications", async () => {
+    mocks.deleteUnapprovedRegistration.mockResolvedValue({ ok: true, registrationId: REGISTRATION_ID, attendeeCount: 2 });
     const data = new FormData();
     data.set("registrationId", REGISTRATION_ID);
     data.set("eventId", EVENT_ID);
 
-    await expect(deleteRejectedRegistrationAction({}, data)).resolves.toEqual({ success: "Registro eliminado." });
-    expect(mocks.deleteRejectedRegistration).toHaveBeenCalledWith({ registrationId: REGISTRATION_ID, eventId: EVENT_ID, organizationId: "org-1" });
+    await expect(deleteRegistrationAction({}, data)).resolves.toEqual({ success: "Registro eliminado. No se enviaron correos." });
+    expect(mocks.deleteUnapprovedRegistration).toHaveBeenCalledWith({ registrationId: REGISTRATION_ID, eventId: EVENT_ID, organizationId: "org-1", actorId: adminUser.id });
+    expect(mocks.updateRegistrationReviewStatus).not.toHaveBeenCalled();
+    expect(mocks.sendRegistrationDecisionEmail).not.toHaveBeenCalled();
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+    expect(mocks.createInternalNotifications).not.toHaveBeenCalled();
+    expect(mocks.sendTelegramMessage).not.toHaveBeenCalled();
+    expect(mocks.notifyEventWebhook).not.toHaveBeenCalled();
+    expect(mocks.recordAudit).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).toHaveBeenCalledWith(`/events/${EVENT_ID}/registrations`);
   });
 
-  it("rejects deletion when the registration is not rejected or missing", async () => {
-    mocks.deleteRejectedRegistration.mockResolvedValue(undefined);
+  it("rejects deletion of a protected registration", async () => {
+    mocks.deleteUnapprovedRegistration.mockResolvedValue({ ok: false, reason: "protected" });
     const data = new FormData();
     data.set("registrationId", REGISTRATION_ID);
     data.set("eventId", EVENT_ID);
 
-    await expect(deleteRejectedRegistrationAction({}, data)).resolves.toEqual({ error: "Solo se pueden eliminar registros rechazados." });
+    await expect(deleteRegistrationAction({}, data)).resolves.toEqual({ error: "No se puede eliminar: el registro no es público, fue aprobado, tiene historial protegido o registra actividad en el evento." });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.sendRegistrationDecisionEmail).not.toHaveBeenCalled();
+  });
+
+  it("returns not found without exposing registrations from another event or organization", async () => {
+    mocks.deleteUnapprovedRegistration.mockResolvedValue({ ok: false, reason: "not_found" });
+    await expect(deleteRegistrationAction({}, formData())).resolves.toEqual({ error: "No se encontró el registro." });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each(["RECEPTION", "EVENT_EDITOR", "MARKETING_MANAGER", "VIEWER"])("rejects %s without invoking deletion", async (role) => {
+    mocks.isAdmin.mockReturnValue(false);
+    mocks.getCurrentUser.mockResolvedValue({ ...adminUser, profile: { ...adminUser.profile, role } });
+    expect((await deleteRegistrationAction({}, formData())).error).toBeTruthy();
+    expect(mocks.deleteUnapprovedRegistration).not.toHaveBeenCalled();
+  });
+
+  it("rejects unauthenticated and inactive users", async () => {
+    mocks.getCurrentUser.mockResolvedValue(null);
+    expect((await deleteRegistrationAction({}, formData())).error).toBeTruthy();
+    mocks.getCurrentUser.mockResolvedValue(adminUser);
+    mocks.isActive.mockReturnValue(false);
+    expect((await deleteRegistrationAction({}, formData())).error).toBeTruthy();
+    expect(mocks.deleteUnapprovedRegistration).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed identifiers", async () => {
+    expect((await deleteRegistrationAction({}, formData({ registrationId: "invalid" }))).error).toBeTruthy();
+    expect((await deleteRegistrationAction({}, formData({ eventId: "invalid" }))).error).toBeTruthy();
+    expect(mocks.deleteUnapprovedRegistration).not.toHaveBeenCalled();
+  });
+
+  it("returns a safe error when the transaction fails without sending messages or leaking query details", async () => {
+    mocks.deleteUnapprovedRegistration.mockRejectedValue(new Error("private database query"));
+    await expect(deleteRegistrationAction({}, formData())).resolves.toEqual({ error: "No se pudo completar la eliminación. Actualiza la lista antes de intentarlo de nuevo." });
+    expect(mocks.captureOperationFailure).toHaveBeenCalledWith(expect.objectContaining({ operation: "registration_delete" }));
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.sendRegistrationDecisionEmail).not.toHaveBeenCalled();
   });
 });
 

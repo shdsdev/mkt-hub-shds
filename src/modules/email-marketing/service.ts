@@ -16,6 +16,8 @@ import {
   emailRepermissionRequests,
   emailSegments,
   emailTags,
+  type EmailContactFieldUpdatedAt,
+  type EmailContactManualField,
 } from "./db";
 import { parseEmailSegmentDefinition, type EmailSegmentCondition, type EmailSegmentDefinition } from "./segment-schema";
 import { parseEmailCampaignContent, type EmailCampaignContent } from "./content-schema";
@@ -42,7 +44,21 @@ export type EventAttendeeContactInput = {
   phone?: string | null;
   company?: string | null;
   marketingAcceptedAt?: Date | string | null;
+  registrationStatus?: string | null;
+  registrationSource?: string | null;
+  registrationObservedAt?: Date | string | null;
   attributes?: Record<string, unknown>;
+};
+
+export type EventContactSyncRecord = EventAttendeeContactInput & { registrationId: string };
+export type EventContactSyncSummary = {
+  registrations: number;
+  attendees: number;
+  uniqueContacts: number;
+  newContacts: number;
+  existingContacts: number;
+  pendingConsent: number;
+  invalidRecords: number;
 };
 
 const emailSchema = z.string().trim().toLowerCase().max(320).email();
@@ -74,79 +90,193 @@ export function isAdminSubscriptionEligible(status: EmailContactStatus): boolean
 
 export async function syncEventAttendeeContact(
   input: EventAttendeeContactInput,
-): Promise<{ contactId: string }> {
-  const emailNormalized = normalizeContactEmail(input.email);
-  const requestedStatus = resolveInitialContactStatus(input.marketingAcceptedAt);
-  const now = new Date();
+): Promise<{ contactId: string; created: boolean }> {
+  return db.transaction(async (tx) => {
+    // Share the event lock with registration deletion. A stale post-submission sync
+    // must not recreate a membership or mutate a global contact after its attendee is gone.
+    const event = await tx.execute(sql`select id from events where id = ${input.eventId}
+      and organization_id = ${input.organizationId} for update`);
+    if (event.length === 0) {
+      throw new Error("Event attendee no longer exists in this organization and event.");
+    }
+    const attendees = await tx.execute(sql`select a.id from event_attendees a
+      join event_registrations r on r.id = a.registration_id
+        and a.event_id = r.event_id and a.organization_id = r.organization_id
+      where a.id = ${input.attendeeId} and a.event_id = ${input.eventId}
+        and a.organization_id = ${input.organizationId} for update of r, a`);
+    if (attendees.length === 0) {
+      throw new Error("Event attendee no longer exists in this organization and event.");
+    }
+    const emailNormalized = normalizeContactEmail(input.email);
+    const requestedStatus = resolveInitialContactStatus(input.marketingAcceptedAt);
+    const now = new Date();
+    const observedAt = input.registrationObservedAt ? new Date(input.registrationObservedAt) : now;
+    const [existing] = await tx
+      .select()
+      .from(emailContacts)
+      .where(and(eq(emailContacts.organizationId, input.organizationId), eq(emailContacts.emailNormalized, emailNormalized)))
+      .limit(1);
+    const manualFields = new Set<EmailContactManualField>(existing?.manualFields ?? []);
+    const fieldUpdatedAt: EmailContactFieldUpdatedAt = { ...(existing?.fieldUpdatedAt ?? {}) };
+    const observedTimestamp = observedAt.getTime();
 
-  const [contact] = await db
-    .insert(emailContacts)
-    .values({
-      organizationId: input.organizationId,
-      email: input.email.trim(),
-      emailNormalized,
-      source: "event_registration",
-      fullName: input.fullName.trim(),
-      phone: input.phone?.trim() || null,
-      company: input.company?.trim() || null,
-      attributes: input.attributes ?? {},
-      subscriptionStatus: requestedStatus,
-      consentSource: input.marketingAcceptedAt ? "event_registration" : null,
-      consentedAt: input.marketingAcceptedAt ? new Date(input.marketingAcceptedAt) : null,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [emailContacts.organizationId, emailContacts.emailNormalized],
-      set: {
+    function resolveProfileField(field: EmailContactManualField, value: string | null | undefined): string | null | undefined {
+      const normalized = value?.trim() || null;
+      const previousTimestamp = fieldUpdatedAt[field] ? new Date(fieldUpdatedAt[field]!).getTime() : Number.NEGATIVE_INFINITY;
+      if (manualFields.has(field) || !normalized || previousTimestamp > observedTimestamp) return existing?.[field] ?? null;
+      fieldUpdatedAt[field] = observedAt.toISOString();
+      return normalized;
+    }
+
+    const fullName = resolveProfileField("fullName", input.fullName);
+    const phone = resolveProfileField("phone", input.phone);
+    const company = resolveProfileField("company", input.company);
+    const attributes = {
+      ...(existing?.attributes ?? {}),
+      ...(input.attributes ?? {}),
+    };
+    const [contact] = await tx
+      .insert(emailContacts)
+      .values({
+        organizationId: input.organizationId,
         email: input.email.trim(),
-        source: "event_registration",
-        fullName: input.fullName.trim(),
-        phone: input.phone?.trim() || null,
-        company: input.company?.trim() || null,
-        attributes: input.attributes ?? {},
-        subscriptionStatus: sql`CASE
-          WHEN ${emailContacts.subscriptionStatus} IN ('unsubscribed', 'suppressed')
-            THEN ${emailContacts.subscriptionStatus}
-          WHEN ${emailContacts.subscriptionStatus} = 'subscribed'
-            THEN ${emailContacts.subscriptionStatus}
-          ELSE ${requestedStatus}
-        END`,
-        consentSource: input.marketingAcceptedAt ? "event_registration" : undefined,
-        consentedAt: input.marketingAcceptedAt ? new Date(input.marketingAcceptedAt) : undefined,
+        emailNormalized,
+        source: input.registrationSource?.trim() || "event_registration",
+        fullName: fullName ?? null,
+        phone: phone ?? null,
+        company: company ?? null,
+        manualFields: [...manualFields],
+        fieldUpdatedAt,
+        attributes,
+        subscriptionStatus: requestedStatus,
+        consentSource: input.marketingAcceptedAt ? "event_registration" : null,
+        consentedAt: input.marketingAcceptedAt ? new Date(input.marketingAcceptedAt) : null,
         updatedAt: now,
-      },
-    })
-    .returning({ id: emailContacts.id });
+      })
+      .onConflictDoUpdate({
+        target: [emailContacts.organizationId, emailContacts.emailNormalized],
+        set: {
+          email: input.email.trim(),
+          source: input.registrationSource?.trim() || "event_registration",
+          fullName,
+          phone,
+          company,
+          manualFields: [...manualFields],
+          fieldUpdatedAt,
+          attributes,
+          subscriptionStatus: sql`CASE
+            WHEN ${emailContacts.subscriptionStatus} IN ('unsubscribed', 'suppressed')
+              THEN ${emailContacts.subscriptionStatus}
+            WHEN ${emailContacts.subscriptionStatus} = 'subscribed'
+              THEN ${emailContacts.subscriptionStatus}
+            ELSE ${requestedStatus}
+          END`,
+          consentSource: input.marketingAcceptedAt ? "event_registration" : undefined,
+          consentedAt: input.marketingAcceptedAt ? new Date(input.marketingAcceptedAt) : undefined,
+          updatedAt: now,
+        },
+      })
+      .returning({ id: emailContacts.id });
 
-  if (!contact) {
-    throw new Error("Could not persist email marketing contact.");
-  }
+    if (!contact) {
+      throw new Error("Could not persist email marketing contact.");
+    }
 
-  await db
-    .insert(emailContactEvents)
-    .values({
-      organizationId: input.organizationId,
-      contactId: contact.id,
-      eventId: input.eventId,
-      attendeeId: input.attendeeId,
-      attributesSnapshot: input.attributes ?? {},
-      firstSeenAt: now,
-      lastSeenAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [
-        emailContactEvents.organizationId,
-        emailContactEvents.contactId,
-        emailContactEvents.eventId,
-      ],
-      set: {
+    const [existingEvent] = await tx
+      .select({ attributesSnapshot: emailContactEvents.attributesSnapshot })
+      .from(emailContactEvents)
+      .where(and(
+        eq(emailContactEvents.organizationId, input.organizationId),
+        eq(emailContactEvents.contactId, contact.id),
+        eq(emailContactEvents.eventId, input.eventId),
+      ))
+      .limit(1);
+    const attributesSnapshot = {
+      ...(existingEvent?.attributesSnapshot ?? {}),
+      ...(input.attributes ?? {}),
+      registrationStatus: input.registrationStatus ?? null,
+      registrationSource: input.registrationSource ?? null,
+    };
+
+    await tx
+      .insert(emailContactEvents)
+      .values({
+        organizationId: input.organizationId,
+        contactId: contact.id,
+        eventId: input.eventId,
         attendeeId: input.attendeeId,
-        attributesSnapshot: input.attributes ?? {},
+        attributesSnapshot,
+        firstSeenAt: now,
         lastSeenAt: now,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: [
+          emailContactEvents.organizationId,
+          emailContactEvents.contactId,
+          emailContactEvents.eventId,
+        ],
+        set: {
+          attendeeId: input.attendeeId,
+          attributesSnapshot,
+          lastSeenAt: now,
+        },
+      });
 
-  return { contactId: contact.id };
+    return { contactId: contact.id, created: !existing };
+  });
+}
+
+export async function previewEventContactSync(records: EventContactSyncRecord[]): Promise<EventContactSyncSummary> {
+  const normalized = new Map<string, EventContactSyncRecord>();
+  let invalidRecords = 0;
+  for (const record of records) {
+    try {
+      normalized.set(`${record.organizationId}:${normalizeContactEmail(record.email)}`, record);
+    } catch {
+      invalidRecords += 1;
+    }
+  }
+  const uniqueRecords = [...normalized.values()];
+  const organizations = [...new Set(uniqueRecords.map((record) => record.organizationId))];
+  const existing = organizations.length === 1 && uniqueRecords.length > 0
+    ? await db
+        .select({ id: emailContacts.id, emailNormalized: emailContacts.emailNormalized, subscriptionStatus: emailContacts.subscriptionStatus })
+        .from(emailContacts)
+        .where(and(
+          eq(emailContacts.organizationId, organizations[0]),
+          inArray(emailContacts.emailNormalized, uniqueRecords.map((record) => normalizeContactEmail(record.email))),
+        ))
+    : [];
+  const existingEmails = new Set(existing.map((contact) => contact.emailNormalized));
+  const existingByEmail = new Map(existing.map((contact) => [contact.emailNormalized, contact]));
+  return {
+    registrations: new Set(records.map((record) => record.registrationId)).size,
+    attendees: records.length,
+    uniqueContacts: uniqueRecords.length,
+    newContacts: uniqueRecords.filter((record) => !existingEmails.has(normalizeContactEmail(record.email))).length,
+    existingContacts: uniqueRecords.filter((record) => existingEmails.has(normalizeContactEmail(record.email))).length,
+    pendingConsent: uniqueRecords.filter((record) => {
+      const existingContact = existingByEmail.get(normalizeContactEmail(record.email));
+      return !record.marketingAcceptedAt && existingContact?.subscriptionStatus !== "subscribed";
+    }).length,
+    invalidRecords,
+  };
+}
+
+export async function syncEventContactRecords(records: EventContactSyncRecord[]): Promise<EventContactSyncSummary> {
+  const summary = await previewEventContactSync(records);
+  const created = new Set<string>();
+  for (const record of records) {
+    try {
+      normalizeContactEmail(record.email);
+      const result = await syncEventAttendeeContact(record);
+      if (result.created) created.add(result.contactId);
+    } catch (error) {
+      if (error instanceof z.ZodError || error instanceof Error && error.message === "Invalid email address.") continue;
+      throw error;
+    }
+  }
+  return { ...summary, newContacts: created.size };
 }
 
 export type CreateEmailContactInput = {
@@ -183,7 +313,7 @@ export async function createEmailContact(
     ? parsedUnsubscribedAt && !Number.isNaN(parsedUnsubscribedAt.getTime()) ? parsedUnsubscribedAt : now
     : null;
   const [existing] = await db
-    .select({ id: emailContacts.id })
+    .select()
     .from(emailContacts)
     .where(and(eq(emailContacts.organizationId, input.organizationId), eq(emailContacts.emailNormalized, emailNormalized)))
     .limit(1);
@@ -312,6 +442,13 @@ export async function listEmailContacts(
   const filters = [eq(emailContacts.organizationId, organizationId)];
   if (options.status) filters.push(eq(emailContacts.subscriptionStatus, options.status));
   if (options.source) filters.push(eq(emailContacts.source, options.source));
+  if (options.eventId) {
+    const eventContacts = db
+      .select({ contactId: emailContactEvents.contactId })
+      .from(emailContactEvents)
+      .where(and(eq(emailContactEvents.organizationId, organizationId), eq(emailContactEvents.eventId, options.eventId)));
+    filters.push(inArray(emailContacts.id, eventContacts));
+  }
   if (options.tagId) {
     const taggedContacts = db
       .select({ contactId: emailContactTags.contactId })
@@ -584,7 +721,13 @@ export async function updateEmailContact(input: {
   company?: string | null;
 }): Promise<EmailContact | undefined> {
   const emailNormalized = normalizeContactEmail(input.email);
-  const [existing] = await db
+  const [current] = await db
+    .select()
+    .from(emailContacts)
+    .where(and(eq(emailContacts.organizationId, input.organizationId), eq(emailContacts.id, input.contactId)))
+    .limit(1);
+  if (!current) return undefined;
+  const [duplicate] = await db
     .select({ id: emailContacts.id })
     .from(emailContacts)
     .where(and(
@@ -593,15 +736,30 @@ export async function updateEmailContact(input: {
       ne(emailContacts.id, input.contactId),
     ))
     .limit(1);
-  if (existing) throw new Error("EMAIL_ALREADY_EXISTS");
+  if (duplicate) throw new Error("EMAIL_ALREADY_EXISTS");
+  const manualFields = new Set<EmailContactManualField>(current.manualFields ?? []);
+  const fieldUpdatedAt: EmailContactFieldUpdatedAt = { ...(current.fieldUpdatedAt ?? {}) };
+  const profileValues = {
+    fullName: input.fullName?.trim() || null,
+    phone: input.phone?.trim() || null,
+    company: input.company?.trim() || null,
+  } satisfies Record<EmailContactManualField, string | null>;
+  for (const field of Object.keys(profileValues) as EmailContactManualField[]) {
+    if (profileValues[field] !== (current[field] ?? null)) {
+      manualFields.add(field);
+      fieldUpdatedAt[field] = new Date().toISOString();
+    }
+  }
   const [contact] = await db
     .update(emailContacts)
     .set({
       email: input.email.trim(),
       emailNormalized,
-      fullName: input.fullName?.trim() || null,
-      phone: input.phone?.trim() || null,
-      company: input.company?.trim() || null,
+      fullName: profileValues.fullName,
+      phone: profileValues.phone,
+      company: profileValues.company,
+      manualFields: [...manualFields],
+      fieldUpdatedAt,
       updatedAt: new Date(),
     })
     .where(and(eq(emailContacts.organizationId, input.organizationId), eq(emailContacts.id, input.contactId)))

@@ -299,24 +299,28 @@ export async function registerForEventAction(
     return { error: result.reason === "duplicate_email" ? DUPLICATE_EMAIL_ERROR : EVENT_UNAVAILABLE_ERROR };
   }
 
-  if (marketingAccepted && result.attendees[0]) {
+  if (result.attendees.length > 0) {
     try {
       const { syncEventAttendeeContact } = await import("@/modules/email-marketing");
-      await syncEventAttendeeContact({
+      await Promise.all(result.attendees.map((attendee) => syncEventAttendeeContact({
         organizationId: event.organizationId,
         eventId: event.id,
-        attendeeId: result.attendees[0].id,
-        email: result.attendees[0].email,
-        fullName: result.attendees[0].fullName,
-        phone: result.attendees[0].phone,
-        company: result.attendees[0].company,
-        marketingAcceptedAt: now,
+        attendeeId: attendee.id,
+        email: attendee.email,
+        fullName: attendee.fullName,
+        phone: attendee.phone,
+        company: attendee.company,
+        marketingAcceptedAt: attendee.isPrimary && marketingAccepted ? now : null,
+        registrationStatus: result.registration.status,
+        registrationSource: result.registration.source,
+        registrationObservedAt: result.registration.createdAt,
         attributes: {
           interests,
           clientBrands,
           eventRegistrationStatus: result.registration.status,
+          isPrimary: attendee.isPrimary,
         },
-      });
+      })));
     } catch (error) {
       const { captureOperationFailure } = await import("@/modules/monitoring");
       captureOperationFailure({ operation: "email_marketing_contact_sync", module: "email-marketing", error });

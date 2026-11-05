@@ -1300,19 +1300,25 @@ export async function deactivateCompanion(input: { attendeeId: string; organizat
 }
 
 export async function confirmAttendeeCheckIn(input: { eventId: string; attendeeId: string; checkedInBy: string }): Promise<CheckInResult> {
-  const [updated] = await db
-    .update(eventAttendees)
-    .set({ checkedInAt: new Date(), checkedInBy: input.checkedInBy })
-    .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.isActive, true), isNull(eventAttendees.checkedInAt)))
-    .returning();
-  if (!updated) {
-    const [existing] = await db.select().from(eventAttendees).where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId))).limit(1);
-    if (!existing) return { ok: false, reason: "not_found" };
-    if (!existing.isActive) return { ok: false, reason: "not_found" };
-    return { ok: true, attendee: existing, alreadyCheckedIn: true };
-  }
-  await db.update(eventRegistrations).set({ status: "checked_in" }).where(eq(eventRegistrations.id, updated.registrationId));
-  return { ok: true, attendee: updated, alreadyCheckedIn: false };
+  return db.transaction(async (tx) => {
+    await lockEventForCapacityDecision(tx, input.eventId);
+    await tx.execute(sql`select id from event_registrations where id in (
+      select registration_id from event_attendees where id = ${input.attendeeId} and event_id = ${input.eventId}
+    ) for update`);
+    const [updated] = await tx
+      .update(eventAttendees)
+      .set({ checkedInAt: new Date(), checkedInBy: input.checkedInBy })
+      .where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.isActive, true), isNull(eventAttendees.checkedInAt)))
+      .returning();
+    if (!updated) {
+      const [existing] = await tx.select().from(eventAttendees).where(and(eq(eventAttendees.id, input.attendeeId), eq(eventAttendees.eventId, input.eventId))).limit(1);
+      if (!existing) return { ok: false, reason: "not_found" };
+      if (!existing.isActive) return { ok: false, reason: "not_found" };
+      return { ok: true, attendee: existing, alreadyCheckedIn: true };
+    }
+    await tx.update(eventRegistrations).set({ status: "checked_in", deletionProtected: true }).where(eq(eventRegistrations.id, updated.registrationId));
+    return { ok: true, attendee: updated, alreadyCheckedIn: false };
+  });
 }
 
 // spec.md "Individual Attendee Passes" / "Backup Code Manual Check-In" / "Duplicate Check-In
@@ -1329,26 +1335,30 @@ export async function checkInAttendee(input: CheckInInput): Promise<CheckInResul
     ? and(eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.isActive, true), eq(eventAttendees.passToken, input.passToken))
     : and(eq(eventAttendees.eventId, input.eventId), eq(eventAttendees.isActive, true), eq(eventAttendees.backupCode, input.backupCode!));
 
-  const [attendee] = await db.select().from(eventAttendees).where(condition).limit(1);
-  if (!attendee) return { ok: false, reason: "not_found" };
-  if (attendee.checkedInAt) return { ok: true, attendee, alreadyCheckedIn: true };
+  return db.transaction(async (tx) => {
+    await lockEventForCapacityDecision(tx, input.eventId);
+    await tx.execute(sql`select id from event_registrations where id in (
+      select registration_id from event_attendees where ${condition}
+    ) for update`);
+    const [attendee] = await tx.select().from(eventAttendees).where(condition).limit(1);
+    if (!attendee) return { ok: false, reason: "not_found" };
+    if (attendee.checkedInAt) return { ok: true, attendee, alreadyCheckedIn: true };
 
-  const [updated] = await db
-    .update(eventAttendees)
-    .set({ checkedInAt: new Date(), checkedInBy: input.checkedInBy })
-    .where(eq(eventAttendees.id, attendee.id))
-    .returning();
+    const [updated] = await tx
+      .update(eventAttendees)
+      .set({ checkedInAt: new Date(), checkedInBy: input.checkedInBy })
+      .where(eq(eventAttendees.id, attendee.id))
+      .returning();
 
-  // design.md "per-attendee checked_in_at remains authoritative; registration flips to
-  // checked_in on first attendee check-in" — unconditional on every (necessarily first, since
-  // this branch only runs once per attendee) successful check-in.
-  await db
-    .update(eventRegistrations)
-    .set({ status: "checked_in" })
-    .where(eq(eventRegistrations.id, attendee.registrationId))
-    .returning();
+    // The registration mirrors the first check-in; the attendee timestamp is authoritative.
+    await tx
+      .update(eventRegistrations)
+      .set({ status: "checked_in", deletionProtected: true })
+      .where(eq(eventRegistrations.id, attendee.registrationId))
+      .returning();
 
-  return { ok: true, attendee: updated, alreadyCheckedIn: false };
+    return { ok: true, attendee: updated, alreadyCheckedIn: false };
+  });
 }
 
 // design.md "Testing Strategy" lists "reminder-due arithmetic" as its own unit — kept pure and
@@ -1431,6 +1441,7 @@ export async function updateRegistrationReviewStatus(input: {
   reviewedBy: string;
 }): Promise<RegistrationReviewUpdateResult> {
   return db.transaction(async (tx) => {
+    await lockEventForCapacityDecision(tx, input.eventId);
     const [registration] = await tx
       .select()
       .from(eventRegistrations)
@@ -1439,10 +1450,10 @@ export async function updateRegistrationReviewStatus(input: {
         eq(eventRegistrations.eventId, input.eventId),
         eq(eventRegistrations.organizationId, input.organizationId),
       ))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!registration) return undefined;
 
-    await lockEventForCapacityDecision(tx, input.eventId);
     const now = new Date();
     const status = input.reviewStatus === "approved"
       ? "confirmed"
@@ -1467,19 +1478,28 @@ export async function updateRegistrationReviewStatus(input: {
 
     const [updated] = await tx
       .update(eventRegistrations)
-      .set({ status, reviewStatus: input.reviewStatus, reviewedBy: input.reviewedBy, reviewedAt: now, updatedAt: now })
+      .set({ status, reviewStatus: input.reviewStatus, reviewedBy: input.reviewedBy, reviewedAt: now, updatedAt: now,
+        firstApprovedAt: registration.firstApprovedAt ?? (input.reviewStatus === "approved" ? now : null) })
       .where(eq(eventRegistrations.id, input.registrationId))
       .returning();
     return updated;
   });
 }
 
-export async function deleteRejectedRegistration(input: {
+export type DeleteUnapprovedRegistrationResult =
+  | { ok: true; registrationId: string; attendeeCount: number }
+  | { ok: false; reason: "not_found" | "protected" };
+
+// The action authenticates an active ADMIN. All eligibility checks and the PII-free audit
+// share this transaction; the event lock serializes approval, deletion, and check-in.
+export async function deleteUnapprovedRegistration(input: {
   registrationId: string;
   eventId: string;
   organizationId: string;
-}): Promise<EventRegistrationRow | undefined> {
+  actorId: string;
+}): Promise<DeleteUnapprovedRegistrationResult> {
   return db.transaction(async (tx) => {
+    await lockEventForCapacityDecision(tx, input.eventId);
     const [registration] = await tx
       .select()
       .from(eventRegistrations)
@@ -1488,19 +1508,65 @@ export async function deleteRejectedRegistration(input: {
         eq(eventRegistrations.eventId, input.eventId),
         eq(eventRegistrations.organizationId, input.organizationId),
       ))
-      .limit(1);
-    if (!registration || registration.status !== "rejected") return undefined;
+      .limit(1)
+      .for("update");
+    if (!registration) return { ok: false, reason: "not_found" };
+    if (registration.source !== "public" || registration.firstApprovedAt || registration.deletionProtected ||
+        registration.reviewStatus === "approved" || registration.status === "confirmed" || registration.status === "checked_in") {
+      return { ok: false, reason: "protected" };
+    }
 
+    // Include inactive attendees: deactivation must never hide an earlier check-in.
+    const attendees = await tx.select().from(eventAttendees)
+      .where(eq(eventAttendees.registrationId, registration.id)).for("update");
+    if (attendees.some((attendee) => attendee.checkedInAt)) return { ok: false, reason: "protected" };
+
+    // Operational histories are not disposable registration-owned data. Keep benefit and
+    // raffle records intact (including raffle eligibility snapshots), rather than cascading.
+    const dependencies = await tx.execute(sql`
+      select 1 from event_benefit_redemptions b
+      where b.registration_id = ${registration.id}
+         or b.attendee_id in (select id from event_attendees where registration_id = ${registration.id})
+      union all
+      select 1 from raffle_draws d
+      where d.attendee_id in (select id from event_attendees where registration_id = ${registration.id})
+         or exists (select 1 from event_attendees a where a.registration_id = ${registration.id}
+                    and d.eligible_attendee_ids ? a.id::text)
+      limit 1
+    `);
+    if (dependencies.length > 0) return { ok: false, reason: "protected" };
+
+    // These associations have no attendee FK. Never remove global contacts, campaign history,
+    // or another attendee's/event's association, even when they share the same email contact.
+    await tx.execute(sql`delete from email_contact_events
+      where organization_id = ${input.organizationId} and event_id = ${input.eventId}
+        and attendee_id in (select id from event_attendees where registration_id = ${registration.id})`);
+    // Generic notification subjects have no FK. Decision emails use an event_attendee
+    // subject with the registration ID, so include both the booking and its people.
+    await tx.execute(sql`delete from user_notifications
+      where organization_id = ${input.organizationId}
+        and type in ('registration_submitted', 'registration_review_blocked', 'registration_decision')
+        and (subject_id = ${registration.id}
+          or subject_id in (select id from event_attendees where registration_id = ${registration.id}))`);
+    await tx.execute(sql`delete from notification_log
+      where organization_id = ${input.organizationId} and subject_type = 'event_attendee'
+        and notification_type in ('confirmation', 'reminder', 'waitlist_promotion', 'registration_waitlisted', 'registration_rejected')
+        and (subject_id = ${registration.id}
+          or subject_id in (select id from event_attendees where registration_id = ${registration.id}))`);
     await tx.delete(eventAttendees).where(eq(eventAttendees.registrationId, registration.id));
-    const [deleted] = await tx
+    await tx
       .delete(eventRegistrations)
       .where(and(
         eq(eventRegistrations.id, registration.id),
         eq(eventRegistrations.eventId, input.eventId),
         eq(eventRegistrations.organizationId, input.organizationId),
-      ))
-      .returning();
-    return deleted;
+      ));
+    await tx.execute(sql`insert into audit_logs
+      (organization_id, user_id, actor_type, event_id, action, resource_type, resource_id, "after")
+      values (${input.organizationId}, ${input.actorId}, 'user', ${input.eventId}, 'event_change',
+        'event_registration', ${registration.id},
+        ${JSON.stringify({ operation: "registration_deleted", attendeeCount: attendees.length })}::jsonb)`);
+    return { ok: true, registrationId: registration.id, attendeeCount: attendees.length };
   });
 }
 
@@ -1618,6 +1684,73 @@ export async function listRegistrations(
         (attendee.company ?? "").toLowerCase().includes(needle),
     ),
   );
+}
+
+export type RegistrationContactSyncRecord = {
+  organizationId: string;
+  eventId: string;
+  registrationId: string;
+  registrationStatus: EventRegistrationRow["status"];
+  registrationSource: EventRegistrationRow["source"];
+  registrationObservedAt: Date;
+  attendeeId: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+  company: string | null;
+  isPrimary: boolean;
+  marketingAcceptedAt: Date | null;
+  attributes: Record<string, unknown>;
+};
+
+export async function listRegistrationContactsForEmailSync(input: {
+  organizationId: string;
+  eventIds?: string[];
+}): Promise<RegistrationContactSyncRecord[]> {
+  const predicates = [eq(eventRegistrations.organizationId, input.organizationId)];
+  if (input.eventIds?.length) predicates.push(inArray(eventRegistrations.eventId, input.eventIds));
+  const registrations = await db
+    .select()
+    .from(eventRegistrations)
+    .where(and(...predicates))
+    .orderBy(asc(eventRegistrations.createdAt));
+  if (registrations.length === 0) return [];
+
+  const attendees = await db
+    .select()
+    .from(eventAttendees)
+    .where(inArray(eventAttendees.registrationId, registrations.map((registration) => registration.id)));
+  const registrationsById = new Map(registrations.map((registration) => [registration.id, registration]));
+
+  return attendees.flatMap((attendee) => {
+    const registration = registrationsById.get(attendee.registrationId);
+    if (!registration) return [];
+    const marketingAcceptedAt = attendee.isPrimary
+      ? (registration.consents?.marketingAcceptedAt ? new Date(registration.consents.marketingAcceptedAt) : null)
+      : null;
+    return [{
+      organizationId: input.organizationId,
+      eventId: registration.eventId,
+      registrationId: registration.id,
+      registrationStatus: registration.status,
+      registrationSource: registration.source,
+      registrationObservedAt: registration.createdAt,
+      attendeeId: attendee.id,
+      email: attendee.email,
+      fullName: attendee.fullName,
+      phone: attendee.phone,
+      company: attendee.company,
+      isPrimary: attendee.isPrimary,
+      marketingAcceptedAt,
+      attributes: {
+        interests: registration.interests,
+        clientBrands: registration.clientBrands,
+        eventRegistrationStatus: registration.status,
+        eventRegistrationId: registration.id,
+        isPrimary: attendee.isPrimary,
+      },
+    } satisfies RegistrationContactSyncRecord];
+  });
 }
 
 export type EventDashboardStatus = "pending_review" | "confirmed" | "waitlisted" | "rejected" | "cancelled";

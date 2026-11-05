@@ -18,6 +18,7 @@ export const internalNotificationType = pgEnum("internal_notification_type", [
   "registration_submitted",
   "registration_review_blocked",
   "registration_decision",
+  "checklist_task_due",
 ]);
 
 // UNIQUE(subject_id, notification_type) is the idempotency guard (design.md "Reminder

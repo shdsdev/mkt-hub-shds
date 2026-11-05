@@ -1,0 +1,2 @@
+ALTER TABLE "email_contacts" ADD COLUMN "manual_fields" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "email_contacts" ADD COLUMN "field_updated_at" jsonb DEFAULT '{}'::jsonb NOT NULL;

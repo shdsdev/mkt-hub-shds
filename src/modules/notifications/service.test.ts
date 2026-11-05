@@ -1,13 +1,16 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 
-const { insertMock, updateMock, selectMock } = vi.hoisted(() => ({
+const { insertMock, updateMock, selectMock, transactionMock, txExecuteMock, txInsertMock } = vi.hoisted(() => ({
   insertMock: vi.fn(),
   updateMock: vi.fn(),
   selectMock: vi.fn(),
+  transactionMock: vi.fn(),
+  txExecuteMock: vi.fn(),
+  txInsertMock: vi.fn(),
 }));
 
 vi.mock("@/db/client", () => ({
-  db: { insert: insertMock, update: updateMock, select: selectMock },
+  db: { insert: insertMock, update: updateMock, select: selectMock, transaction: transactionMock },
 }));
 
 // Isolated getters — `required()` throwing when unset is already covered by src/lib/env.test.ts;
@@ -23,6 +26,7 @@ vi.mock("@/lib/env", () => ({
 
 import {
   claimNotification,
+  createInternalNotifications,
   getReminderNotificationStatusCounts,
   markNotificationSent,
   markNotificationFailed,
@@ -36,7 +40,70 @@ import {
   buildGoogleMapsUrl,
   sendViaResend,
 } from "./service";
-import { notificationLog } from "./db";
+import { notificationLog, userNotifications } from "./db";
+import { PgDialect } from "drizzle-orm/pg-core";
+
+describe("createInternalNotifications registration deletion guard", () => {
+  const input = { organizationId: "org-1", recipientUserIds: ["user-1"], subjectId: "registration-1",
+    type: "registration_submitted" as const, title: "Registration", body: "Review required", href: "/events", dedupeKey: "registration-1" };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({ execute: txExecuteMock, insert: txInsertMock }),
+    );
+    txExecuteMock.mockResolvedValue([{ id: input.subjectId }]);
+    txInsertMock.mockReturnValue(insertChain([]));
+  });
+
+  it.each(["registration_submitted", "registration_review_blocked", "registration_decision"] as const)("locks the scoped registration before inserting %s inside the same transaction", async (type) => {
+    await createInternalNotifications({ ...input, type });
+    const query = new PgDialect().sqlToQuery(txExecuteMock.mock.calls[0][0]);
+    expect(query.sql).toContain("from event_registrations");
+    expect(query.sql).toContain("for key share");
+    expect(query.sql).not.toContain("from events");
+    expect(query.params).toEqual([input.subjectId, input.organizationId]);
+    expect(txExecuteMock.mock.invocationCallOrder[0]).toBeLessThan(txInsertMock.mock.invocationCallOrder[0]);
+    expect(txInsertMock).toHaveBeenCalledWith(userNotifications);
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["org-1", "wrong-org"])("does not insert for an absent registration in %s", async (organizationId) => {
+    txExecuteMock.mockResolvedValue([]);
+    await createInternalNotifications({ ...input, organizationId });
+    const query = new PgDialect().sqlToQuery(txExecuteMock.mock.calls[0][0]);
+    expect(query.params).toEqual([input.subjectId, organizationId]);
+    expect(txInsertMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("waits for the registration lock before inserting", async () => {
+    let release!: () => void;
+    txExecuteMock.mockImplementationOnce(() => new Promise<Array<{ id: string }>>((resolve) => {
+      release = () => resolve([{ id: input.subjectId }]);
+    }));
+    const pending = createInternalNotifications(input);
+    expect(txInsertMock).not.toHaveBeenCalled();
+    release();
+    await pending;
+    expect(txInsertMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps checklist notifications on the independent nontransactional path", async () => {
+    const chain = insertChain([]);
+    insertMock.mockReturnValue(chain);
+    await createInternalNotifications({ ...input, type: "checklist_task_due" });
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledWith(userNotifications);
+    expect(chain.values).toHaveBeenCalledWith([expect.objectContaining({ type: "checklist_task_due" })]);
+  });
+
+  it("does nothing when there are no recipients", async () => {
+    await createInternalNotifications({ ...input, recipientUserIds: [] });
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+});
 
 function insertChain(rows: unknown[]) {
   const chain = { values: vi.fn(), onConflictDoNothing: vi.fn(), returning: vi.fn() };

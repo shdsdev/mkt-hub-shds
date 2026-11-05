@@ -8,7 +8,7 @@ describe("notifications schema (additive events-module migration, PR1)", () => {
     expect(notificationType.enumValues).toEqual(["confirmation", "reminder", "waitlist_promotion", "registration_waitlisted", "registration_rejected", "winner_email"]);
     expect(notificationStatus.enumValues).toEqual(["pending", "sent", "failed", "resent", "unknown"]);
     expect(notificationSubjectType.enumValues).toEqual(["event_attendee", "raffle_draw"]);
-    expect(internalNotificationType.enumValues).toEqual(["registration_submitted", "registration_review_blocked", "registration_decision"]);
+    expect(internalNotificationType.enumValues).toEqual(["registration_submitted", "registration_review_blocked", "registration_decision", "checklist_task_due"]);
   });
 
   it("stores persistent notifications per recipient with a direct link", () => {

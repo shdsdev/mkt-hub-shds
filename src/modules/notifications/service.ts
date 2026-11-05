@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { env } from "@/lib/env";
 import type { EventEmailContent } from "@/lib/events/event-email-content";
@@ -19,7 +19,7 @@ export type CreateInternalNotificationsInput = {
   organizationId: string;
   recipientUserIds: string[];
   subjectId: string;
-  type: "registration_submitted" | "registration_review_blocked" | "registration_decision";
+  type: "registration_submitted" | "registration_review_blocked" | "registration_decision" | "checklist_task_due";
   title: string;
   body: string;
   href: string;
@@ -28,7 +28,7 @@ export type CreateInternalNotificationsInput = {
 
 export async function createInternalNotifications(input: CreateInternalNotificationsInput): Promise<void> {
   if (input.recipientUserIds.length === 0) return;
-  await db.insert(userNotifications).values(input.recipientUserIds.map((recipientUserId) => ({
+  const rows = input.recipientUserIds.map((recipientUserId) => ({
     organizationId: input.organizationId,
     recipientUserId,
     subjectId: input.subjectId,
@@ -37,7 +37,19 @@ export async function createInternalNotifications(input: CreateInternalNotificat
     body: input.body,
     href: input.href,
     dedupeKey: input.dedupeKey,
-  }))).onConflictDoNothing();
+  }));
+  if (input.type === "checklist_task_due") {
+    await db.insert(userNotifications).values(rows).onConflictDoNothing();
+    return;
+  }
+  await db.transaction(async (tx) => {
+    // Deletion takes FOR UPDATE before cleaning notifications. Hold this conflicting
+    // lock through insertion, without requesting an event lock in the reverse order.
+    const registration = await tx.execute(sql`select id from event_registrations
+      where id = ${input.subjectId} and organization_id = ${input.organizationId} for key share`);
+    if (registration.length === 0) return;
+    await tx.insert(userNotifications).values(rows).onConflictDoNothing();
+  });
 }
 
 export async function listUserNotifications(input: { userId: string; organizationId: string; limit?: number }): Promise<UserNotificationRow[]> {

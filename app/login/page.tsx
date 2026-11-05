@@ -20,11 +20,11 @@ const initialRecoveryState: PasswordRecoveryFormState = {};
 // original's "lg" dimensions (h-11 px-8), not our app's theme-tinted --primary/size scale. Scoped
 // to just these two auth buttons, per explicit request ("mantén los del diseño original").
 const authButtonClassName =
-  "h-11 w-full justify-center rounded-md bg-zinc-100 px-8 text-sm font-medium text-zinc-900 hover:bg-zinc-100/90";
+  "h-11 w-full justify-center rounded-md bg-[#f5f3f0] px-8 text-sm font-medium text-[#080909] hover:bg-[#f5f3f0]/90";
 
 // White focus ring instead of the active theme's --ring (pink in "midnight"/"signature") — scoped
 // to just these two inputs, matching the neutral treatment requested for the auth buttons.
-const authInputClassName = "peer ps-9 focus-visible:border-white focus-visible:ring-white/50";
+const authInputClassName = "peer h-11 !border-[#f5f3f0]/20 !bg-[#111414] !text-[#f5f3f0] ps-9 placeholder:!text-[#b9b7b2] focus-visible:!border-[#ff6a2b] focus-visible:!ring-[#ff6a2b]/40";
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, initialState);
@@ -56,9 +56,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
-      <div className="relative hidden h-full flex-col border-r border-border bg-muted/60 p-10 lg:flex">
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-background to-transparent" />
+    <main className="relative bg-[#080909] text-[#f5f3f0] md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
+      <div className="relative hidden h-full flex-col border-r border-[#f5f3f0]/15 bg-[#050505] p-10 lg:flex">
+        <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#080909] to-transparent" />
         <div className="z-10 flex items-center gap-2">
           <QrCode className="size-6" />
           <p className="text-xl font-semibold">Marketing Hub</p>
@@ -75,7 +75,7 @@ export default function LoginPage() {
         <FlutedGlassBackground />
       </div>
 
-      <div className="relative flex min-h-screen flex-col justify-center p-4">
+      <div className="relative flex min-h-screen flex-col justify-center bg-[#080909] p-4">
         <div aria-hidden className="absolute inset-0 isolate -z-10 contain-strict opacity-60">
           <div className="absolute top-0 right-0 h-80 w-35 -translate-y-22 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,--theme(--color-foreground/.06)_0,hsla(0,0%,55%,.02)_50%,--theme(--color-foreground/.01)_80%)]" />
           <div className="absolute top-0 right-0 h-80 w-15 [translate:5%_-50%] rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,--theme(--color-foreground/.04)_0,--theme(--color-foreground/.01)_80%,transparent_100%)]" />
@@ -90,7 +90,7 @@ export default function LoginPage() {
 
           <div className="flex flex-col space-y-1">
             <h1 className="font-heading text-2xl font-bold tracking-wide">Bienvenido de vuelta</h1>
-            <p className="text-base text-muted-foreground">Ingresá con tu correo y contraseña.</p>
+            <p className="text-base text-[#b9b7b2]">Ingresá con tu correo y contraseña.</p>
           </div>
 
           {(invitationError || recoveryError || googleAccessError) && (
@@ -122,7 +122,7 @@ export default function LoginPage() {
                 placeholder="tu.correo@shadesdemexico.com"
                 className={authInputClassName}
               />
-              <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-2.5 text-muted-foreground peer-disabled:opacity-50">
+              <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-2.5 text-[#b9b7b2] peer-disabled:opacity-50">
                 <AtSign className="size-4" aria-hidden="true" />
               </div>
             </div>
@@ -137,7 +137,7 @@ export default function LoginPage() {
                 placeholder="Contraseña"
                 className={authInputClassName}
               />
-              <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-2.5 text-muted-foreground peer-disabled:opacity-50">
+              <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-2.5 text-[#b9b7b2] peer-disabled:opacity-50">
                 <Lock className="size-4" aria-hidden="true" />
               </div>
             </div>
@@ -157,7 +157,7 @@ export default function LoginPage() {
             <Button
               type="button"
               variant="link"
-              className="h-auto w-full px-0 text-sm text-muted-foreground"
+              className="h-auto w-full px-0 text-sm text-[#b9b7b2] hover:text-[#f5f3f0]"
               onClick={() => setShowRecovery(true)}
             >
               Crear o restablecer contraseña
@@ -166,11 +166,11 @@ export default function LoginPage() {
             <form
               action={recoveryAction}
               data-recovery-form
-              className="space-y-3 rounded-md border border-border/70 bg-background/60 p-4"
+              className="space-y-3 rounded-md border border-[#f5f3f0]/15 bg-[#111414] p-4"
             >
               <div className="space-y-1">
                 <h2 className="text-sm font-medium">Crea tu contraseña</h2>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#b9b7b2]">
                   Te enviaremos un enlace para configurar o restablecer el acceso.
                 </p>
               </div>
@@ -180,6 +180,7 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 placeholder="tu.correo@shadesdemexico.com"
+                className={authInputClassName}
               />
               {recoveryState.error && (
                 <p role="alert" className="text-sm text-destructive">
@@ -187,7 +188,7 @@ export default function LoginPage() {
                 </p>
               )}
               {recoveryState.success && (
-                <p role="status" className="text-sm text-muted-foreground">
+                <p role="status" className="text-sm text-[#b9b7b2]">
                   {recoveryState.success}
                 </p>
               )}
@@ -199,6 +200,7 @@ export default function LoginPage() {
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="text-[#b9b7b2] hover:bg-[#f5f3f0]/10 hover:text-[#f5f3f0]"
                   onClick={() => setShowRecovery(false)}
                 >
                   Volver
@@ -215,9 +217,9 @@ export default function LoginPage() {
 function AuthSeparator() {
   return (
     <div className="flex w-full items-center justify-center">
-      <div className="h-px w-full bg-border" />
-      <span className="px-2 text-xs text-muted-foreground">O</span>
-      <div className="h-px w-full bg-border" />
+      <div className="h-px w-full bg-[#f5f3f0]/15" />
+      <span className="px-2 text-xs text-[#b9b7b2]">O</span>
+      <div className="h-px w-full bg-[#f5f3f0]/15" />
     </div>
   );
 }

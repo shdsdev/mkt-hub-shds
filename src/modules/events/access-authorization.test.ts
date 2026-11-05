@@ -45,3 +45,20 @@ describe("reception results authorization", () => {
     expect(mocks.select).not.toHaveBeenCalled();
   });
 });
+
+describe("organization checklist authorization", () => {
+  it("allows an assigned receptionist to read the event organization checklist", async () => {
+    expect(await canAccessEvent({ ...input, capability: "organization" })).toBe(true);
+  });
+
+  it("allows an assigned event editor to access the organization checklist", async () => {
+    expect(
+      await canAccessEvent({
+        ...input,
+        userId: "editor-1",
+        role: "EVENT_EDITOR",
+        capability: "organization",
+      }),
+    ).toBe(true);
+  });
+});

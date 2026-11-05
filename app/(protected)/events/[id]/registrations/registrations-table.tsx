@@ -20,6 +20,7 @@ type Props = {
   statusLabels: Record<EventRegistrationRow["status"], string>;
   reviewStatusLabels: Record<EventRegistrationRow["reviewStatus"], string>;
   canManageAttendees: boolean;
+  canDeleteRegistrations: boolean;
   initialSelectedId?: string;
 };
 
@@ -69,6 +70,7 @@ export function RegistrationsTable({
   statusLabels,
   reviewStatusLabels,
   canManageAttendees,
+  canDeleteRegistrations,
   initialSelectedId,
 }: Props) {
   const pathname = usePathname();
@@ -323,6 +325,7 @@ export function RegistrationsTable({
           collectJobTitle={collectJobTitle}
           phoneRequired={phoneRequired}
           canManageAttendees={canManageAttendees}
+          canDeleteRegistrations={canDeleteRegistrations}
         />
       ) : null}
     </>

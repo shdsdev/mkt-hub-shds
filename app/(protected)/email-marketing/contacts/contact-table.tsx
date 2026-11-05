@@ -4,6 +4,7 @@ import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Columns3 } from "lucide-react";
 import type { EmailContact, EmailTag, EmailContactListOptions, EmailSegment } from "@/modules/email-marketing";
+import type { EventRow } from "@/modules/events";
 import { assignEmailTagsAction, sendEmailRepermissionAction, subscribeEmailContactsAction, type ContactActionState } from "./actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -14,7 +15,7 @@ const columnLabels = { company: "Empresa", phone: "Teléfono", source: "Fuente",
 type OptionalColumn = keyof typeof columnLabels;
 const defaultColumns: Record<OptionalColumn, boolean> = { company: true, phone: false, source: false, status: true, updatedAt: true };
 
-export function ContactTable({ contacts, total, page, pageSize, filter, tags, segments, statusLabels, onContactOpen }: { contacts: EmailContact[]; total: number; page: number; pageSize: number; filter: EmailContactListOptions; tags: EmailTag[]; segments: EmailSegment[]; statusLabels: Record<EmailContact["subscriptionStatus"], string>; onContactOpen: (contact: EmailContact) => void }) {
+export function ContactTable({ contacts, total, page, pageSize, filter, tags, segments, events, statusLabels, onContactOpen }: { contacts: EmailContact[]; total: number; page: number; pageSize: number; filter: EmailContactListOptions; tags: EmailTag[]; segments: EmailSegment[]; events: EventRow[]; statusLabels: Record<EmailContact["subscriptionStatus"], string>; onContactOpen: (contact: EmailContact) => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [tagId, setTagId] = useState("");
   const [assignState, assignAction, assignPending] = useActionState(assignEmailTagsAction, initialState);
@@ -107,6 +108,7 @@ export function ContactTable({ contacts, total, page, pageSize, filter, tags, se
             <Select value={filter.status ?? "all"} onValueChange={(value) => pushFilters({ status: value === "all" ? undefined : value ?? undefined })}><SelectTrigger aria-label="Filtrar por estado de suscripción" className="h-11 w-full sm:w-auto"><SelectValue>{filter.status ? statusLabels[filter.status] : "Estado de la suscripción"}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
             <Select value={filter.tagId ?? "all"} onValueChange={(value) => pushFilters({ tag: value === "all" ? undefined : value ?? undefined })}><SelectTrigger aria-label="Filtrar por etiqueta" className="h-11 w-full sm:w-auto"><SelectValue>{filter.tagId ? tags.find((tag) => tag.id === filter.tagId)?.name ?? "Etiqueta" : "Etiquetas"}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">Todas las etiquetas</SelectItem>{tags.map((tag) => <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>)}</SelectContent></Select>
             <Select value={filter.source ?? "all"} onValueChange={(value) => pushFilters({ source: value === "all" ? undefined : value ?? undefined })}><SelectTrigger aria-label="Filtrar por fuente" className="h-11 w-full sm:w-auto"><SelectValue>{filter.source ? sourceLabels[filter.source] ?? filter.source : "Fuente de suscripción"}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">Todas las fuentes</SelectItem>{Object.entries(sourceLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
+            <Select value={filter.eventId ?? "all"} onValueChange={(value) => pushFilters({ event: value === "all" ? undefined : value ?? undefined })}><SelectTrigger aria-label="Filtrar por evento de origen" className="h-11 w-full sm:w-auto"><SelectValue>{filter.eventId ? events.find((event) => event.id === filter.eventId)?.name ?? "Evento" : "Evento de origen"}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">Todos los eventos</SelectItem>{events.map((event) => <SelectItem key={event.id} value={event.id}>{event.name}</SelectItem>)}</SelectContent></Select>
             <Select value={filter.sort} onValueChange={(value) => pushFilters({ sort: value ?? "name_asc" })}><SelectTrigger aria-label="Ordenar contactos" className="h-11 w-full sm:w-auto"><SelectValue>{filter.sort === "name_desc" ? "Nombre Z-A" : filter.sort === "updated_desc" ? "Más recientes" : "Nombre A-Z"}</SelectValue></SelectTrigger><SelectContent><SelectItem value="name_asc">Nombre A-Z</SelectItem><SelectItem value="name_desc">Nombre Z-A</SelectItem><SelectItem value="updated_desc">Más recientes</SelectItem></SelectContent></Select>
             <DropdownMenu>
               <DropdownMenuTrigger render={<button type="button" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border-0 bg-transparent px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><Columns3 size={15} /> Columnas</button>} />
@@ -117,7 +119,7 @@ export function ContactTable({ contacts, total, page, pageSize, filter, tags, se
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            {filter.search || filter.status || filter.tagId || filter.segmentId || filter.source || filter.sort !== "name_asc" ? <button type="button" onClick={() => { pendingSearch.current = ""; setSearchText(""); pushFilters({ q: undefined, status: undefined, tag: undefined, segment: undefined, source: undefined, sort: undefined }); }} className="h-11 px-2 text-sm text-primary hover:underline">Limpiar filtros</button> : null}
+            {filter.search || filter.status || filter.tagId || filter.segmentId || filter.source || filter.eventId || filter.sort !== "name_asc" ? <button type="button" onClick={() => { pendingSearch.current = ""; setSearchText(""); pushFilters({ q: undefined, status: undefined, tag: undefined, segment: undefined, source: undefined, event: undefined, sort: undefined }); }} className="h-11 px-2 text-sm text-primary hover:underline">Limpiar filtros</button> : null}
           </div>
         </div>
       {selected.length > 0 ? <form action={assignAction} className="flex flex-wrap items-center gap-3 border-b border-primary/20 bg-primary/5 p-4">

@@ -491,6 +491,76 @@
       "when": 1793660256304,
       "tag": "0068_reconcile_email_marketing_security",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1793729543685,
+      "tag": "0069_mute_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1793732122061,
+      "tag": "0070_parched_magik",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1793740028845,
+      "tag": "0071_careless_mole_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1793804304580,
+      "tag": "0072_thankful_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1793806517011,
+      "tag": "0073_gifted_piledriver",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1793816631086,
+      "tag": "0074_zippy_miss_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1793818634122,
+      "tag": "0075_foamy_talkback",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1793819377497,
+      "tag": "0076_wide_mac_gargan",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1793822000000,
+      "tag": "0077_checklist_realtime",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1793890000000,
+      "tag": "0078_registration_deletion_guard",
+      "breakpoints": true
     }
   ]
 }

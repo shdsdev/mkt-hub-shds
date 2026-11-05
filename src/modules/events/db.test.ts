@@ -15,6 +15,8 @@ import {
   benefitRedemptionStatus,
   eventBenefits,
   eventBenefitRedemptions,
+  eventChecklistGroups,
+  eventChecklistTasks,
 } from "./db";
 
 // Schema contract for the additive events-module migration (PR1 — design.md "Architecture
@@ -66,6 +68,29 @@ describe("events schema (additive events-module migration, PR1)", () => {
 
   it("gives every registration an opaque, required cancel token", () => {
     expect(eventRegistrations.cancelToken.notNull).toBe(true);
+  });
+
+  it("exposes durable approval history and defaults new registrations to unprotected", () => {
+    expect(eventRegistrations.firstApprovedAt.name).toBe("first_approved_at");
+    expect(eventRegistrations.firstApprovedAt.notNull).toBe(false);
+    expect(eventRegistrations.deletionProtected.name).toBe("deletion_protected");
+    expect(eventRegistrations.deletionProtected.notNull).toBe(true);
+    expect(eventRegistrations.deletionProtected.default).toBe(false);
+  });
+
+  it("registers conservative legacy protection and sticky SQL history without dropping data", () => {
+    const migration = readFileSync(path.join(process.cwd(), "drizzle/0078_registration_deletion_guard.sql"), "utf8");
+    const journal = JSON.parse(readFileSync(path.join(process.cwd(), "drizzle/meta/_journal.json"), "utf8"));
+    expect(journal.entries).toContainEqual(expect.objectContaining({ idx: 78, tag: "0078_registration_deletion_guard" }));
+    expect(migration).toContain("r.source = 'public' AND r.status = 'pending_review' AND r.review_status = 'new'");
+    expect(migration).toContain("r.reviewed_at IS NULL AND r.reviewed_by IS NULL AND r.updated_at = r.created_at");
+    for (const dependency of ["event_attendees", "audit_logs", "event_benefit_redemptions", "raffle_draws"]) {
+      expect(migration).toContain(dependency);
+    }
+    expect(migration).toContain("COALESCE(OLD.first_approved_at, NEW.first_approved_at)");
+    expect(migration).toContain("OLD.deletion_protected OR NEW.deletion_protected");
+    expect(migration).toContain("BEFORE INSERT OR UPDATE ON event_registrations");
+    expect(migration).not.toMatch(/DROP|DELETE FROM/);
   });
 
   it("keeps attendee identity (name/email/phone) off events and registrations", () => {
@@ -186,6 +211,29 @@ describe("events schema (additive events-module migration, PR1)", () => {
       "event_id",
       "registration_id",
     ]);
+  });
+
+  it("defines organization checklist groups and tasks with ordered event ownership", () => {
+    expect(eventChecklistGroups.organizationId.notNull).toBe(true);
+    expect(eventChecklistGroups.eventId.notNull).toBe(true);
+    expect(eventChecklistGroups.title.notNull).toBe(true);
+    expect(eventChecklistGroups.position.notNull).toBe(true);
+    expect(eventChecklistTasks.organizationId.notNull).toBe(true);
+    expect(eventChecklistTasks.eventId.notNull).toBe(true);
+    expect(eventChecklistTasks.groupId.notNull).toBe(true);
+    expect(eventChecklistTasks.parentTaskId.notNull).toBe(false);
+    expect(eventChecklistTasks.title.notNull).toBe(true);
+    expect(eventChecklistTasks.completed.notNull).toBe(true);
+    expect(eventChecklistTasks.completed.default).toBe(false);
+    expect(eventChecklistTasks.assigneeId.notNull).toBe(false);
+    expect(eventChecklistTasks.priority.notNull).toBe(true);
+    expect(eventChecklistTasks.priority.default).toBe("medium");
+    expect(eventChecklistTasks.createdBy.notNull).toBe(false);
+    expect(eventChecklistTasks.completedAt.notNull).toBe(false);
+    expect(eventChecklistTasks.completedBy.notNull).toBe(false);
+    expect(eventChecklistTasks.dueDate.notNull).toBe(false);
+    expect(eventChecklistTasks.notes.notNull).toBe(false);
+    expect(eventChecklistTasks.position.notNull).toBe(true);
   });
 });
 

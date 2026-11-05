@@ -8,7 +8,7 @@ import { isActive, isAdmin } from "@/modules/users";
 import {
   addAttendeeToRegistration,
   deactivateCompanion,
-  deleteRejectedRegistration,
+  deleteUnapprovedRegistration,
   getEvent,
   listEventEditorIds,
   listEventReceptionistIds,
@@ -118,7 +118,7 @@ async function requireEventManager(eventId: string) {
   return { user, event };
 }
 
-export async function deleteRejectedRegistrationAction(
+export async function deleteRegistrationAction(
   _prevState: DeleteRegistrationState,
   formData: FormData,
 ): Promise<DeleteRegistrationState> {
@@ -134,14 +134,24 @@ export async function deleteRejectedRegistrationAction(
   });
   if (!parsed.success) return { error: "No se pudo identificar el registro." };
 
-  const deleted = await deleteRejectedRegistration({
-    ...parsed.data,
-    organizationId: user.profile.organizationId,
-  });
-  if (!deleted) return { error: "Solo se pueden eliminar registros rechazados." };
+  let result;
+  try {
+    result = await deleteUnapprovedRegistration({
+      ...parsed.data,
+      organizationId: user.profile.organizationId,
+      actorId: user.id,
+    });
+  } catch (error) {
+    const { captureOperationFailure } = await import("@/modules/monitoring");
+    captureOperationFailure({ operation: "registration_delete", module: "events", error });
+    return { error: "No se pudo completar la eliminación. Actualiza la lista antes de intentarlo de nuevo." };
+  }
+  if (!result.ok) return { error: result.reason === "not_found"
+    ? "No se encontró el registro."
+    : "No se puede eliminar: el registro no es público, fue aprobado, tiene historial protegido o registra actividad en el evento." };
 
   revalidatePath(`/events/${parsed.data.eventId}/registrations`);
-  return { success: "Registro eliminado." };
+  return { success: "Registro eliminado. No se enviaron correos." };
 }
 
 export async function editAttendeeAction(

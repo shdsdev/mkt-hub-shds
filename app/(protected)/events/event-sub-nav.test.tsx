@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest";
 import { EventSubNav } from "./event-sub-nav";
 
 describe("EventSubNav", () => {
+  it("places Organization immediately after Edit for admins", () => {
+    const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="organization" role="ADMIN" />);
+    expect(html.indexOf("Editar")).toBeLessThan(html.indexOf("Organización"));
+    expect(html.indexOf("Organización")).toBeLessThan(html.indexOf("Registros"));
+  });
+
   it("places Sorteo between the internal form and results for admins", () => {
     const html = renderToStaticMarkup(<EventSubNav eventId="event-1" current="raffle" role="ADMIN" />);
     expect(html.indexOf("Formulario interno")).toBeLessThan(html.indexOf("Sorteo"));
@@ -19,6 +25,7 @@ describe("EventSubNav", () => {
     expect(html).toContain("Registros");
     expect(html).toContain("Check-in");
     expect(html).toContain("Formulario interno");
+    expect(html).toContain("Organización");
   });
 
   it("shows every event section to event editors", () => {

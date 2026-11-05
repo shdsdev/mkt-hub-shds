@@ -6,6 +6,9 @@ import {
   integer,
   boolean,
   timestamp,
+  date,
+  index,
+  type AnyPgColumn,
   uniqueIndex,
   jsonb,
   check,
@@ -64,6 +67,8 @@ export const benefitRedemptionStatus = pgEnum("benefit_redemption_status", [
   "active",
   "annulled",
 ]);
+
+export const checklistTaskPriority = pgEnum("checklist_task_priority", ["low", "medium", "high"]);
 
 export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -148,6 +153,8 @@ export const eventRegistrations = pgTable("event_registrations", {
   source: eventRegistrationSource("source").notNull().default("public"),
   reviewStatus: eventRegistrationReviewStatus("review_status").notNull().default("new"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  firstApprovedAt: timestamp("first_approved_at", { withTimezone: true }),
+  deletionProtected: boolean("deletion_protected").notNull().default(false),
   reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "cascade" }),
   // Opaque, unguessable, revocable-by-update (design.md "Pass + cancel tokens") — no signing
   // secret, no expiry clock.
@@ -253,6 +260,116 @@ export const eventReceptionists = pgTable(
   (table) => [uniqueIndex("event_receptionists_event_user_unique").on(table.eventId, table.userId)],
 );
 
+export const eventChecklistGroups = pgTable(
+  "event_checklist_groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("event_checklist_groups_event_position_idx").on(table.eventId, table.position)],
+);
+
+export const eventChecklistTasks = pgTable(
+  "event_checklist_tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => eventChecklistGroups.id, { onDelete: "cascade" }),
+    parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => eventChecklistTasks.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    completed: boolean("completed").notNull().default(false),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    priority: checklistTaskPriority("priority").notNull().default("medium"),
+    dueDate: date("due_date"),
+    notes: text("notes"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedBy: uuid("completed_by").references(() => users.id, { onDelete: "set null" }),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("event_checklist_tasks_group_position_idx").on(table.groupId, table.position)],
+);
+
+export const checklistTemplates = pgTable(
+  "checklist_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("checklist_templates_organization_idx").on(table.organizationId)],
+);
+
+export const checklistTemplateGroups = pgTable(
+  "checklist_template_groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    templateId: uuid("template_id")
+      .notNull()
+      .references(() => checklistTemplates.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    position: integer("position").notNull(),
+  },
+  (table) => [index("checklist_template_groups_template_position_idx").on(table.templateId, table.position)],
+);
+
+export const checklistTemplateTasks = pgTable(
+  "checklist_template_tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => checklistTemplateGroups.id, { onDelete: "cascade" }),
+    parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => checklistTemplateTasks.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    notes: text("notes"),
+    position: integer("position").notNull(),
+  },
+  (table) => [index("checklist_template_tasks_group_position_idx").on(table.groupId, table.position)],
+);
+
+export const eventChecklistComments = pgTable(
+  "event_checklist_comments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => eventChecklistTasks.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("event_checklist_comments_task_created_idx").on(table.taskId, table.createdAt)],
+);
+
 export const eventBenefits = pgTable(
   "event_benefits",
   {
@@ -329,11 +446,18 @@ export const eventsTables = {
   eventRegistrationStatus,
   eventRegistrationSource,
   eventRegistrationReviewStatus,
+  checklistTaskPriority,
   events,
   eventRegistrations,
   eventAttendees,
   eventBenefits,
   eventBenefitRedemptions,
+  eventChecklistGroups,
+  eventChecklistTasks,
+  eventChecklistComments,
+  checklistTemplates,
+  checklistTemplateGroups,
+  checklistTemplateTasks,
   eventReceptionists,
   eventEditors,
 } as const;

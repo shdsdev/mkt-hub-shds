@@ -14,6 +14,8 @@ function registration(overrides: Partial<Parameters<typeof buildRegistrationsCsv
     reviewStatus: "new" as const,
     reviewedAt: null,
     reviewedBy: null,
+    firstApprovedAt: null,
+    deletionProtected: false,
     cancelToken: "token",
     utmSource: null,
     utmMedium: null,

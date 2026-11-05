@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import { isActive } from "@/modules/users";
+import { isActive, isAdmin } from "@/modules/users";
 import { canAccessEvent, getEvent, listRegistrations, resolveRegistrationFormConfig, type EventRegistrationRow } from "@/modules/events";
 import { EventSubNav } from "../../event-sub-nav";
 import { RegistrationsTable } from "./registrations-table";
@@ -156,6 +156,7 @@ export default async function RegistrationsPage({
           statusLabels={STATUS_LABELS}
           reviewStatusLabels={REVIEW_STATUS_LABELS}
           canManageAttendees={canManageAttendees}
+          canDeleteRegistrations={isAdmin(user.profile)}
           initialSelectedId={registrationId}
         />
       )}

@@ -6,10 +6,11 @@ import type { UserRole } from "@/modules/users";
 
 // Shared cross-navigation between an event's admin pages — none of these pages linked to each
 // other before (found via user feedback: "no sé cómo llegar a los registros/check-in/dashboard").
-export function EventSubNav({ eventId, current, role }: { eventId: string; current: "edit" | "registrations" | "dashboard" | "check-in" | "internal-form" | "raffle" | "questions" | "audit"; role: UserRole }) {
+export function EventSubNav({ eventId, current, role }: { eventId: string; current: "edit" | "organization" | "registrations" | "dashboard" | "check-in" | "internal-form" | "raffle" | "questions" | "audit"; role: UserRole }) {
   const activeTabRef = useRef<HTMLAnchorElement>(null);
   const tabs = [
     { key: "edit", label: "Editar", href: `/events/${eventId}/edit` },
+    { key: "organization", label: "Organización", href: `/events/${eventId}/organization` },
     { key: "registrations", label: "Registros", href: `/events/${eventId}/registrations` },
     { key: "check-in", label: "Check-in", href: `/events/${eventId}/check-in` },
     { key: "internal-form", label: "Formulario interno", href: `/events/${eventId}/internal-form` },
@@ -20,7 +21,7 @@ export function EventSubNav({ eventId, current, role }: { eventId: string; curre
   ].filter((tab) =>
     role === "ADMIN" ||
     role === "EVENT_EDITOR" ||
-    (role === "RECEPTION" && (tab.key === "registrations" || tab.key === "check-in" || tab.key === "internal-form" || tab.key === "dashboard")),
+    (role === "RECEPTION" && (tab.key === "registrations" || tab.key === "check-in" || tab.key === "internal-form" || tab.key === "dashboard" || tab.key === "organization")),
   );
 
   useEffect(() => {

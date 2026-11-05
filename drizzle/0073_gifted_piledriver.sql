@@ -1,0 +1,1 @@
+ALTER TYPE "public"."internal_notification_type" ADD VALUE 'checklist_task_due';

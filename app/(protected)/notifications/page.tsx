@@ -20,7 +20,7 @@ export default async function NotificationsPage() {
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-12 text-center">
           <Bell className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="font-medium">No tenés notificaciones nuevas</p>
-          <p className="text-sm text-muted-foreground">Las solicitudes de tus eventos aparecerán acá.</p>
+          <p className="text-sm text-muted-foreground">Las novedades de tus eventos aparecerán acá.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -37,7 +37,7 @@ export default async function NotificationsPage() {
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <Link href={notification.href} className="text-sm font-medium text-primary underline underline-offset-4">
-                  Revisar solicitud
+                  {notification.type === "checklist_task_due" ? "Ver tarea" : "Revisar solicitud"}
                 </Link>
                 {!notification.readAt ? (
                   <form action={markNotificationReadAction}>

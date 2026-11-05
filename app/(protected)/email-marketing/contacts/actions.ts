@@ -4,9 +4,10 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/modules/auth";
 import { isAdmin } from "@/modules/users";
-import { assignEmailTags, createEmailContact, createEmailTag, removeEmailTag, sendEmailRepermission, subscribeEmailContacts, updateEmailContact } from "@/modules/email-marketing";
+import { assignEmailTags, createEmailContact, createEmailTag, previewEventContactSync, removeEmailTag, sendEmailRepermission, subscribeEmailContacts, syncEventContactRecords, updateEmailContact } from "@/modules/email-marketing";
 import { parseEmailContactCsv, type ContactImportError } from "@/modules/email-marketing";
 import { formatEmailImportSummary } from "@/lib/email-contact-import";
+import { listRegistrationContactsForEmailSync } from "@/modules/events";
 
 const tagSchema = z.object({ name: z.string().trim().min(1).max(80) });
 const contactSchema = z.object({
@@ -27,6 +28,13 @@ const contactUpdateSchema = contactSchema.extend({ contactId: z.string().uuid() 
 const contactTagSchema = z.object({ contactId: z.string().uuid(), tagId: z.string().uuid() });
 
 export type ContactActionState = { error?: string; success?: string; created?: number; updated?: number; errors?: ContactImportError[]; warnings?: number };
+export type EventContactSyncActionState = {
+  error?: string;
+  success?: string;
+  preview?: boolean;
+  summary?: Awaited<ReturnType<typeof previewEventContactSync>>;
+  selectedEventIds?: string[];
+};
 
 function contactPath(contactId: string) {
   return `/email-marketing/contacts/${contactId}`;
@@ -80,6 +88,33 @@ export async function removeEmailContactTagAction(formData: FormData): Promise<v
 
 function authorizedUser() {
   return getCurrentUser().then((user) => user && isAdmin(user.profile) ? user : undefined);
+}
+
+export async function syncEventContactsAction(
+  _previous: EventContactSyncActionState,
+  formData: FormData,
+): Promise<EventContactSyncActionState> {
+  const user = await authorizedUser();
+  if (!user) return { error: "No tienes permisos para sincronizar contactos." };
+  const eventIds = formData.getAll("eventIds").map(String).filter(Boolean);
+  const selectedEventIds = eventIds.length > 0 ? eventIds : undefined;
+  try {
+    const records = await listRegistrationContactsForEmailSync({
+      organizationId: user.profile.organizationId,
+      eventIds: selectedEventIds,
+    });
+    const normalizedRecords = records.map((record) => ({ ...record, registrationId: record.registrationId }));
+    const summary = formData.get("confirm") === "true"
+      ? await syncEventContactRecords(normalizedRecords)
+      : await previewEventContactSync(normalizedRecords);
+    revalidatePath("/email-marketing/contacts");
+    return formData.get("confirm") === "true"
+      ? { summary, selectedEventIds: eventIds, success: `Sincronización completada: ${summary.newContacts} nuevos y ${summary.existingContacts} existentes.` }
+      : { summary, selectedEventIds: eventIds, preview: true };
+  } catch (error) {
+    console.error("Failed to synchronize event contacts", { organizationId: user.profile.organizationId, error });
+    return { error: "No se pudieron sincronizar los registros de eventos." };
+  }
 }
 
 export async function createEmailContactAction(
