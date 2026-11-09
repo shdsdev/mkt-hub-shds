@@ -49,7 +49,7 @@ vi.mock("@/modules/users", () => ({
   isAdmin: (profile: { role: string }) => profile.role === "ADMIN",
 }));
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { events, eventRegistrations, eventAttendees, eventBenefits, eventBenefitRedemptions } from "./db";
 import {
@@ -1605,6 +1605,27 @@ describe("events service — getEventInsights", () => {
 
     expect(result?.confirmedSeats).toBe(3);
     expect(result?.capacity).toBe(100);
+  });
+
+  it("keeps checked-in attendees in the confirmed seat metric", async () => {
+    const event = { ...baseEvent, capacity: 100 };
+    const confirmedSeatsQuery = selectChain([{ total: 42 }]);
+    selectMock
+      .mockReturnValueOnce(selectChain([event]))
+      .mockReturnValueOnce(selectChain([{ total: 10 }]))
+      .mockReturnValueOnce(selectChain([{ total: 10 }]))
+      .mockReturnValueOnce(confirmedSeatsQuery)
+      .mockReturnValueOnce(selectChain([]));
+
+    await getEventInsights("event-1", "org-1");
+
+    expect(confirmedSeatsQuery.where).toHaveBeenCalledWith(
+      and(
+        eq(eventAttendees.eventId, "event-1"),
+        eq(eventAttendees.isActive, true),
+        inArray(eventRegistrations.status, ["confirmed", "checked_in"]),
+      ),
+    );
   });
 
   it("returns a null capacity for unlimited events", async () => {

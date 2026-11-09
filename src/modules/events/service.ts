@@ -761,7 +761,7 @@ async function countConfirmedSeats(
       and(
         eq(eventAttendees.eventId, eventId),
         eq(eventAttendees.isActive, true),
-        eq(eventRegistrations.status, "confirmed"),
+        inArray(eventRegistrations.status, ["confirmed", "checked_in"]),
       ),
     );
   return row?.seatsUsed ?? 0;
@@ -1891,7 +1891,7 @@ export async function getEventInsights(
         and(
           eq(eventAttendees.eventId, eventId),
           eq(eventAttendees.isActive, true),
-          eq(eventRegistrations.status, "confirmed"),
+          inArray(eventRegistrations.status, ["confirmed", "checked_in"]),
         ),
       ),
     db
