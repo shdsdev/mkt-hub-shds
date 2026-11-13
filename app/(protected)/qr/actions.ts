@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import {
@@ -43,6 +44,26 @@ import {
 } from "./bulk/bulk-csv";
 
 const RATE_LIMIT_ERROR = "Demasiadas acciones. Inténtalo de nuevo en breve.";
+
+function scheduleQrPostCreationTask(
+  operation: string,
+  task: Promise<unknown>,
+  onSuccess?: () => void,
+): void {
+  after(async () => {
+    try {
+      await task;
+      onSuccess?.();
+    } catch (error: unknown) {
+      try {
+        const { captureOperationFailure } = await import("@/modules/monitoring");
+        captureOperationFailure({ operation, module: "qr", error });
+      } catch {
+        // Secondary observability must never create another unhandled rejection.
+      }
+    }
+  });
+}
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Debe ser un color hexadecimal como #1c130f.");
 const ecLevel = z.enum(["L", "M", "Q", "H"]);
@@ -183,19 +204,19 @@ export async function createWebsiteQrCodeAction(
     return { error: error instanceof Error ? error.message : "No se pudo crear el código QR." };
   }
 
-  await recordAudit({
+  scheduleQrPostCreationTask("qr_audit", recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
     action: "create",
     resourceType: "qr_code",
     resourceId: qrCode.id,
     after: qrCode,
-  });
+  }));
 
-  // Non-transactional, same posture as the rest of this action: a failure here doesn't unwind the
-  // already-created QR — it surfaces as a generic error only if it happens.
+  // The QR is the primary result. Audit/template/preset persistence is best-effort so a secondary
+  // production database delay or failure cannot leave the creation form waiting indefinitely.
   if (parsed.data.saveAsTemplate === "true" && parsed.data.templateName) {
-    await createQrDesignTemplate({
+    scheduleQrPostCreationTask("qr_template", createQrDesignTemplate({
       organizationId: user.profile.organizationId,
       name: parsed.data.templateName,
       dotsType: parsed.data.dotsType,
@@ -205,7 +226,7 @@ export async function createWebsiteQrCodeAction(
       foregroundColor: parsed.data.foregroundColor,
       errorCorrectionLevel: parsed.data.errorCorrectionLevel,
       logoUrl: parsed.data.logoUrl || undefined,
-    });
+    }));
   }
 
   if (
@@ -215,7 +236,7 @@ export async function createWebsiteQrCodeAction(
     parsed.data.utmMedium &&
     parsed.data.utmCampaign
   ) {
-    await createUtmPreset({
+    scheduleQrPostCreationTask("qr_utm_preset", createUtmPreset({
       organizationId: user.profile.organizationId,
       name: parsed.data.utmPresetName,
       utmSource: parsed.data.utmSource,
@@ -224,8 +245,7 @@ export async function createWebsiteQrCodeAction(
       // The QR wizard accepts free-text source/medium, so its saved presets are treated as a
       // custom/external source rather than an approved-taxonomy selection.
       sourceMode: "external",
-    });
-    revalidatePath("/links");
+    }), () => revalidatePath("/links"));
   }
 
   revalidatePath("/qr");
@@ -366,17 +386,17 @@ export async function createStaticQrCodeAction(
     cornersDotType,
   });
 
-  await recordAudit({
+  scheduleQrPostCreationTask("qr_audit", recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
     action: "create",
     resourceType: "qr_code",
     resourceId: qrCode.id,
     after: qrCode,
-  });
+  }));
 
   if (saveAsTemplate === "true" && templateName) {
-    await createQrDesignTemplate({
+    scheduleQrPostCreationTask("qr_template", createQrDesignTemplate({
       organizationId: user.profile.organizationId,
       name: templateName,
       dotsType,
@@ -386,7 +406,7 @@ export async function createStaticQrCodeAction(
       foregroundColor,
       errorCorrectionLevel,
       logoUrl: logoUrl || undefined,
-    });
+    }));
   }
 
   revalidatePath("/qr");

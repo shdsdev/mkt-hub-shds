@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("@/modules/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
+vi.mock("next/server", () => ({ after: (callback: () => unknown) => { void callback(); } }));
 vi.mock("@/modules/audit", () => mocks.audit);
 vi.mock("@/modules/links", () => mocks.links);
 vi.mock("@/modules/qr", () => mocks.qr);
@@ -137,5 +138,32 @@ describe("non-event action authorization independent of the request URL", () => 
       expect(mutation).toHaveBeenCalled();
       expect(mocks.revalidatePath).toHaveBeenCalled();
     }
+  });
+
+  it("returns the created website QR even when audit logging fails", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ id: "user-1", profile: { role: "MARKETING_USER", status: "active", organizationId: "org-1" } });
+    mocks.audit.recordAudit.mockRejectedValue(new Error("audit unavailable"));
+
+    const result = await qr.createWebsiteQrCodeAction({}, form());
+
+    expect(result).toEqual({ qrCodeId: id });
+  });
+
+  it("returns the created static QR even when audit logging fails", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ id: "user-1", profile: { role: "MARKETING_USER", status: "active", organizationId: "org-1" } });
+    mocks.audit.recordAudit.mockRejectedValue(new Error("audit unavailable"));
+
+    const result = await qr.createStaticQrCodeAction({}, form());
+
+    expect(result).toEqual({ qrCodeId: id });
+  });
+
+  it("does not block QR creation when saving the optional template fails", async () => {
+    mocks.getCurrentUser.mockResolvedValue({ id: "user-1", profile: { role: "MARKETING_USER", status: "active", organizationId: "org-1" } });
+    mocks.qr.createQrDesignTemplate.mockRejectedValue(new Error("template unavailable"));
+
+    const result = await qr.createStaticQrCodeAction({}, form());
+
+    expect(result).toEqual({ qrCodeId: id });
   });
 });
