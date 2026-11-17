@@ -39,6 +39,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -76,7 +77,7 @@ function NavItem({
       <SidebarMenuButton
         isActive={active}
         className="hover:text-sidebar-accent-foreground data-active:bg-accent data-active:text-accent-foreground data-active:hover:bg-accent"
-        render={<Link href={href} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} />}
+        render={<Link href={href} aria-current={active ? "page" : undefined} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} />}
       >
         <span className={hovered ? "text-sidebar-accent-foreground" : undefined}>
           <HoverMorphIcon idle={idle} active={activeIcon} size={16} hovered={hovered} />
@@ -187,11 +188,12 @@ export function ProfileMenu({
 
 export function MobileBottomNav({ role }: { role: string }) {
   const pathname = usePathname();
+  const { isMobile, openMobile } = useSidebar();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const eventsOnly = role === "EVENT_EDITOR" || role === "RECEPTION";
   const eventsActive = pathname === "/events" || pathname.startsWith("/events/");
   const qrActive = pathname === "/qr" || pathname.startsWith("/qr/");
-  const moreActive = !eventsActive && !qrActive;
+  const moreOpen = isMobile && openMobile;
   const itemClass = "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 motion-reduce:transition-none";
 
   useEffect(() => {
@@ -226,10 +228,10 @@ export function MobileBottomNav({ role }: { role: string }) {
       {!eventsOnly ? (
         <SidebarTrigger
           aria-label="Abrir más opciones"
-          aria-pressed={moreActive}
+          aria-expanded={moreOpen}
+          aria-controls="app-navigation"
           title="Más"
-          style={moreActive ? { backgroundColor: "var(--accent)", color: "var(--accent-foreground)" } : undefined}
-          className={`${itemClass} h-auto text-white/65 hover:bg-white/10 hover:text-white ${moreActive ? "bg-accent text-accent-foreground" : ""}`}
+          className={`${itemClass} h-auto text-white/65 hover:bg-white/10 hover:text-white ${moreOpen ? "bg-accent text-accent-foreground" : ""}`}
         >
           <MoreHorizontalIcon className="size-5" strokeWidth={2} aria-hidden="true" />
           <span>Más</span>
@@ -243,7 +245,7 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
   const pathname = usePathname();
   const eventsOnly = role === "EVENT_EDITOR" || role === "RECEPTION";
   const qrShortLinksActive =
-    pathname.startsWith("/links") || pathname.startsWith("/qr") || pathname.startsWith("/analytics");
+    pathname.startsWith("/links") || pathname.startsWith("/qr");
   const quickQrActive = pathname === "/qr/quick" || pathname.startsWith("/qr/quick/");
   const qrCodesActive = !quickQrActive && (pathname === "/qr" || pathname.startsWith("/qr/"));
   // Keep the first render structurally identical on the server and client. The pathname can be
@@ -256,7 +258,7 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
   }, [qrShortLinksActive]);
 
   return (
-    <Sidebar className="group-data-[side=left]:border-r-0">
+    <Sidebar id="app-navigation" className="group-data-[side=left]:border-r-0">
       <SidebarHeader className="px-4 pt-6 pb-0">
         <span className="font-heading text-lg font-semibold">Marketing Hub</span>
       </SidebarHeader>
@@ -326,6 +328,9 @@ export function AppSidebar({ email, role, targetThemeId, targetThemeMode }: { em
               )}
               {!eventsOnly && <NavItem href="/campaigns" idle={Megaphone} active={Volume2}>
                 Campañas
+              </NavItem>}
+              {!eventsOnly && <NavItem href="/analytics" idle={Gauge} active={Gauge}>
+                Analytics
               </NavItem>}
               <NavItem href="/events" idle={Calendar} active={CalendarDays}>
                 Eventos

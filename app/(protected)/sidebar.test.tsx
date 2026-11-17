@@ -23,12 +23,15 @@ vi.mock("@/components/ui/theme-switch", () => ({
   default: ({ targetThemeId }: { targetThemeId: string }) => <span data-theme-target={targetThemeId}>Apariencia</span>,
 }));
 vi.mock("@/components/ui/sidebar", () => {
-  const wrapper = ({ children, render, isActive, className }: { children?: ReactNode; render?: ReactNode; isActive?: boolean; className?: string }) => <div className={className} data-active={isActive}>{render}{children}</div>;
-  return Object.fromEntries([
+  const wrapper = ({ children, render, isActive, className, ...props }: { children?: ReactNode; render?: ReactNode; isActive?: boolean; className?: string; [key: string]: unknown }) => <div className={className} data-active={isActive} {...props}>{render}{children}</div>;
+  return {
+    ...Object.fromEntries([
     "Sidebar", "SidebarContent", "SidebarFooter", "SidebarGroup", "SidebarGroupContent",
     "SidebarGroupLabel", "SidebarHeader", "SidebarMenu", "SidebarMenuButton", "SidebarMenuItem", "SidebarTrigger",
     "SidebarMenuSub", "SidebarMenuSubButton", "SidebarMenuSubItem",
-  ].map((name) => [name, wrapper]));
+    ].map((name) => [name, wrapper])),
+    useSidebar: () => ({ isMobile: true, openMobile: false }),
+  };
 });
 vi.mock("@/components/ui/avatar", () => ({
   Avatar: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
@@ -69,6 +72,33 @@ describe("sidebar role visibility", () => {
       vi.mocked(usePathname).mockReturnValue("/events");
       vi.unstubAllGlobals();
     }
+  });
+
+  it("exposes Analytics as its own current navigation destination", async () => {
+    vi.mocked(usePathname).mockReturnValue("/analytics");
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<AppSidebar email="admin@example.com" role="ADMIN" targetThemeId="carbon" />));
+      const analyticsLink = container.querySelector('a[href="/analytics"]');
+      expect(analyticsLink).not.toBeNull();
+      expect(analyticsLink?.getAttribute("aria-current")).toBe("page");
+      const group = Array.from(container.querySelectorAll("[data-active]")).find((element) => element.textContent === "QR Short Links");
+      expect(group?.getAttribute("data-active")).toBe("false");
+    } finally {
+      await act(async () => root.unmount());
+      vi.mocked(usePathname).mockReturnValue("/events");
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("treats Más as a navigation drawer trigger instead of a current-page state", () => {
+    vi.mocked(usePathname).mockReturnValue("/analytics");
+    const html = renderToStaticMarkup(<MobileBottomNav role="ADMIN" />);
+
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain("aria-pressed");
   });
 
   it.each(["RECEPTION", "EVENT_EDITOR"])("shows only the events module for %s", (role) => {
@@ -113,7 +143,7 @@ describe("sidebar role visibility", () => {
     expect(html).toContain("Qr Short");
     expect(html).toContain("Más");
     expect(html).toContain("xl:hidden");
-    expect(html).toContain("bg-accent");
+    expect(html).toContain('aria-expanded="false"');
   });
 
   it.each(["RECEPTION", "EVENT_EDITOR"])("shows only Eventos for %s on mobile", (role) => {
