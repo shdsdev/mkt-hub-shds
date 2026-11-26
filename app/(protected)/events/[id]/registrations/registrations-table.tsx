@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { EventRegistrationRow, RegistrationWithAttendees } from "@/modules/events";
+import type { EventRegistrationRow, RegistrationOccupation, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import { Camera, Globe2, Mail, Megaphone, MessageCircle, Search, ShieldCheck, Tag } from "lucide-react";
 import { AddCompanionRow } from "./add-companion-row";
@@ -22,6 +22,7 @@ type Props = {
   canManageAttendees: boolean;
   canDeleteRegistrations: boolean;
   initialSelectedId?: string;
+  occupationOptions?: readonly RegistrationOccupation[];
 };
 
 function statusBadgeClass(status: string): string {
@@ -72,6 +73,7 @@ export function RegistrationsTable({
   canManageAttendees,
   canDeleteRegistrations,
   initialSelectedId,
+  occupationOptions = [],
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
@@ -255,7 +257,7 @@ export function RegistrationsTable({
                     {formatRegistrationDate(registration.createdAt)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {primary?.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation); return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : <span className="text-muted-foreground">—</span>}
+                    {primary?.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation, occupationOptions); return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="hidden px-4 py-3 whitespace-nowrap xl:table-cell">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass(displayStatus)}`}>
@@ -296,7 +298,7 @@ export function RegistrationsTable({
                         eventId={eventId}
                         collectCompany={collectCompany}
                         collectJobTitle={collectJobTitle}
-                        phoneRequired={phoneRequired}
+                         phoneRequired={phoneRequired}
                       />
                     ) : null}
                   </td>
@@ -323,7 +325,8 @@ export function RegistrationsTable({
           eventName={eventName}
           collectCompany={collectCompany}
           collectJobTitle={collectJobTitle}
-          phoneRequired={phoneRequired}
+           phoneRequired={phoneRequired}
+           occupationOptions={occupationOptions}
           canManageAttendees={canManageAttendees}
           canDeleteRegistrations={canDeleteRegistrations}
         />

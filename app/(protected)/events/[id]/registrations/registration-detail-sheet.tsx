@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { MEXICAN_STATES } from "@/lib/events/mexican-states";
-import type { RegistrationWithAttendees } from "@/modules/events";
+import type { RegistrationOccupation, RegistrationWithAttendees } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import { CheckCircle2, Clock3, Tag, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ export function RegistrationDetailSheet({
   phoneRequired,
   canManageAttendees,
   canDeleteRegistrations,
+  occupationOptions,
 }: {
   registration: RegistrationWithAttendees;
   statusLabel: string;
@@ -75,7 +76,9 @@ export function RegistrationDetailSheet({
   phoneRequired: boolean;
   canManageAttendees: boolean;
   canDeleteRegistrations: boolean;
+  occupationOptions?: readonly RegistrationOccupation[];
 }) {
+  const configuredOccupationOptions = occupationOptions ?? [];
   const [reviewState, reviewAction, reviewPending] = useActionState(updateRegistrationReviewStatusAction, {});
   const [deleteState, deleteAction, deletePending] = useActionState(deleteRegistrationAction, {});
   const [reviewStatus, setReviewStatus] = useState(registration.reviewStatus);
@@ -286,7 +289,7 @@ export function RegistrationDetailSheet({
                   <p className="text-muted-foreground">Puesto: {attendee.jobTitle}</p>
                 ) : null}
                 {attendee.occupation ? (
-                  <p className="text-muted-foreground">Actividad: {getOccupationPresentation(attendee.occupation).label}</p>
+                  <p className="text-muted-foreground">Actividad: {getOccupationPresentation(attendee.occupation, configuredOccupationOptions).label}</p>
                 ) : null}
                 {attendee.state ? (
                   <p className="text-muted-foreground">Estado: {STATE_LABELS.get(attendee.state) ?? attendee.state}</p>

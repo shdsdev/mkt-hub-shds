@@ -38,12 +38,16 @@ const config = {
   customFieldsVersion: 1 as const,
   customFields: [],
   fields: {
+    email: { visible: true, required: true },
     phone: { visible: false, required: false },
     company: { visible: false, required: false },
     jobTitle: { visible: false, required: false },
     state: { visible: false, required: false },
   },
   companion: { enabled: true },
+  occupations: [
+    { value: "manufacturer", label: "Fabricante", color: "blue" as const, enabled: true },
+  ],
   clientBrands: { enabled: false, options: [] as never[] },
   interests: { enabled: false, options: [] as never[] },
   consent: {

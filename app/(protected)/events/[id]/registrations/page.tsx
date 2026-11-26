@@ -69,6 +69,7 @@ export default async function RegistrationsPage({
   const pageSize = parsePageSize(sp.pageSize);
   const registrationId = sp.registrationId ?? undefined;
 
+  const formConfig = resolveRegistrationFormConfig(event);
   const registrations = await listRegistrations(id, user.profile.organizationId, { status, reviewStatus: reviewStatus as EventRegistrationRow["reviewStatus"] | undefined, q });
   const filteredRegistrations = registrations.filter((registration) => {
     const primary = getPrimaryAttendee(registration);
@@ -120,11 +121,12 @@ export default async function RegistrationsPage({
          status={status}
          q={q}
          reviewStatus={reviewStatus}
-         source={source}
-         occupation={occupation}
-         state={state}
-         sort={sort}
-         pageSize={pageSize}
+           source={source}
+           occupation={occupation}
+           state={state}
+           sort={sort}
+           pageSize={pageSize}
+           occupationOptions={formConfig.occupations}
        />
        <div className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-border bg-background p-1 text-sm" aria-label="Filtrar registros por situación">
          <Link href={filterHref(undefined)} aria-current={!status ? "page" : undefined} className={`whitespace-nowrap rounded px-3 py-2 transition-colors ${!status ? "registration-filter-active font-medium" : "registration-filter-option text-muted-foreground"}`}>
@@ -152,12 +154,13 @@ export default async function RegistrationsPage({
           eventName={event.name}
           collectCompany={event.collectCompany}
           collectJobTitle={event.collectJobTitle}
-          phoneRequired={resolveRegistrationFormConfig(event).fields.phone.required}
+           phoneRequired={formConfig.fields.phone.required}
           statusLabels={STATUS_LABELS}
           reviewStatusLabels={REVIEW_STATUS_LABELS}
           canManageAttendees={canManageAttendees}
           canDeleteRegistrations={isAdmin(user.profile)}
-          initialSelectedId={registrationId}
+           initialSelectedId={registrationId}
+           occupationOptions={formConfig.occupations}
         />
       )}
       {sortedRegistrations.length > 0 ? (

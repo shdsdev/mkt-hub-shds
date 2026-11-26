@@ -12,4 +12,10 @@ describe("getOccupationPresentation", () => {
   it("falls back to a neutral presentation for unknown occupations", () => {
     expect(getOccupationPresentation("unknown")).toMatchObject({ label: "Categoría no especificada", color: "neutral" });
   });
+
+  it("uses the event-specific label and color when configured", () => {
+    expect(getOccupationPresentation("vip-client", [
+      { value: "vip-client", label: "Cliente VIP", color: "yellow", enabled: true },
+    ])).toMatchObject({ label: "Cliente VIP", color: "yellow", className: "bg-yellow-500 text-black" });
+  });
 });

@@ -84,7 +84,7 @@ const schema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   company: z.string().trim().max(255).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
-  occupation: z.enum(OCCUPATION_OPTIONS),
+  occupation: z.string().trim().min(1).max(64),
 });
 
 export type AddedCompanion = { fullName: string; backupCode: string; emailStatus: "sent" | "pending_approval" | "failed" };
@@ -116,6 +116,11 @@ async function requireEventManager(eventId: string) {
     if (!editorIds.includes(user.id)) return undefined;
   }
   return { user, event };
+}
+
+function isConfiguredOccupation(event: Awaited<ReturnType<typeof getEvent>>, occupation: string): boolean {
+  const config = event && resolveRegistrationFormConfig(event);
+  return Boolean(config && (config.occupations ?? OCCUPATION_OPTIONS.map((value) => ({ value, enabled: true }))).some((option) => option.enabled && option.value === occupation));
 }
 
 export async function deleteRegistrationAction(
@@ -175,6 +180,7 @@ export async function editAttendeeAction(
     occupation: formData.get("occupation"),
   });
   if (!parsed.success) return { error: "Revisa los datos del asistente." };
+  if (!isConfiguredOccupation(context.event, parsed.data.occupation)) return { error: "Seleccioná una actividad válida." };
 
   if (context.event && resolveRegistrationFormConfig(context.event).fields.phone.required && !parsed.data.phone?.trim()) {
     return { error: "El teléfono es obligatorio." };
@@ -209,7 +215,7 @@ export async function editAttendeeAction(
   });
 
   const emailChanged = result.previous.email !== result.attendee.email;
-  if (emailChanged) {
+  if (emailChanged && resolveRegistrationFormConfig(context.event)?.fields?.email?.visible !== false) {
     const registrations = await listRegistrations(parsed.data.eventId, context.user.profile.organizationId);
     const registration = registrations.find((reg) => reg.attendees.some(({ id }) => id === attendeeId.data));
     const attendee = registration?.attendees.find(({ id }) => id === attendeeId.data);
@@ -269,6 +275,7 @@ export async function replaceCompanionAction(
     occupation: formData.get("occupation"),
   });
   if (!parsed.success) return { error: "Revisa los datos del nuevo acompañante." };
+  if (!isConfiguredOccupation(context.event, parsed.data.occupation)) return { error: "Seleccioná una actividad válida." };
 
   const registrations = await listRegistrations(parsed.data.eventId, context.user.profile.organizationId);
   const registration = registrations.find((reg) => reg.id === parsed.data.registrationId);
@@ -358,6 +365,7 @@ export async function transferPrimaryOwnershipAction(
     occupation: formData.get("occupation"),
   });
   if (!parsed.success) return { error: "Revisa los datos del nuevo titular." };
+  if (!isConfiguredOccupation(context.event, parsed.data.occupation)) return { error: "Seleccioná una actividad válida." };
   const registrations = await listRegistrations(parsed.data.eventId, context.user.profile.organizationId);
   const registration = registrations.find((candidate) => candidate.id === parsed.data.registrationId);
   const current = registration?.attendees.find((attendee) => attendee.id === attendeeId.data && attendee.isPrimary);
@@ -422,6 +430,7 @@ async function sendReplacementInvitation(
   attendee: RegistrationWithAttendees["attendees"][number],
   cancelToken: string,
 ): Promise<boolean> {
+  if (resolveRegistrationFormConfig(event)?.fields?.email?.visible === false) return true;
   try {
     const qrPng = await exportQrPng(attendee.backupCode, {});
     const result = await sendConfirmationEmail({
@@ -532,6 +541,7 @@ export async function updateRegistrationReviewStatusAction(
 
   const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
   if (!event) return { error: "No se encontró el registro." };
+  const emailEnabled = resolveRegistrationFormConfig(event)?.fields?.email?.visible !== false;
   const receptionistIds = await listEventReceptionistIds(parsed.data.eventId, user.profile.organizationId);
   if (!isAdmin(user.profile) && !receptionistIds.includes(user.id)) return { error: PERMISSION_ERROR };
   let registration;
@@ -586,7 +596,7 @@ export async function updateRegistrationReviewStatusAction(
     href,
     dedupeKey: `registration-decision:${parsed.data.registrationId}:${parsed.data.reviewStatus}`,
   })).catch(() => undefined);
-  if (confirmationAttendees.length > 0 && parsed.data.reviewStatus === "approved") {
+  if (emailEnabled && confirmationAttendees.length > 0 && parsed.data.reviewStatus === "approved") {
     try {
       await Promise.all(
         confirmationAttendees.map(async (attendee) => {
@@ -632,7 +642,7 @@ export async function updateRegistrationReviewStatusAction(
       throw error;
     }
   }
-  if (primary && (parsed.data.reviewStatus === "waitlisted" || parsed.data.reviewStatus === "rejected")) {
+  if (emailEnabled && primary && (parsed.data.reviewStatus === "waitlisted" || parsed.data.reviewStatus === "rejected")) {
     try {
       await sendRegistrationDecisionEmail({
         organizationId: primary.organizationId,
@@ -678,6 +688,7 @@ export async function addCompanionAction(
   if (!parsed.success) return { error: INVALID_FORM_ERROR };
 
   const event = await getEvent(parsed.data.eventId, user.profile.organizationId);
+  if (!isConfiguredOccupation(event, parsed.data.occupation)) return { error: "Seleccioná una actividad válida." };
   if (event && resolveRegistrationFormConfig(event).fields.phone.required && !parsed.data.phone?.trim()) {
     return { error: "El teléfono es obligatorio." };
   }
@@ -716,7 +727,7 @@ export async function addCompanionAction(
   // design.md "Emails sent AFTER commit, never inside the lock" — same convention as
   // registerForEventAction/cancelRegistrationAction.
   let emailStatus: AddedCompanion["emailStatus"] = "pending_approval";
-  if (result.registrationStatus === "confirmed" && result.reviewStatus === "approved") {
+  if (event && resolveRegistrationFormConfig(event)?.fields?.email?.visible !== false && result.registrationStatus === "confirmed" && result.reviewStatus === "approved") {
     const qrPng = await exportQrPng(result.attendee.backupCode, {});
     const sendResult = await sendConfirmationEmail({
       organizationId: result.attendee.organizationId,
@@ -784,6 +795,7 @@ export async function resendInvitationAction(
   const attendee = registration?.attendees.find(({ id }) => id === parsed.data.attendeeId);
   if (!attendee || !registration) return { error: "No se encontró al asistente." };
   if (registration.reviewStatus !== "approved") return { error: RESEND_APPROVAL_ERROR };
+  if (resolveRegistrationFormConfig(event)?.fields?.email?.visible === false) return { success: "El correo está desactivado para este evento." };
 
   const qrPng = await exportQrPng(attendee.backupCode, {});
   const result = await sendConfirmationEmail({

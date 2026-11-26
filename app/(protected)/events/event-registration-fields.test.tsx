@@ -20,12 +20,17 @@ const config: RegistrationFormConfig = {
     section: "personal",
   }],
   fields: {
+    email: { visible: true, required: true },
     phone: { visible: false, required: false },
     company: { visible: false, required: false },
     jobTitle: { visible: false, required: false },
     state: { visible: false, required: false },
   },
   companion: { enabled: true },
+  occupations: [
+    { value: "manufacturer", label: "Fabricante", color: "blue", enabled: true },
+    { value: "vip-client", label: "Cliente VIP", color: "yellow", enabled: true },
+  ],
   clientBrands: { enabled: false, options: [] },
   interests: { enabled: false, options: [] },
   consent: {
@@ -56,5 +61,19 @@ describe("EventRegistrationFields", () => {
     });
 
     expect(container.querySelector('input[type="date"]')).toHaveProperty("disabled", true);
+  });
+
+  it("renders email and companion toggles plus configurable occupations", () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(<form><EventRegistrationFields initialFormConfig={config} /></form>);
+    });
+
+    expect(container.textContent).toContain("Correo electrónico");
+    expect(container.textContent).toContain("Permitir acompañantes");
+    expect(container.querySelector('input[aria-label="Nombre de Cliente VIP"]')).toHaveProperty("value", "Cliente VIP");
   });
 });

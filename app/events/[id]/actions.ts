@@ -9,7 +9,6 @@ import {
   listEventReceptionistIds,
   registerForEvent,
   notifyEventWebhook,
-  OCCUPATION_OPTIONS,
   resolveRegistrationFormConfig,
   type AttendeeInput,
 } from "@/modules/events";
@@ -52,7 +51,7 @@ const attendeeSchema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   company: z.string().trim().max(255).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
-  occupation: z.enum(OCCUPATION_OPTIONS),
+  occupation: z.string().trim().min(1).max(64),
   state: z.string().trim().max(100).optional().or(z.literal("")),
 });
 
@@ -117,11 +116,21 @@ function normalizeConfiguredAttendee(
   };
 }
 
+type RawCompanion = {
+  fullName: string;
+  email: string;
+  phone: string;
+  company: string;
+  jobTitle: string;
+  occupation: string;
+  state: string;
+};
+
 // Companions are submitted as same-name repeated inputs (register-form.tsx renders one row per
 // companion) — `FormData.getAll` preserves submission order, so zipping by index pairs each
 // companion's fields back together. A row with neither name nor email filled in is treated as an
 // unused/removed row, not a validation error.
-function readCompanions(formData: FormData): unknown[] {
+function readCompanions(formData: FormData): RawCompanion[] {
   const fullNames = formData.getAll("companionFullName").map(String);
   const emails = formData.getAll("companionEmail").map(String);
   const phones = formData.getAll("companionPhone").map(String);
@@ -154,6 +163,10 @@ function readUtm(formData: FormData) {
   };
 }
 
+function createMissingEmailAddress(): string {
+  return `no-email-${crypto.randomUUID()}@invalid.local`;
+}
+
 // spec.md "Public landing" registration entrypoint. The event is re-resolved server-side from
 // `slug` (never trusts a client-supplied eventId/eventName) — this both re-enforces the "draft is
 // never publicly reachable" rule at submission time and gives `eventName` an authoritative source
@@ -173,10 +186,16 @@ export async function registerForEventAction(
   const event = await getPublishedEventBySlugPublic(slug);
   if (!event) return { error: EVENT_UNAVAILABLE_ERROR };
   const formConfig = resolveRegistrationFormConfig(event);
+  const activeOccupations = new Set(formConfig.occupations.filter((option) => option.enabled).map((option) => option.value));
+  const emailEnabled = formConfig.fields.email.visible;
+  const primaryEmail = String(formData.get("email") ?? "").trim();
+  if (formConfig.fields.email.required && !primaryEmail) {
+    return { error: INVALID_FORM_ERROR, fieldErrors: { email: "El correo es obligatorio." } };
+  }
   const customAnswers = parseRegistrationFormAnswers(formConfig.customFields, formData, PUBLIC_FORM_KEYS);
   if (!customAnswers.ok) return { error: customAnswers.error, fieldErrors: customAnswers.fieldErrors };
   const occupation = formData.get("occupation");
-  if (typeof occupation !== "string" || !OCCUPATION_OPTIONS.includes(occupation as never)) {
+  if (typeof occupation !== "string" || !activeOccupations.has(occupation)) {
     return { error: INVALID_OCCUPATION_ERROR, fieldErrors: { occupation: INVALID_OCCUPATION_ERROR } };
   }
 
@@ -184,7 +203,7 @@ export async function registerForEventAction(
   if (!primaryCompany.success) return { error: "Revisa los datos de la empresa." };
   const primaryParsed = attendeeSchema.safeParse({
     fullName: formData.get("fullName") ?? "",
-    email: formData.get("email") ?? "",
+    email: emailEnabled && primaryEmail ? primaryEmail : createMissingEmailAddress(),
     phone: formData.get("phone") ?? undefined,
     company: primaryCompany.data,
     jobTitle: formData.get("jobTitle") ?? undefined,
@@ -207,12 +226,18 @@ export async function registerForEventAction(
   if (companionInputs.length > 1) return { error: TOO_MANY_COMPANIONS_ERROR };
   if (companionInputs.length > 0 && !formConfig.companion.enabled) return { error: INVALID_COMPANION_ERROR };
   const firstCompanion = companionInputs[0] as { occupation?: unknown } | undefined;
-  if (firstCompanion && !OCCUPATION_OPTIONS.includes(String(firstCompanion.occupation) as never)) {
+  if (firstCompanion && !activeOccupations.has(String(firstCompanion.occupation))) {
     return { error: INVALID_COMPANION_OCCUPATION_ERROR };
   }
-  const companionsParsed = z.array(attendeeSchema).safeParse(companionInputs);
+  const companionsParsed = z.array(attendeeSchema).safeParse(companionInputs.map((companion) => ({
+    ...companion,
+    email: emailEnabled && companion.email.trim() ? companion.email : createMissingEmailAddress(),
+  })));
   if (!companionsParsed.success) return { error: INVALID_COMPANION_ERROR };
   let companionsData = companionsParsed.data;
+  if (formConfig.fields.email.required && companionsData.some((companion) => companion.email.endsWith("@invalid.local"))) {
+    return { error: INVALID_COMPANION_ERROR, fieldErrors: { companionEmail: "El correo del acompañante es obligatorio." } };
+  }
   let resolvedCompanionCompany: string | undefined;
   if (companionsData[0] && formConfig.fields.company.visible) {
     const companionCompanyMode = z.enum(["same", "other"]).safeParse(formData.get("companionCompanyMode"));
@@ -230,8 +255,8 @@ export async function registerForEventAction(
   if (companionFieldError) return { error: companionFieldError.replace(/^El |^La /, "El acompañante: ") };
 
   const contactErrors = getCompanionContactErrors({
-    primaryEmail: primaryParsed.data.email,
-    companionEmail: companionsData[0]?.email ?? "",
+    primaryEmail: emailEnabled ? primaryParsed.data.email : "",
+    companionEmail: emailEnabled ? companionsData[0]?.email ?? "" : "",
     primaryPhone: primaryParsed.data.phone ?? "",
     companionPhone: companionsData[0]?.phone ?? "",
   });
@@ -302,7 +327,7 @@ export async function registerForEventAction(
   if (result.attendees.length > 0) {
     try {
       const { syncEventAttendeeContact } = await import("@/modules/email-marketing");
-      await Promise.all(result.attendees.map((attendee) => syncEventAttendeeContact({
+      await Promise.all(emailEnabled ? result.attendees.map((attendee) => syncEventAttendeeContact({
         organizationId: event.organizationId,
         eventId: event.id,
         attendeeId: attendee.id,
@@ -320,7 +345,7 @@ export async function registerForEventAction(
           eventRegistrationStatus: result.registration.status,
           isPrimary: attendee.isPrimary,
         },
-      })));
+      })) : []);
     } catch (error) {
       const { captureOperationFailure } = await import("@/modules/monitoring");
       captureOperationFailure({ operation: "email_marketing_contact_sync", module: "email-marketing", error });
@@ -384,7 +409,7 @@ export async function registerForEventAction(
   // registerForEvent's transaction. spec.md "Confirmation Email Content" is sent only on
   // `confirmed` status; a waitlisted registration gets its email later, on promotion (PR3's
   // cancelRegistrationByToken / a future admin cancel path), not here.
-  if (result.registration.status === "confirmed") {
+  if (emailEnabled && result.registration.status === "confirmed") {
     const manageUrl = `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${result.registration.cancelToken}`;
     await Promise.all(
       result.attendees.map(async (attendee) => {

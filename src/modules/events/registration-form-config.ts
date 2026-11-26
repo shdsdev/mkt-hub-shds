@@ -8,6 +8,7 @@ export const OCCUPATION_OPTIONS = [
   "architect-decorator",
   "installer-technician",
 ] as const;
+export const OCCUPATION_COLORS = ["orange", "blue", "green", "yellow", "red", "neutral"] as const;
 export const INTEREST_OPTIONS = [
   "battery-motors",
   "wifi-automation",
@@ -18,6 +19,14 @@ export const INTEREST_OPTIONS = [
 export type ClientBrandOption = (typeof CLIENT_BRAND_OPTIONS)[number];
 export type OccupationOption = (typeof OCCUPATION_OPTIONS)[number];
 export type InterestOption = (typeof INTEREST_OPTIONS)[number];
+export type OccupationColor = (typeof OCCUPATION_COLORS)[number];
+
+export const DEFAULT_OCCUPATION_DEFINITIONS = [
+  { value: "wholesaler", label: "Mayorista", color: "orange", enabled: true },
+  { value: "manufacturer", label: "Fabricante", color: "blue", enabled: true },
+  { value: "architect-decorator", label: "Arquitecto / Decorador", color: "green", enabled: true },
+  { value: "installer-technician", label: "Instalador o técnico", color: "red", enabled: true },
+] as const;
 
 export { toggleClientBrandOption } from "@/lib/events/registration-form-ui";
 
@@ -45,6 +54,13 @@ const consentLinkSchema = z.object({
 
 const clientBrandOptionSchema = z.enum(CLIENT_BRAND_OPTIONS);
 const occupationOptionSchema = z.enum(OCCUPATION_OPTIONS);
+const configurableOccupationSchema = z.object({
+  value: z.string().trim().regex(/^[a-z0-9][a-z0-9-]{0,63}$/, "El identificador de la categoría no es válido."),
+  label: z.string().trim().min(1).max(100),
+  color: z.enum(OCCUPATION_COLORS),
+  enabled: z.boolean(),
+});
+export type RegistrationOccupation = z.infer<typeof configurableOccupationSchema>;
 const interestOptionSchema = z.enum(INTEREST_OPTIONS);
 
 const customFieldOptionSchema = z.object({
@@ -130,12 +146,25 @@ export const registrationFormConfigSchema = z.object({
   customFieldsVersion: z.literal(1).default(1),
   customFields: customFieldsSchema.default([]),
   fields: z.object({
+    email: visibilitySchema.default({ visible: true, required: true }),
     phone: visibilitySchema,
     company: visibilitySchema,
     jobTitle: visibilitySchema,
     state: visibilitySchema.default({ visible: false, required: false }),
   }),
   companion: z.object({ enabled: z.boolean() }),
+  occupations: z.array(configurableOccupationSchema).min(1).max(50).default([...DEFAULT_OCCUPATION_DEFINITIONS]).superRefine((occupations, context) => {
+    const values = new Set<string>();
+    occupations.forEach((occupation, index) => {
+      if (values.has(occupation.value)) {
+        context.addIssue({ code: "custom", message: "Los identificadores de categorías deben ser únicos.", path: [index, "value"] });
+      }
+      values.add(occupation.value);
+    });
+    if (!occupations.some((occupation) => occupation.enabled)) {
+      context.addIssue({ code: "custom", message: "Debe existir al menos una categoría activa.", path: [] });
+    }
+  }),
   clientBrands: z.object({
     enabled: z.boolean(),
     options: z.array(clientBrandOptionSchema),
@@ -174,12 +203,14 @@ export function getDefaultRegistrationFormConfig(
     customFieldsVersion: 1,
     customFields: [],
     fields: {
+      email: { visible: true, required: true },
       phone: { visible: false, required: false },
       company: { visible: event.collectCompany, required: false },
       jobTitle: { visible: event.collectJobTitle, required: false },
       state: { visible: false, required: false },
     },
-      companion: { enabled: true },
+    companion: { enabled: true },
+    occupations: [...DEFAULT_OCCUPATION_DEFINITIONS],
     clientBrands: { enabled: false, options: [] },
     interests: { enabled: false, options: [] },
     consent: {

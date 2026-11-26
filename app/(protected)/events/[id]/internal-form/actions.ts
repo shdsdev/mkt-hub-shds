@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { recordAudit } from "@/modules/audit";
 import { getCurrentUser } from "@/modules/auth";
-import { addAttendeeToRegistration, getEvent, listRegistrations, resolveRegistrationFormConfig, updatePrimaryAttendee, type AddAttendeeToRegistrationResult, type RegistrationWithAttendees } from "@/modules/events";
+import { addAttendeeToRegistration, getEvent, listRegistrations, resolveRegistrationFormConfig, updatePrimaryAttendee, OCCUPATION_OPTIONS, type AddAttendeeToRegistrationResult, type RegistrationWithAttendees } from "@/modules/events";
 import { isActive, isAdmin } from "@/modules/users";
-import { OCCUPATION_OPTIONS } from "@/modules/events";
 
 const attendeeSchema = z.object({
   fullName: z.string().trim().min(1).max(255),
@@ -14,7 +13,7 @@ const attendeeSchema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   company: z.string().trim().max(255).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(255).optional().or(z.literal("")),
-  occupation: z.enum(OCCUPATION_OPTIONS),
+  occupation: z.string().trim().min(1).max(64),
 });
 
 const ADD_COMPANION_REASON_MESSAGES: Record<Exclude<AddAttendeeToRegistrationResult, { ok: true }>['reason'], string> = {
@@ -60,6 +59,8 @@ export async function addInternalCompanionAction(formData: FormData): Promise<In
   if (!eventId.success || !registrationId.success || !attendee.success) return { error: "Revisa los datos del acompañante." };
   const context = await requireAdmin(eventId.data);
   if (!context) return { error: "No tienes permiso para usar este formulario." };
+  const config = resolveRegistrationFormConfig(context.event);
+  if (!(config.occupations ?? OCCUPATION_OPTIONS.map((value) => ({ value, enabled: true }))).some((option) => option.enabled && option.value === attendee.data.occupation)) return { error: "Seleccioná una actividad válida." };
   if (resolveRegistrationFormConfig(context.event).fields.phone.required && !attendee.data.phone?.trim()) {
     return { error: "El teléfono es obligatorio." };
   }
@@ -101,6 +102,8 @@ export async function updatePrimaryAttendeeAction(formData: FormData): Promise<I
   if (!eventId.success || !registrationId.success || !attendee.success) return { error: "Revisa los datos del titular." };
   const context = await requireAdmin(eventId.data);
   if (!context) return { error: "No tienes permiso para usar este formulario." };
+  const config = resolveRegistrationFormConfig(context.event);
+  if (!(config.occupations ?? OCCUPATION_OPTIONS.map((value) => ({ value, enabled: true }))).some((option) => option.enabled && option.value === attendee.data.occupation)) return { error: "Seleccioná una actividad válida." };
   if (resolveRegistrationFormConfig(context.event).fields.phone.required && !attendee.data.phone?.trim()) {
     return { error: "El teléfono es obligatorio." };
   }

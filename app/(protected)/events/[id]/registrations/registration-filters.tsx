@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { LoaderCircle, Search, X } from "lucide-react";
-import type { EventRegistrationRow } from "@/modules/events";
+import type { EventRegistrationRow, RegistrationOccupation } from "@/modules/events";
 import { getOccupationPresentation } from "@/lib/events/occupation-presentation";
 import { MEXICAN_STATES } from "@/lib/events/mexican-states";
 import {
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/select";
 import { REVIEW_STATUS_LABELS } from "./review-status";
 
-const OCCUPATION_FILTER_OPTIONS = ["wholesaler", "manufacturer", "architect-decorator", "installer-technician"] as const;
 const SOURCE_FILTER_OPTIONS = ["Meta Ads", "Sitio web", "facebook", "instagram", "google", "Admin", "Sin atribución"] as const;
 type SortOption = "recent" | "oldest" | "name" | "company";
 
@@ -37,6 +36,7 @@ type Props = {
   state?: string;
   sort: SortOption;
   pageSize: number;
+  occupationOptions: readonly RegistrationOccupation[];
 };
 
 type FilterKey = "status" | "q" | "reviewStatus" | "source" | "occupation" | "state";
@@ -51,6 +51,7 @@ export function RegistrationFilters({
   state,
   sort,
   pageSize,
+  occupationOptions,
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
@@ -148,7 +149,7 @@ export function RegistrationFilters({
           </Select>
         </label>
         <label className="flex min-w-0 flex-col gap-1"><span className="text-xs font-medium text-muted-foreground">Fuente</span><Select value={source ?? "all"} onValueChange={(value) => updateFilter("source", value === "all" ? undefined : value ?? undefined)}><SelectTrigger className="h-10 w-full min-w-0" aria-label="Filtrar por fuente"><SelectValue>{source ?? "Todas las fuentes"}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">Todas las fuentes</SelectItem>{SOURCE_FILTER_OPTIONS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectGroup></SelectContent></Select></label>
-        <label className="flex min-w-0 flex-col gap-1"><span className="text-xs font-medium text-muted-foreground">Actividad</span><Select value={occupation ?? "all"} onValueChange={(value) => updateFilter("occupation", value === "all" ? undefined : value ?? undefined)}><SelectTrigger className="h-10 w-full min-w-0" aria-label="Filtrar por actividad"><SelectValue>{occupation ? getOccupationPresentation(occupation).label : "Todas las actividades"}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">Todas las actividades</SelectItem>{OCCUPATION_FILTER_OPTIONS.map((value) => <SelectItem key={value} value={value}>{getOccupationPresentation(value).label}</SelectItem>)}</SelectGroup></SelectContent></Select></label>
+        <label className="flex min-w-0 flex-col gap-1"><span className="text-xs font-medium text-muted-foreground">Actividad</span><Select value={occupation ?? "all"} onValueChange={(value) => updateFilter("occupation", value === "all" ? undefined : value ?? undefined)}><SelectTrigger className="h-10 w-full min-w-0" aria-label="Filtrar por actividad"><SelectValue>{occupation ? getOccupationPresentation(occupation, occupationOptions).label : "Todas las actividades"}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">Todas las actividades</SelectItem>{occupationOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectGroup></SelectContent></Select></label>
         <label className="flex min-w-0 flex-col gap-1"><span className="text-xs font-medium text-muted-foreground">Estado</span><Select value={state ?? "all"} onValueChange={(value) => updateFilter("state", value === "all" ? undefined : value ?? undefined)}><SelectTrigger className="h-10 w-full min-w-0" aria-label="Filtrar por estado"><SelectValue>{state ? MEXICAN_STATES.find((item) => item.value === state)?.label : "Todos los estados"}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">Todos los estados</SelectItem>{MEXICAN_STATES.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectGroup></SelectContent></Select></label>
         <AnimatePresence initial={false}>
           {hasFilters ? (

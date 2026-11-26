@@ -21,7 +21,7 @@ export default async function InternalEventFormPage({ params }: { params: Promis
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Formulario interno: {event.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Administración de registros y acompañantes.</p>
         </div>
-        <InternalRegistrationForm eventId={event.id} phoneRequired={resolveRegistrationFormConfig(event).fields.phone.required} />
+         <InternalRegistrationForm eventId={event.id} phoneRequired={resolveRegistrationFormConfig(event).fields.phone.required} occupations={resolveRegistrationFormConfig(event).occupations} />
       </div>
     </div>
   );

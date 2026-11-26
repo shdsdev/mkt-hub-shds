@@ -191,11 +191,14 @@ function RegistrationReview({ config }: { config: RegistrationFormConfig }) {
     ? config.interests.options.map((interest) => interestLabels[interest]).join(", ") || "Sin intereses seleccionados"
     : "No se solicitan";
   const consents = ["Privacidad", "Términos", ...(config.consent.marketing.enabled ? ["Comunicaciones comerciales"] : [])].join(" y ");
+  const occupations = config.occupations.filter((occupation) => occupation.enabled).map((occupation) => occupation.label).join(", ");
 
   return (
     <>
       <div><dt className="text-muted-foreground">Campos opcionales</dt><dd>{optionalFields.join(", ") || "Ninguno"}</dd></div>
+      <div><dt className="text-muted-foreground">Correo</dt><dd>{config.fields.email.visible ? (config.fields.email.required ? "Obligatorio" : "Opcional") : "No se solicita"}</dd></div>
       <div><dt className="text-muted-foreground">Acompañante</dt><dd>{config.companion.enabled ? "Permitido" : "No permitido"}</dd></div>
+      <div><dt className="text-muted-foreground">Tipos de cliente</dt><dd>{occupations || "Ninguno"}</dd></div>
       <div><dt className="text-muted-foreground">Marcas</dt><dd>{brands}</dd></div>
       <div><dt className="text-muted-foreground">Intereses</dt><dd>{interests}</dd></div>
       <div><dt className="text-muted-foreground">Consentimiento</dt><dd>{consents}</dd></div>

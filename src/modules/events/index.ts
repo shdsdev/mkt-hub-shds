@@ -28,6 +28,7 @@ export {
   type ClientBrandOption,
   type InterestOption,
   type OccupationOption,
+  type RegistrationOccupation,
   type RegistrationCustomField,
   type RegistrationFormConfig,
 } from "./registration-form-config";

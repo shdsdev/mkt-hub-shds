@@ -13,13 +13,6 @@ import { restoreFormValues, snapshotFormValues, type FormValueSnapshot } from "@
 import { getCompanionContactErrors } from "@/lib/events/companion-contact-validation";
 
 const initialState: RegisterFormState = {};
-const occupationOptions = [
-  ["wholesaler", "Mayorista"],
-  ["manufacturer", "Fabricante"],
-  ["architect-decorator", "Arquitecto / Decorador"],
-  ["installer-technician", "Instalador o técnico"],
-] as const;
-
 // Matches the reference's clean white-card world (rounded-card, ring-1 black/5) instead of the
 // dark admin theme's <Input> (craft-floor: "a stock component inside a committed form is a
 // lapse") — this surface owns its own input vocabulary.
@@ -108,6 +101,7 @@ export function RegisterForm({
   const activeStepId = steps[mobileStep]?.id ?? steps[steps.length - 1].id;
   const personalCustomFields = formConfig.customFields.filter((field) => field.enabled && field.section === "personal");
   const preferenceCustomFields = formConfig.customFields.filter((field) => field.enabled && field.section === "preferences");
+  const occupationOptions = formConfig.occupations.filter((occupation) => occupation.enabled);
   const hasPreferenceStep = steps.some((step) => step.id === "preferences");
   const fieldErrors = { ...clientFieldErrors, ...state.fieldErrors };
 
@@ -174,7 +168,7 @@ export function RegisterForm({
       };
 
       addItem("Nombre", "fullName");
-      addItem("Correo", "email");
+      if (formConfig.fields.email.visible) addItem("Correo", "email");
       addItem("Teléfono", "phone");
       addItem("Empresa", "company");
        addItem("Puesto", "jobTitle");
@@ -226,12 +220,18 @@ export function RegisterForm({
               ? "Quedaste en lista de espera"
               : "¡Registro confirmado!"}
         </h2>
-        <p className="text-[#4a4a4a]">
-          {state.status === "pending_review"
-            ? "Nuestro equipo revisará tu solicitud. Si es aprobada, recibirás por correo la confirmación y tu llave de acceso."
+          <p className="text-[#4a4a4a]">
+            {state.status === "pending_review"
+            ? formConfig.fields.email.visible
+              ? "Nuestro equipo revisará tu solicitud. Si es aprobada, recibirás por correo la confirmación y tu llave de acceso."
+              : "Nuestro equipo revisará tu solicitud y te dará seguimiento por los canales disponibles."
             : state.status === "waitlisted"
-              ? "Gracias por tu interés. El cupo está lleno y quedaste en lista de espera. Te comunicaremos si se libera una plaza."
-              : "Te enviamos un correo con tu pase de acceso y código de respaldo."}
+              ? formConfig.fields.email.visible
+                ? "Gracias por tu interés. El cupo está lleno y quedaste en lista de espera. Te comunicaremos si se libera una plaza."
+                : "Gracias por tu interés. El cupo está lleno y quedaste en lista de espera."
+              : formConfig.fields.email.visible
+                ? "Te enviamos un correo con tu pase de acceso y código de respaldo."
+                : "Tu registro fue confirmado. Conservá tu código de respaldo para el acceso."}
         </p>
       </section>
     );
@@ -278,9 +278,11 @@ export function RegisterForm({
           <Field label="Nombre completo" required error={fieldErrors.fullName} help="Usá tu nombre completo tal como aparece en tu identificación.">
            <input name="fullName" required aria-required="true" maxLength={255} placeholder="Ej. María González" className={fieldClass} />
          </Field>
-          <Field label="Correo" required error={fieldErrors.email} help="Te enviaremos aquí la confirmación y tu pase de acceso.">
-           <input name="email" type="email" required aria-required="true" maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
-         </Field>
+          {formConfig.fields.email.visible ? (
+            <Field label="Correo" required={formConfig.fields.email.required} error={fieldErrors.email} help="Te enviaremos aquí la confirmación y tu pase de acceso.">
+             <input name="email" type="email" required={formConfig.fields.email.required} aria-required={formConfig.fields.email.required} maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
+           </Field>
+          ) : null}
          {formConfig.fields.phone.visible ? (
             <Field label="Teléfono" required={formConfig.fields.phone.required} error={fieldErrors.phone} help="Usaremos este número solo para comunicarnos sobre el evento.">
              <input name="phone" required={formConfig.fields.phone.required} aria-required={formConfig.fields.phone.required} maxLength={50} placeholder="Ej. +52 55 1234 5678" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
@@ -311,9 +313,9 @@ export function RegisterForm({
             </Field>
           ) : null}
           <Field label="¿A qué te dedicás profesionalmente?" required error={fieldErrors.occupation} help="Elegí la opción que mejor describe tu actividad profesional.">
-            <Select name="occupation" defaultValue="" items={occupationOptions.map(([value, label]) => ({ value, label }))}>
+            <Select name="occupation" defaultValue="" items={occupationOptions.map(({ value, label }) => ({ value, label }))}>
             <SelectTrigger className={selectClass} aria-label="Actividad profesional" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
-              <SelectContent>{occupationOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+              <SelectContent>{occupationOptions.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
             </Select>
          </Field>
         </div>
@@ -389,9 +391,11 @@ export function RegisterForm({
             <Field label="Nombre del acompañante" required error={fieldErrors.companionFullName} help="Usá el nombre completo de la persona que te acompañará.">
              <input name="companionFullName" required aria-required="true" maxLength={255} placeholder="Ej. Ana López" className={fieldClass} />
            </Field>
-            <Field label="Correo del acompañante" required error={fieldErrors.companionEmail} help="Te enviaremos su confirmación y pase de acceso a este correo.">
-             <input name="companionEmail" type="email" required aria-required="true" maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
-           </Field>
+             {formConfig.fields.email.visible ? (
+               <Field label="Correo del acompañante" required={formConfig.fields.email.required} error={fieldErrors.companionEmail} help="Te enviaremos su confirmación y pase de acceso a este correo.">
+                <input name="companionEmail" type="email" required={formConfig.fields.email.required} aria-required={formConfig.fields.email.required} maxLength={255} placeholder="nombre@empresa.com" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
+              </Field>
+             ) : null}
            {formConfig.fields.phone.visible ? (
               <Field label="Teléfono del acompañante" required={formConfig.fields.phone.required} error={fieldErrors.companionPhone} help="Usaremos este número solo para comunicarnos sobre el evento.">
                <input name="companionPhone" required={formConfig.fields.phone.required} maxLength={50} placeholder="Ej. +52 55 1234 5678" className={fieldClass} onChange={(event) => updateContactErrors(event.currentTarget.form!)} />
@@ -466,9 +470,9 @@ export function RegisterForm({
               </Field>
             ) : null}
               <Field label="¿A qué se dedica tu acompañante?" required error={fieldErrors.companionOccupation} help="Elegí la opción que mejor describe su actividad profesional.">
-              <Select name="companionOccupation" defaultValue="" items={occupationOptions.map(([value, label]) => ({ value, label }))}>
+              <Select name="companionOccupation" defaultValue="" items={occupationOptions.map(({ value, label }) => ({ value, label }))}>
               <SelectTrigger className={selectClass} aria-label="Actividad profesional del acompañante" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
-                <SelectContent>{occupationOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+                <SelectContent>{occupationOptions.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
            <label className="flex cursor-pointer items-center gap-3 text-sm text-[#4a4a4a] sm:col-span-2">

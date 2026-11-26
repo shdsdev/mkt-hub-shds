@@ -16,7 +16,7 @@ import {
   type CustomFieldType,
 } from "./registration-field-builder";
 
-type RegistrationField = "phone" | "company" | "jobTitle" | "state";
+type RegistrationField = "email" | "phone" | "company" | "jobTitle" | "state";
 type OptionGroup = "clientBrands" | "interests";
 
 const customFieldTypes: readonly [CustomFieldType, string][] = [
@@ -87,6 +87,23 @@ export function EventRegistrationFields({
     });
   }
 
+  function updateOccupation(index: number, changes: Partial<RegistrationFormConfig["occupations"][number]>) {
+    setFormConfig((current) => ({
+      ...current,
+      occupations: current.occupations.map((occupation, currentIndex) => currentIndex === index ? { ...occupation, ...changes } : occupation),
+    }));
+  }
+
+  function addOccupation() {
+    setFormConfig((current) => ({
+      ...current,
+      occupations: [
+        ...current.occupations,
+        { value: `categoria-${current.occupations.length + 1}`, label: "Nueva categoría", color: "neutral", enabled: true },
+      ],
+    }));
+  }
+
   return (
     <div className="flex flex-col gap-4 rounded-md border border-border p-4">
       <div>
@@ -104,8 +121,17 @@ export function EventRegistrationFields({
         <p className="text-xs text-muted-foreground">Siempre visible</p>
         <p className="text-xs text-muted-foreground">Siempre obligatorio</p>
         <p className="text-sm">Correo electrónico</p>
-        <p className="text-xs text-muted-foreground">Siempre visible</p>
-        <p className="text-xs text-muted-foreground">Siempre obligatorio</p>
+        <Checkbox
+          checked={formConfig.fields.email.visible}
+          onChange={(checked) => updateField("email", "visible", checked)}
+          label="Mostrar"
+        />
+        <Checkbox
+          checked={formConfig.fields.email.required}
+          disabled={!formConfig.fields.email.visible}
+          onChange={(checked) => updateField("email", "required", checked)}
+          label="Obligatorio"
+        />
         {(["phone", "company", "jobTitle", "state"] as const).map((field) => {
           const labels = { phone: "Teléfono", company: "Empresa", jobTitle: "Puesto", state: "Estado" };
           return (
@@ -224,8 +250,41 @@ export function EventRegistrationFields({
       <Checkbox
         checked={formConfig.companion.enabled}
         onChange={(checked) => setFormConfig((current) => ({ ...current, companion: { enabled: checked } }))}
-        label="Permitir un acompañante"
+        label="Permitir acompañantes"
       />
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-background/60 p-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">Tipos de cliente</h3>
+            <p className="text-xs text-muted-foreground">Personalizá las etiquetas que se mostrarán en este evento.</p>
+          </div>
+          <Button type="button" variant="outline" onClick={addOccupation}>Agregar tipo</Button>
+        </div>
+        <div className="flex flex-col gap-2">
+          {formConfig.occupations.map((occupation, index) => (
+            <div key={`${occupation.value}-${index}`} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1.5fr_8rem_auto] sm:items-center">
+              <Input
+                aria-label={`Identificador de ${occupation.label}`}
+                value={occupation.value}
+                disabled={occupation.enabled === false}
+                onChange={(event) => updateOccupation(index, { value: event.target.value })}
+              />
+              <Input
+                aria-label={`Nombre de ${occupation.label}`}
+                value={occupation.label}
+                onChange={(event) => updateOccupation(index, { label: event.target.value })}
+              />
+              <Select value={occupation.color} onValueChange={(value) => value && updateOccupation(index, { color: value as typeof occupation.color })}>
+                <SelectTrigger aria-label={`Color de ${occupation.label}`}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(["orange", "blue", "green", "yellow", "red", "neutral"] as const).map((color) => <SelectItem key={color} value={color}>{color}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Checkbox checked={occupation.enabled} onChange={(checked) => updateOccupation(index, { enabled: checked })} label="Activo" />
+            </div>
+          ))}
+        </div>
+      </section>
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">Cliente / marca</legend>
         <Checkbox

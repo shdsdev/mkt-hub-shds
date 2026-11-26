@@ -19,12 +19,19 @@ const mocks = vi.hoisted(() => ({
     customFieldsVersion: 1,
     customFields: [],
     fields: {
+      email: { visible: true, required: true },
       phone: { visible: false, required: false },
       company: { visible: true, required: false },
       jobTitle: { visible: false, required: false },
       state: { visible: false, required: false },
     },
     companion: { enabled: true },
+    occupations: [
+      { value: "wholesaler", label: "Mayorista", color: "orange", enabled: true },
+      { value: "manufacturer", label: "Fabricante", color: "blue", enabled: true },
+      { value: "architect-decorator", label: "Arquitecto / Decorador", color: "green", enabled: true },
+      { value: "installer-technician", label: "Instalador o técnico", color: "red", enabled: true },
+    ],
     clientBrands: { enabled: true, options: ["shades", "bmighty", "drapery"] },
     interests: { enabled: false, options: [] },
     consent: {
@@ -146,6 +153,40 @@ describe("registerForEventAction", () => {
     expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
     expect(mocks.exportQrPng).not.toHaveBeenCalled();
     expect(result).toEqual({ success: true, status: "waitlisted" });
+  });
+
+  it("accepts an active event-specific occupation", async () => {
+    mocks.resolveRegistrationFormConfig.mockReturnValue({
+      ...mocks.resolveRegistrationFormConfig(),
+      occupations: [{ value: "vip-client", label: "Cliente VIP", color: "yellow", enabled: true }],
+    });
+    mocks.registerForEvent.mockResolvedValue({ ok: true, registration: { status: "pending_review" }, attendees: [] });
+
+    const result = await registerForEventAction({}, baseFormData({ occupation: "vip-client" }));
+
+    expect(result).toEqual({ success: true, status: "pending_review" });
+    expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({
+      primary: expect.objectContaining({ occupation: "vip-client" }),
+    }));
+  });
+
+  it("accepts a registration without email when the event disables email collection", async () => {
+    mocks.resolveRegistrationFormConfig.mockReturnValue({
+      ...mocks.resolveRegistrationFormConfig(),
+      fields: {
+        ...mocks.resolveRegistrationFormConfig().fields,
+        email: { visible: false, required: false },
+      },
+    });
+    mocks.registerForEvent.mockResolvedValue({ ok: true, registration: { status: "confirmed", cancelToken: "cancel-token-1" }, attendees: [] });
+
+    const result = await registerForEventAction({}, baseFormData({ email: "" }));
+
+    expect(result).toEqual({ success: true, status: "confirmed" });
+    expect(mocks.sendConfirmationEmail).not.toHaveBeenCalled();
+    expect(mocks.registerForEvent).toHaveBeenCalledWith(expect.objectContaining({
+      primary: expect.objectContaining({ email: expect.stringMatching(/^no-email-[\w-]+@invalid\.local$/) }),
+    }));
   });
 
   it("uses visible occupation and state labels in Telegram notifications", async () => {

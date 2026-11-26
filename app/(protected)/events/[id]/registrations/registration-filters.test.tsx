@@ -39,7 +39,7 @@ describe("RegistrationFilters", () => {
     root = createRoot(container);
 
     act(() => root?.render(
-      <RegistrationFilters sort="recent" pageSize={25} />,
+      <RegistrationFilters sort="recent" pageSize={25} occupationOptions={[]} />,
     ));
 
     const input = container.querySelector<HTMLInputElement>("input[placeholder='Buscar nombre, correo o empresa…']");
@@ -73,6 +73,7 @@ describe("RegistrationFilters", () => {
         state="Jalisco"
         sort="name"
         pageSize={50}
+        occupationOptions={[{ value: "manufacturer", label: "Fabricante", color: "blue", enabled: true }]}
       />,
     ));
 

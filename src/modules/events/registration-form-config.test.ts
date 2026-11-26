@@ -34,7 +34,39 @@ describe("registration form configuration", () => {
     expect(config.fields.company).toEqual({ visible: true, required: false });
     expect(config.fields.jobTitle).toEqual({ visible: false, required: false });
     expect(config.fields.state).toEqual({ visible: false, required: false });
+    expect(config.fields.email).toEqual({ visible: true, required: true });
+    expect(config.companion).toEqual({ enabled: true });
+    expect(config.occupations).toHaveLength(4);
     expect(config.consent.privacy).toEqual({ url: "/privacy", text: "Acepto la política de privacidad" });
+  });
+
+  it("accepts event-specific occupation labels, colors, and archived options", () => {
+    const config = getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false });
+
+    expect(() => registrationFormConfigSchema.parse({
+      ...config,
+      occupations: [
+        { value: "vip-client", label: "Cliente VIP", color: "yellow", enabled: true },
+        { value: "press", label: "Prensa", color: "neutral", enabled: false },
+      ],
+    })).not.toThrow();
+  });
+
+  it("rejects duplicate occupation values and required hidden email", () => {
+    const config = getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false });
+
+    expect(() => registrationFormConfigSchema.parse({
+      ...config,
+      fields: { ...config.fields, email: { visible: false, required: true } },
+    })).toThrow();
+
+    expect(() => registrationFormConfigSchema.parse({
+      ...config,
+      occupations: [
+        { value: "vip-client", label: "Cliente VIP", color: "yellow", enabled: true },
+        { value: "vip-client", label: "VIP duplicado", color: "blue", enabled: true },
+      ],
+    })).toThrow();
   });
 
   it("provides all Mexican states for the single-select state field", () => {
