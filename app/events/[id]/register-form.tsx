@@ -312,7 +312,7 @@ export function RegisterForm({
               </Select>
             </Field>
           ) : null}
-          <Field label="¿A qué te dedicás profesionalmente?" required error={fieldErrors.occupation} help="Elegí la opción que mejor describe tu actividad profesional.">
+          <Field label={formConfig.occupationQuestion} required error={fieldErrors.occupation} help="Elegí la opción que mejor describe tu actividad profesional.">
             <Select name="occupation" defaultValue="" items={occupationOptions.map(({ value, label }) => ({ value, label }))}>
             <SelectTrigger className={selectClass} aria-label="Actividad profesional" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
               <SelectContent>{occupationOptions.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
@@ -469,7 +469,7 @@ export function RegisterForm({
                 </Select>
               </Field>
             ) : null}
-              <Field label="¿A qué se dedica tu acompañante?" required error={fieldErrors.companionOccupation} help="Elegí la opción que mejor describe su actividad profesional.">
+              <Field label={formConfig.occupationQuestion} required error={fieldErrors.companionOccupation} help="Elegí la opción que mejor describe su actividad profesional.">
               <Select name="companionOccupation" defaultValue="" items={occupationOptions.map(({ value, label }) => ({ value, label }))}>
               <SelectTrigger className={selectClass} aria-label="Actividad profesional del acompañante" aria-required="true"><SelectValue placeholder="Seleccioná una opción" /></SelectTrigger>
                 <SelectContent>{occupationOptions.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>

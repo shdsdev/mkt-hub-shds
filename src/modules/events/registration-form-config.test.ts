@@ -36,6 +36,7 @@ describe("registration form configuration", () => {
     expect(config.fields.state).toEqual({ visible: false, required: false });
     expect(config.fields.email).toEqual({ visible: true, required: true });
     expect(config.companion).toEqual({ enabled: true });
+    expect(config.occupationQuestion).toBe("¿A qué te dedicás profesionalmente?");
     expect(config.occupations).toHaveLength(4);
     expect(config.consent.privacy).toEqual({ url: "/privacy", text: "Acepto la política de privacidad" });
   });
@@ -50,6 +51,18 @@ describe("registration form configuration", () => {
         { value: "press", label: "Prensa", color: "neutral", enabled: false },
       ],
     })).not.toThrow();
+  });
+
+  it("accepts a custom occupation question and rejects invalid wording", () => {
+    const config = getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false });
+
+    expect(registrationFormConfigSchema.parse({
+      ...config,
+      occupationQuestion: "¿Cuál es tu actividad principal?",
+    }).occupationQuestion).toBe("¿Cuál es tu actividad principal?");
+
+    expect(() => registrationFormConfigSchema.parse({ ...config, occupationQuestion: "   " })).toThrow();
+    expect(() => registrationFormConfigSchema.parse({ ...config, occupationQuestion: "a".repeat(161) })).toThrow();
   });
 
   it("rejects duplicate occupation values and required hidden email", () => {

@@ -260,6 +260,16 @@ export function EventRegistrationFields({
           </div>
           <Button type="button" variant="outline" onClick={addOccupation}>Agregar tipo</Button>
         </div>
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
+          Pregunta de categoría
+          <Input
+            aria-label="Pregunta de categoría"
+            value={formConfig.occupationQuestion}
+            maxLength={160}
+            onChange={(event) => setFormConfig((current) => ({ ...current, occupationQuestion: event.target.value }))}
+          />
+          <span className="text-xs font-normal text-muted-foreground">Se mostrará al titular y a su acompañante.</span>
+        </label>
         <div className="flex flex-col gap-2">
           {formConfig.occupations.map((occupation, index) => (
             <div key={`${occupation.value}-${index}`} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1.5fr_8rem_auto] sm:items-center">

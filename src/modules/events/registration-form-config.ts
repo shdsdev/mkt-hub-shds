@@ -27,6 +27,7 @@ export const DEFAULT_OCCUPATION_DEFINITIONS = [
   { value: "architect-decorator", label: "Arquitecto / Decorador", color: "green", enabled: true },
   { value: "installer-technician", label: "Instalador o técnico", color: "red", enabled: true },
 ] as const;
+export const DEFAULT_OCCUPATION_QUESTION = "¿A qué te dedicás profesionalmente?";
 
 export { toggleClientBrandOption } from "@/lib/events/registration-form-ui";
 
@@ -153,6 +154,7 @@ export const registrationFormConfigSchema = z.object({
     state: visibilitySchema.default({ visible: false, required: false }),
   }),
   companion: z.object({ enabled: z.boolean() }),
+  occupationQuestion: z.string().trim().min(1).max(160).default(DEFAULT_OCCUPATION_QUESTION),
   occupations: z.array(configurableOccupationSchema).min(1).max(50).default([...DEFAULT_OCCUPATION_DEFINITIONS]).superRefine((occupations, context) => {
     const values = new Set<string>();
     occupations.forEach((occupation, index) => {
@@ -210,6 +212,7 @@ export function getDefaultRegistrationFormConfig(
       state: { visible: false, required: false },
     },
     companion: { enabled: true },
+    occupationQuestion: DEFAULT_OCCUPATION_QUESTION,
     occupations: [...DEFAULT_OCCUPATION_DEFINITIONS],
     clientBrands: { enabled: false, options: [] },
     interests: { enabled: false, options: [] },

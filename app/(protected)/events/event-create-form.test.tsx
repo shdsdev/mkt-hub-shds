@@ -45,6 +45,7 @@ const config = {
     state: { visible: false, required: false },
   },
   companion: { enabled: true },
+  occupationQuestion: "¿A qué te dedicás profesionalmente?",
   occupations: [
     { value: "manufacturer", label: "Fabricante", color: "blue" as const, enabled: true },
   ],

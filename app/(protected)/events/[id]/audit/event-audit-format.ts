@@ -129,6 +129,9 @@ function flattenFormConfig(value: Record<string, unknown>, prefix: string): Audi
   if (isRecord(value.companion) && "enabled" in value.companion) {
     changes.push({ label: `${prefix}: Acompañantes`, to: formatScalar("enabled", value.companion.enabled) });
   }
+  if ("occupationQuestion" in value) {
+    changes.push({ label: `${prefix}: Pregunta de categoría`, to: formatScalar("occupationQuestion", value.occupationQuestion) });
+  }
   if (isRecord(value.interests)) {
     if ("enabled" in value.interests) changes.push({ label: `${prefix}: Intereses`, to: formatScalar("enabled", value.interests.enabled) });
     if (Array.isArray(value.interests.options)) changes.push({ label: `${prefix}: Intereses disponibles`, to: formatScalar("options", value.interests.options) });

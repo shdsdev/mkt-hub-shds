@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { BinaryLoader } from "@/components/binary-loader";
+import { sanitizeStorageFileName } from "@/lib/storage/storage-path";
 
 // Same direct-to-Storage-from-the-browser pattern as app/(protected)/qr/placement-image-upload.tsx,
 // pointed at the 'event-landing-images' bucket (drizzle/0019_purple_ultimatum.sql) shared by the
@@ -27,7 +28,7 @@ export function EventImageUpload({
 
     setStatus("uploading");
     const supabase = createClient();
-    const path = `${organizationId}/${crypto.randomUUID()}-${file.name}`;
+    const path = `${organizationId}/${crypto.randomUUID()}-${sanitizeStorageFileName(file.name)}`;
     const { error } = await supabase.storage.from("event-landing-images").upload(path, file);
 
     if (error) {

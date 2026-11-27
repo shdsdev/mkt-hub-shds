@@ -27,6 +27,7 @@ const config: RegistrationFormConfig = {
     state: { visible: false, required: false },
   },
   companion: { enabled: true },
+  occupationQuestion: "¿En qué área trabajás?",
   occupations: [
     { value: "manufacturer", label: "Fabricante", color: "blue", enabled: true },
     { value: "vip-client", label: "Cliente VIP", color: "yellow", enabled: true },
@@ -74,6 +75,7 @@ describe("EventRegistrationFields", () => {
 
     expect(container.textContent).toContain("Correo electrónico");
     expect(container.textContent).toContain("Permitir acompañantes");
+    expect(container.querySelector('input[aria-label="Pregunta de categoría"]')).toHaveProperty("value", "¿En qué área trabajás?");
     expect(container.querySelector('input[aria-label="Nombre de Cliente VIP"]')).toHaveProperty("value", "Cliente VIP");
   });
 });
