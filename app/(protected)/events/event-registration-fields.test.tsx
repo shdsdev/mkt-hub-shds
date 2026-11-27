@@ -77,5 +77,30 @@ describe("EventRegistrationFields", () => {
     expect(container.textContent).toContain("Permitir acompañantes");
     expect(container.querySelector('input[aria-label="Pregunta de categoría"]')).toHaveProperty("value", "¿En qué área trabajás?");
     expect(container.querySelector('input[aria-label="Nombre de Cliente VIP"]')).toHaveProperty("value", "Cliente VIP");
+    expect(container.querySelector('input[type="color"][aria-label="Color de Cliente VIP"]')).toBeTruthy();
+    expect(container.querySelector('input[aria-label="HEX de Cliente VIP"]')).toHaveProperty("value", "yellow");
+  });
+
+  it("keeps the occupation identifier focused while editing multiple characters", () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(<form><EventRegistrationFields initialFormConfig={config} /></form>);
+    });
+
+    const identifier = container.querySelector('input[aria-label="Identificador de Fabricante"]') as HTMLInputElement;
+    identifier.focus();
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    act(() => {
+      setter?.call(identifier, "m");
+      identifier.dispatchEvent(new Event("input", { bubbles: true }));
+      setter?.call(identifier, "ma");
+      identifier.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(identifier).toHaveProperty("value", "ma");
+    expect(document.activeElement).toBe(identifier);
   });
 });

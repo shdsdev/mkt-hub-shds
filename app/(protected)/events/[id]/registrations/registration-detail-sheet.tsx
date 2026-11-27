@@ -332,7 +332,7 @@ export function RegistrationDetailSheet({
 function OccupationPill({ occupation }: { occupation?: string | null }) {
   const presentation = getOccupationPresentation(occupation);
   return (
-    <span className={`mt-2 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}>
+    <span style={presentation.style} className={`mt-2 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}>
       <Tag className="size-3.5" aria-hidden="true" />
       {presentation.label}
     </span>

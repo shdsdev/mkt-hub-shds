@@ -9,6 +9,7 @@ export const OCCUPATION_OPTIONS = [
   "installer-technician",
 ] as const;
 export const OCCUPATION_COLORS = ["orange", "blue", "green", "yellow", "red", "neutral"] as const;
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 export const INTEREST_OPTIONS = [
   "battery-motors",
   "wifi-automation",
@@ -58,7 +59,7 @@ const occupationOptionSchema = z.enum(OCCUPATION_OPTIONS);
 const configurableOccupationSchema = z.object({
   value: z.string().trim().regex(/^[a-z0-9][a-z0-9-]{0,63}$/, "El identificador de la categoría no es válido."),
   label: z.string().trim().min(1).max(100),
-  color: z.enum(OCCUPATION_COLORS),
+  color: z.string().trim().refine((value) => OCCUPATION_COLORS.includes(value as OccupationColor) || HEX_COLOR_PATTERN.test(value), "El color debe ser de la paleta o un valor HEX válido."),
   enabled: z.boolean(),
 });
 export type RegistrationOccupation = z.infer<typeof configurableOccupationSchema>;

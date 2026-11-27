@@ -18,6 +18,15 @@ import {
 
 type RegistrationField = "email" | "phone" | "company" | "jobTitle" | "state";
 type OptionGroup = "clientBrands" | "interests";
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const COLOR_PICKER_FALLBACKS: Record<string, string> = {
+  orange: "#ea580c",
+  blue: "#2563eb",
+  green: "#16a34a",
+  yellow: "#eab308",
+  red: "#dc2626",
+  neutral: "#6b7280",
+};
 
 const customFieldTypes: readonly [CustomFieldType, string][] = [
   ["short_text", "Texto corto"],
@@ -271,8 +280,8 @@ export function EventRegistrationFields({
           <span className="text-xs font-normal text-muted-foreground">Se mostrará al titular y a su acompañante.</span>
         </label>
         <div className="flex flex-col gap-2">
-          {formConfig.occupations.map((occupation, index) => (
-            <div key={`${occupation.value}-${index}`} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1.5fr_8rem_auto] sm:items-center">
+            {formConfig.occupations.map((occupation, index) => (
+            <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1.5fr_auto_auto] sm:items-center">
               <Input
                 aria-label={`Identificador de ${occupation.label}`}
                 value={occupation.value}
@@ -284,12 +293,21 @@ export function EventRegistrationFields({
                 value={occupation.label}
                 onChange={(event) => updateOccupation(index, { label: event.target.value })}
               />
-              <Select value={occupation.color} onValueChange={(value) => value && updateOccupation(index, { color: value as typeof occupation.color })}>
-                <SelectTrigger aria-label={`Color de ${occupation.label}`}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(["orange", "blue", "green", "yellow", "red", "neutral"] as const).map((color) => <SelectItem key={color} value={color}>{color}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={HEX_COLOR_PATTERN.test(occupation.color) ? occupation.color : COLOR_PICKER_FALLBACKS[occupation.color] ?? COLOR_PICKER_FALLBACKS.neutral}
+                  onChange={(event) => updateOccupation(index, { color: event.target.value })}
+                  className="h-8 w-10 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                  aria-label={`Color de ${occupation.label}`}
+                />
+                <Input
+                  value={occupation.color}
+                  onChange={(event) => updateOccupation(index, { color: event.target.value })}
+                  className="w-28 font-mono text-xs"
+                  aria-label={`HEX de ${occupation.label}`}
+                />
+              </div>
               <Checkbox checked={occupation.enabled} onChange={(checked) => updateOccupation(index, { enabled: checked })} label="Activo" />
             </div>
           ))}

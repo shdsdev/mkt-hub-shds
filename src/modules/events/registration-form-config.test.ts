@@ -53,6 +53,24 @@ describe("registration form configuration", () => {
     })).not.toThrow();
   });
 
+  it("accepts six-digit HEX colors and rejects malformed colors", () => {
+    const config = getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false });
+
+    expect(registrationFormConfigSchema.parse({
+      ...config,
+      occupations: [{ value: "vip-client", label: "Cliente VIP", color: "#8B5CF6", enabled: true }],
+    }).occupations[0].color).toBe("#8B5CF6");
+
+    expect(() => registrationFormConfigSchema.parse({
+      ...config,
+      occupations: [{ value: "vip-client", label: "Cliente VIP", color: "purple", enabled: true }],
+    })).toThrow();
+    expect(() => registrationFormConfigSchema.parse({
+      ...config,
+      occupations: [{ value: "vip-client", label: "Cliente VIP", color: "#12345", enabled: true }],
+    })).toThrow();
+  });
+
   it("accepts a custom occupation question and rejects invalid wording", () => {
     const config = getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false });
 

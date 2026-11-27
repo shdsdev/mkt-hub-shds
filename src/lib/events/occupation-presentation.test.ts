@@ -18,4 +18,14 @@ describe("getOccupationPresentation", () => {
       { value: "vip-client", label: "Cliente VIP", color: "yellow", enabled: true },
     ])).toMatchObject({ label: "Cliente VIP", color: "yellow", className: "bg-yellow-500 text-black" });
   });
+
+  it("presents a custom HEX color with inline styles and readable foreground", () => {
+    expect(getOccupationPresentation("vip-client", [
+      { value: "vip-client", label: "Cliente VIP", color: "#8B5CF6", enabled: true },
+    ])).toMatchObject({
+      label: "Cliente VIP",
+      color: "#8B5CF6",
+      style: { backgroundColor: "#8B5CF6", color: "#ffffff" },
+    });
+  });
 });

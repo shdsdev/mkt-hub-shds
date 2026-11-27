@@ -257,7 +257,7 @@ export function RegistrationsTable({
                     {formatRegistrationDate(registration.createdAt)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {primary?.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation, occupationOptions); return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : <span className="text-muted-foreground">—</span>}
+                    {primary?.occupation ? (() => { const presentation = getOccupationPresentation(primary.occupation, occupationOptions); return <span style={presentation.style} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}><Tag className="size-3.5" aria-hidden="true" />{presentation.label}</span>; })() : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="hidden px-4 py-3 whitespace-nowrap xl:table-cell">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass(displayStatus)}`}>
