@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RegistrationWithAttendees } from "@/modules/events";
+import type { RegistrationOccupation, RegistrationWithAttendees } from "@/modules/events";
 
 const mocks = vi.hoisted(() => ({ remove: vi.fn(), review: vi.fn(), refresh: vi.fn(), close: vi.fn() }));
 vi.mock("./actions", () => ({ deleteRegistrationAction: mocks.remove, updateRegistrationReviewStatusAction: mocks.review }));
@@ -29,7 +29,11 @@ afterEach(() => {
   container.remove();
 });
 
-function render(overrides: Partial<RegistrationWithAttendees> = {}, canDeleteRegistrations = true) {
+function render(
+  overrides: Partial<RegistrationWithAttendees> = {},
+  canDeleteRegistrations = true,
+  occupationOptions?: readonly RegistrationOccupation[],
+) {
   const registration = {
     id: "reg-1", eventId: "event-1", organizationId: "org-1", source: "public", status: "pending_review",
     reviewStatus: "new", firstApprovedAt: null, deletionProtected: false, createdAt: new Date("2026-11-01T12:00:00Z"),
@@ -39,13 +43,33 @@ function render(overrides: Partial<RegistrationWithAttendees> = {}, canDeleteReg
   } as RegistrationWithAttendees;
   act(() => root.render(<RegistrationDetailSheet registration={registration} statusLabel="Pendiente" open onOpenChange={mocks.close}
     eventId="event-1" eventName="Workshop" collectCompany={false} collectJobTitle={false} phoneRequired={false}
-    canManageAttendees={true} canDeleteRegistrations={canDeleteRegistrations} />));
+    canManageAttendees={true} canDeleteRegistrations={canDeleteRegistrations} occupationOptions={occupationOptions} />));
 }
 function button(text: string) {
   return [...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === text);
 }
 
 describe("silent registration deletion", () => {
+  it("uses the event category label in occupation pills", () => {
+    render(
+      {
+        attendees: [{
+          id: "att-1",
+          isPrimary: true,
+          fullName: "Ana",
+          email: "ana@example.com",
+          occupation: "marketing",
+          checkedInAt: null,
+        } as RegistrationWithAttendees["attendees"][number]],
+      },
+      true,
+      [{ value: "marketing", label: "Marketing", color: "blue", enabled: true }],
+    );
+
+    expect(document.body.textContent).toContain("Marketing");
+    expect(document.body.textContent).not.toContain("Categoría no especificada");
+  });
+
   it("offers direct deletion to an admin without requiring rejection", async () => {
     render();
     expect(button("Eliminar registro")).toBeTruthy();

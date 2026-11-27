@@ -207,7 +207,7 @@ export function RegistrationDetailSheet({
               </div>
               <div className="rounded-md border border-border p-3 sm:col-span-2">
                 <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actividad profesional</p>
-                <OccupationPill occupation={registration.attendees.find((attendee) => attendee.isPrimary)?.occupation} />
+                <OccupationPill occupation={registration.attendees.find((attendee) => attendee.isPrimary)?.occupation} options={configuredOccupationOptions} />
               </div>
             </div>
           </section>
@@ -277,7 +277,7 @@ export function RegistrationDetailSheet({
                       <p className="text-base font-semibold">{attendee.fullName}</p>
                       {attendee.isPrimary ? <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Titular</span> : null}
                     </div>
-                    <p className="text-sm text-muted-foreground">{attendee.email}</p><OccupationPill occupation={attendee.occupation} />
+                    <p className="text-sm text-muted-foreground">{attendee.email}</p><OccupationPill occupation={attendee.occupation} options={configuredOccupationOptions} />
                   </div>
                   {attendee.checkedInAt ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300"><CheckCircle2 className="size-3.5" /> Dentro</span> : attendee.isActive === false ? <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-1 text-xs font-semibold text-destructive"><XCircle className="size-3.5" /> Inactivo</span> : <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"><Clock3 className="size-3.5" /> Pendiente</span>}
                 </div>
@@ -329,8 +329,14 @@ export function RegistrationDetailSheet({
   );
 }
 
-function OccupationPill({ occupation }: { occupation?: string | null }) {
-  const presentation = getOccupationPresentation(occupation);
+function OccupationPill({
+  occupation,
+  options,
+}: {
+  occupation?: string | null;
+  options?: readonly RegistrationOccupation[];
+}) {
+  const presentation = getOccupationPresentation(occupation, options);
   return (
     <span style={presentation.style} className={`mt-2 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${presentation.className}`}>
       <Tag className="size-3.5" aria-hidden="true" />
