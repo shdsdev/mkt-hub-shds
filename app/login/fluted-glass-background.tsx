@@ -313,9 +313,16 @@ export function FlutedGlassBackground() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if (typeof WebGLRenderingContext === "undefined") return;
 
-    const gl = (canvas.getContext("webgl") ||
-      canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
+    let gl: WebGLRenderingContext | null = null;
+    try {
+      gl = (canvas.getContext("webgl") ||
+        canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
+    } catch {
+      // Canvas/WebGL is decorative and may be unavailable in jsdom or restricted browsers.
+      return;
+    }
     if (!gl) return;
 
     const program = createProgram(gl);
