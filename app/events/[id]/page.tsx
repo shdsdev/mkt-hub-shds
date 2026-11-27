@@ -80,14 +80,16 @@ export default async function EventLandingPage({
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] font-sans text-[#202020]">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 sm:px-10">
-        <span className="inline-flex items-center rounded-full bg-[#F0F0F0] px-4 py-2 text-sm text-[#202020]">
+      <header className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 px-6 py-6 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-10">
+        <span className="inline-flex min-w-0 max-w-full items-center rounded-full bg-[#F0F0F0] px-4 py-2 text-center text-xs text-[#202020] sm:text-sm">
           {when}
         </span>
-        <span className="text-sm font-medium tracking-tight">{event.name}</span>
+        <span className="col-span-2 row-start-2 min-w-0 text-center text-sm font-medium tracking-tight sm:col-span-1 sm:row-start-auto sm:text-left">
+          {event.name}
+        </span>
         <a
           href="#registro"
-          className="inline-flex items-center rounded-full bg-[#202020] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#3a3a3a]"
+          className="col-start-2 row-start-1 inline-flex items-center justify-self-end rounded-full bg-[#202020] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#3a3a3a] sm:col-start-auto sm:row-start-auto"
         >
           Registrarme
         </a>
@@ -104,16 +106,16 @@ export default async function EventLandingPage({
             {event.name}
           </h1>
 
-          <div className="relative w-full">
+          <div className="relative flex min-h-[18rem] w-full items-center justify-center overflow-hidden rounded-[40px] bg-[#F0F0F0] sm:min-h-[30rem]">
             {event.heroImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local asset
               <img
                 src={event.heroImageUrl}
                 alt=""
-                className="h-[22rem] w-full rounded-[40px] object-cover sm:h-[30rem]"
+                className="block h-auto max-h-[42rem] w-full object-contain"
               />
             ) : (
-              <div className="h-[22rem] w-full rounded-[40px] bg-[linear-gradient(135deg,#eef2f6_0%,#f3edf3_50%,#fbeef1_100%)] sm:h-[30rem]" />
+              <div className="absolute inset-0 bg-[linear-gradient(135deg,#eef2f6_0%,#f3edf3_50%,#fbeef1_100%)]" />
             )}
 
             {event.location ? (

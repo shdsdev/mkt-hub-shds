@@ -97,6 +97,23 @@ describe("EventLandingPage", () => {
     expect(mocks.recordEventVisit).toHaveBeenCalledWith("workshop-marketing");
   });
 
+  it("keeps the landing header mobile-safe and contains the invitation image", async () => {
+    mocks.getPublishedEventBySlugPublic.mockResolvedValue({
+      ...publishedEvent,
+      heroImageUrl: "https://example.com/invitation.png",
+    });
+
+    const result = await EventLandingPage({
+      params: makeParams("workshop-marketing"),
+      searchParams: makeSearchParams(),
+    });
+    const rendered = JSON.stringify(result);
+
+    expect(rendered).toContain("grid-cols-[minmax(0,1fr)_auto]");
+    expect(rendered).toContain("object-contain");
+    expect(rendered).not.toContain("object-cover");
+  });
+
   it("still renders the page when recordEventVisit rejects (a visit-count hiccup must never break the landing page)", async () => {
     mocks.getPublishedEventBySlugPublic.mockResolvedValue(publishedEvent);
     mocks.recordEventVisit.mockRejectedValue(new Error("db hiccup"));
