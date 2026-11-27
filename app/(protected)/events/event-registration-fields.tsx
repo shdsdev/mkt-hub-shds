@@ -28,6 +28,16 @@ const COLOR_PICKER_FALLBACKS: Record<string, string> = {
   neutral: "#6b7280",
 };
 
+function occupationIdentifierFromLabel(label: string): string {
+  return label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
 const customFieldTypes: readonly [CustomFieldType, string][] = [
   ["short_text", "Texto corto"],
   ["long_text", "Texto largo"],
@@ -47,6 +57,9 @@ export function EventRegistrationFields({
 }) {
   const [formConfig, setFormConfig] = useState(initialFormConfig);
   const [newFieldType, setNewFieldType] = useState<CustomFieldType>("short_text");
+  const [manualOccupationValues, setManualOccupationValues] = useState(
+    () => new Set(initialFormConfig.occupations.flatMap((occupation, index) => occupation.value === occupationIdentifierFromLabel(occupation.label) ? [] : [index])),
+  );
 
   function updateField(field: RegistrationField, key: "visible" | "required", value: boolean) {
     setFormConfig((current) => ({
@@ -101,6 +114,20 @@ export function EventRegistrationFields({
       ...current,
       occupations: current.occupations.map((occupation, currentIndex) => currentIndex === index ? { ...occupation, ...changes } : occupation),
     }));
+  }
+
+  function updateOccupationLabel(index: number, label: string) {
+    setFormConfig((current) => ({
+      ...current,
+      occupations: current.occupations.map((occupation, currentIndex) => currentIndex === index
+        ? { ...occupation, label, ...(manualOccupationValues.has(index) ? {} : { value: occupationIdentifierFromLabel(label) }) }
+        : occupation),
+    }));
+  }
+
+  function updateOccupationValue(index: number, value: string) {
+    setManualOccupationValues((current) => new Set(current).add(index));
+    updateOccupation(index, { value: occupationIdentifierFromLabel(value) });
   }
 
   function addOccupation() {
@@ -286,12 +313,12 @@ export function EventRegistrationFields({
                 aria-label={`Identificador de ${occupation.label}`}
                 value={occupation.value}
                 disabled={occupation.enabled === false}
-                onChange={(event) => updateOccupation(index, { value: event.target.value })}
+                onChange={(event) => updateOccupationValue(index, event.target.value)}
               />
               <Input
                 aria-label={`Nombre de ${occupation.label}`}
                 value={occupation.label}
-                onChange={(event) => updateOccupation(index, { label: event.target.value })}
+                onChange={(event) => updateOccupationLabel(index, event.target.value)}
               />
               <div className="flex items-center gap-2">
                 <input

@@ -31,6 +31,7 @@ const config: RegistrationFormConfig = {
   occupations: [
     { value: "manufacturer", label: "Fabricante", color: "blue", enabled: true },
     { value: "vip-client", label: "Cliente VIP", color: "yellow", enabled: true },
+    { value: "nueva-categoria", label: "Nueva categoría", color: "neutral", enabled: true },
   ],
   clientBrands: { enabled: false, options: [] },
   interests: { enabled: false, options: [] },
@@ -102,5 +103,26 @@ describe("EventRegistrationFields", () => {
 
     expect(identifier).toHaveProperty("value", "ma");
     expect(document.activeElement).toBe(identifier);
+  });
+
+  it("fills a new identifier from the visible label in lowercase", () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(<form><EventRegistrationFields initialFormConfig={config} /></form>);
+    });
+
+    const label = container.querySelector('input[aria-label="Nombre de Nueva categoría"]') as HTMLInputElement;
+    const identifier = container.querySelector('input[aria-label="Identificador de Nueva categoría"]') as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+
+    act(() => {
+      setter?.call(label, "Arquitecto / Decorador");
+      label.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(identifier).toHaveProperty("value", "arquitecto-decorador");
   });
 });
