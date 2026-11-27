@@ -106,13 +106,13 @@ export default async function EventLandingPage({
             {event.name}
           </h1>
 
-          <div className="relative flex min-h-[18rem] w-full items-center justify-center overflow-hidden rounded-[40px] bg-[#F0F0F0] sm:min-h-[30rem]">
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[40px] bg-[#F0F0F0] sm:aspect-[2.14/1]">
             {event.heroImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local asset
               <img
                 src={event.heroImageUrl}
                 alt=""
-                className="block h-auto max-h-[42rem] w-full object-contain"
+                className="block h-full w-full object-cover object-center sm:object-contain"
               />
             ) : (
               <div className="absolute inset-0 bg-[linear-gradient(135deg,#eef2f6_0%,#f3edf3_50%,#fbeef1_100%)]" />

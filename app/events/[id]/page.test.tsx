@@ -126,8 +126,11 @@ describe("EventLandingPage", () => {
     const rendered = JSON.stringify(result);
 
     expect(rendered).toContain("grid-cols-[minmax(0,1fr)_auto]");
-    expect(rendered).toContain("object-contain");
-    expect(rendered).not.toContain("object-cover");
+    expect(rendered).toContain("aspect-[4/5]");
+    expect(rendered).toContain("sm:aspect-[2.14/1]");
+    expect(rendered).toContain("object-cover");
+    expect(rendered).toContain("object-center");
+    expect(rendered).toContain("sm:object-contain");
   });
 
   it("renders the location below the hero instead of over the invitation", async () => {
