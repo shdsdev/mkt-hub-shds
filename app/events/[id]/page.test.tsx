@@ -65,6 +65,22 @@ function makeSearchParams(entries: Record<string, string | undefined> = {}) {
   return Promise.resolve(entries);
 }
 
+type RenderedElement = {
+  type?: unknown;
+  props?: {
+    className?: string;
+    children?: unknown;
+  };
+};
+
+function collectElements(node: unknown): RenderedElement[] {
+  if (!node || typeof node !== "object") return [];
+  const element = node as RenderedElement;
+  const children = element.props?.children;
+  const nested = Array.isArray(children) ? children.flatMap(collectElements) : collectElements(children);
+  return [element, ...nested];
+}
+
 describe("EventLandingPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -112,6 +128,20 @@ describe("EventLandingPage", () => {
     expect(rendered).toContain("grid-cols-[minmax(0,1fr)_auto]");
     expect(rendered).toContain("object-contain");
     expect(rendered).not.toContain("object-cover");
+  });
+
+  it("renders the location below the hero instead of over the invitation", async () => {
+    mocks.getPublishedEventBySlugPublic.mockResolvedValue(publishedEvent);
+
+    const result = await EventLandingPage({
+      params: makeParams("workshop-marketing"),
+      searchParams: makeSearchParams(),
+    });
+    const elements = collectElements(result);
+    const location = elements.find((element) => element.type === "address");
+
+    expect(location?.props?.className).toContain("w-full");
+    expect(location?.props?.className).not.toContain("absolute");
   });
 
   it("still renders the page when recordEventVisit rejects (a visit-count hiccup must never break the landing page)", async () => {

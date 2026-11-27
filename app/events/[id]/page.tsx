@@ -118,18 +118,18 @@ export default async function EventLandingPage({
               <div className="absolute inset-0 bg-[linear-gradient(135deg,#eef2f6_0%,#f3edf3_50%,#fbeef1_100%)]" />
             )}
 
-            {event.location ? (
-              <div className="absolute left-4 top-4 flex max-w-[16rem] items-center rounded-2xl bg-white px-4 py-3 text-sm text-[#202020] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)] sm:left-8 sm:top-8">
-                {event.location}
-              </div>
-            ) : null}
-
             {event.description ? (
               <div className="absolute bottom-4 right-4 max-w-sm rounded-2xl bg-white px-5 py-4 text-center text-sm leading-relaxed text-[#4a4a4a] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)] sm:bottom-8 sm:right-8">
                 {event.description}
               </div>
             ) : null}
           </div>
+
+          {event.location ? (
+            <address className="mt-4 w-full break-words rounded-2xl bg-white px-5 py-4 text-sm leading-relaxed not-italic text-[#202020] shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)]">
+              {event.location}
+            </address>
+          ) : null}
         </section>
 
         {agenda.length > 0 ? (
