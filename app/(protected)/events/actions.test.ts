@@ -13,6 +13,13 @@ const mocks = vi.hoisted(() => ({
   deleteEvent: vi.fn(),
   setEventWebhookUrl: vi.fn(),
   regenerateEventWebhookSecret: vi.fn(),
+  resolveRegistrationFormConfig: vi.fn((event: { registrationFormConfig?: unknown }) => ({
+    ...(event.registrationFormConfig as Record<string, unknown> | undefined),
+    approvalMode: "manual",
+    fields: { email: { visible: true, required: true } },
+  })),
+  approvePendingRegistrationsForEvent: vi.fn(),
+  listRegistrations: vi.fn(),
   registrationFormConfigSchema: {
     _parse(input: { data: unknown }) {
       return { status: "valid", value: input.data };
@@ -36,6 +43,9 @@ vi.mock("@/modules/events", () => ({
   setEventWebhookUrl: mocks.setEventWebhookUrl,
   regenerateEventWebhookSecret: mocks.regenerateEventWebhookSecret,
   registrationFormConfigSchema: mocks.registrationFormConfigSchema,
+  resolveRegistrationFormConfig: mocks.resolveRegistrationFormConfig,
+  approvePendingRegistrationsForEvent: mocks.approvePendingRegistrationsForEvent,
+  listRegistrations: mocks.listRegistrations,
 }));
 vi.mock("@/modules/notifications", () => ({ validateTelegramTemplate: vi.fn(() => undefined) }));
 vi.mock("@/modules/audit", () => ({ recordAudit: mocks.recordAudit }));

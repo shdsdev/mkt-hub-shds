@@ -10,7 +10,6 @@ import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { validateTelegramTemplate } from "@/modules/notifications";
 import { sendConfirmationEmail } from "@/modules/notifications";
-import { exportQrPng } from "@/modules/qr";
 import { isActive, isAdmin } from "@/modules/users";
 import { eventEmailContentSchema } from "@/lib/events/event-email-content";
 import { recordAudit } from "@/modules/audit";
@@ -327,6 +326,7 @@ export async function updateEventAction(
       reviewedBy: user.id,
     });
     if (nextConfig.fields.email.visible && transition.approvedRegistrationIds.length > 0) {
+      const { exportQrPng } = await import("@/modules/qr");
       const registrations = await listRegistrations(id.data, user.profile.organizationId);
       const approved = registrations.filter((registration) => transition.approvedRegistrationIds.includes(registration.id));
       await Promise.all(approved.flatMap((registration) => registration.attendees.filter((attendee) => attendee.isActive !== false).map(async (attendee) => {
