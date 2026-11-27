@@ -64,6 +64,7 @@ export function RegistrationDetailSheet({
   canManageAttendees,
   canDeleteRegistrations,
   occupationOptions,
+  approvalMode = "manual",
 }: {
   registration: RegistrationWithAttendees;
   statusLabel: string;
@@ -77,6 +78,7 @@ export function RegistrationDetailSheet({
   canManageAttendees: boolean;
   canDeleteRegistrations: boolean;
   occupationOptions?: readonly RegistrationOccupation[];
+  approvalMode?: "manual" | "automatic";
 }) {
   const configuredOccupationOptions = occupationOptions ?? [];
   const [reviewState, reviewAction, reviewPending] = useActionState(updateRegistrationReviewStatusAction, {});
@@ -89,6 +91,7 @@ export function RegistrationDetailSheet({
     registration.firstApprovedAt === null && registration.deletionProtected === false &&
     registration.reviewStatus !== "approved" && registration.status !== "confirmed" && registration.status !== "checked_in" &&
     registration.attendees.every((attendee) => !attendee.checkedInAt);
+  const showReviewActions = !(approvalMode === "automatic" && registration.status === "confirmed");
   useEffect(() => setReviewStatus(registration.reviewStatus), [registration.reviewStatus]);
   useEffect(() => {
     if (!reviewState.success) return;
@@ -122,9 +125,13 @@ export function RegistrationDetailSheet({
               </DialogPrimitive.Description>
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              <Button type="button" size="sm" onClick={() => requestReviewStatus("approved")} disabled={reviewPending || deletePending || reviewStatus === "approved"}>Aprobar</Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => requestReviewStatus("waitlisted")} disabled={reviewPending || deletePending || reviewStatus === "waitlisted"}>Lista de espera</Button>
-              <Button type="button" size="sm" variant="destructive" onClick={() => requestReviewStatus("rejected")} disabled={reviewPending || deletePending || reviewStatus === "rejected"}>Rechazar</Button>
+              {showReviewActions ? (
+                <>
+                  <Button type="button" size="sm" onClick={() => requestReviewStatus("approved")} disabled={reviewPending || deletePending || reviewStatus === "approved"}>Aprobar</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => requestReviewStatus("waitlisted")} disabled={reviewPending || deletePending || reviewStatus === "waitlisted"}>Lista de espera</Button>
+                  <Button type="button" size="sm" variant="destructive" onClick={() => requestReviewStatus("rejected")} disabled={reviewPending || deletePending || reviewStatus === "rejected"}>Rechazar</Button>
+                </>
+              ) : null}
               {canDelete ? (
                 <Button type="button" size="sm" variant="outline" onClick={() => setDeleteOpen(true)} disabled={deletePending || reviewPending}>Eliminar registro</Button>
               ) : null}

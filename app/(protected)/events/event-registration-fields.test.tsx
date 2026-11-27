@@ -27,6 +27,7 @@ const config: RegistrationFormConfig = {
     state: { visible: false, required: false },
   },
   companion: { enabled: true },
+  approvalMode: "manual",
   occupationQuestion: "¿En qué área trabajás?",
   occupations: [
     { value: "manufacturer", label: "Fabricante", color: "blue", enabled: true },
@@ -80,6 +81,8 @@ describe("EventRegistrationFields", () => {
     expect(container.querySelector('input[aria-label="Nombre de Cliente VIP"]')).toHaveProperty("value", "Cliente VIP");
     expect(container.querySelector('input[type="color"][aria-label="Color de Cliente VIP"]')).toBeTruthy();
     expect(container.querySelector('input[aria-label="HEX de Cliente VIP"]')).toHaveProperty("value", "yellow");
+    expect(container.querySelector('[aria-label="Modo de aprobación de registros"]')).toBeTruthy();
+    expect(container.querySelector('input[name="registrationFormConfig"]')).toHaveProperty("value", expect.stringContaining('"approvalMode":"manual"'));
   });
 
   it("keeps the occupation identifier focused while editing multiple characters", () => {

@@ -24,6 +24,20 @@ const customField = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("registration form configuration", () => {
+  it("defaults approval mode to manual and accepts automatic mode", () => {
+    const config = getDefaultRegistrationFormConfig({ collectCompany: false, collectJobTitle: false });
+
+    expect(config.approvalMode).toBe("manual");
+    expect(registrationFormConfigSchema.parse({
+      ...config,
+      approvalMode: "automatic",
+    }).approvalMode).toBe("automatic");
+    expect(registrationFormConfigSchema.parse({
+      ...config,
+      approvalMode: undefined,
+    }).approvalMode).toBe("manual");
+  });
+
   it("uses compatibility defaults for an event without explicit configuration", () => {
     const config = resolveRegistrationFormConfig({
       registrationFormConfig: null,

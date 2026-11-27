@@ -33,6 +33,7 @@ function render(
   overrides: Partial<RegistrationWithAttendees> = {},
   canDeleteRegistrations = true,
   occupationOptions?: readonly RegistrationOccupation[],
+  approvalMode: "manual" | "automatic" = "manual",
 ) {
   const registration = {
     id: "reg-1", eventId: "event-1", organizationId: "org-1", source: "public", status: "pending_review",
@@ -43,13 +44,21 @@ function render(
   } as RegistrationWithAttendees;
   act(() => root.render(<RegistrationDetailSheet registration={registration} statusLabel="Pendiente" open onOpenChange={mocks.close}
     eventId="event-1" eventName="Workshop" collectCompany={false} collectJobTitle={false} phoneRequired={false}
-    canManageAttendees={true} canDeleteRegistrations={canDeleteRegistrations} occupationOptions={occupationOptions} />));
+    canManageAttendees={true} canDeleteRegistrations={canDeleteRegistrations} occupationOptions={occupationOptions} approvalMode={approvalMode} />));
 }
 function button(text: string) {
   return [...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === text);
 }
 
 describe("silent registration deletion", () => {
+  it("hides manual review actions for an automatically approved registration", () => {
+    render({ reviewStatus: "new", status: "confirmed" }, true, undefined, "automatic");
+
+    expect(button("Aprobar")).toBeUndefined();
+    expect(button("Lista de espera")).toBeUndefined();
+    expect(button("Rechazar")).toBeUndefined();
+  });
+
   it("uses the event category label in occupation pills", () => {
     render(
       {

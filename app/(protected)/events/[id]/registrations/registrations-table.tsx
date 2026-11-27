@@ -23,6 +23,7 @@ type Props = {
   canDeleteRegistrations: boolean;
   initialSelectedId?: string;
   occupationOptions?: readonly RegistrationOccupation[];
+  approvalMode?: "manual" | "automatic";
 };
 
 function statusBadgeClass(status: string): string {
@@ -74,6 +75,7 @@ export function RegistrationsTable({
   canDeleteRegistrations,
   initialSelectedId,
   occupationOptions = [],
+  approvalMode = "manual",
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
@@ -327,7 +329,8 @@ export function RegistrationsTable({
           collectJobTitle={collectJobTitle}
            phoneRequired={phoneRequired}
            occupationOptions={occupationOptions}
-          canManageAttendees={canManageAttendees}
+           approvalMode={approvalMode}
+           canManageAttendees={canManageAttendees}
           canDeleteRegistrations={canDeleteRegistrations}
         />
       ) : null}

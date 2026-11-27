@@ -788,7 +788,13 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
         return { ok: false, reason: "event_not_found" };
       }
 
-      let status: "pending_review" | "confirmed" | "waitlisted" = source === "public" ? "pending_review" : "confirmed";
+      const approvalMode = resolveRegistrationFormConfig(event).approvalMode;
+      let status: "pending_review" | "confirmed" | "waitlisted" =
+        source === "public" && approvalMode === "manual" ? "pending_review" : "confirmed";
+      if (source === "public" && approvalMode === "automatic" && event.capacity !== null) {
+        const seatsUsed = await countConfirmedSeats(tx, input.eventId);
+        if (seatsUsed + attendeeInputs.length > event.capacity) status = "pending_review";
+      }
       if (source === "admin_added" && event.capacity !== null) {
         const seatsUsed = await countConfirmedSeats(tx, input.eventId);
         if (seatsUsed + attendeeInputs.length > event.capacity) status = "waitlisted";
@@ -856,6 +862,53 @@ export async function registerForEvent(input: RegisterForEventInput): Promise<Re
     if (isDuplicateEmailViolation(error)) return { ok: false, reason: "duplicate_email" };
     throw error;
   }
+}
+
+export type AutoApprovalResult = {
+  approvedRegistrationIds: string[];
+  pendingCount: number;
+};
+
+export async function approvePendingRegistrationsForEvent(input: {
+  eventId: string;
+  organizationId: string;
+  reviewedBy: string;
+}): Promise<AutoApprovalResult> {
+  const pending = await db
+    .select({ id: eventRegistrations.id })
+    .from(eventRegistrations)
+    .where(and(
+      eq(eventRegistrations.eventId, input.eventId),
+      eq(eventRegistrations.organizationId, input.organizationId),
+      eq(eventRegistrations.status, "pending_review"),
+    ))
+    .orderBy(asc(eventRegistrations.createdAt), asc(eventRegistrations.id));
+
+  const approvedRegistrationIds: string[] = [];
+  for (const registration of pending) {
+    const result = await updateRegistrationReviewStatus({
+      registrationId: registration.id,
+      eventId: input.eventId,
+      organizationId: input.organizationId,
+      reviewStatus: "approved",
+      reviewedBy: input.reviewedBy,
+    });
+    if (result && !("reason" in result)) approvedRegistrationIds.push(result.id);
+  }
+
+  const [remaining] = await db
+    .select({ count: count() })
+    .from(eventRegistrations)
+    .where(and(
+      eq(eventRegistrations.eventId, input.eventId),
+      eq(eventRegistrations.organizationId, input.organizationId),
+      eq(eventRegistrations.status, "pending_review"),
+    ));
+
+  return {
+    approvedRegistrationIds,
+    pendingCount: Number(remaining?.count ?? 0),
+  };
 }
 
 export type AddAttendeeToRegistrationInput = {
@@ -1853,6 +1906,7 @@ export type EventInsights = {
   people: number;
   companies: number | null;
   attendance: number;
+  attendanceRate: number | null;
   conversion: number | null;
   confirmedSeats: number;
   capacity: number | null;
@@ -1926,6 +1980,7 @@ export async function getEventInsights(
     people,
     companies,
     attendance,
+    attendanceRate: confirmedSeats === 0 ? null : attendance / confirmedSeats,
     conversion: event.visitCount === 0 ? null : registrations / event.visitCount,
     confirmedSeats,
     capacity: event.capacity,

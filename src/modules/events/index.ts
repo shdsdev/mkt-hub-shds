@@ -46,6 +46,7 @@ export {
   getPublishedEventBySlugPublic,
   getRegistrationByCancelToken,
   registerForEvent,
+  approvePendingRegistrationsForEvent,
   addAttendeeToRegistration,
   updateAttendee,
   updatePrimaryAttendee,

@@ -188,6 +188,31 @@ export function EventRegistrationFields({
           );
         })}
       </div>
+      <section className="flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-4">
+        <div>
+          <h3 className="text-sm font-semibold">Aprobación de registros</h3>
+          <p className="text-xs text-muted-foreground">Elegí si las solicitudes requieren revisión o se confirman automáticamente.</p>
+        </div>
+        <Select
+          value={formConfig.approvalMode}
+          onValueChange={(value) => {
+            if (value === "manual" || value === "automatic") {
+              setFormConfig((current) => ({ ...current, approvalMode: value }));
+            }
+          }}
+        >
+          <SelectTrigger aria-label="Modo de aprobación de registros" className="w-full sm:w-72">
+            <SelectValue>{formConfig.approvalMode === "automatic" ? "Aprobación automática" : "Aprobación manual"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="manual">Aprobación manual</SelectItem>
+            <SelectItem value="automatic">Aprobación automática</SelectItem>
+          </SelectContent>
+        </Select>
+        {formConfig.approvalMode === "automatic" ? (
+          <p className="text-xs text-muted-foreground">Al guardar, también se procesarán los registros pendientes y se enviarán confirmaciones por correo si el correo está habilitado.</p>
+        ) : null}
+      </section>
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>

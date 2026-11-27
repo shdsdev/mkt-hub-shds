@@ -3,10 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { DEFAULT_EVENT_REMINDER_OFFSET_MINUTES } from "@/lib/events/event-reminder";
 import { parseDateTimeLocal } from "@/lib/events/event-date-time";
+import { env } from "@/lib/env";
+import { resolveEventEmailContent } from "@/lib/events/event-email-content";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/modules/auth";
 import { validateTelegramTemplate } from "@/modules/notifications";
+import { sendConfirmationEmail } from "@/modules/notifications";
+import { exportQrPng } from "@/modules/qr";
 import { isActive, isAdmin } from "@/modules/users";
 import { eventEmailContentSchema } from "@/lib/events/event-email-content";
 import { recordAudit } from "@/modules/audit";
@@ -21,6 +25,9 @@ import {
   setEventWebhookUrl,
   regenerateEventWebhookSecret,
   registrationFormConfigSchema,
+  resolveRegistrationFormConfig,
+  approvePendingRegistrationsForEvent,
+  listRegistrations,
 } from "@/modules/events";
 
 const PERMISSION_ERROR = "No tienes permiso para administrar eventos.";
@@ -310,6 +317,50 @@ export async function updateEventAction(
   });
   if (!result.ok) return { error: result.reason === "not_found" ? NOT_FOUND_ERROR : PERMISSION_ERROR };
 
+  const previousConfig = resolveRegistrationFormConfig(existing);
+  const nextConfig = resolveRegistrationFormConfig(result.event);
+  let approvalSummary = "";
+  if (previousConfig.approvalMode !== "automatic" && nextConfig.approvalMode === "automatic") {
+    const transition = await approvePendingRegistrationsForEvent({
+      eventId: id.data,
+      organizationId: user.profile.organizationId,
+      reviewedBy: user.id,
+    });
+    if (nextConfig.fields.email.visible && transition.approvedRegistrationIds.length > 0) {
+      const registrations = await listRegistrations(id.data, user.profile.organizationId);
+      const approved = registrations.filter((registration) => transition.approvedRegistrationIds.includes(registration.id));
+      await Promise.all(approved.flatMap((registration) => registration.attendees.filter((attendee) => attendee.isActive !== false).map(async (attendee) => {
+        const qrPng = await exportQrPng(attendee.backupCode, {});
+        const sendResult = await sendConfirmationEmail({
+          organizationId: attendee.organizationId,
+          attendeeId: attendee.id,
+          to: attendee.email,
+          attendeeName: attendee.fullName,
+          eventName: result.event.name,
+          backupCode: attendee.backupCode,
+          qrPngBase64: qrPng.toString("base64"),
+          eventStartsAt: result.event.startsAt,
+          eventEndsAt: result.event.endsAt,
+          eventLocation: result.event.location,
+          eventLocationUrl: result.event.locationUrl,
+          manageUrl: `${env.NEXT_PUBLIC_APP_ORIGIN}/events/cancel/${registration.cancelToken}`,
+          emailContent: resolveEventEmailContent(result.event.emailContent),
+          agenda: result.event.agenda,
+        });
+        await recordAudit({
+          organizationId: attendee.organizationId,
+          actorType: "system",
+          eventId: result.event.id,
+          action: sendResult.sent ? "event_send" : "event_send_failed",
+          resourceType: "event_notification",
+          resourceId: attendee.id,
+          after: { kind: "confirmation", recipient: attendee.email, result: sendResult.sent ? "sent" : "failed", origin: "auto_approval" },
+        });
+      })));
+    }
+    approvalSummary = ` Se aprobaron ${transition.approvedRegistrationIds.length} registros; ${transition.pendingCount} quedaron pendientes por cupo.`;
+  }
+
   await recordAudit({
     organizationId: user.profile.organizationId,
     userId: user.id,
@@ -322,7 +373,7 @@ export async function updateEventAction(
   });
   revalidatePath("/events");
   revalidatePath(`/events/${id.data}/edit`);
-  return { success: "Evento actualizado." };
+  return { success: `Evento actualizado.${approvalSummary}` };
 }
 
 export async function saveEventTelegramChatIdAction(

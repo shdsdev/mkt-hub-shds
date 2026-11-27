@@ -159,9 +159,10 @@ export default async function RegistrationsPage({
           reviewStatusLabels={REVIEW_STATUS_LABELS}
           canManageAttendees={canManageAttendees}
           canDeleteRegistrations={isAdmin(user.profile)}
-           initialSelectedId={registrationId}
-           occupationOptions={formConfig.occupations}
-        />
+            initialSelectedId={registrationId}
+            occupationOptions={formConfig.occupations}
+            approvalMode={formConfig.approvalMode}
+         />
       )}
       {sortedRegistrations.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">

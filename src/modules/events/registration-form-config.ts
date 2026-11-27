@@ -9,6 +9,7 @@ export const OCCUPATION_OPTIONS = [
   "installer-technician",
 ] as const;
 export const OCCUPATION_COLORS = ["orange", "blue", "green", "yellow", "red", "neutral"] as const;
+export const REGISTRATION_APPROVAL_MODES = ["manual", "automatic"] as const;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 export const INTEREST_OPTIONS = [
   "battery-motors",
@@ -155,6 +156,7 @@ export const registrationFormConfigSchema = z.object({
     state: visibilitySchema.default({ visible: false, required: false }),
   }),
   companion: z.object({ enabled: z.boolean() }),
+  approvalMode: z.enum(REGISTRATION_APPROVAL_MODES).default("manual"),
   occupationQuestion: z.string().trim().min(1).max(160).default(DEFAULT_OCCUPATION_QUESTION),
   occupations: z.array(configurableOccupationSchema).min(1).max(50).default([...DEFAULT_OCCUPATION_DEFINITIONS]).superRefine((occupations, context) => {
     const values = new Set<string>();
@@ -213,6 +215,7 @@ export function getDefaultRegistrationFormConfig(
       state: { visible: false, required: false },
     },
     companion: { enabled: true },
+    approvalMode: "manual",
     occupationQuestion: DEFAULT_OCCUPATION_QUESTION,
     occupations: [...DEFAULT_OCCUPATION_DEFINITIONS],
     clientBrands: { enabled: false, options: [] },
